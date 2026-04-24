@@ -1,4 +1,4 @@
-package com.proyecta.api_gestion.swagger;
+package com.proyecta.api_gestion.config.openapi;
 
 public final class DashboardSwaggerConstants {
 

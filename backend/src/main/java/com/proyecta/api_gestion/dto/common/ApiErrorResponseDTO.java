@@ -1,24 +1,28 @@
-package com.proyecta.api_gestion.dto.DashboardDto;
+package com.proyecta.api_gestion.dto.common;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
-@Schema(description = "DTO para respuestas de error estandarizadas")
+/**
+ * DTO para respuestas de error estandarizadas.
+ * Se usa como schema en Swagger para los códigos 4xx y 5xx.
+ */
+@Schema(description = "Respuesta de error de la API")
 public class ApiErrorResponseDTO {
 
-    @Schema(description = "Código de estado HTTP")
+    @Schema(description = "Código de estado HTTP", example = "404")
     private int status;
 
-    @Schema(description = "Nombre del error HTTP")
+    @Schema(description = "Nombre del error HTTP", example = "Not Found")
     private String error;
 
-    @Schema(description = "Mensaje detallado del error")
+    @Schema(description = "Mensaje detallado del error", example = "Proyecto no encontrado: IS-PROY-001")
     private String message;
 
-    @Schema(description = "Ruta del endpoint que generó el error")
+    @Schema(description = "Ruta del endpoint que generó el error", example = "/api/proyectos/IS-PROY-001")
     private String path;
 
-    @Schema(description = "Marca de tiempo del error")
+    @Schema(description = "Marca de tiempo del error", example = "2026-04-24T11:51:00")
     private LocalDateTime timestamp;
 
     public ApiErrorResponseDTO() {

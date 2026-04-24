@@ -1,9 +1,11 @@
 package com.proyecta.api_gestion.service.impl;
 
+import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.service.ProyectoService;
+import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -18,17 +20,17 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     @Override
     public List<Proyecto> obtenerProyectosActivosConAvance(BigDecimal minimo) {
+        if (minimo == null || minimo.compareTo(BigDecimal.ZERO) < 0 || minimo.compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalArgumentException("El avance mínimo debe ser un valor entre 0 y 100");
+        }
         return proyectoRepository.buscarProyectosConAvanceMayorA(minimo);
     }
 
     @Override
     public Proyecto obtenerPorId(String id) {
         String idLimpio = id.trim();
-        return proyectoRepository.findById(idLimpio).orElseThrow(() -> {
-            List<Proyecto> todos = proyectoRepository.findAll();
-            System.out.println("LOG: Buscando [" + idLimpio + "]. Proyectos en DB: " +
-                    todos.stream().map(Proyecto::getId).toList());
-            return new RuntimeException("Proyecto no encontrado: " + idLimpio);
-        });
+        return proyectoRepository.findById(idLimpio).orElseThrow(() ->
+            new ResourceNotFoundException("Proyecto no encontrado: " + idLimpio)
+        );
     }
 }

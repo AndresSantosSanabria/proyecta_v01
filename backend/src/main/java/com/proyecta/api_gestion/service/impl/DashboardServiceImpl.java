@@ -1,12 +1,12 @@
-package com.proyecta.api_gestion.service;
+package com.proyecta.api_gestion.service.impl;
 
-import com.proyecta.api_gestion.dto.DashboardDto.DashboardProjectSummaryDTO;
-import com.proyecta.api_gestion.dto.DashboardDto.DashboardSummaryDTO;
+import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
+import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.SystemParameterRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.proyecta.api_gestion.service.interfaces.DashboardService;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,19 +17,22 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
-public class DashboardService {
+public class DashboardServiceImpl implements DashboardService {
 
-    @Autowired
-    private ProyectoRepository proyectoRepository;
+    private final ProyectoRepository proyectoRepository;
+    private final EntregableRepository entregableRepository;
+    private final SystemParameterRepository systemParameterRepository;
+    private static final Logger logger = LoggerFactory.getLogger(DashboardServiceImpl.class);
 
-    @Autowired
-    private EntregableRepository entregableRepository;
+    public DashboardServiceImpl(ProyectoRepository proyectoRepository,
+                                EntregableRepository entregableRepository,
+                                SystemParameterRepository systemParameterRepository) {
+        this.proyectoRepository = proyectoRepository;
+        this.entregableRepository = entregableRepository;
+        this.systemParameterRepository = systemParameterRepository;
+    }
 
-    @Autowired
-    private SystemParameterRepository systemParameterRepository;
-
-    private static final Logger logger = LoggerFactory.getLogger(DashboardService.class);
-
+    @Override
     public DashboardSummaryDTO getSummary() {
         long activos = proyectoRepository.countByEstado(EstadoProyecto.activo);
         long cerrados = proyectoRepository.countByEstado(EstadoProyecto.cerrado);
@@ -38,10 +41,8 @@ public class DashboardService {
         BigDecimal sumaConforme = entregableRepository.sumPonderacionConformeActivos();
         BigDecimal sumaTotal = entregableRepository.sumTotalPonderacionActivos();
 
-        if (sumaConforme == null)
-            sumaConforme = BigDecimal.ZERO;
-        if (sumaTotal == null)
-            sumaTotal = BigDecimal.ZERO;
+        if (sumaConforme == null) sumaConforme = BigDecimal.ZERO;
+        if (sumaTotal == null) sumaTotal = BigDecimal.ZERO;
 
         int avancePromedio = 0;
         if (sumaTotal.compareTo(BigDecimal.ZERO) > 0) {
@@ -53,8 +54,7 @@ public class DashboardService {
 
         // Tendencia basada en cumplimiento de cronograma real
         BigDecimal sumaEsperada = entregableRepository.sumPonderacionEsperadaActivos(hoy);
-        if (sumaEsperada == null)
-            sumaEsperada = BigDecimal.ZERO;
+        if (sumaEsperada == null) sumaEsperada = BigDecimal.ZERO;
 
         String tendencia = "estable";
         if (sumaEsperada.compareTo(BigDecimal.ZERO) > 0) {
@@ -76,7 +76,7 @@ public class DashboardService {
                 })
                 .orElse(7);
 
-        // Entregables próximos a vencer (ventana técnica configurada para el cálculo)
+        // Entregables próximos a vencer
         long proximos = entregableRepository.countProximosActivos(hoy, hoy.plusDays(ventana));
 
         return new DashboardSummaryDTO(
@@ -90,9 +90,9 @@ public class DashboardService {
                 ventana
         );
     }
-    
+
+    @Override
     public List<DashboardProjectSummaryDTO> getProjectSummary() {
-        // Enviamos la fecha actual para que la query calcule qué está atrasado hoy
         return proyectoRepository.getDashboardProjectSummary(LocalDate.now());
     }
 }

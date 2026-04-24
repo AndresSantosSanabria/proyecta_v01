@@ -1,4 +1,4 @@
-package com.proyecta.api_gestion.service;
+package com.proyecta.api_gestion.service.interfaces;
 
 import java.math.BigDecimal;
 

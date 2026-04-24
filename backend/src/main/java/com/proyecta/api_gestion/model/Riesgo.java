@@ -2,17 +2,11 @@ package com.proyecta.api_gestion.model;
 
 import com.proyecta.api_gestion.model.enums.Probabilidad;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "riesgos")
-@Getter
-@Setter
-@NoArgsConstructor
 public class Riesgo {
 
     @Id
@@ -48,9 +42,92 @@ public class Riesgo {
     @JoinColumn(name = "proyecto_id")
     private Proyecto proyecto;
 
+    public Riesgo() {
+    }
+
     @PrePersist
     @PreUpdate
     protected void onUpdate() {
         fechaActualizacion = LocalDateTime.now();
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getCodigo() {
+        return codigo;
+    }
+
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
+    }
+
+    public String getDescripcion() {
+        return descripcion;
+    }
+
+    public void setDescripcion(String descripcion) {
+        this.descripcion = descripcion;
+    }
+
+    public Probabilidad getProbabilidad() {
+        return probabilidad;
+    }
+
+    public void setProbabilidad(Probabilidad probabilidad) {
+        this.probabilidad = probabilidad;
+    }
+
+    public String getImpacto() {
+        return impacto;
+    }
+
+    public void setImpacto(String impacto) {
+        this.impacto = impacto;
+    }
+
+    public String getNivel() {
+        return nivel;
+    }
+
+    public void setNivel(String nivel) {
+        this.nivel = nivel;
+    }
+
+    public String getTratamiento() {
+        return tratamiento;
+    }
+
+    public void setTratamiento(String tratamiento) {
+        this.tratamiento = tratamiento;
+    }
+
+    public Boolean getTratado() {
+        return tratado;
+    }
+
+    public void setTratado(Boolean tratado) {
+        this.tratado = tratado;
+    }
+
+    public LocalDateTime getFechaActualizacion() {
+        return fechaActualizacion;
+    }
+
+    public void setFechaActualizacion(LocalDateTime fechaActualizacion) {
+        this.fechaActualizacion = fechaActualizacion;
+    }
+
+    public Proyecto getProyecto() {
+        return proyecto;
+    }
+
+    public void setProyecto(Proyecto proyecto) {
+        this.proyecto = proyecto;
     }
 }

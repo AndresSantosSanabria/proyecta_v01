@@ -1,13 +1,16 @@
 package com.proyecta.api_gestion.controller;
 
-import com.proyecta.api_gestion.dto.DashboardDto.DashboardProjectSummaryDTO;
-import com.proyecta.api_gestion.dto.DashboardDto.DashboardSummaryDTO;
-import com.proyecta.api_gestion.service.DashboardService;
+import com.proyecta.api_gestion.controller.interfaces.IDashboardController;
+import com.proyecta.api_gestion.dto.common.ApiResponse;
+import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
+import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
+import com.proyecta.api_gestion.service.interfaces.DashboardService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 import java.util.List;
 
 @RestController
@@ -23,14 +26,20 @@ public class DashboardController implements IDashboardController {
 
     @Override
     @GetMapping("/summary")
-    public ResponseEntity<DashboardSummaryDTO> getSummary() {
-        return ResponseEntity.ok(dashboardService.getSummary());
-        }
-    
+    public ResponseEntity<ApiResponse<DashboardSummaryDTO>> getSummary() {
+        DashboardSummaryDTO summary = dashboardService.getSummary();
+        return ResponseEntity.ok(ApiResponse.success(summary, "Resumen ejecutivo obtenido con éxito"));
+    }
+
     @Override
     @GetMapping("/projectSummary")
-    public ResponseEntity<List<DashboardProjectSummaryDTO>> getProjectSummary() {
-        return ResponseEntity.ok(dashboardService.getProjectSummary());
+    public ResponseEntity<ApiResponse<List<DashboardProjectSummaryDTO>>> getProjectSummary() {
+        List<DashboardProjectSummaryDTO> projects = dashboardService.getProjectSummary();
+
+        if (projects.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(projects, "Lista de proyectos obtenida con éxito"));
     }
-    
 }
