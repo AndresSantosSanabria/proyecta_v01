@@ -1,8 +1,6 @@
 package com.proyecta.api_gestion.model;
 
-import com.proyecta.api_gestion.model.enums.Probabilidad;
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -17,29 +15,29 @@ public class Riesgo {
     @Column(length = 10)
     private String codigo;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String descripcion;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    private Probabilidad probabilidad;
+    @Column(nullable = false)
+    private Integer probabilidad; // 1-5
+
+    @Column(nullable = false)
+    private Integer impacto; // 1-5
 
     @Column(length = 20)
-    private String impacto;
-
-    @Column(length = 15)
-    private String nivel;
+    private String nivel; // Calculado: Crítico, Alto, Moderado, Bajo
 
     @Column(columnDefinition = "TEXT")
     private String tratamiento;
 
-    private Boolean tratado = false;
+    @Column(nullable = false)
+    private String estado = "Pendiente"; // Pendiente, Tratado
 
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "proyecto_id")
+    @JoinColumn(name = "proyecto_id", nullable = false)
     private Proyecto proyecto;
 
     public Riesgo() {
@@ -75,19 +73,19 @@ public class Riesgo {
         this.descripcion = descripcion;
     }
 
-    public Probabilidad getProbabilidad() {
+    public Integer getProbabilidad() {
         return probabilidad;
     }
 
-    public void setProbabilidad(Probabilidad probabilidad) {
+    public void setProbabilidad(Integer probabilidad) {
         this.probabilidad = probabilidad;
     }
 
-    public String getImpacto() {
+    public Integer getImpacto() {
         return impacto;
     }
 
-    public void setImpacto(String impacto) {
+    public void setImpacto(Integer impacto) {
         this.impacto = impacto;
     }
 
@@ -107,12 +105,12 @@ public class Riesgo {
         this.tratamiento = tratamiento;
     }
 
-    public Boolean getTratado() {
-        return tratado;
+    public String getEstado() {
+        return estado;
     }
 
-    public void setTratado(Boolean tratado) {
-        this.tratado = tratado;
+    public void setEstado(String estado) {
+        this.estado = estado;
     }
 
     public LocalDateTime getFechaActualizacion() {

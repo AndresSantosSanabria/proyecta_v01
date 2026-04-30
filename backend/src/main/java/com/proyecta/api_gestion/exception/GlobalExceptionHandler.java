@@ -51,8 +51,8 @@ public class GlobalExceptionHandler {
         String details = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ApiErrorResponseDTO(400, "Bad Request",
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(new ApiErrorResponseDTO(422, "Unprocessable Entity",
                         "Validación fallida: " + details, request.getRequestURI()));
     }
 
@@ -279,6 +279,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiErrorResponseDTO(400, "Bad Request",
                         "Validación de parámetros fallida: " + details, request.getRequestURI()));
+    }
+
+    /**
+     * Maneja UnprocessableEntityException personalizada.
+     */
+    @ExceptionHandler(UnprocessableEntityException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleUnprocessableEntity(
+            UnprocessableEntityException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(new ApiErrorResponseDTO(422, "Unprocessable Entity", ex.getMessage(), request.getRequestURI()));
     }
 
     /**

@@ -41,7 +41,7 @@ public class ProjectTimelineController implements IProjectTimelineController {
     }
 
     @Override
-    @PostMapping("/{id}/schedule-file")
+    @PostMapping(value = "/{id}/schedule-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Void>> uploadScheduleFile(
             @PathVariable String id, @RequestParam("file") MultipartFile file) {
         timelineService.uploadScheduleFile(id, file);
