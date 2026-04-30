@@ -4,12 +4,11 @@ import com.proyecta.api_gestion.controller.interfaces.IDashboardController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoSummaryDTO;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
+import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -19,9 +18,11 @@ import java.util.List;
 public class DashboardController implements IDashboardController {
 
     private final DashboardService dashboardService;
+    private final ProyectoAvanceService proyectoAvanceService;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService, ProyectoAvanceService proyectoAvanceService) {
         this.dashboardService = dashboardService;
+        this.proyectoAvanceService = proyectoAvanceService;
     }
 
     @Override
@@ -41,5 +42,12 @@ public class DashboardController implements IDashboardController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(projects, "Lista de proyectos obtenida con éxito"));
+    }
+
+    @Override
+    @GetMapping("/projects/{id}/summary")
+    public ResponseEntity<ApiResponse<ProyectoSummaryDTO>> getProjectSummaryById(@PathVariable String id) {
+        ProyectoSummaryDTO summary = proyectoAvanceService.obtenerResumenProyecto(id);
+        return ResponseEntity.ok(ApiResponse.success(summary, "Resumen del proyecto obtenido con éxito"));
     }
 }

@@ -8,7 +8,7 @@ package com.proyecta.api_gestion.dto.dashboard;
 public interface ProyectoAvanceDetalleDTO {
 
     /** Avance total calculado del proyecto (0-100) */
-    Integer getAvanceTotal();
+    java.math.BigDecimal getAvanceTotal();
 
     /** Cantidad de entregables en estado conforme */
     Long getEntregablesConformes();

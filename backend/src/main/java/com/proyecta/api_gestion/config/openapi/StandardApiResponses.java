@@ -24,8 +24,8 @@ import java.lang.annotation.*;
             schema = @Schema(implementation = ApiErrorResponseDTO.class),
             examples = @ExampleObject(
                 name = "400 Bad Request",
-                summary = "Parámetros inválidos",
-                value = "{\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"El avance mínimo debe ser un valor entre 0 y 100\",\n  \"path\": \"/api/proyectos/activos-con-avance\",\n  \"timestamp\": \"2026-04-24T12:00:00\"\n}"
+                summary = "Error de validación",
+                value = DashboardSwaggerConstants.EXAMPLE_400
             )
         )
     ),
@@ -37,8 +37,8 @@ import java.lang.annotation.*;
             schema = @Schema(implementation = ApiErrorResponseDTO.class),
             examples = @ExampleObject(
                 name = "401 Unauthorized",
-                summary = "Token ausente o inválido",
-                value = "{\n  \"status\": 401,\n  \"error\": \"Unauthorized\",\n  \"message\": \"Token de autenticación ausente o inválido\",\n  \"path\": \"/api/dashboard/summary\",\n  \"timestamp\": \"2026-04-24T12:00:00\"\n}"
+                summary = "Error de autenticación",
+                value = DashboardSwaggerConstants.EXAMPLE_401
             )
         )
     ),
@@ -50,8 +50,8 @@ import java.lang.annotation.*;
             schema = @Schema(implementation = ApiErrorResponseDTO.class),
             examples = @ExampleObject(
                 name = "403 Forbidden",
-                summary = "Sin permisos",
-                value = "{\n  \"status\": 403,\n  \"error\": \"Forbidden\",\n  \"message\": \"No tiene permisos para acceder a este recurso\",\n  \"path\": \"/api/dashboard/summary\",\n  \"timestamp\": \"2026-04-24T12:00:00\"\n}"
+                summary = "Error de autorización",
+                value = DashboardSwaggerConstants.EXAMPLE_403
             )
         )
     ),
@@ -64,7 +64,7 @@ import java.lang.annotation.*;
             examples = @ExampleObject(
                 name = "404 Not Found",
                 summary = "Recurso no encontrado",
-                value = "{\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Proyecto no encontrado: IS-PROY-001\",\n  \"path\": \"/api/proyectos/IS-PROY-001\",\n  \"timestamp\": \"2026-04-24T12:00:00\"\n}"
+                value = DashboardSwaggerConstants.EXAMPLE_404
             )
         )
     ),
@@ -76,8 +76,8 @@ import java.lang.annotation.*;
             schema = @Schema(implementation = ApiErrorResponseDTO.class),
             examples = @ExampleObject(
                 name = "500 Internal Server Error",
-                summary = "Error inesperado del servidor",
-                value = "{\n  \"status\": 500,\n  \"error\": \"Internal Server Error\",\n  \"message\": \"Ha ocurrido un error inesperado al procesar la solicitud\",\n  \"path\": \"/api/dashboard/summary\",\n  \"timestamp\": \"2026-04-24T12:00:00\"\n}"
+                summary = "Error interno",
+                value = DashboardSwaggerConstants.EXAMPLE_500
             )
         )
     ),
@@ -89,8 +89,8 @@ import java.lang.annotation.*;
             schema = @Schema(implementation = ApiErrorResponseDTO.class),
             examples = @ExampleObject(
                 name = "503 Service Unavailable",
-                summary = "Base de datos no disponible",
-                value = "{\n  \"status\": 503,\n  \"error\": \"Service Unavailable\",\n  \"message\": \"Servicio temporalmente no disponible (Base de datos o IO)\",\n  \"path\": \"/api/dashboard/summary\",\n  \"timestamp\": \"2026-04-24T12:00:00\"\n}"
+                summary = "Servicio no disponible",
+                value = DashboardSwaggerConstants.EXAMPLE_503
             )
         )
     )
