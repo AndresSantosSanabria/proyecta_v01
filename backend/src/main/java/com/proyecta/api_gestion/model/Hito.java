@@ -26,6 +26,9 @@ public class Hito {
     @Column(name = "avance_calculado", precision = 5, scale = 2)
     private BigDecimal avanceCalculado = BigDecimal.ZERO;
 
+    @Column(name = "estado_revision", length = 30)
+    private String estadoRevision; // 'PENDIENTE', 'APROBADO', 'RECHAZADO'
+
     @Column(name = "fecha_creacion", updatable = false)
     private LocalDateTime fechaCreacion;
 
@@ -83,6 +86,14 @@ public class Hito {
 
     public void setAvanceCalculado(BigDecimal avanceCalculado) {
         this.avanceCalculado = avanceCalculado;
+    }
+
+    public String getEstadoRevision() {
+        return estadoRevision;
+    }
+
+    public void setEstadoRevision(String estadoRevision) {
+        this.estadoRevision = estadoRevision;
     }
 
     public LocalDateTime getFechaCreacion() {
