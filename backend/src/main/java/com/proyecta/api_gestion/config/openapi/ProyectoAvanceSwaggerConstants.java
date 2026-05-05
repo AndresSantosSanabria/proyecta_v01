@@ -17,12 +17,14 @@ public final class ProyectoAvanceSwaggerConstants {
     // --- Operación GET /{proyectoId}/avance ---
     public static final String SUMMARY_GET_AVANCE     = "Obtener avance detallado por proyecto";
     public static final String DESCRIPTION_GET_AVANCE =
-            "Ejecuta un análisis completo del proyecto indicado y retorna:\n"
-            + "- **Avance total** calculado (0-100 %)\n"
-            + "- **Entregables conformes** vs total (label 'conformes/total')\n"
-            + "- **Entregables atrasados** (no conformes con fecha_entrega < hoy)\n"
-            + "- **Próximos a vencer** (pendientes en la ventana configurada en `system_parameters`)\n\n"
-            + "Retorna **404** si el proyectoId no existe en la base de datos.";
+            "Obtener el avance detallado del proyecto con árbol Fases > Hitos > Entregables. "
+            + "El avance es calculado automáticamente a partir del estado de los entregables.";
+
+    // --- Operación PATCH /{proyectoId}/avance/entregables/{entregableId} ---
+    public static final String SUMMARY_PATCH_AVANCE     = "Marcar entregable como conforme";
+    public static final String DESCRIPTION_PATCH_AVANCE = 
+            "Marca un entregable como 'A conformidad' y permite subir el archivo PDF de evidencia. "
+            + "El avance total del proyecto se recalcula automáticamente.";
 
     // --- Respuestas ---
     public static final String RESPONSE_200_DESC = "Métricas de avance obtenidas correctamente";

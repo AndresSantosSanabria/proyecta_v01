@@ -1,10 +1,13 @@
 package com.proyecta.api_gestion.model;
 
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "proyecto")
@@ -13,7 +16,7 @@ public class Proyecto {
 
     @Id
     @Column(name = "proyecto_id", length = 30, nullable = false, updatable = false)
-    private String id; // Formato IS-PROY-CUN-NNN. PK manual, NO AUTOCOMPLETADA.
+    private String id; // Formato IS-PROY-CUN-NNN.
 
     @Column(nullable = false, length = 300)
     private String nombre;
@@ -21,60 +24,69 @@ public class Proyecto {
     @Column(length = 200)
     private String dependencia;
 
+    @Column(name = "director_nombre", length = 120)
+    private String director;
+
+    @Column(name = "director_correo", length = 200)
+    private String correoDirector;
+
     @Column(name = "objetivo_general", columnDefinition = "TEXT")
     private String objetivoGeneral;
 
-    @Column(name = "es_peti")
-    private Boolean esPeti = false;
-
-    @Column(name = "estrategia_peti", length = 80)
-    private String estrategiaPeti;
-
-    @Column(name = "vigencia_peti", length = 20)
-    private String vigenciaPeti;
+    @OneToMany(mappedBy = "proyecto", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ObjetivoEspecifico> objetivosEspecificos = new ArrayList<>();
 
     @Column(name = "fecha_inicio")
     private LocalDate fechaInicio;
 
-    @Column(name = "fecha_cierre")
-    private LocalDate fechaCierre;
+    @Column(name = "es_peti")
+    private Boolean peti = false;
 
-    @Column(name = "plan_comunicaciones_pdf", length = 300)
+    @Column(name = "vigencia_peti", length = 20)
+    private String vigenciaPeti;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estrategia_peti", length = 80)
+    private EstrategiaPeti estrategiaPeti;
+
+    @Column(name = "tiene_plan_comunicaciones")
+    private Boolean tienePlanComunicaciones = false;
+
+    @Column(name = "cronograma_pdf", length = 255)
+    private String cronogramaPdf;
+
+    @Column(name = "acta_constitucion_pdf", length = 255)
+    private String actaConstitucionPdf;
+
+    @Column(name = "plan_comunicaciones_pdf", length = 255)
     private String planComunicacionesPdf;
+
+    @Column(name = "viabilizacion_pdf", length = 255)
+    private String viabilizacionPdf;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private EstadoProyecto estado = EstadoProyecto.activo;
+    private EstadoProyecto estado = EstadoProyecto.ACTIVO;
 
-    private Boolean cerrado = false;
+    @Column(name = "avance_total", precision = 5, scale = 2)
+    private BigDecimal avanceTotal = BigDecimal.ZERO;
 
-    @Column(name = "viabilizacion_pdf", length = 300)
-    private String viabilizacionPdf;
+    @Embedded
+    private Furag furag;
 
-    @Column(name = "acta_constitucion_pdf", length = 300)
-    private String actaConstitucionPdf;
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "patrocinador_id")
+    private Patrocinador patrocinador;
 
-    @Column(name = "cronograma_pdf", length = 300)
-    private String cronogramaPdf;
+    @ElementCollection
+    @CollectionTable(name = "proyecto_equipo", joinColumns = @JoinColumn(name = "proyecto_id"))
+    private List<MiembroEquipo> equipoTrabajo = new ArrayList<>();
 
-    @Column(name = "avance_calculado", precision = 5, scale = 2)
-    private BigDecimal avanceCalculado = BigDecimal.ZERO;
+    @OneToMany(mappedBy = "proyecto", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Fase> fases = new ArrayList<>();
 
     @Column(name = "fecha_registro", updatable = false)
     private LocalDateTime fechaRegistro;
-
-    // Relaciones LAZY para prevenir N+1 y mejorar rendimiento
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "gestor_id")
-    private Usuario gestor;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "director_id")
-    private Usuario director;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "patrocinador_id")
-    private Patrocinador patrocinador;
 
     public Proyecto() {
     }
@@ -87,163 +99,72 @@ public class Proyecto {
     }
 
     // Manual Getters and Setters
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getDependencia() { return dependencia; }
+    public void setDependencia(String dependencia) { this.dependencia = dependencia; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getDirector() { return director; }
+    public void setDirector(String director) { this.director = director; }
 
-    public String getDependencia() {
-        return dependencia;
-    }
+    public String getCorreoDirector() { return correoDirector; }
+    public void setCorreoDirector(String correoDirector) { this.correoDirector = correoDirector; }
 
-    public void setDependencia(String dependencia) {
-        this.dependencia = dependencia;
-    }
+    public String getObjetivoGeneral() { return objetivoGeneral; }
+    public void setObjetivoGeneral(String objetivoGeneral) { this.objetivoGeneral = objetivoGeneral; }
 
-    public String getObjetivoGeneral() {
-        return objetivoGeneral;
-    }
+    public List<ObjetivoEspecifico> getObjetivosEspecificos() { return objetivosEspecificos; }
+    public void setObjetivosEspecificos(List<ObjetivoEspecifico> objetivosEspecificos) { this.objetivosEspecificos = objetivosEspecificos; }
 
-    public void setObjetivoGeneral(String objetivoGeneral) {
-        this.objetivoGeneral = objetivoGeneral;
-    }
+    public LocalDate getFechaInicio() { return fechaInicio; }
+    public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
 
-    public Boolean getEsPeti() {
-        return esPeti;
-    }
+    public Boolean getPeti() { return peti; }
+    public void setPeti(Boolean peti) { this.peti = peti; }
 
-    public void setEsPeti(Boolean esPeti) {
-        this.esPeti = esPeti;
-    }
+    public String getVigenciaPeti() { return vigenciaPeti; }
+    public void setVigenciaPeti(String vigenciaPeti) { this.vigenciaPeti = vigenciaPeti; }
 
-    public String getEstrategiaPeti() {
-        return estrategiaPeti;
-    }
+    public EstrategiaPeti getEstrategiaPeti() { return estrategiaPeti; }
+    public void setEstrategiaPeti(EstrategiaPeti estrategiaPeti) { this.estrategiaPeti = estrategiaPeti; }
 
-    public void setEstrategiaPeti(String estrategiaPeti) {
-        this.estrategiaPeti = estrategiaPeti;
-    }
+    public Boolean getTienePlanComunicaciones() { return tienePlanComunicaciones; }
+    public void setTienePlanComunicaciones(Boolean tienePlanComunicaciones) { this.tienePlanComunicaciones = tienePlanComunicaciones; }
 
-    public String getVigenciaPeti() {
-        return vigenciaPeti;
-    }
+    public String getCronogramaPdf() { return cronogramaPdf; }
+    public void setCronogramaPdf(String cronogramaPdf) { this.cronogramaPdf = cronogramaPdf; }
 
-    public void setVigenciaPeti(String vigenciaPeti) {
-        this.vigenciaPeti = vigenciaPeti;
-    }
+    public String getActaConstitucionPdf() { return actaConstitucionPdf; }
+    public void setActaConstitucionPdf(String actaConstitucionPdf) { this.actaConstitucionPdf = actaConstitucionPdf; }
 
-    public LocalDate getFechaInicio() {
-        return fechaInicio;
-    }
+    public String getPlanComunicacionesPdf() { return planComunicacionesPdf; }
+    public void setPlanComunicacionesPdf(String planComunicacionesPdf) { this.planComunicacionesPdf = planComunicacionesPdf; }
 
-    public void setFechaInicio(LocalDate fechaInicio) {
-        this.fechaInicio = fechaInicio;
-    }
+    public String getViabilizacionPdf() { return viabilizacionPdf; }
+    public void setViabilizacionPdf(String viabilizacionPdf) { this.viabilizacionPdf = viabilizacionPdf; }
 
-    public LocalDate getFechaCierre() {
-        return fechaCierre;
-    }
+    public EstadoProyecto getEstado() { return estado; }
+    public void setEstado(EstadoProyecto estado) { this.estado = estado; }
 
-    public void setFechaCierre(LocalDate fechaCierre) {
-        this.fechaCierre = fechaCierre;
-    }
+    public BigDecimal getAvanceTotal() { return avanceTotal; }
+    public void setAvanceTotal(BigDecimal avanceTotal) { this.avanceTotal = avanceTotal; }
 
-    public String getPlanComunicacionesPdf() {
-        return planComunicacionesPdf;
-    }
+    public Furag getFurag() { return furag; }
+    public void setFurag(Furag furag) { this.furag = furag; }
 
-    public void setPlanComunicacionesPdf(String planComunicacionesPdf) {
-        this.planComunicacionesPdf = planComunicacionesPdf;
-    }
+    public Patrocinador getPatrocinador() { return patrocinador; }
+    public void setPatrocinador(Patrocinador patrocinador) { this.patrocinador = patrocinador; }
 
-    public EstadoProyecto getEstado() {
-        return estado;
-    }
+    public List<MiembroEquipo> getEquipoTrabajo() { return equipoTrabajo; }
+    public void setEquipoTrabajo(List<MiembroEquipo> equipoTrabajo) { this.equipoTrabajo = equipoTrabajo; }
 
-    public void setEstado(EstadoProyecto estado) {
-        this.estado = estado;
-    }
+    public List<Fase> getFases() { return fases; }
+    public void setFases(List<Fase> fases) { this.fases = fases; }
 
-    public Boolean getCerrado() {
-        return cerrado;
-    }
-
-    public void setCerrado(Boolean cerrado) {
-        this.cerrado = cerrado;
-    }
-
-    public String getViabilizacionPdf() {
-        return viabilizacionPdf;
-    }
-
-    public void setViabilizacionPdf(String viabilizacionPdf) {
-        this.viabilizacionPdf = viabilizacionPdf;
-    }
-
-    public String getActaConstitucionPdf() {
-        return actaConstitucionPdf;
-    }
-
-    public void setActaConstitucionPdf(String actaConstitucionPdf) {
-        this.actaConstitucionPdf = actaConstitucionPdf;
-    }
-
-    public String getCronogramaPdf() {
-        return cronogramaPdf;
-    }
-
-    public void setCronogramaPdf(String cronogramaPdf) {
-        this.cronogramaPdf = cronogramaPdf;
-    }
-
-    public BigDecimal getAvanceCalculado() {
-        return avanceCalculado;
-    }
-
-    public void setAvanceCalculado(BigDecimal avanceCalculado) {
-        this.avanceCalculado = avanceCalculado;
-    }
-
-    public LocalDateTime getFechaRegistro() {
-        return fechaRegistro;
-    }
-
-    public void setFechaRegistro(LocalDateTime fechaRegistro) {
-        this.fechaRegistro = fechaRegistro;
-    }
-
-    public Usuario getGestor() {
-        return gestor;
-    }
-
-    public void setGestor(Usuario gestor) {
-        this.gestor = gestor;
-    }
-
-    public Usuario getDirector() {
-        return director;
-    }
-
-    public void setDirector(Usuario director) {
-        this.director = director;
-    }
-
-    public Patrocinador getPatrocinador() {
-        return patrocinador;
-    }
-
-    public void setPatrocinador(Patrocinador patrocinador) {
-        this.patrocinador = patrocinador;
-    }
+    public LocalDateTime getFechaRegistro() { return fechaRegistro; }
+    public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
 }

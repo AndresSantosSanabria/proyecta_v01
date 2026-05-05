@@ -16,10 +16,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
-/**
- * Implementación desacoplada de la lógica de cálculo de avance.
- * Aplica la cadena Entregable → Hito → Fase → Proyecto de forma recursiva.
- */
 @Service
 public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
 
@@ -44,16 +40,15 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new RuntimeException("Proyecto no encontrado: " + proyectoId));
 
-        List<Fase> fases = faseRepository.findByProyectoIdOrderByNumeroAsc(proyectoId);
+        List<Fase> fases = faseRepository.findByProyectoId(proyectoId);
 
-        // Avance del proyecto = Σ (avance_fase * ponderacion_fase / 100)
         BigDecimal totalAvance = fases.stream()
                 .map(f -> f.getAvanceCalculado()
                         .multiply(f.getPonderacion())
                         .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        proyecto.setAvanceCalculado(totalAvance);
+        proyecto.setAvanceTotal(totalAvance);
         proyectoRepository.save(proyecto);
 
         return totalAvance;
@@ -65,9 +60,8 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         Fase fase = faseRepository.findById(faseId)
                 .orElseThrow(() -> new RuntimeException("Fase no encontrada: " + faseId));
 
-        List<Hito> hitos = hitoRepository.findByFaseIdOrderByNumeroAsc(faseId);
+        List<Hito> hitos = hitoRepository.findByFaseId(faseId);
 
-        // Avance de la fase = Σ (avance_hito * ponderacion_hito / 100)
         BigDecimal totalAvance = hitos.stream()
                 .map(h -> h.getAvanceCalculado()
                         .multiply(h.getPonderacion())
@@ -77,7 +71,6 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         fase.setAvanceCalculado(totalAvance);
         faseRepository.save(fase);
 
-        // Propagación hacia arriba: recalcular el proyecto padre
         if (fase.getProyecto() != null) {
             calcularYActualizarAvanceProyecto(fase.getProyecto().getId());
         }
@@ -91,9 +84,8 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         Hito hito = hitoRepository.findById(hitoId)
                 .orElseThrow(() -> new RuntimeException("Hito no encontrado: " + hitoId));
 
-        List<Entregable> entregables = entregableRepository.findByHitoIdOrderByNumeroAsc(hitoId);
+        List<Entregable> entregables = entregableRepository.findByHitoId(hitoId);
 
-        // Avance del hito = Σ ponderaciones de entregables conformes
         BigDecimal totalAvance = entregables.stream()
                 .filter(Entregable::getConforme)
                 .map(Entregable::getPonderacion)
@@ -102,7 +94,6 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         hito.setAvanceCalculado(totalAvance);
         hitoRepository.save(hito);
 
-        // Propagación hacia arriba: recalcular la fase padre
         if (hito.getFase() != null) {
             calcularYActualizarAvanceFase(hito.getFase().getId());
         }

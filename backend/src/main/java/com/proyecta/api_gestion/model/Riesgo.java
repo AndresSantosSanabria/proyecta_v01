@@ -2,6 +2,10 @@ package com.proyecta.api_gestion.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import com.proyecta.api_gestion.model.enums.Impacto;
+import com.proyecta.api_gestion.model.enums.Probabilidad;
+import com.proyecta.api_gestion.model.enums.NivelRiesgo;
+import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 
 @Entity
 @Table(name = "riesgos")
@@ -18,20 +22,24 @@ public class Riesgo {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String descripcion;
 
-    @Column(nullable = false)
-    private Integer probabilidad; // 1-5
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Probabilidad probabilidad;
 
-    @Column(nullable = false)
-    private Integer impacto; // 1-5
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Impacto impacto;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String nivel; // Calculado: Crítico, Alto, Moderado, Bajo
+    private NivelRiesgo nivel;
 
     @Column(columnDefinition = "TEXT")
     private String tratamiento;
 
-    @Column(nullable = false)
-    private String estado = "Pendiente"; // Pendiente, Tratado
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EstadoRiesgo estado = EstadoRiesgo.PENDIENTE;
 
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
@@ -73,27 +81,27 @@ public class Riesgo {
         this.descripcion = descripcion;
     }
 
-    public Integer getProbabilidad() {
+    public Probabilidad getProbabilidad() {
         return probabilidad;
     }
 
-    public void setProbabilidad(Integer probabilidad) {
+    public void setProbabilidad(Probabilidad probabilidad) {
         this.probabilidad = probabilidad;
     }
 
-    public Integer getImpacto() {
+    public Impacto getImpacto() {
         return impacto;
     }
 
-    public void setImpacto(Integer impacto) {
+    public void setImpacto(Impacto impacto) {
         this.impacto = impacto;
     }
 
-    public String getNivel() {
+    public NivelRiesgo getNivel() {
         return nivel;
     }
 
-    public void setNivel(String nivel) {
+    public void setNivel(NivelRiesgo nivel) {
         this.nivel = nivel;
     }
 
@@ -105,11 +113,11 @@ public class Riesgo {
         this.tratamiento = tratamiento;
     }
 
-    public String getEstado() {
+    public EstadoRiesgo getEstado() {
         return estado;
     }
 
-    public void setEstado(String estado) {
+    public void setEstado(EstadoRiesgo estado) {
         this.estado = estado;
     }
 

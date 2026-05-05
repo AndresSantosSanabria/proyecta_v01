@@ -1,16 +1,14 @@
 package com.proyecta.api_gestion.service.interfaces;
 
-import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
-import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
-import com.proyecta.api_gestion.model.Proyecto;
-
-import java.math.BigDecimal;
-import java.util.List;
+import com.proyecta.api_gestion.dto.proyecto.*;
+import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface ProyectoService {
-    List<Proyecto> obtenerProyectosActivosConAvance(BigDecimal minimo);
-    Proyecto obtenerPorId(String id);
-    Proyecto crearProyecto(ProyectoCreateDTO dto);
-    Proyecto actualizarProyecto(String id, ProyectoUpdateDTO dto);
-    void eliminarProyecto(String id);
+    Page<ProyectoListDTO> listarProyectos(String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti, Pageable pageable);
+    ProyectoResponseDTO obtenerPorId(String id);
+    ProyectoCreatedDTO crearProyecto(ProyectoCreateDTO dto);
+    ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto);
+    DashboardDTO obtenerDashboard();
 }

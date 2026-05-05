@@ -42,7 +42,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 
-        List<Fase> fases = faseRepository.findByProyectoIdOrderByNumeroAsc(proyectoId);
+        List<Fase> fases = faseRepository.findByProyectoId(proyectoId);
         List<FaseHierarchyDTO> fasesDTO = new ArrayList<>();
 
         for (Fase fase : fases) {
@@ -54,7 +54,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private FaseHierarchyDTO buildFaseDTO(Fase fase) {
-        List<Hito> hitos = hitoRepository.findByFaseIdOrderByNumeroAsc(fase.getId());
+        List<Hito> hitos = hitoRepository.findByFaseId(fase.getId());
         List<HitoHierarchyDTO> hitosDTO = new ArrayList<>();
 
         for (Hito hito : hitos) {
@@ -64,8 +64,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
         return new FaseHierarchyDTO(
                 fase.getId(),
-                fase.getNumero(),
-                fase.getDescripcion(),
+                null, // numero field removed from model
+                fase.getNombre(),
                 fase.getPonderacion(),
                 fase.getAvanceCalculado(),
                 hitosDTO
@@ -73,7 +73,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private HitoHierarchyDTO buildHitoDTO(Hito hito) {
-        List<Entregable> entregables = entregableRepository.findByHitoIdOrderByNumeroAsc(hito.getId());
+        List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId());
         List<EntregableHierarchyDTO> entregablesDTO = new ArrayList<>();
 
         for (Entregable entregable : entregables) {
@@ -83,8 +83,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
         return new HitoHierarchyDTO(
                 hito.getId(),
-                hito.getNumero(),
-                hito.getDescripcion(),
+                null, // numero field removed from model
+                hito.getNombre(),
                 hito.getPonderacion(),
                 hito.getAvanceCalculado(),
                 entregablesDTO
@@ -93,14 +93,14 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private EntregableHierarchyDTO buildEntregableDTO(Entregable entregable) {
         LocalDate hoy = LocalDate.now();
-        LocalDate fechaEntrega = entregable.getFechaEntrega();
+        LocalDate fechaEntrega = entregable.getFechaLimite();
 
         String estado = calcularEstado(entregable, hoy, fechaEntrega);
         Integer diasDiferencia = calcularDiasDiferencia(hoy, fechaEntrega);
 
         return new EntregableHierarchyDTO(
                 entregable.getId(),
-                entregable.getNumero(),
+                null, // numero field removed from model
                 entregable.getNombre(),
                 entregable.getPonderacion(),
                 entregable.getConforme(),

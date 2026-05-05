@@ -1,5 +1,5 @@
 package com.proyecta.api_gestion.model.enums;
 
 public enum EstadoProyecto {
-    activo, cerrado
+    ACTIVO, CON_RETRASOS, CERRADO, EN_REVISION
 }

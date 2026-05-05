@@ -1,15 +1,13 @@
 package com.proyecta.api_gestion.service;
 
-import com.proyecta.api_gestion.dto.risk.RiesgoCreateDTO;
+import com.proyecta.api_gestion.dto.risk.RiesgoCreatedResponseDTO;
+import com.proyecta.api_gestion.dto.risk.RiesgoListResponseDTO;
+import com.proyecta.api_gestion.dto.risk.RiesgoRequestDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
-import com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO;
-import com.proyecta.api_gestion.dto.risk.RiesgoUpdateDTO;
-
-import java.util.List;
 
 public interface IRiesgoService {
-    List<RiesgoResponseDTO> getRisksByProject(String projectId);
-    RiesgoResponseDTO createRisk(RiesgoCreateDTO createDto);
-    RiesgoResponseDTO updateRisk(RiesgoUpdateDTO updateDto);
-    RiesgoResponseDTO treatRisk(RiesgoTratamientoDTO treatmentDto);
+    RiesgoListResponseDTO getRisksByProject(String projectId);
+    RiesgoCreatedResponseDTO createRisk(String projectId, RiesgoRequestDTO requestDto);
+    RiesgoResponseDTO updateRisk(String projectId, Integer riesgoId, RiesgoRequestDTO requestDto);
+    void deleteRisk(String projectId, Integer riesgoId);
 }

@@ -2,7 +2,6 @@ package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.SystemParameterRepository;
@@ -25,8 +24,8 @@ public class DashboardServiceImpl implements DashboardService {
     private static final Logger logger = LoggerFactory.getLogger(DashboardServiceImpl.class);
 
     public DashboardServiceImpl(ProyectoRepository proyectoRepository,
-                                EntregableRepository entregableRepository,
-                                SystemParameterRepository systemParameterRepository) {
+            EntregableRepository entregableRepository,
+            SystemParameterRepository systemParameterRepository) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.systemParameterRepository = systemParameterRepository;
@@ -34,15 +33,17 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public DashboardSummaryDTO getSummary() {
-        long activos = proyectoRepository.countByEstado(EstadoProyecto.activo);
-        long cerrados = proyectoRepository.countByEstado(EstadoProyecto.cerrado);
-        long total = activos + cerrados;
+        long activos = proyectoRepository.countActivos();
+        long cerrados = proyectoRepository.countCerrados();
+        long total = proyectoRepository.countTotal();
 
         BigDecimal sumaConforme = entregableRepository.sumPonderacionConformeActivos();
         BigDecimal sumaTotal = entregableRepository.sumTotalPonderacionActivos();
 
-        if (sumaConforme == null) sumaConforme = BigDecimal.ZERO;
-        if (sumaTotal == null) sumaTotal = BigDecimal.ZERO;
+        if (sumaConforme == null)
+            sumaConforme = BigDecimal.ZERO;
+        if (sumaTotal == null)
+            sumaTotal = BigDecimal.ZERO;
 
         int avancePromedio = 0;
         if (sumaTotal.compareTo(BigDecimal.ZERO) > 0) {
@@ -52,19 +53,17 @@ public class DashboardServiceImpl implements DashboardService {
 
         LocalDate hoy = LocalDate.now();
 
-        // Tendencia basada en cumplimiento de cronograma real
         BigDecimal sumaEsperada = entregableRepository.sumPonderacionEsperadaActivos(hoy);
-        if (sumaEsperada == null) sumaEsperada = BigDecimal.ZERO;
+        if (sumaEsperada == null)
+            sumaEsperada = BigDecimal.ZERO;
 
         String tendencia = "estable";
         if (sumaEsperada.compareTo(BigDecimal.ZERO) > 0) {
             tendencia = (sumaConforme.compareTo(sumaEsperada) >= 0) ? "positiva" : "negativa";
         }
 
-        // Total de entregables atrasados en toda la plataforma
         long totalAtrasados = entregableRepository.countAtrasadosActivos(hoy);
 
-        // Obtener ventana de vencimiento desde BD o usar default
         int ventana = systemParameterRepository.findByKey("dias_alerta_vencimiento")
                 .map(p -> {
                     try {
@@ -76,7 +75,6 @@ public class DashboardServiceImpl implements DashboardService {
                 })
                 .orElse(7);
 
-        // Entregables próximos a vencer
         long proximos = entregableRepository.countProximosActivos(hoy, hoy.plusDays(ventana));
 
         return new DashboardSummaryDTO(
@@ -87,8 +85,7 @@ public class DashboardServiceImpl implements DashboardService {
                 tendencia,
                 totalAtrasados,
                 proximos,
-                ventana
-        );
+                ventana);
     }
 
     @Override

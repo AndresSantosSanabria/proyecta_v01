@@ -2,13 +2,17 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.controller.interfaces.IAvanceProyectoController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.dashboard.ProyectoAvanceDetalleDTO;
+import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
+import com.proyecta.api_gestion.dto.avance.EntregableConformidadResponseDTO;
 import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
+import java.time.LocalDate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/proyectos")
+@RequestMapping("/api/v1/proyectos")
 @CrossOrigin(origins = "*")
 public class AvanceProyectoController implements IAvanceProyectoController {
 
@@ -20,9 +24,22 @@ public class AvanceProyectoController implements IAvanceProyectoController {
 
     @Override
     @GetMapping("/{proyectoId}/avance")
-    public ResponseEntity<ApiResponse<ProyectoAvanceDetalleDTO>> getAvanceProyecto(
+    public ResponseEntity<ApiResponse<ProyectoAvanceResponseDTO>> getAvanceProyecto(
             @PathVariable String proyectoId) {
-        ProyectoAvanceDetalleDTO detalle = proyectoAvanceService.obtenerAvanceDetallado(proyectoId);
+        ProyectoAvanceResponseDTO detalle = proyectoAvanceService.obtenerAvanceDetallado(proyectoId);
         return ResponseEntity.ok(ApiResponse.success(detalle, "Avance del proyecto obtenido con éxito"));
+    }
+
+    @Override
+    @PatchMapping(value = "/{proyectoId}/avance/entregables/{entregableId}", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> marcarConformidad(
+            @PathVariable String proyectoId,
+            @PathVariable Integer entregableId,
+            @RequestParam Boolean conformidad,
+            @RequestParam LocalDate fechaEntrega,
+            @RequestPart MultipartFile evidencia) {
+        
+        EntregableConformidadResponseDTO result = proyectoAvanceService.actualizarConformidad(proyectoId, entregableId, conformidad, fechaEntrega, evidencia);
+        return ResponseEntity.ok(ApiResponse.success(result, "Entregable marcado a conformidad exitosamente"));
     }
 }

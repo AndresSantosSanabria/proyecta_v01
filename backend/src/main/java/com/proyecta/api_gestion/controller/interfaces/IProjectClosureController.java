@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 @Tag(name = "Cierre de Proyectos", description = "Endpoints para la ejecución formal del cierre de proyecto con generación de Acta")
-@SecurityRequirement(name = "bearerAuth")
 public interface IProjectClosureController {
 
     @Operation(
@@ -59,7 +58,5 @@ public interface IProjectClosureController {
     @PostMapping("/{id}/cierre")
     ResponseEntity<CierreProyectoResponse> cerrarProyecto(
             @Parameter(description = "ID del proyecto a cerrar", required = true) @PathVariable String id,
-            @Parameter(description = "ID del usuario autenticado (inyectado por el API Gateway)", required = true)
-            @RequestHeader("X-User-Id") Integer userId,
             @RequestBody CierreProyectoRequest request);
 }

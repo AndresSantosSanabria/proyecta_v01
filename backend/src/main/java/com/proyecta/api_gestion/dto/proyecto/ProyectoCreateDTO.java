@@ -1,97 +1,24 @@
 package com.proyecta.api_gestion.dto.proyecto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-
+import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
+import jakarta.validation.constraints.*;
 import java.time.LocalDate;
+import java.util.List;
 
-/**
- * DTO para crear un nuevo proyecto.
- * Todas las validaciones se aplican antes de llegar a la lógica de negocio.
- */
-@Schema(description = "Solicitud para crear un nuevo proyecto")
-public class ProyectoCreateDTO {
-
-    @Schema(description = "ID único del proyecto (formato: IS-PROY-CUN-NNN)", example = "IS-PROY-001")
-    @NotBlank(message = "El ID del proyecto es obligatorio")
-    @Size(max = 30, message = "El ID no puede exceder 30 caracteres")
-    private String id;
-
-    @Schema(description = "Nombre del proyecto", example = "Sistema de Gestión de Proyectos")
-    @NotBlank(message = "El nombre del proyecto es obligatorio")
-    @Size(max = 300, message = "El nombre no puede exceder 300 caracteres")
-    private String nombre;
-
-    @Schema(description = "Dependencia o unidad responsable", example = "Dirección de TI")
-    @Size(max = 200, message = "La dependencia no puede exceder 200 caracteres")
-    private String dependencia;
-
-    @Schema(description = "Objetivo general del proyecto")
-    @Size(max = 2000, message = "El objetivo general no puede exceder 2000 caracteres")
-    private String objetivoGeneral;
-
-    @Schema(description = "Indica si el proyecto es PETI", example = "false")
-    @NotNull(message = "El campo esPeti es obligatorio")
-    private Boolean esPeti;
-
-    @Schema(description = "Estrategia PETI asociada", example = "Transformación Digital")
-    @Size(max = 80, message = "La estrategia PETI no puede exceder 80 caracteres")
-    private String estrategiaPeti;
-
-    @Schema(description = "Vigencia PETI", example = "2026")
-    @Size(max = 20, message = "La vigencia PETI no puede exceder 20 caracteres")
-    private String vigenciaPeti;
-
-    @Schema(description = "Fecha de inicio del proyecto", example = "2026-01-15")
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate fechaInicio;
-
-    @Schema(description = "Fecha estimada de cierre", example = "2026-12-31")
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate fechaCierre;
-
-    @Schema(description = "Estado del proyecto", example = "activo")
-    @NotNull(message = "El estado es obligatorio")
-    private EstadoProyecto estado;
-
-    @Schema(description = "ID del gestor del proyecto", example = "123")
-    private Integer gestorId;
-
-    @Schema(description = "ID del director del proyecto", example = "456")
-    private Integer directorId;
-
-    @Schema(description = "ID del patrocinador", example = "789")
-    private Integer patrocinadorId;
-
-    // Getters and Setters
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public String getNombre() { return nombre; }
-    public void setNombre(String nombre) { this.nombre = nombre; }
-    public String getDependencia() { return dependencia; }
-    public void setDependencia(String dependencia) { this.dependencia = dependencia; }
-    public String getObjetivoGeneral() { return objetivoGeneral; }
-    public void setObjetivoGeneral(String objetivoGeneral) { this.objetivoGeneral = objetivoGeneral; }
-    public Boolean getEsPeti() { return esPeti; }
-    public void setEsPeti(Boolean esPeti) { this.esPeti = esPeti; }
-    public String getEstrategiaPeti() { return estrategiaPeti; }
-    public void setEstrategiaPeti(String estrategiaPeti) { this.estrategiaPeti = estrategiaPeti; }
-    public String getVigenciaPeti() { return vigenciaPeti; }
-    public void setVigenciaPeti(String vigenciaPeti) { this.vigenciaPeti = vigenciaPeti; }
-    public LocalDate getFechaInicio() { return fechaInicio; }
-    public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
-    public LocalDate getFechaCierre() { return fechaCierre; }
-    public void setFechaCierre(LocalDate fechaCierre) { this.fechaCierre = fechaCierre; }
-    public EstadoProyecto getEstado() { return estado; }
-    public void setEstado(EstadoProyecto estado) { this.estado = estado; }
-    public Integer getGestorId() { return gestorId; }
-    public void setGestorId(Integer gestorId) { this.gestorId = gestorId; }
-    public Integer getDirectorId() { return directorId; }
-    public void setDirectorId(Integer directorId) { this.directorId = directorId; }
-    public Integer getPatrocinadorId() { return patrocinadorId; }
-    public void setPatrocinadorId(Integer patrocinadorId) { this.patrocinadorId = patrocinadorId; }
-}
+public record ProyectoCreateDTO(
+    @NotBlank String nombre,
+    @NotBlank String dependencia,
+    @NotBlank String director,
+    @NotBlank @Email String correoDirector,
+    @NotBlank String objetivoGeneral,
+    List<String> objetivosEspecificos,
+    @NotNull LocalDate fechaInicio,
+    @NotNull PatrocinadorDTO patrocinador,
+    List<EquipoTrabajoDTO> equipoTrabajo,
+    @NotEmpty List<FaseDTO> fases,
+    @NotNull Boolean peti,
+    String vigenciaPeti,
+    EstrategiaPeti estrategiaPeti,
+    @NotNull Boolean tienePlanComunicaciones,
+    @NotNull FuragDTO furag
+) {}

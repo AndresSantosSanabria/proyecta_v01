@@ -1,5 +1,5 @@
 package com.proyecta.api_gestion.model.enums;
 
 public enum Rol {
-    admin, director, gestor, operador
+    ADMINISTRADOR, GESTOR_PROYECTOS_TI
 }

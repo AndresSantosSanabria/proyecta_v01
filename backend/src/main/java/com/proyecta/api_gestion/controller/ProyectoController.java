@@ -1,22 +1,23 @@
 package com.proyecta.api_gestion.controller;
 
-import com.proyecta.api_gestion.controller.interfaces.IProyectoController;
-import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
-import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
-import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.dto.proyecto.*;
+import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.List;
-
 @RestController
-@RequestMapping("/api/proyectos")
+@RequestMapping("/api/v1/proyectos")
+@Tag(name = "Módulo 2 — Proyectos", description = "Endpoints para la gestión de proyectos TIC")
 @CrossOrigin(origins = "*")
-public class ProyectoController implements IProyectoController {
+public class ProyectoController implements com.proyecta.api_gestion.controller.interfaces.IProyectoController {
 
     private final ProyectoService proyectoService;
 
@@ -24,46 +25,41 @@ public class ProyectoController implements IProyectoController {
         this.proyectoService = proyectoService;
     }
 
-    @Override
-    @GetMapping("/activos-con-avance")
-    public ResponseEntity<ApiResponse<List<Proyecto>>> getProyectosActivos(
-            @RequestParam(defaultValue = "0") BigDecimal minimo) {
-        List<Proyecto> proyectos = proyectoService.obtenerProyectosActivosConAvance(minimo);
-
-        if (proyectos.isEmpty()) {
-            return ResponseEntity.noContent().build();
-        }
-
-        return ResponseEntity.ok(ApiResponse.success(proyectos, "Proyectos activos obtenidos con éxito"));
+    @GetMapping
+    @Operation(summary = "EP-PROY-01 · Listar proyectos", description = "Listar todos los proyectos con filtros y paginación.")
+    public ResponseEntity<Page<ProyectoListDTO>> listarProyectos(
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String codigo,
+            @RequestParam(required = false) String dependencia,
+            @RequestParam(required = false) EstadoProyecto estado,
+            @RequestParam(required = false) Boolean peti,
+            @PageableDefault(size = 10, sort = "id") Pageable pageable) {
+        return ResponseEntity.ok(proyectoService.listarProyectos(nombre, codigo, dependencia, estado, peti, pageable));
     }
 
-    @Override
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Proyecto>> getProyecto(@PathVariable String id) {
-        Proyecto proyecto = proyectoService.obtenerPorId(id);
-        return ResponseEntity.ok(ApiResponse.success(proyecto, "Proyecto encontrado con éxito"));
+    @Operation(summary = "EP-PROY-02 · Obtener detalle", description = "Obtener detalle completo de un proyecto por ID.")
+    public ResponseEntity<ProyectoResponseDTO> obtenerProyecto(@PathVariable String id) {
+        return ResponseEntity.ok(proyectoService.obtenerPorId(id));
     }
 
-    @Override
     @PostMapping
-    public ResponseEntity<ApiResponse<Proyecto>> crearProyecto(@RequestBody ProyectoCreateDTO dto) {
-        Proyecto nuevo = proyectoService.crearProyecto(dto);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(nuevo, "Proyecto creado exitosamente"));
+    @Operation(summary = "EP-PROY-03 · Crear proyecto", description = "Crear un nuevo proyecto TIC (wizard completo).")
+    public ResponseEntity<ProyectoCreatedDTO> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(proyectoService.crearProyecto(dto));
     }
 
-    @Override
-    @PatchMapping("/{id}")
-    public ResponseEntity<ApiResponse<Proyecto>> actualizarProyecto(
-            @PathVariable String id, @RequestBody ProyectoUpdateDTO dto) {
-        Proyecto actualizado = proyectoService.actualizarProyecto(id, dto);
-        return ResponseEntity.ok(ApiResponse.success(actualizado, "Proyecto actualizado correctamente"));
+    @PutMapping("/{id}")
+    @Operation(summary = "EP-PROY-04 · Actualizar proyecto", description = "Actualizar datos editables de un proyecto existente.")
+    public ResponseEntity<ProyectoResponseDTO> actualizarProyecto(
+            @PathVariable String id,
+            @Valid @RequestBody ProyectoUpdateDTO dto) {
+        return ResponseEntity.ok(proyectoService.actualizarProyecto(id, dto));
     }
 
-    @Override
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> eliminarProyecto(@PathVariable String id) {
-        proyectoService.eliminarProyecto(id);
-        return ResponseEntity.ok(ApiResponse.success("Proyecto eliminado con éxito"));
+    @GetMapping("/dashboard")
+    @Operation(summary = "EP-PROY-05 · Dashboard", description = "Métricas resumidas para el dashboard principal.")
+    public ResponseEntity<DashboardDTO> obtenerDashboard() {
+        return ResponseEntity.ok(proyectoService.obtenerDashboard());
     }
 }
