@@ -122,11 +122,22 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
             p.id, 
             p.nombre, 
             p.dependencia, 
-            CAST(p.avanceTotal AS int), 
+            p.avanceTotal, 
             CAST(p.estado AS string), 
-            CAST((SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.conforme = false AND e.fechaLimite < :now) AS int)
+            (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.conforme = false AND e.fechaLimite < :now)
         )
         FROM Proyecto p
     """)
     List<DashboardProjectSummaryDTO> getDashboardProjectSummary(@Param("now") LocalDate now);
+
+    @Query("""
+        SELECT new com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO(
+            p.dependencia, 
+            COUNT(p), 
+            AVG(p.avanceTotal)
+        )
+        FROM Proyecto p
+        GROUP BY p.dependencia
+    """)
+    List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> getProjectsByDependencia();
 }

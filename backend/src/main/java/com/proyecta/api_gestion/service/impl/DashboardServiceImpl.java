@@ -92,4 +92,9 @@ public class DashboardServiceImpl implements DashboardService {
     public List<DashboardProjectSummaryDTO> getProjectSummary() {
         return proyectoRepository.getDashboardProjectSummary(LocalDate.now());
     }
+
+    @Override
+    public List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> getProjectsByDependencia() {
+        return proyectoRepository.getProjectsByDependencia();
+    }
 }

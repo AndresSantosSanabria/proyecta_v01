@@ -3,8 +3,6 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.controller.interfaces.IProjectClosureController;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
-import com.proyecta.api_gestion.exception.ForbiddenException;
-import com.proyecta.api_gestion.model.Usuario;
 import com.proyecta.api_gestion.model.enums.Rol;
 import com.proyecta.api_gestion.repository.UsuarioRepository;
 import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;

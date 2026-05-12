@@ -14,18 +14,18 @@ public class DashboardProjectSummaryDTO {
     private String nombreDependencia;
 
     @Schema(description = "Avance calculado del proyecto", example = "85")
-    private Integer avance;
+    private java.math.BigDecimal avance;
 
     @Schema(description = "Estado en el que se encuentra el proyecto", example = "Con retrasos")
     private String estado;
 
     @Schema(description = "Contador de la cantidad de entregables atrasados en el proyecto", example = "2")
-    private Integer entregablesAtrasados;
+    private Long entregablesAtrasados;
 
     public DashboardProjectSummaryDTO() {}
 
     public DashboardProjectSummaryDTO(String codigo, String nombreProyecto, String nombreDependencia,
-                                      Integer avance, String estado, Integer entregablesAtrasados) {
+                                      java.math.BigDecimal avance, String estado, Long entregablesAtrasados) {
         this.codigo = codigo;
         this.nombreProyecto = nombreProyecto;
         this.nombreDependencia = nombreDependencia;
@@ -43,12 +43,12 @@ public class DashboardProjectSummaryDTO {
     public String getNombreDependencia() { return nombreDependencia; }
     public void setNombreDependencia(String nombreDependencia) { this.nombreDependencia = nombreDependencia; }
 
-    public Integer getAvance() { return avance != null ? avance : 0; }
-    public void setAvance(Integer avance) { this.avance = avance; }
+    public java.math.BigDecimal getAvance() { return avance != null ? avance : java.math.BigDecimal.ZERO; }
+    public void setAvance(java.math.BigDecimal avance) { this.avance = avance; }
 
     public String getEstado() { return estado; }
     public void setEstado(String estado) { this.estado = estado; }
 
-    public Integer getEntregablesAtrasados() { return entregablesAtrasados != null ? entregablesAtrasados : 0; }
-    public void setEntregablesAtrasados(Integer entregablesAtrasados) { this.entregablesAtrasados = entregablesAtrasados; }
+    public Long getEntregablesAtrasados() { return entregablesAtrasados != null ? entregablesAtrasados : 0L; }
+    public void setEntregablesAtrasados(Long entregablesAtrasados) { this.entregablesAtrasados = entregablesAtrasados; }
 }

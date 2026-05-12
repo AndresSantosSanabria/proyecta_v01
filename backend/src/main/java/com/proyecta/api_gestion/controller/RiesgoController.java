@@ -58,4 +58,14 @@ public class RiesgoController implements IRiesgoController {
         riesgoService.deleteRisk(proyectoId, riesgoId);
         return ResponseEntity.noContent().build();
     }
+
+    @Override
+    @PatchMapping("/{proyectoId}/riesgos/{riesgoId}/tratamiento")
+    public ResponseEntity<ApiResponse<Void>> verificarTratamiento(
+            @PathVariable String proyectoId, 
+            @PathVariable Integer riesgoId, 
+            @RequestBody String verificacion) {
+        riesgoService.verificarTratamiento(proyectoId, riesgoId, verificacion);
+        return ResponseEntity.ok(ApiResponse.success(null, "Tratamiento verificado y riesgo actualizado"));
+    }
 }

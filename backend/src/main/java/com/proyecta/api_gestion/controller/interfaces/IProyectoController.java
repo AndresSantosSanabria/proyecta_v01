@@ -40,4 +40,24 @@ public interface IProyectoController {
     @Operation(summary = "EP-PROY-05 · Dashboard", description = "Métricas resumidas para el dashboard principal.")
     @GetMapping("/dashboard")
     ResponseEntity<DashboardDTO> obtenerDashboard();
+
+    @Operation(summary = "EP-PROY-06 · Eliminar proyecto", description = "Eliminar un proyecto por ID.")
+    @DeleteMapping("/{id}")
+    ResponseEntity<Void> eliminarProyecto(@PathVariable String id);
+
+    @Operation(summary = "EP-PROY-07 · Resumen para cierre", description = "Obtener resumen ejecutivo para la pantalla de cierre.")
+    @GetMapping("/{id}/resumen")
+    ResponseEntity<ProyectoResumenDTO> obtenerResumen(@PathVariable String id);
+
+    @Operation(summary = "EP-PROY-08 · Cerrar proyecto", description = "Cerrar formalmente un proyecto (requiere 100% avance).")
+    @PatchMapping("/{id}/cerrar")
+    ResponseEntity<Void> cerrarProyecto(@PathVariable String id);
+
+    @Operation(summary = "EP-PROY-09 · Obtener FURAG", description = "Obtener respuestas FURAG del proyecto.")
+    @GetMapping("/{id}/furag")
+    ResponseEntity<com.proyecta.api_gestion.model.Furag> obtenerFurag(@PathVariable String id);
+
+    @Operation(summary = "EP-PROY-10 · Actualizar FURAG", description = "Actualizar respuestas FURAG del proyecto.")
+    @PutMapping("/{id}/furag")
+    ResponseEntity<Void> actualizarFurag(@PathVariable String id, @RequestBody com.proyecta.api_gestion.model.Furag furag);
 }

@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.proyecto.*;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.model.Furag;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -61,5 +62,33 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @Operation(summary = "EP-PROY-05 · Dashboard", description = "Métricas resumidas para el dashboard principal.")
     public ResponseEntity<DashboardDTO> obtenerDashboard() {
         return ResponseEntity.ok(proyectoService.obtenerDashboard());
+    }
+
+    @Override
+    public ResponseEntity<Void> eliminarProyecto(String id) {
+        proyectoService.eliminarProyecto(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<ProyectoResumenDTO> obtenerResumen(String id) {
+        return ResponseEntity.ok(proyectoService.obtenerResumen(id));
+    }
+
+    @Override
+    public ResponseEntity<Void> cerrarProyecto(String id) {
+        proyectoService.cerrarProyecto(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<Furag> obtenerFurag(String id) {
+        return ResponseEntity.ok(proyectoService.obtenerFurag(id));
+    }
+
+    @Override
+    public ResponseEntity<Void> actualizarFurag(String id, Furag furag) {
+        proyectoService.actualizarFurag(id, furag);
+        return ResponseEntity.ok().build();
     }
 }

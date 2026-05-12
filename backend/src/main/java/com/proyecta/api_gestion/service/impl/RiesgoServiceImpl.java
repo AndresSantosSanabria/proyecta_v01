@@ -9,7 +9,6 @@ import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.Riesgo;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
-import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.model.enums.Impacto;
 import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.enums.Probabilidad;
@@ -116,6 +115,23 @@ public class RiesgoServiceImpl implements IRiesgoService {
         }
 
         riesgoRepository.delete(riesgo);
+    }
+
+    @Override
+    @Transactional
+    public void verificarTratamiento(String projectId, Integer riesgoId, String verificacion) {
+        Riesgo riesgo = riesgoRepository.findById(riesgoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Riesgo no encontrado con ID: " + riesgoId));
+
+        if (!riesgo.getProyecto().getId().equals(projectId)) {
+            throw new ForbiddenException("El riesgo no pertenece al proyecto especificado.");
+        }
+
+        // Registrar la verificación y marcar como TRATADO
+        riesgo.setTratamiento(riesgo.getTratamiento() + "\nVERIFICACIÓN: " + verificacion);
+        riesgo.setEstado(com.proyecta.api_gestion.model.enums.EstadoRiesgo.TRATADO);
+        
+        riesgoRepository.save(riesgo);
     }
 
     private NivelRiesgo calculateLevel(Probabilidad prob, Impacto imp) {

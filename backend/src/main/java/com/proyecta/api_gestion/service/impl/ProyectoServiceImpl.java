@@ -189,6 +189,58 @@ public class ProyectoServiceImpl implements ProyectoService {
     }
 
     @Override
+    @Transactional
+    public void eliminarProyecto(String id) {
+        Proyecto proyecto = proyectoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        proyectoRepository.delete(proyecto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProyectoResumenDTO obtenerResumen(String id) {
+        Proyecto p = proyectoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+
+        long totalFases = p.getFases().size();
+        long totalHitos = 0;
+        long totalEntregables = 0;
+        long entregablesConformes = 0;
+
+        for (Fase f : p.getFases()) {
+            totalHitos += f.getHitos().size();
+            for (Hito h : f.getHitos()) {
+                totalEntregables += h.getEntregables().size();
+                entregablesConformes += h.getEntregables().stream().filter(Entregable::getConforme).count();
+            }
+        }
+
+        return new ProyectoResumenDTO(
+                p.getId(),
+                p.getNombre(),
+                p.getDirector(),
+                p.getAvanceTotal(),
+                p.getEstado().name(),
+                totalFases,
+                totalHitos,
+                entregablesConformes,
+                totalEntregables
+        );
+    }
+
+    @Override
+    @Transactional
+    public void cerrarProyecto(String id) {
+        Proyecto proyecto = proyectoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        
+        // Uso de la lógica rica del dominio
+        proyecto.cerrar();
+        
+        proyectoRepository.save(proyecto);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public DashboardDTO obtenerDashboard() {
         LocalDate hoy = LocalDate.now();
@@ -204,6 +256,23 @@ public class ProyectoServiceImpl implements ProyectoService {
                 proyectoRepository.countEntregablesProximosAVencer(hoy, umbral),
                 diasUmbral
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Furag obtenerFurag(String id) {
+        Proyecto proyecto = proyectoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        return proyecto.getFurag();
+    }
+
+    @Override
+    @Transactional
+    public void actualizarFurag(String id, Furag furag) {
+        Proyecto proyecto = proyectoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        proyecto.setFurag(furag);
+        proyectoRepository.save(proyecto);
     }
 
     private String generarCodigo() {

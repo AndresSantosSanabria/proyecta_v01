@@ -56,4 +56,16 @@ public interface IReporteController {
     @StandardApiResponses
     @GetMapping("/riesgos/{proyectoId}")
     ResponseEntity<ApiResponse<List<RiesgoReporteDTO>>> getRiesgos(@PathVariable String proyectoId);
+
+    @Operation(summary = "Descargar reporte PDF de proyecto", description = "Genera y descarga un PDF con el estado del proyecto.")
+    @GetMapping("/proyecto/{id}/descargar")
+    ResponseEntity<byte[]> descargarReporteProyectoPdf(@PathVariable String id);
+
+    @Operation(summary = "Descargar reporte PDF de portafolio", description = "Genera y descarga un PDF con el estado de todo el portafolio.")
+    @GetMapping("/portafolio/descargar")
+    ResponseEntity<byte[]> descargarReportePortafolioPdf();
+
+    @Operation(summary = "Exportar portafolio a Excel", description = "Genera y descarga un Excel con la analítica del portafolio.")
+    @GetMapping("/portafolio/excel")
+    ResponseEntity<byte[]> descargarReportePortafolioExcel();
 }

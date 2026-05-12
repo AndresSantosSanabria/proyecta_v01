@@ -10,4 +10,5 @@ public interface IRiesgoService {
     RiesgoCreatedResponseDTO createRisk(String projectId, RiesgoRequestDTO requestDto);
     RiesgoResponseDTO updateRisk(String projectId, Integer riesgoId, RiesgoRequestDTO requestDto);
     void deleteRisk(String projectId, Integer riesgoId);
+    void verificarTratamiento(String projectId, Integer riesgoId, String verificacion);
 }

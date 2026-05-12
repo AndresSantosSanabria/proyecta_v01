@@ -101,4 +101,20 @@ public class ReporteServiceImpl implements ReporteService {
     public List<RiesgoReporteDTO> obtenerRiesgos(String proyectoId) {
         return riesgoRepository.findRiesgosReporteByProyecto(proyectoId);
     }
+
+    @Override
+    public byte[] generarReporteProyectoPdf(String id) {
+        // Simulación de generación de PDF
+        return "Contenido PDF simulado para proyecto".getBytes();
+    }
+
+    @Override
+    public byte[] generarReportePortafolioPdf() {
+        return "Contenido PDF simulado para portafolio".getBytes();
+    }
+
+    @Override
+    public byte[] generarReportePortafolioExcel() {
+        return "Contenido Excel simulado para portafolio".getBytes();
+    }
 }

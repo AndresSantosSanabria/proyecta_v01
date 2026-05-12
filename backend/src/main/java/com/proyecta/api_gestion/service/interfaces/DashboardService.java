@@ -8,4 +8,5 @@ import java.util.List;
 public interface DashboardService {
     DashboardSummaryDTO getSummary();
     List<DashboardProjectSummaryDTO> getProjectSummary();
+    List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> getProjectsByDependencia();
 }

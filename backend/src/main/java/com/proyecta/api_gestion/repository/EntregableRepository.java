@@ -42,4 +42,7 @@ public interface EntregableRepository extends JpaRepository<Entregable, Integer>
         AND e.fechaLimite < :hoy
     """)
     List<EntregablePendienteDTO> findPendientesVencidosByProyecto(@Param("proyectoId") String proyectoId, @Param("hoy") LocalDate hoy);
+
+    @Query("SELECT e FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = :proyectoId")
+    List<Entregable> findByProyectoId(@Param("proyectoId") String proyectoId);
 }

@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.dto.project.*;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.repository.*;
+import com.proyecta.api_gestion.service.interfaces.AvanceCalculatorService;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private final HitoRepository hitoRepository;
     private final EntregableRepository entregableRepository;
     private final SystemParameterRepository systemParameterRepository;
+    private final AvanceCalculatorService avanceCalculatorService;
 
     private static final String DIAS_POR_VENCER_PARAM = "dias_por_vencer";
     private static final int DIAS_POR_VENCER_DEFAULT = 7;
@@ -29,12 +31,128 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                                        FaseRepository faseRepository,
                                        HitoRepository hitoRepository,
                                        EntregableRepository entregableRepository,
-                                       SystemParameterRepository systemParameterRepository) {
+                                       SystemParameterRepository systemParameterRepository,
+                                       AvanceCalculatorService avanceCalculatorService) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
         this.entregableRepository = entregableRepository;
         this.systemParameterRepository = systemParameterRepository;
+        this.avanceCalculatorService = avanceCalculatorService;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Fase agregarFase(String proyectoId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto) {
+        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado"));
+        Fase fase = new Fase();
+        fase.setNombre(dto.nombre());
+        fase.setDescripcion(dto.descripcion());
+        fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
+        fase.setProyecto(proyecto);
+        Fase guardada = faseRepository.save(fase);
+        avanceCalculatorService.calcularYActualizarAvanceProyecto(proyectoId);
+        return guardada;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Fase editarFase(Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto) {
+        Fase fase = faseRepository.findById(faseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+        fase.setNombre(dto.nombre());
+        fase.setDescripcion(dto.descripcion());
+        fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
+        Fase actualizada = faseRepository.save(fase);
+        avanceCalculatorService.calcularYActualizarAvanceProyecto(fase.getProyecto().getId());
+        return actualizada;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void eliminarFase(Integer faseId) {
+        Fase fase = faseRepository.findById(faseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+        String proyectoId = fase.getProyecto().getId();
+        faseRepository.delete(fase);
+        avanceCalculatorService.calcularYActualizarAvanceProyecto(proyectoId);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Hito agregarHito(Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
+        Fase fase = faseRepository.findById(faseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+        Hito hito = new Hito();
+        hito.setNombre(dto.nombre());
+        hito.setDescripcion(dto.descripcion());
+        hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
+        hito.setFase(fase);
+        Hito guardado = hitoRepository.save(hito);
+        avanceCalculatorService.calcularYActualizarAvanceFase(faseId);
+        return guardado;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Hito editarHito(Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
+        Hito hito = hitoRepository.findById(hitoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+        hito.setNombre(dto.nombre());
+        hito.setDescripcion(dto.descripcion());
+        hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
+        Hito actualizado = hitoRepository.save(hito);
+        avanceCalculatorService.calcularYActualizarAvanceFase(hito.getFase().getId());
+        return actualizado;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void eliminarHito(Integer hitoId) {
+        Hito hito = hitoRepository.findById(hitoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+        Integer faseId = hito.getFase().getId();
+        hitoRepository.delete(hito);
+        avanceCalculatorService.calcularYActualizarAvanceFase(faseId);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Entregable agregarEntregable(Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
+        Hito hito = hitoRepository.findById(hitoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+        Entregable entregable = new Entregable();
+        entregable.setNombre(dto.nombre());
+        entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
+        entregable.setFechaLimite(dto.fechaLimite());
+        entregable.setHito(hito);
+        Entregable guardado = entregableRepository.save(entregable);
+        avanceCalculatorService.calcularYActualizarAvanceHito(hitoId);
+        return guardado;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Entregable editarEntregable(Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
+        Entregable entregable = entregableRepository.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
+        entregable.setNombre(dto.nombre());
+        entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
+        entregable.setFechaLimite(dto.fechaLimite());
+        Entregable actualizado = entregableRepository.save(entregable);
+        avanceCalculatorService.calcularYActualizarAvanceHito(entregable.getHito().getId());
+        return actualizado;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void eliminarEntregable(Integer entregableId) {
+        Entregable entregable = entregableRepository.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
+        Integer hitoId = entregable.getHito().getId();
+        entregableRepository.delete(entregable);
+        avanceCalculatorService.calcularYActualizarAvanceHito(hitoId);
     }
 
     @Override
@@ -150,5 +268,13 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             }
         }
         return DIAS_POR_VENCER_DEFAULT;
+    }
+
+    @Override
+    public List<EntregableHierarchyDTO> listarEntregablesProyecto(String proyectoId) {
+        List<Entregable> entregables = entregableRepository.findByProyectoId(proyectoId);
+        return entregables.stream()
+                .map(this::buildEntregableDTO)
+                .collect(java.util.stream.Collectors.toList());
     }
 }

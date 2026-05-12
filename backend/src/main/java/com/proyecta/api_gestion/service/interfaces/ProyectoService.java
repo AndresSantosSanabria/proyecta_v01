@@ -10,5 +10,12 @@ public interface ProyectoService {
     ProyectoResponseDTO obtenerPorId(String id);
     ProyectoCreatedDTO crearProyecto(ProyectoCreateDTO dto);
     ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto);
+    void eliminarProyecto(String id);
+    ProyectoResumenDTO obtenerResumen(String id);
+    void cerrarProyecto(String id);
     DashboardDTO obtenerDashboard();
+    
+    // FURAG
+    com.proyecta.api_gestion.model.Furag obtenerFurag(String id);
+    void actualizarFurag(String id, com.proyecta.api_gestion.model.Furag furag);
 }

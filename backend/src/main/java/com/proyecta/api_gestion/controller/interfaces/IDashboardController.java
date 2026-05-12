@@ -154,4 +154,11 @@ public interface IDashboardController {
     })
     @StandardApiResponses
     ResponseEntity<ApiResponse<ProyectoSummaryDTO>> getProjectSummaryById(@org.springframework.web.bind.annotation.PathVariable String id);
+
+    @Operation(
+        summary = "Obtener proyectos por dependencia",
+        description = "Retorna una lista con la cantidad de proyectos y el avance promedio agrupados por dependencia."
+    )
+    @StandardApiResponses
+    ResponseEntity<ApiResponse<List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO>>> getProjectsByDependencia();
 }

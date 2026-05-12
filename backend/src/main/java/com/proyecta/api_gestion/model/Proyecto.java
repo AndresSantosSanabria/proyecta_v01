@@ -167,4 +167,24 @@ public class Proyecto {
 
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }
     public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
+
+    // --- Lógica de Negocio (Rich Domain Model) ---
+
+    /**
+     * Valida si el proyecto cumple con las condiciones para ser cerrado formalmente.
+     * Requisito: Avance al 100%.
+     */
+    public boolean esAptoParaCierre() {
+        return this.avanceTotal != null && this.avanceTotal.compareTo(new BigDecimal("100.00")) >= 0;
+    }
+
+    /**
+     * Cambia el estado del proyecto a CERRADO si cumple las condiciones.
+     */
+    public void cerrar() {
+        if (!esAptoParaCierre()) {
+            throw new IllegalStateException("No se puede cerrar un proyecto que no ha alcanzado el 100% de avance.");
+        }
+        this.estado = EstadoProyecto.CERRADO;
+    }
 }

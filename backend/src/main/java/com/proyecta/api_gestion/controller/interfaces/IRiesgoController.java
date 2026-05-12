@@ -73,4 +73,12 @@ public interface IRiesgoController {
     ResponseEntity<Void> eliminarRiesgo(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
             @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId);
+
+    @Operation(summary = "EP-RIESG-05 · Verificar tratamiento de un riesgo", description = "Marca un riesgo como tratado y registra la verificación.")
+    @StandardApiResponses
+    @PatchMapping("/{proyectoId}/riesgos/{riesgoId}/tratamiento")
+    ResponseEntity<ApiResponse<Void>> verificarTratamiento(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId,
+            @RequestBody String verificacion);
 }

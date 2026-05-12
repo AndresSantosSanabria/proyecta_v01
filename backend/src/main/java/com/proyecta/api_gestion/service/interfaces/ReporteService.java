@@ -13,4 +13,9 @@ public interface ReporteService {
     Optional<PlanComunicacionesDTO> obtenerPlanComunicaciones(String proyectoId);
     Optional<FuragReporteDTO> obtenerFurag(String proyectoId);
     List<RiesgoReporteDTO> obtenerRiesgos(String proyectoId);
+    
+    // Reportes Binarios
+    byte[] generarReporteProyectoPdf(String id);
+    byte[] generarReportePortafolioPdf();
+    byte[] generarReportePortafolioExcel();
 }

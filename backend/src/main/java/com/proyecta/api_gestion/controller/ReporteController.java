@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/reportes")
+@RequestMapping("/api/v1/reportes")
 @CrossOrigin(origins = "*")
 public class ReporteController implements IReporteController {
 
@@ -61,7 +61,8 @@ public class ReporteController implements IReporteController {
     @Override
     @GetMapping("/furag/{proyectoId}")
     public ResponseEntity<ApiResponse<FuragReporteDTO>> getFurag(@PathVariable String proyectoId) {
-        FuragReporteDTO dto = reporteService.obtenerFurag(proyectoId)
+        ReporteService service = reporteService;
+        FuragReporteDTO dto = service.obtenerFurag(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
         return ResponseEntity.ok(ApiResponse.success(dto, "Reporte FURAG obtenido con éxito"));
     }
@@ -71,5 +72,32 @@ public class ReporteController implements IReporteController {
     public ResponseEntity<ApiResponse<List<RiesgoReporteDTO>>> getRiesgos(@PathVariable String proyectoId) {
         List<RiesgoReporteDTO> riesgos = reporteService.obtenerRiesgos(proyectoId);
         return ResponseEntity.ok(ApiResponse.success(riesgos, "Reporte de riesgos obtenido con éxito"));
+    }
+
+    @Override
+    public ResponseEntity<byte[]> descargarReporteProyectoPdf(String id) {
+        byte[] content = reporteService.generarReporteProyectoPdf(id);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=reporte-proyecto-" + id + ".pdf")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(content);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> descargarReportePortafolioPdf() {
+        byte[] content = reporteService.generarReportePortafolioPdf();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=reporte-portafolio.pdf")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(content);
+    }
+
+    @Override
+    public ResponseEntity<byte[]> descargarReportePortafolioExcel() {
+        byte[] content = reporteService.generarReportePortafolioExcel();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=analitica-portafolio.xlsx")
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(content);
     }
 }
