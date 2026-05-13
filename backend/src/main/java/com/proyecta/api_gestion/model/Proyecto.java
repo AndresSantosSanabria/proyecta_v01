@@ -74,7 +74,7 @@ public class Proyecto {
     @Embedded
     private Furag furag;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "patrocinador_id")
     private Patrocinador patrocinador;
 

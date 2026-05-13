@@ -14,19 +14,19 @@ import org.springframework.data.repository.query.Param;
 public interface EntregableRepository extends JpaRepository<Entregable, Integer> {
     List<Entregable> findByHitoId(Integer hitoId);
 
-    @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO AND e.conforme = false AND e.fechaLimite < :hoy")
+    @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS) AND e.conforme = false AND e.fechaLimite < :hoy")
     long countAtrasadosActivos(@Param("hoy") LocalDate hoy);
 
-    @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO AND e.conforme = false AND e.fechaLimite BETWEEN :hoy AND :fin")
+    @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS) AND e.conforme = false AND e.fechaLimite BETWEEN :hoy AND :fin")
     long countProximosActivos(@Param("hoy") LocalDate hoy, @Param("fin") LocalDate fin);
 
-    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO AND e.conforme = true")
+    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS) AND e.conforme = true")
     BigDecimal sumPonderacionConformeActivos();
 
-    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO AND e.fechaLimite <= :hoy")
+    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS) AND e.fechaLimite <= :hoy")
     BigDecimal sumPonderacionEsperadaActivos(@Param("hoy") LocalDate hoy);
 
-    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO")
+    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS)")
     BigDecimal sumTotalPonderacionActivos();
 
     @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p WHERE p.id = :proyectoId AND e.conforme = false AND e.fechaLimite < :hoy")

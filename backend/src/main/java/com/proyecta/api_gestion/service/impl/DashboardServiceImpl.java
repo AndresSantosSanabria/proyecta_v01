@@ -37,25 +37,20 @@ public class DashboardServiceImpl implements DashboardService {
         long cerrados = proyectoRepository.countCerrados();
         long total = proyectoRepository.countTotal();
 
-        BigDecimal sumaConforme = entregableRepository.sumPonderacionConformeActivos();
-        BigDecimal sumaTotal = entregableRepository.sumTotalPonderacionActivos();
-
-        if (sumaConforme == null)
-            sumaConforme = BigDecimal.ZERO;
-        if (sumaTotal == null)
-            sumaTotal = BigDecimal.ZERO;
-
+        // Avance promedio calculado desde el campo avance_total de cada proyecto
+        BigDecimal avgAvance = proyectoRepository.getAvancePromedio();
         int avancePromedio = 0;
-        if (sumaTotal.compareTo(BigDecimal.ZERO) > 0) {
-            avancePromedio = sumaConforme.multiply(new BigDecimal("100"))
-                    .divide(sumaTotal, 0, RoundingMode.HALF_UP).intValue();
+        if (avgAvance != null) {
+            avancePromedio = avgAvance.setScale(0, RoundingMode.HALF_UP).intValue();
         }
 
         LocalDate hoy = LocalDate.now();
 
+        // Tendencia: comparar avance real vs lo esperado por fechas
+        BigDecimal sumaConforme = entregableRepository.sumPonderacionConformeActivos();
         BigDecimal sumaEsperada = entregableRepository.sumPonderacionEsperadaActivos(hoy);
-        if (sumaEsperada == null)
-            sumaEsperada = BigDecimal.ZERO;
+        if (sumaConforme == null) sumaConforme = BigDecimal.ZERO;
+        if (sumaEsperada == null) sumaEsperada = BigDecimal.ZERO;
 
         String tendencia = "estable";
         if (sumaEsperada.compareTo(BigDecimal.ZERO) > 0) {
