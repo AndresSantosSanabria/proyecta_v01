@@ -57,7 +57,7 @@ public class DashboardServiceImpl implements DashboardService {
             tendencia = (sumaConforme.compareTo(sumaEsperada) >= 0) ? "positiva" : "negativa";
         }
 
-        long totalAtrasados = entregableRepository.countAtrasadosActivos(hoy);
+        long totalAtrasados = entregableRepository.countAtrasadosTotal(hoy);
 
         int ventana = systemParameterRepository.findByKey("dias_alerta_vencimiento")
                 .map(p -> {

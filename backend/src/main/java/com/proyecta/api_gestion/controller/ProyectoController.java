@@ -1,5 +1,6 @@
 package com.proyecta.api_gestion.controller;
 
+import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.proyecto.*;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.Furag;
@@ -7,6 +8,7 @@ import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -26,42 +28,34 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
         this.proyectoService = proyectoService;
     }
 
-    @GetMapping
-    @Operation(summary = "EP-PROY-01 · Listar proyectos", description = "Listar todos los proyectos con filtros y paginación.")
-    public ResponseEntity<Page<ProyectoListDTO>> listarProyectos(
-            @RequestParam(required = false) String nombre,
-            @RequestParam(required = false) String codigo,
-            @RequestParam(required = false) String dependencia,
-            @RequestParam(required = false) EstadoProyecto estado,
-            @RequestParam(required = false) Boolean peti,
-            @PageableDefault(size = 10, sort = "id") Pageable pageable) {
-        return ResponseEntity.ok(proyectoService.listarProyectos(nombre, codigo, dependencia, estado, peti, pageable));
+    @Override
+    public ResponseEntity<ApiResponse<Page<ProyectoListDTO>>> listarProyectos(
+            String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti,
+            @ParameterObject @PageableDefault(size = 10, sort = "id") Pageable pageable) {
+        Page<ProyectoListDTO> page = proyectoService.listarProyectos(nombre, codigo, dependencia, estado, peti, pageable);
+        return ResponseEntity.ok(ApiResponse.success(page, "Proyectos listados con éxito"));
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "EP-PROY-02 · Obtener detalle", description = "Obtener detalle completo de un proyecto por ID.")
-    public ResponseEntity<ProyectoResponseDTO> obtenerProyecto(@PathVariable String id) {
-        return ResponseEntity.ok(proyectoService.obtenerPorId(id));
+    @Override
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerPorId(id), "Detalle del proyecto obtenido"));
     }
 
-    @PostMapping
-    @Operation(summary = "EP-PROY-03 · Crear proyecto", description = "Crear un nuevo proyecto TIC (wizard completo).")
-    public ResponseEntity<ProyectoCreatedDTO> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(proyectoService.crearProyecto(dto));
+    @Override
+    public ResponseEntity<ApiResponse<ProyectoCreatedDTO>> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(proyectoService.crearProyecto(dto), "Proyecto creado exitosamente"));
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "EP-PROY-04 · Actualizar proyecto", description = "Actualizar datos editables de un proyecto existente.")
-    public ResponseEntity<ProyectoResponseDTO> actualizarProyecto(
+    @Override
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
             @PathVariable String id,
             @Valid @RequestBody ProyectoUpdateDTO dto) {
-        return ResponseEntity.ok(proyectoService.actualizarProyecto(id, dto));
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.actualizarProyecto(id, dto), "Proyecto actualizado exitosamente"));
     }
 
-    @GetMapping("/dashboard")
-    @Operation(summary = "EP-PROY-05 · Dashboard", description = "Métricas resumidas para el dashboard principal.")
-    public ResponseEntity<DashboardDTO> obtenerDashboard() {
-        return ResponseEntity.ok(proyectoService.obtenerDashboard());
+    @Override
+    public ResponseEntity<ApiResponse<DashboardDTO>> obtenerDashboard() {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerDashboard(), "Métricas del dashboard obtenidas"));
     }
 
     @Override
@@ -71,8 +65,8 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
-    public ResponseEntity<ProyectoResumenDTO> obtenerResumen(String id) {
-        return ResponseEntity.ok(proyectoService.obtenerResumen(id));
+    public ResponseEntity<ApiResponse<ProyectoResumenDTO>> obtenerResumen(String id) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerResumen(id), "Resumen del proyecto obtenido"));
     }
 
     @Override
@@ -82,8 +76,8 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
-    public ResponseEntity<Furag> obtenerFurag(String id) {
-        return ResponseEntity.ok(proyectoService.obtenerFurag(id));
+    public ResponseEntity<ApiResponse<Furag>> obtenerFurag(String id) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerFurag(id), "FURAG obtenido"));
     }
 
     @Override

@@ -24,11 +24,11 @@ public class DataSeeder {
             RiesgoRepository riesgoRepository
     ) {
         return args -> {
-            // Si ya hay proyectos no ejecutar
-            if (proyectoRepository.count() > 0) {
-                System.out.println(">>> SEEDER: Datos ya existentes, omitiendo...");
-                return;
-            }
+            // Limpiar datos existentes para forzar recarga con el proyecto masivo
+            System.out.println(">>> SEEDER: Limpiando datos previos...");
+            riesgoRepository.deleteAll();
+            proyectoRepository.deleteAll();
+            patrocinadorRepository.deleteAll();
 
             // 1. Usuarios
             if (usuarioRepository.findByCorreo("admin@proyecta.com").isEmpty()) {
@@ -84,6 +84,7 @@ public class DataSeeder {
             p001.setFechaInicio(LocalDate.now().minusMonths(5));
             p001.setEstado(EstadoProyecto.CON_RETRASOS);
             p001.setAvanceTotal(new BigDecimal("20.00"));
+            p001.setPeti(true);
             p001.setPatrocinador(p2);
 
             Fase f001 = buildFase("Ejecución", "50.00", "10.00", p001);
@@ -106,6 +107,7 @@ public class DataSeeder {
             p002.setFechaInicio(LocalDate.now().minusMonths(6));
             p002.setEstado(EstadoProyecto.CON_RETRASOS);
             p002.setAvanceTotal(new BigDecimal("15.00"));
+            p002.setPeti(true);
             p002.setPatrocinador(p1);
 
             Fase f002 = buildFase("Análisis", "100.00", "15.00", p002);
@@ -130,6 +132,7 @@ public class DataSeeder {
             p003.setFechaInicio(LocalDate.now().minusMonths(8));
             p003.setEstado(EstadoProyecto.CON_RETRASOS);
             p003.setAvanceTotal(new BigDecimal("35.00"));
+            p003.setPeti(true);
             p003.setPatrocinador(p2);
 
             Fase f003 = buildFase("Desarrollo", "100.00", "35.00", p003);
@@ -228,7 +231,40 @@ public class DataSeeder {
             p007.getFases().add(f007);
             proyectoRepository.save(p007);
 
-            System.out.println(">>> SEEDER: 7 proyectos de prueba cargados exitosamente.");
+            // ============ PROY-008: PROYECTO MASIVO DE PRUEBA DE RENDIMIENTO UI ================
+            Proyecto p008 = new Proyecto();
+            p008.setId("IS-PROY-CUN-008");
+            p008.setNombre("Proyecto Masivo de Pruebas de Estrés UI");
+            p008.setDependencia("Calidad de Software");
+            p008.setDirector("Usuario de Pruebas");
+            p008.setCorreoDirector("qa@cundinamarca.gov.co");
+            p008.setFechaInicio(LocalDate.now());
+            p008.setEstado(EstadoProyecto.ACTIVO);
+            p008.setAvanceTotal(new BigDecimal("0.00"));
+            p008.setPatrocinador(p1);
+
+            // 5 Fases (20% cada una)
+            for (int f = 1; f <= 5; f++) {
+                Fase fase = buildFase("Fase de Prueba " + f, "20.00", "0.00", p008);
+                
+                // 3 Hitos por fase (33.33% cada uno)
+                for (int h = 1; h <= 3; h++) {
+                    Hito hito = buildHito("Hito de Control " + f + "." + h, "33.33", fase);
+                    
+                    // 4 Entregables por hito (25% cada uno)
+                    for (int e = 1; e <= 4; e++) {
+                        // Mezclamos un poco los estados para ver variedad
+                        EstadoEntregable estado = (e % 2 == 0) ? EstadoEntregable.PENDIENTE : EstadoEntregable.PENDIENTE;
+                        LocalDate fechaLimite = LocalDate.now().plusDays(f * h * e); 
+                        
+                        addEntregable("Entregable Documental " + f + "." + h + "." + e, "25.00", estado, fechaLimite, hito);
+                    }
+                }
+                p008.getFases().add(fase);
+            }
+            proyectoRepository.save(p008);
+
+            System.out.println(">>> SEEDER: 8 proyectos de prueba cargados exitosamente (Incluido el masivo).");
         };
     }
 
