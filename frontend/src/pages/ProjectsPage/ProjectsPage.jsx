@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import ProjectListTable from '../components/projects/ProjectListTable/ProjectListTable';
-import projectService from '../services/projectService';
+import ProjectListTable from '../../components/features/projects/ProjectListTable';
+import projectService from '../../services/projectService';
 import { Plus, Search, Filter } from 'lucide-react';
 import './ProjectsPage.css';
 

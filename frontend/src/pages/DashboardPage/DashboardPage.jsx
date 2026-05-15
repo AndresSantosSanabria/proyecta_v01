@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import KPICard from '../components/common/KPICard';
-import ProjectTable from '../components/common/ProjectTable';
-import dashboardService from '../services/dashboardService';
+import KPICard from '../../components/common/KPICard';
+import ProjectTable from '../../components/features/projects/ProjectTable';
+import dashboardService from '../../services/dashboardService';
 import './DashboardPage.css';
 
 const DashboardPage = () => {

@@ -1,0 +1,318 @@
+.cronograma-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cronograma-header {
+  margin-bottom: 2rem;
+}
+
+.cronograma-header h1 {
+  font-size: 1.8rem;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.cronograma-header p {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0 0;
+}
+
+.top-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.cronograma-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Upload Section */
+.upload-zone {
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background-color: #fcfcfc;
+  margin-bottom: 1rem;
+}
+
+.upload-zone:hover {
+  border-color: #4caf50;
+  background-color: #f1f8e9;
+}
+
+.upload-zone.active {
+  border-color: #4caf50;
+  background-color: #f1f8e9;
+}
+
+.upload-icon {
+  color: #4caf50;
+  margin-bottom: 1rem;
+}
+
+.upload-text {
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  color: #333;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.download-btn:hover:not(:disabled) {
+  background: #eeeeee;
+  border-color: #bdbdbd;
+}
+
+.download-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Info Section */
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.info-value {
+  color: #333;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.info-value.status-active {
+  color: #4caf50;
+}
+
+/* Visual Cronograma Section */
+.visual-cronograma-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.section-header h2 {
+  font-size: 1.1rem;
+  color: #333;
+  margin: 0;
+}
+
+.gantt-container {
+  overflow-x: auto;
+  padding: 1.5rem;
+}
+
+.gantt-table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+}
+
+.gantt-header-row th {
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+  width: 7%;
+}
+
+.gantt-header-row th:first-child {
+  text-align: left;
+  width: 20%;
+}
+
+.gantt-row {
+  height: 45px;
+}
+
+.gantt-row td {
+  border-bottom: 1px solid #f9f9f9;
+  position: relative;
+}
+
+.task-name-cell {
+  padding: 0.5rem 0;
+}
+
+.task-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.phase-name {
+  color: #2e7d32;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.milestone-name {
+  color: #555;
+  font-size: 0.85rem;
+  padding-left: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.milestone-name::before {
+  content: '└';
+  margin-right: 0.5rem;
+  color: #ccc;
+}
+
+.bar-container {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  border-radius: 4px;
+  z-index: 1;
+  background: #eee; /* Fondo gris para indicar 0% */
+  overflow: hidden;
+  transition: transform 0.2s;
+  cursor: help;
+}
+
+.bar-container:hover {
+  transform: scaleY(1.1);
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.phase-bar .progress-fill {
+  background: linear-gradient(90deg, #1b5e20 0%, #2e7d32 100%);
+}
+
+.milestone-bar .progress-fill {
+  background: linear-gradient(90deg, #4caf50 0%, #81c784 100%);
+}
+
+.phase-bar {
+  border: 1px solid #1b5e20;
+}
+
+.milestone-bar {
+  border: 1px solid #4caf50;
+}
+
+.bar-label {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Loading & Error */
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem;
+  color: #666;
+}
+
+.error-container {
+  background: #ffebee;
+  color: #c62828;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.error-container.success-msg {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-color: #c8e6c9;
+}
+
+@media (max-width: 1024px) {
+  .top-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
