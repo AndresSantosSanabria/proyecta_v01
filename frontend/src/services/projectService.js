@@ -33,6 +33,16 @@ const projectService = {
     const { data } = await apiClient.post('/proyectos', projectData);
     return data;
   },
+
+  /**
+   * Obtiene el avance (KPIs) de un proyecto específico.
+   * @param {string|number} id 
+   * @returns {Promise<Object>}
+   */
+  getProgress: async (id) => {
+    const { data } = await apiClient.get(`/proyectos/${id}/avance`);
+    return data;
+  },
 };
 
 export default projectService;

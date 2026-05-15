@@ -1,0 +1,343 @@
+.progress-page-container {
+  padding: 2rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease;
+}
+
+/* Header */
+.progress-header {
+  margin-bottom: 2rem;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-title h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.project-id-badge {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+/* KPI Grid */
+.progress-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.progress-card {
+  min-height: auto;
+  padding: 1.5rem;
+  border-radius: 12px;
+}
+
+.progress-card .kpi-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.75rem;
+}
+
+.progress-card .kpi-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.progress-card .kpi-total {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.progress-card .kpi-detail {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.lock-detail {
+  color: #fbbf24 !important;
+}
+
+/* Info Alert */
+.info-alert {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #3b82f6;
+  margin-bottom: 2rem;
+}
+
+.info-alert p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.inline-icon {
+  vertical-align: middle;
+  margin: 0 0.2rem;
+}
+
+/* Detailed Table Section */
+.detailed-table-container {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-premium);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-header h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.corte-date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.btn-report {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-report:hover {
+  background: rgba(0,0,0,0.05);
+}
+
+.dark .btn-report:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+/* Tree Table */
+.tree-table-wrapper {
+  overflow-x: auto;
+}
+
+.tree-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tree-table th {
+  background-color: #1a4331;
+  color: white;
+  padding: 0.8rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.tree-table th svg {
+  vertical-align: middle;
+  margin-left: 0.3rem;
+  opacity: 0.7;
+}
+
+.tree-table td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+/* Row Hierarchies */
+.row-root {
+  background-color: #24583d;
+  color: white;
+}
+
+.row-root td {
+  border-bottom: none;
+}
+
+.row-phase {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark .row-phase {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.row-milestone {
+  background-color: var(--bg-card);
+  font-weight: 500;
+}
+
+.row-deliverable {
+  background-color: rgba(248, 250, 252, 0.5);
+  position: relative;
+}
+
+.dark .row-deliverable {
+  background-color: rgba(15, 23, 42, 0.5);
+}
+
+/* Interactividad */
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickable-row:hover {
+  background-color: rgba(16, 185, 129, 0.05) !important;
+}
+
+/* Nodos Jerárquicos y Badges */
+.node-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.node-badge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  letter-spacing: 0.5px;
+}
+
+.fase-badge {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.hito-badge {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.entregable-badge {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Indentations */
+.indent-1 { padding-left: 2rem !important; }
+.indent-2 { padding-left: 3.5rem !important; }
+.indent-3 { padding-left: 5rem !important; }
+
+/* Deliverable Content */
+.deliverable-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #10b981;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.file-link:hover {
+  text-decoration: underline;
+}
+
+/* Absolute Action Column (Floating Button) */
+.action-col-absolute {
+  position: absolute;
+  right: 1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 !important;
+  border: none !important;
+}
+
+.btn-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: #246345;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-upload:hover {
+  background-color: #1a4d35;
+}
+
+/* Utilities */
+.success-bg {
+  background: var(--success) !important;
+}
+
+.danger-bg {
+  background: var(--danger) !important;
+}
+
+.text-muted { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+.fw-bold { font-weight: bold; }
+.small { font-size: 0.75rem; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

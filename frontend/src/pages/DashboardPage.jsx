@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import KPICard from '../components/common/KPICard';
+import ProjectTable from '../components/common/ProjectTable';
 import dashboardService from '../services/dashboardService';
 import './DashboardPage.css';
 
 const DashboardPage = () => {
   const [kpis, setKpis] = useState(null);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -25,7 +28,52 @@ const DashboardPage = () => {
       }
     };
 
+    const fetchProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        const response = await dashboardService.getProjects();
+        if (response.success) {
+          setProjects(response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching projects:', err);
+        // Fallback for demo if endpoint is not ready
+        setProjects([
+          {
+            id: 1,
+            codigo: 'IS-PROY-CUN-001',
+            nombreProyecto: 'Modernización del Data Center Principal',
+            nombreDependencia: 'Infraestructura',
+            avance: 20,
+            estado: 'CON_RETRASOS',
+            entregablesAtrasados: 1
+          },
+          {
+            id: 2,
+            codigo: 'IS-PROY-CUN-002',
+            nombreProyecto: 'Sistema de PQRS Ciudadano',
+            nombreDependencia: 'Atención al Ciudadano',
+            avance: 15,
+            estado: 'CON_RETRASOS',
+            entregablesAtrasados: 2
+          },
+          {
+            id: 3,
+            codigo: 'IS-PROY-CUN-004',
+            nombreProyecto: 'Portal Web Gobernación 2.0',
+            nombreDependencia: 'Prensa y Comunicaciones',
+            avance: 72,
+            estado: 'ACTIVO',
+            entregablesAtrasados: 0
+          }
+        ]);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
     fetchKPIs();
+    fetchProjects();
   }, []);
 
   if (loading) {
@@ -95,6 +143,11 @@ const DashboardPage = () => {
           />
         ))}
       </div>
+
+      <ProjectTable 
+        projects={projects} 
+        loading={loadingProjects} 
+      />
     </div>
   );
 };

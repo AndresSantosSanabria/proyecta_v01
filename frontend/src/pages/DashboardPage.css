@@ -1,7 +1,8 @@
 .dashboard-container {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
   animation: fadeIn 0.5s ease-out;
 }
 
@@ -18,9 +19,9 @@
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
 }
 
 @keyframes fadeIn {
@@ -28,12 +29,23 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 1200px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 1.5rem;
+    padding: 1rem;
   }
   
   .dashboard-header h1 {
     font-size: 1.75rem;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 }

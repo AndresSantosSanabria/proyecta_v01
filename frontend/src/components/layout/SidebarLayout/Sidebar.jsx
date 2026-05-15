@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -7,17 +7,45 @@ import {
   LogOut, 
   ChevronLeft, 
   ChevronRight, 
-  ShieldCheck 
+  ShieldCheck,
+  Sun,
+  Moon,
+  Activity,
+  Calendar,
+  AlertTriangle,
+  CheckSquare
 } from 'lucide-react';
+import { useTheme } from '../../../context/ThemeContext';
+import { useLocation } from 'react-router-dom';
+
+import dashboardService from '../../../services/dashboardService';
 import './Sidebar.css';
 
-/**
- * Sidebar Component
- * Maneja la navegación principal y el estado de colapso.
- * Sigue los requerimientos de diseño de la imagen proporcionada.
- */
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [activeCount, setActiveCount] = useState(0);
+  const { isDarkMode, toggleTheme } = useTheme();
+  const location = useLocation();
+
+  // Detectar si estamos dentro de un proyecto específico
+  const projectMatch = location.pathname.match(/^\/projects\/([a-zA-Z0-9-]+)/);
+  const currentProjectId = projectMatch ? projectMatch[1] : null;
+
+  useEffect(() => {
+    const fetchActiveCount = async () => {
+      try {
+        const response = await dashboardService.getKPIs();
+        if (response.success && response.data) {
+          // Usamos el conteo de proyectos activos del sistema
+          setActiveCount(response.data.activos || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching active projects count for sidebar:', error);
+      }
+    };
+
+    fetchActiveCount();
+  }, []);
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -28,12 +56,17 @@ const Sidebar = () => {
       category: 'PRINCIPAL',
       items: [
         { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> },
-        { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: 2 },
+        { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: activeCount },
       ]
     },
     {
       category: 'MÓDULOS',
-      items: []
+      items: currentProjectId ? [
+        { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> },
+        { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> },
+        { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> },
+        { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> },
+      ] : []
     },
     {
       category: 'CONSULTAS',
@@ -99,9 +132,19 @@ const Sidebar = () => {
             </div>
           )}
         </div>
-        <button className="logout-btn" title="Cerrar Sesión">
-          <LogOut size={20} />
-        </button>
+        
+        <div className="sidebar-footer-actions">
+          <button 
+            className="theme-toggle-btn" 
+            onClick={toggleTheme} 
+            title={isDarkMode ? "Modo Claro" : "Modo Oscuro"}
+          >
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <button className="logout-btn" title="Cerrar Sesión">
+            <LogOut size={20} />
+          </button>
+        </div>
       </div>
     </aside>
   );
