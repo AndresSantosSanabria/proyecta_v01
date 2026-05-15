@@ -219,6 +219,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getId(),
                 p.getNombre(),
                 p.getDirector(),
+                p.getFechaInicio(),
                 p.getAvanceTotal(),
                 p.getEstado().name(),
                 totalFases,

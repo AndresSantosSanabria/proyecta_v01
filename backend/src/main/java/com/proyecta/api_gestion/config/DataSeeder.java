@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @Configuration
 public class DataSeeder {
@@ -24,13 +23,9 @@ public class DataSeeder {
             RiesgoRepository riesgoRepository
     ) {
         return args -> {
-            // Limpiar datos existentes para forzar recarga con el proyecto masivo
-            System.out.println(">>> SEEDER: Limpiando datos previos...");
-            riesgoRepository.deleteAll();
-            proyectoRepository.deleteAll();
-            patrocinadorRepository.deleteAll();
+            System.out.println(">>> SEEDER: Verificando datos...");
 
-            // 1. Usuarios
+            // 1. Usuario admin (idempotente)
             if (usuarioRepository.findByCorreo("admin@proyecta.com").isEmpty()) {
                 Usuario admin = new Usuario();
                 admin.setNombre("Administrador Proyecta");
@@ -39,238 +34,267 @@ public class DataSeeder {
                 admin.setRol(Rol.ADMINISTRADOR);
                 admin.setActivo(true);
                 usuarioRepository.save(admin);
+                System.out.println(">>> SEEDER: Usuario admin creado.");
             }
 
-            // 2. Parámetros
+            // 2. Parámetros (idempotente)
             if (!systemParameterRepository.existsById("ventana_vencimiento_dias")) {
                 systemParameterRepository.save(new SystemParameter("ventana_vencimiento_dias", "8", "Días ventana de vencimiento"));
             }
 
-            // 3. Reportes Config
+            // 3. Reportes Config (idempotente)
             if (!reporteConfigRepository.existsById("ESTADO_PROYECTO")) {
                 reporteConfigRepository.save(new ReporteConfig("ESTADO_PROYECTO", "Estado de Proyecto", "Resumen ejecutivo del avance.", 1));
                 reporteConfigRepository.save(new ReporteConfig("TODOS_LOS_PROYECTOS", "Estado de todos los proyectos", "Lista resumida.", 2));
                 reporteConfigRepository.save(new ReporteConfig("RIESGOS", "Matriz de Riesgos", "Visualización de amenazas.", 3));
             }
 
-            // 4. Patrocinadores
-            Patrocinador p1 = new Patrocinador();
-            p1.setNombre("Secretaría de TIC");
-            p1.setCargo("Secretario");
-            p1.setDependencia("Despacho");
-            p1.setEntidad("Gobernación de Cundinamarca");
-            p1 = patrocinadorRepository.save(p1);
+            // 4. Patrocinadores (idempotente por nombre)
+            Patrocinador p1 = patrocinadorRepository.findByNombre("Secretaría de TIC").orElseGet(() -> {
+                Patrocinador p = new Patrocinador();
+                p.setNombre("Secretaría de TIC");
+                p.setCargo("Secretario");
+                p.setDependencia("Despacho");
+                p.setEntidad("Gobernación de Cundinamarca");
+                return patrocinadorRepository.save(p);
+            });
 
-            Patrocinador p2 = new Patrocinador();
-            p2.setNombre("Dirección de Infraestructura");
-            p2.setCargo("Director TIC");
-            p2.setDependencia("TIC");
-            p2.setEntidad("Gobernación de Cundinamarca");
-            p2 = patrocinadorRepository.save(p2);
+            Patrocinador p2 = patrocinadorRepository.findByNombre("Dirección de Infraestructura").orElseGet(() -> {
+                Patrocinador p = new Patrocinador();
+                p.setNombre("Dirección de Infraestructura");
+                p.setCargo("Director TIC");
+                p.setDependencia("TIC");
+                p.setEntidad("Gobernación de Cundinamarca");
+                return patrocinadorRepository.save(p);
+            });
 
-            // ====================================================
-            // HELPER: crea una Fase con un Hito y un Entregable
-            // ====================================================
+            // 5. Proyectos (idempotente - solo inserta si no existe)
+            seedProyecto("IS-PROY-CUN-001", "Modernización del Data Center Principal",
+                    "Infraestructura", "Andrés Santos", "andres.santos@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(5), EstadoProyecto.CON_RETRASOS, "20.00", true, p2,
+                    "Ejecución", "50.00", "10.00",
+                    "Adquisición de Servidores", "Orden de Compra Aprobada", EstadoEntregable.PENDIENTE, LocalDate.now().minusDays(30),
+                    "R001", "Retraso en importación de hardware.", Probabilidad.ALTA, Impacto.ALTO, NivelRiesgo.CRITICO,
+                    proyectoRepository, riesgoRepository);
 
-            // ============ PROYECTOS VENCIDOS (3) ================
+            seedProyecto("IS-PROY-CUN-002", "Sistema de PQRS Ciudadano",
+                    "Atención al Ciudadano", "Carolina Gómez", "carolina.gomez@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(6), EstadoProyecto.CON_RETRASOS, "15.00", true, p1,
+                    "Análisis", "100.00", "15.00",
+                    "Documento de Requerimientos", "Acta de Inicio", EstadoEntregable.PENDIENTE, LocalDate.now().minusDays(15),
+                    "R002", "Falta de alineación con usuarios finales.", Probabilidad.MEDIA, Impacto.ALTO, NivelRiesgo.ALTO,
+                    proyectoRepository, riesgoRepository);
 
-            // PROY-001: Vencido — entregable 30 días atrasado
-            Proyecto p001 = new Proyecto();
-            p001.setId("IS-PROY-CUN-001");
-            p001.setNombre("Modernización del Data Center Principal");
-            p001.setDependencia("Infraestructura");
-            p001.setDirector("Andrés Santos");
-            p001.setCorreoDirector("andres.santos@cundinamarca.gov.co");
-            p001.setFechaInicio(LocalDate.now().minusMonths(5));
-            p001.setEstado(EstadoProyecto.CON_RETRASOS);
-            p001.setAvanceTotal(new BigDecimal("20.00"));
-            p001.setPeti(true);
-            p001.setPatrocinador(p2);
+            seedProyecto("IS-PROY-CUN-003", "Migración SAP S/4HANA",
+                    "Finanzas", "Martha Lucía Ríos", "martha.rios@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(8), EstadoProyecto.CON_RETRASOS, "35.00", true, p2,
+                    "Desarrollo", "100.00", "35.00",
+                    "Módulo de Contabilidad", "Pruebas Unitarias Completadas", EstadoEntregable.PENDIENTE, LocalDate.now().minusDays(7),
+                    "R003", "Incompatibilidad de módulos legados.", Probabilidad.ALTA, Impacto.ALTO, NivelRiesgo.CRITICO,
+                    proyectoRepository, riesgoRepository);
 
-            Fase f001 = buildFase("Ejecución", "50.00", "10.00", p001);
-            Hito h001 = buildHito("Adquisición de Servidores", "100.00", f001);
-            addEntregable("Orden de Compra Aprobada", "100.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().minusDays(30), h001);
-            p001.getFases().add(f001);
-            proyectoRepository.save(p001);
+            seedProyecto("IS-PROY-CUN-004", "Portal Web Gobernación 2.0",
+                    "Prensa y Comunicaciones", "Felipe Rojas", "felipe.rojas@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(3), EstadoProyecto.ACTIVO, "72.00", false, p1,
+                    "Diseño y Desarrollo UI", "100.00", "72.00",
+                    "Maquetas Validadas", "Prototipo Interactivo Aprobado", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(2),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Riesgo r001 = buildRiesgo("R001", "Retraso en importación de hardware.", Probabilidad.ALTA, Impacto.ALTO, NivelRiesgo.CRITICO, p001);
-            riesgoRepository.save(r001);
+            seedProyecto("IS-PROY-CUN-005", "Capacitación en Ciberseguridad 2026",
+                    "Seguridad de la Información", "Roberto Díaz", "roberto.diaz@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(2), EstadoProyecto.ACTIVO, "80.00", false, p1,
+                    "Formación", "100.00", "80.00",
+                    "Talleres Realizados", "Módulo 1 - Fundamentos", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(30),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // PROY-002: Vencido — entregable 15 días atrasado
-            Proyecto p002 = new Proyecto();
-            p002.setId("IS-PROY-CUN-002");
-            p002.setNombre("Sistema de PQRS Ciudadano");
-            p002.setDependencia("Atención al Ciudadano");
-            p002.setDirector("Carolina Gómez");
-            p002.setCorreoDirector("carolina.gomez@cundinamarca.gov.co");
-            p002.setFechaInicio(LocalDate.now().minusMonths(6));
-            p002.setEstado(EstadoProyecto.CON_RETRASOS);
-            p002.setAvanceTotal(new BigDecimal("15.00"));
-            p002.setPeti(true);
-            p002.setPatrocinador(p1);
+            seedProyecto("IS-PROY-CUN-006", "App Móvil Trámites Ciudadanos",
+                    "Innovación y Tecnología", "Luisa Fernanda Mora", "luisa.mora@cundinamarca.gov.co",
+                    LocalDate.now().minusWeeks(3), EstadoProyecto.ACTIVO, "5.00", false, p2,
+                    "Planificación", "100.00", "5.00",
+                    "Kickoff del Proyecto", "Acta de Inicio Firmada", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(60),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Fase f002 = buildFase("Análisis", "100.00", "15.00", p002);
-            Hito h002 = buildHito("Documento de Requerimientos", "100.00", f002);
-            addEntregable("Acta de Inicio", "50.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().minusDays(15), h002);
-            addEntregable("Diagrama de Casos de Uso", "50.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().minusDays(5), h002);
-            p002.getFases().add(f002);
-            proyectoRepository.save(p002);
+            seedProyecto("IS-PROY-CUN-007", "Infraestructura de Red LAN Sede Central",
+                    "Infraestructura", "Andrés Santos", "andres.santos@cundinamarca.gov.co",
+                    LocalDate.now().minusYears(1), EstadoProyecto.CERRADO, "100.00", false, p2,
+                    "Implementación", "100.00", "100.00",
+                    "Red Instalada y Certificada", "Informe Final de Implementación", EstadoEntregable.A_CONFORMIDAD, LocalDate.now().minusMonths(2),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Riesgo r002 = buildRiesgo("R002", "Falta de alineación con usuarios finales.", Probabilidad.MEDIA, Impacto.ALTO, NivelRiesgo.ALTO, p002);
-            riesgoRepository.save(r002);
+            seedProyecto("IS-PROY-CUN-009", "Telemedicina para Centros de Salud Rurales",
+                    "Salud", "Elena Vásquez", "elena.vasquez@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(3), EstadoProyecto.ACTIVO, "45.00", false, p1,
+                    "Diagnóstico", "100.00", "100.00",
+                    "Mapa de Conectividad", "Informe Técnico de Redes", EstadoEntregable.A_CONFORMIDAD, LocalDate.now().minusMonths(2),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // PROY-003: Vencido — entregable 7 días atrasado
-            Proyecto p003 = new Proyecto();
-            p003.setId("IS-PROY-CUN-003");
-            p003.setNombre("Migración SAP S/4HANA");
-            p003.setDependencia("Finanzas");
-            p003.setDirector("Martha Lucía Ríos");
-            p003.setCorreoDirector("martha.rios@cundinamarca.gov.co");
-            p003.setFechaInicio(LocalDate.now().minusMonths(8));
-            p003.setEstado(EstadoProyecto.CON_RETRASOS);
-            p003.setAvanceTotal(new BigDecimal("35.00"));
-            p003.setPeti(true);
-            p003.setPatrocinador(p2);
+            seedProyecto("IS-PROY-CUN-010", "Renovación de Infraestructura Tecnológica Educativa",
+                    "Educación", "Jorge Iván Ruiz", "jorge.ruiz@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(7), EstadoProyecto.CON_RETRASOS, "60.00", false, p2,
+                    "Distribución", "100.00", "60.00",
+                    "Entrega de Laptops", "Lote 1: Sabana Centro", EstadoEntregable.PENDIENTE, LocalDate.now().minusDays(10),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Fase f003 = buildFase("Desarrollo", "100.00", "35.00", p003);
-            Hito h003 = buildHito("Módulo de Contabilidad", "100.00", f003);
-            addEntregable("Pruebas Unitarias Completadas", "100.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().minusDays(7), h003);
-            p003.getFases().add(f003);
-            proyectoRepository.save(p003);
+            seedProyecto("IS-PROY-CUN-011", "Sistema de Catastro Multipropósito Regional",
+                    "Hacienda", "Sandra Milena Torres", "sandra.torres@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(12), EstadoProyecto.ACTIVO, "88.00", false, p1,
+                    "Consolidación de Datos", "100.00", "88.00",
+                    "Carga de Predios Rurales", "Base de Datos Validada", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(20),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Riesgo r003a = buildRiesgo("R003", "Incompatibilidad de módulos legados.", Probabilidad.ALTA, Impacto.ALTO, NivelRiesgo.CRITICO, p003);
-            Riesgo r003b = buildRiesgo("R004", "Falta de personal técnico SAP.", Probabilidad.MEDIA, Impacto.ALTO, NivelRiesgo.ALTO, p003);
-            riesgoRepository.save(r003a);
-            riesgoRepository.save(r003b);
+            seedProyecto("IS-PROY-CUN-012", "Implementación de Firma Digital y Cero Papel",
+                    "Secretaría General", "Ricardo Méndez", "ricardo.mendez@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(2), EstadoProyecto.ACTIVO, "15.00", false, p1,
+                    "Configuración", "100.00", "15.00",
+                    "Certificados Emitidos", "Software de Firma Instalado", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(40),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // ============ PROYECTO PRÓXIMO A VENCER (1) ================
+            seedProyecto("IS-PROY-CUN-013", "Programa Departamental de Gestión de RAEE",
+                    "Ambiente", "Claudia Pardo", "claudia.pardo@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(4), EstadoProyecto.ACTIVO, "40.00", false, p2,
+                    "Recolección", "100.00", "40.00",
+                    "Centros de Acopio Habilitados", "Convenios con Municipios", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(60),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // PROY-004: Vence en 2 días
-            Proyecto p004 = new Proyecto();
-            p004.setId("IS-PROY-CUN-004");
-            p004.setNombre("Portal Web Gobernación 2.0");
-            p004.setDependencia("Prensa y Comunicaciones");
-            p004.setDirector("Felipe Rojas");
-            p004.setCorreoDirector("felipe.rojas@cundinamarca.gov.co");
-            p004.setFechaInicio(LocalDate.now().minusMonths(3));
-            p004.setEstado(EstadoProyecto.ACTIVO);
-            p004.setAvanceTotal(new BigDecimal("72.00"));
-            p004.setPatrocinador(p1);
+            seedProyecto("IS-PROY-CUN-014", "Fortalecimiento de la Ciberseguridad Institucional",
+                    "TIC", "Roberto Díaz", "roberto.diaz@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(1), EstadoProyecto.ACTIVO, "10.00", false, p2,
+                    "Auditoría", "100.00", "10.00",
+                    "Pentesting Finalizado", "Reporte de Vulnerabilidades", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(15),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Fase f004 = buildFase("Diseño y Desarrollo UI", "100.00", "72.00", p004);
-            Hito h004 = buildHito("Maquetas Validadas", "100.00", f004);
-            addEntregable("Prototipo Interactivo Aprobado", "60.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().plusDays(2), h004); // Vence en 2 días
-            addEntregable("Manual de Usuario", "40.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().plusDays(10), h004);
-            p004.getFases().add(f004);
-            proyectoRepository.save(p004);
+            seedProyecto("IS-PROY-CUN-015", "Portal de Datos Abiertos de Cundinamarca",
+                    "Innovación", "Luisa Fernanda Mora", "luisa.mora@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(5), EstadoProyecto.CERRADO, "100.00", false, p1,
+                    "Cierre", "100.00", "100.00",
+                    "Portal en Producción", "Lanzamiento Oficial", EstadoEntregable.A_CONFORMIDAD, LocalDate.now().minusDays(30),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // ============ PROYECTOS AL DÍA (3) ================
+            seedProyecto("IS-PROY-CUN-016", "Modernización del Sistema de Tránsito Departamental",
+                    "Movilidad", "Andrés Santos", "andres.santos@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(9), EstadoProyecto.CON_RETRASOS, "55.00", false, p2,
+                    "Desarrollo", "100.00", "55.00",
+                    "Módulo de Infracciones", "Interfaz de Usuario", EstadoEntregable.PENDIENTE, LocalDate.now().minusDays(5),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // PROY-005: Al día — avance 80%
-            Proyecto p005 = new Proyecto();
-            p005.setId("IS-PROY-CUN-005");
-            p005.setNombre("Capacitación en Ciberseguridad 2026");
-            p005.setDependencia("Seguridad de la Información");
-            p005.setDirector("Roberto Díaz");
-            p005.setCorreoDirector("roberto.diaz@cundinamarca.gov.co");
-            p005.setFechaInicio(LocalDate.now().minusMonths(2));
-            p005.setEstado(EstadoProyecto.ACTIVO);
-            p005.setAvanceTotal(new BigDecimal("80.00"));
-            p005.setPatrocinador(p1);
+            seedProyecto("IS-PROY-CUN-017", "Sistema Integrado de Gestión Documental Electrónica",
+                    "Secretaría de Gobierno", "Claudia Pardo", "claudia.pardo@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(6), EstadoProyecto.ACTIVO, "75.00", false, p1,
+                    "Migración", "100.00", "75.00",
+                    "Digitalización de Archivo Histórico", "Expedientes Indexados", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(30),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Fase f005 = buildFase("Formación", "100.00", "80.00", p005);
-            Hito h005 = buildHito("Talleres Realizados", "100.00", f005);
-            addEntregable("Módulo 1 - Fundamentos", "50.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().plusDays(30), h005);
-            addEntregable("Módulo 2 - Amenazas", "50.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().plusDays(45), h005);
-            p005.getFases().add(f005);
-            proyectoRepository.save(p005);
+            seedProyecto("IS-PROY-CUN-018", "Monitoreo Ambiental Satelital de Cuencas",
+                    "Ambiente", "Felipe Rojas", "felipe.rojas@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(2), EstadoProyecto.ACTIVO, "30.00", false, p2,
+                    "Configuración", "100.00", "30.00",
+                    "Enlace con Satélite", "Pruebas de Transmisión", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(45),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // PROY-006: Al día — proyecto nuevo, avance 5%
-            Proyecto p006 = new Proyecto();
-            p006.setId("IS-PROY-CUN-006");
-            p006.setNombre("App Móvil Trámites Ciudadanos");
-            p006.setDependencia("Innovación y Tecnología");
-            p006.setDirector("Luisa Fernanda Mora");
-            p006.setCorreoDirector("luisa.mora@cundinamarca.gov.co");
-            p006.setFechaInicio(LocalDate.now().minusWeeks(3));
-            p006.setEstado(EstadoProyecto.ACTIVO);
-            p006.setAvanceTotal(new BigDecimal("5.00"));
-            p006.setPatrocinador(p2);
+            seedProyecto("IS-PROY-CUN-019", "Plataforma de Gestión Integral del Talento Humano",
+                    "Función Pública", "Carolina Gómez", "carolina.gomez@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(4), EstadoProyecto.ACTIVO, "50.00", false, p1,
+                    "Módulos", "100.00", "50.00",
+                    "Módulo de Nómina", "Carga de Historias Laborales", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(20),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            Fase f006 = buildFase("Planificación", "100.00", "5.00", p006);
-            Hito h006 = buildHito("Kickoff del Proyecto", "100.00", f006);
-            addEntregable("Acta de Inicio Firmada", "100.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().plusDays(60), h006);
-            p006.getFases().add(f006);
-            proyectoRepository.save(p006);
+            seedProyecto("IS-PROY-CUN-020", "Plataforma de Turismo Digital 360",
+                    "Cultura y Turismo", "Elena Vásquez", "elena.vasquez@cundinamarca.gov.co",
+                    LocalDate.now().minusMonths(8), EstadoProyecto.ACTIVO, "65.00", false, p2,
+                    "Contenido", "100.00", "65.00",
+                    "Recorridos Virtuales", "Videos en 4K Terminados", EstadoEntregable.PENDIENTE, LocalDate.now().plusDays(10),
+                    null, null, null, null, null,
+                    proyectoRepository, riesgoRepository);
 
-            // PROY-007: Al día — proyecto cerrado 100%
-            Proyecto p007 = new Proyecto();
-            p007.setId("IS-PROY-CUN-007");
-            p007.setNombre("Infraestructura de Red LAN Sede Central");
-            p007.setDependencia("Infraestructura");
-            p007.setDirector("Andrés Santos");
-            p007.setCorreoDirector("andres.santos@cundinamarca.gov.co");
-            p007.setFechaInicio(LocalDate.now().minusYears(1));
-            p007.setEstado(EstadoProyecto.CERRADO);
-            p007.setAvanceTotal(new BigDecimal("100.00"));
-            p007.setPatrocinador(p2);
-
-            Fase f007 = buildFase("Implementación", "100.00", "100.00", p007);
-            Hito h007 = buildHito("Red Instalada y Certificada", "100.00", f007);
-            addEntregable("Informe Final de Implementación", "100.00", EstadoEntregable.PENDIENTE,
-                    LocalDate.now().minusMonths(2), h007);
-            p007.getFases().add(f007);
-            proyectoRepository.save(p007);
-
-            // ============ PROY-008: PROYECTO MASIVO DE PRUEBA DE RENDIMIENTO UI ================
-            Proyecto p008 = new Proyecto();
-            p008.setId("IS-PROY-CUN-008");
-            p008.setNombre("Proyecto Masivo de Pruebas de Estrés UI");
-            p008.setDependencia("Calidad de Software");
-            p008.setDirector("Usuario de Pruebas");
-            p008.setCorreoDirector("qa@cundinamarca.gov.co");
-            p008.setFechaInicio(LocalDate.now());
-            p008.setEstado(EstadoProyecto.ACTIVO);
-            p008.setAvanceTotal(new BigDecimal("0.00"));
-            p008.setPatrocinador(p1);
-
-            // 5 Fases (20% cada una)
-            for (int f = 1; f <= 5; f++) {
-                Fase fase = buildFase("Fase de Prueba " + f, "20.00", "0.00", p008);
-                
-                // 3 Hitos por fase (33.33% cada uno)
-                for (int h = 1; h <= 3; h++) {
-                    Hito hito = buildHito("Hito de Control " + f + "." + h, "33.33", fase);
-                    
-                    // 4 Entregables por hito (25% cada uno)
-                    for (int e = 1; e <= 4; e++) {
-                        // Mezclamos un poco los estados para ver variedad
-                        EstadoEntregable estado = (e % 2 == 0) ? EstadoEntregable.PENDIENTE : EstadoEntregable.PENDIENTE;
-                        LocalDate fechaLimite = LocalDate.now().plusDays(f * h * e); 
-                        
-                        addEntregable("Entregable Documental " + f + "." + h + "." + e, "25.00", estado, fechaLimite, hito);
+            // PROY-008: Proyecto masivo con múltiples fases (idempotente)
+            if (proyectoRepository.findById("IS-PROY-CUN-008").isEmpty()) {
+                Proyecto p008 = new Proyecto();
+                p008.setId("IS-PROY-CUN-008");
+                p008.setNombre("Proyecto Masivo de Pruebas de Estrés UI");
+                p008.setDependencia("Calidad de Software");
+                p008.setDirector("Usuario de Pruebas");
+                p008.setCorreoDirector("qa@cundinamarca.gov.co");
+                p008.setFechaInicio(LocalDate.now().minusMonths(4));
+                p008.setEstado(EstadoProyecto.ACTIVO);
+                p008.setAvanceTotal(new BigDecimal("0.00"));
+                p008.setPatrocinador(p1);
+                LocalDate fechaBase = LocalDate.now().minusMonths(3);
+                for (int f = 1; f <= 5; f++) {
+                    Fase fase = buildFase("Fase de Prueba " + f, "20.00", "0.00", p008);
+                    for (int h = 1; h <= 3; h++) {
+                        Hito hito = buildHito("Hito de Control " + f + "." + h, "33.33", fase);
+                        LocalDate hitoInicio = fechaBase.plusWeeks((long) f * 3).plusWeeks(h);
+                        for (int e = 1; e <= 4; e++) {
+                            addEntregable("Entregable " + f + "." + h + "." + e, "25.00",
+                                    EstadoEntregable.PENDIENTE, hitoInicio.plusDays((long) e * 4 + 2), hito);
+                        }
                     }
+                    p008.getFases().add(fase);
                 }
-                p008.getFases().add(fase);
+                proyectoRepository.save(p008);
             }
-            proyectoRepository.save(p008);
 
-            System.out.println(">>> SEEDER: 8 proyectos de prueba cargados exitosamente (Incluido el masivo).");
+            long total = proyectoRepository.count();
+            System.out.println(">>> SEEDER: Finalizado. Total de proyectos en BD: " + total);
         };
     }
 
-    // ============================================================
-    // Métodos helper privados
-    // ============================================================
+    // ── Helper: inserta proyecto solo si no existe ──────────────────────────
+    private void seedProyecto(
+            String id, String nombre, String dependencia, String director, String correo,
+            LocalDate fechaInicio, EstadoProyecto estado, String avance, boolean peti,
+            Patrocinador patrocinador,
+            String faseNombre, String fasePond, String faseAvance,
+            String hitoNombre, String entregableNombre, EstadoEntregable entregableEstado, LocalDate fechaLimite,
+            String riesgoCodigo, String riesgoDesc, Probabilidad prob, Impacto impacto, NivelRiesgo nivel,
+            ProyectoRepository proyectoRepo, RiesgoRepository riesgoRepo) {
+
+        if (proyectoRepo.findById(id).isPresent()) return;
+
+        Proyecto p = new Proyecto();
+        p.setId(id);
+        p.setNombre(nombre);
+        p.setDependencia(dependencia);
+        p.setDirector(director);
+        p.setCorreoDirector(correo);
+        p.setFechaInicio(fechaInicio);
+        p.setEstado(estado);
+        p.setAvanceTotal(new BigDecimal(avance));
+        p.setPeti(peti);
+        p.setPatrocinador(patrocinador);
+
+        Fase fase = buildFase(faseNombre, fasePond, faseAvance, p);
+        Hito hito = buildHito(hitoNombre, "100.00", fase);
+        addEntregable(entregableNombre, "100.00", entregableEstado, fechaLimite, hito);
+        p.getFases().add(fase);
+        proyectoRepo.save(p);
+
+        if (riesgoCodigo != null) {
+            Riesgo r = new Riesgo();
+            r.setCodigo(riesgoCodigo);
+            r.setDescripcion(riesgoDesc);
+            r.setProbabilidad(prob);
+            r.setImpacto(impacto);
+            r.setNivel(nivel);
+            r.setProyecto(p);
+            riesgoRepo.save(r);
+        }
+    }
 
     private Fase buildFase(String nombre, String ponderacion, String avance, Proyecto proyecto) {
         Fase f = new Fase();
@@ -299,17 +323,5 @@ public class DataSeeder {
         e.setFechaLimite(fechaLimite);
         e.setHito(hito);
         hito.getEntregables().add(e);
-    }
-
-    private Riesgo buildRiesgo(String codigo, String descripcion, Probabilidad prob,
-                               Impacto impacto, NivelRiesgo nivel, Proyecto proyecto) {
-        Riesgo r = new Riesgo();
-        r.setCodigo(codigo);
-        r.setDescripcion(descripcion);
-        r.setProbabilidad(prob);
-        r.setImpacto(impacto);
-        r.setNivel(nivel);
-        r.setProyecto(proyecto);
-        return r;
     }
 }

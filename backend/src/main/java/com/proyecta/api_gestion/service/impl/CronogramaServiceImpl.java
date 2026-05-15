@@ -90,6 +90,7 @@ public class CronogramaServiceImpl implements CronogramaService {
                 hitosGantt.add(new HitoGanttDTO(
                         hito.getId(),
                         hito.getNombre(),
+                        hito.getAvanceCalculado(),
                         hitoStart,
                         hitoEnd
                 ));
@@ -98,6 +99,7 @@ public class CronogramaServiceImpl implements CronogramaService {
             vistaGantt.add(new FaseGanttDTO(
                     fase.getId(),
                     fase.getNombre(),
+                    fase.getAvanceCalculado(),
                     hitosGantt
             ));
         }
