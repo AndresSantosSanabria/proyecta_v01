@@ -214,7 +214,7 @@
 .empty-row {
   text-align: center;
   color: var(--text-muted);
-  padding: 3rem ! from;
+  padding: 3rem;
 }
 
 .table-loading {

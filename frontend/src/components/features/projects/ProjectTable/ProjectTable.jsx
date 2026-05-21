@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import './ProjectTable.css';
 import { Plus, ChevronRight } from 'lucide-react';
 
 const ProjectTable = ({ projects = [], loading = false }) => {
+  const navigate = useNavigate();
+
   if (loading) {
     return <div className="table-loading">Cargando proyectos...</div>;
   }
@@ -11,7 +14,7 @@ const ProjectTable = ({ projects = [], loading = false }) => {
     <div className="project-table-container">
       <div className="table-header-row">
         <h2>Resumen de Proyectos</h2>
-        <button className="btn-new-project">
+        <button className="btn-new-project" onClick={() => navigate('/proyectos/nuevo')}>
           <Plus size={18} />
           <span>Nuevo Proyecto</span>
         </button>
@@ -68,7 +71,10 @@ const ProjectTable = ({ projects = [], loading = false }) => {
                       </span>
                     </td>
                     <td>
-                      <button className="btn-view-project">
+                      <button
+                        className="btn-view-project"
+                        onClick={() => navigate(`/proyectos/${(project.codigo || project.id).toLowerCase()}/avance`)}
+                      >
                         Ver proyecto
                       </button>
                     </td>
