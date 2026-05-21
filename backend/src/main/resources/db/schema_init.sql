@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS usuario (
     nombre          VARCHAR(120)    NOT NULL,
     correo          VARCHAR(200)    NOT NULL UNIQUE,
     contrasena_hash TEXT,
-    rol             VARCHAR(20)     CHECK (rol IN ('ADMINISTRADOR', 'DIRECTOR_PROYECTO', 'GESTOR_PROYECTOS_TI', 'OPERADOR')),
+    rol             VARCHAR(30),
     activo          BOOLEAN         NOT NULL DEFAULT TRUE,
     fecha_creacion  TIMESTAMP       NOT NULL DEFAULT NOW(),
     ultimo_acceso   TIMESTAMP
@@ -41,6 +41,76 @@ CREATE TABLE IF NOT EXISTS patrocinador (
     entidad         VARCHAR(150),
     proceso_sigc    VARCHAR(100),
     procedimiento   VARCHAR(150)
+);;
+
+-- 1.25 rol_config
+CREATE TABLE IF NOT EXISTS rol_config (
+    rol_id          SERIAL          PRIMARY KEY,
+    codigo          VARCHAR(30)     NOT NULL UNIQUE,
+    nombre          VARCHAR(100)    NOT NULL,
+    descripcion     VARCHAR(300),
+    activo          BOOLEAN         NOT NULL DEFAULT TRUE
+);;
+
+-- 1.26 estado_proyecto_config
+CREATE TABLE IF NOT EXISTS estado_proyecto_config (
+    estado_proyecto_id  SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(30) NOT NULL UNIQUE,
+    nombre              VARCHAR(100) NOT NULL,
+    descripcion         VARCHAR(300),
+    color               VARCHAR(20),
+    es_terminal         BOOLEAN     NOT NULL DEFAULT FALSE,
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE
+);;
+
+-- 1.27 estado_entregable_config
+CREATE TABLE IF NOT EXISTS estado_entregable_config (
+    estado_entregable_id    SERIAL  PRIMARY KEY,
+    codigo                  VARCHAR(30) NOT NULL UNIQUE,
+    nombre                  VARCHAR(100) NOT NULL,
+    descripcion             VARCHAR(300),
+    color                   VARCHAR(20),
+    es_conforme             BOOLEAN     NOT NULL DEFAULT FALSE,
+    es_terminal             BOOLEAN     NOT NULL DEFAULT FALSE,
+    activo                  BOOLEAN     NOT NULL DEFAULT TRUE
+);;
+
+-- 1.28 tipo_documento_config
+CREATE TABLE IF NOT EXISTS tipo_documento_config (
+    tipo_documento_id   SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(30) NOT NULL UNIQUE,
+    nombre              VARCHAR(100) NOT NULL,
+    descripcion         VARCHAR(300),
+    requiere_evidencia  BOOLEAN     NOT NULL DEFAULT FALSE,
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE
+);;
+
+-- 1.29 estrategia_peti_config
+CREATE TABLE IF NOT EXISTS estrategia_peti_config (
+    estrategia_peti_id  SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(30) NOT NULL UNIQUE,
+    nombre              VARCHAR(100) NOT NULL,
+    descripcion         VARCHAR(300),
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE
+);;
+
+-- 1.30 matriz_riesgo
+CREATE TABLE IF NOT EXISTS matriz_riesgo (
+    matriz_riesgo_id    SERIAL      PRIMARY KEY,
+    probabilidad        VARCHAR(30) NOT NULL,
+    impacto             VARCHAR(30) NOT NULL,
+    nivel_riesgo        VARCHAR(30) NOT NULL,
+    puntaje             INTEGER     NOT NULL,
+    UNIQUE(probabilidad, impacto)
+);;
+
+-- 1.31 estado_riesgo_config
+CREATE TABLE IF NOT EXISTS estado_riesgo_config (
+    estado_riesgo_id    SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(30) NOT NULL UNIQUE,
+    nombre              VARCHAR(100) NOT NULL,
+    descripcion         VARCHAR(300),
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE
 );;
 
 -- 1.3 system_parameters
@@ -69,6 +139,7 @@ CREATE TABLE IF NOT EXISTS proyecto (
     objetivo_general        TEXT,
     es_peti                 BOOLEAN         NOT NULL DEFAULT FALSE,
     estrategia_peti         VARCHAR(80),
+    estrategia_peti_config_id INTEGER       REFERENCES estrategia_peti_config(estrategia_peti_id),
     vigencia_peti           VARCHAR(20),
     fecha_inicio            DATE,
     fecha_cierre            DATE,
@@ -77,8 +148,8 @@ CREATE TABLE IF NOT EXISTS proyecto (
     acta_constitucion_pdf   VARCHAR(300),
     cronograma_pdf          VARCHAR(300),
     viabilizacion_pdf       VARCHAR(300),
-    estado                  VARCHAR(20)     NOT NULL DEFAULT 'ACTIVO'
-                                 CHECK (estado IN ('ACTIVO', 'CON_RETRASOS', 'CERRADO')),
+    estado                  VARCHAR(30),
+    estado_config_id        INTEGER         REFERENCES estado_proyecto_config(estado_proyecto_id),
     avance_total            NUMERIC(5, 2)   NOT NULL DEFAULT 0.00,
     fecha_registro          TIMESTAMP       NOT NULL DEFAULT NOW(),
     patrocinador_id         INTEGER         REFERENCES patrocinador(patrocinador_id) ON DELETE SET NULL,
@@ -123,8 +194,8 @@ CREATE TABLE IF NOT EXISTS entregable (
     entregable_id       SERIAL          PRIMARY KEY,
     nombre              VARCHAR(300)    NOT NULL,
     ponderacion         NUMERIC(5, 2)   NOT NULL,
-    estado              VARCHAR(20)     NOT NULL DEFAULT 'PENDIENTE'
-                            CHECK (estado IN ('PENDIENTE', 'ENTREGADO', 'EN_REVISION', 'APROBADO', 'RECHAZADO')),
+    estado              VARCHAR(30),
+    estado_config_id    INTEGER         REFERENCES estado_entregable_config(estado_entregable_id),
     conforme            BOOLEAN         NOT NULL DEFAULT FALSE,
     archivo_pdf         VARCHAR(300),
     fecha_limite        DATE,
@@ -139,12 +210,13 @@ CREATE TABLE IF NOT EXISTS riesgos (
     riesgo_id           SERIAL          PRIMARY KEY,
     codigo              VARCHAR(10),
     descripcion         TEXT            NOT NULL,
-    probabilidad        INTEGER         NOT NULL CHECK (probabilidad BETWEEN 1 AND 5),
-    impacto             INTEGER         NOT NULL CHECK (impacto BETWEEN 1 AND 5),
-    nivel               VARCHAR(20),
+    probabilidad        VARCHAR(30),
+    impacto             VARCHAR(30),
+    nivel               VARCHAR(30),
+    puntaje             INTEGER,
     tratamiento         TEXT,
-    estado              VARCHAR(20)     NOT NULL DEFAULT 'Pendiente'
-                            CHECK (estado IN ('Pendiente', 'Tratado')),
+    estado              VARCHAR(30),
+    estado_config_id    INTEGER         REFERENCES estado_riesgo_config(estado_riesgo_id),
     fecha_actualizacion TIMESTAMP,
     proyecto_id         VARCHAR(30)     NOT NULL
                             REFERENCES proyecto(proyecto_id) ON DELETE CASCADE
@@ -214,8 +286,25 @@ ALTER TABLE hito ADD COLUMN IF NOT EXISTS nombre VARCHAR(150);;
 ALTER TABLE hito ADD COLUMN IF NOT EXISTS estado_revision VARCHAR(30) DEFAULT 'PENDIENTE';;
 
 -- Entregable
-ALTER TABLE entregable ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'PENDIENTE';;
+ALTER TABLE entregable ADD COLUMN IF NOT EXISTS estado VARCHAR(30);;
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS fecha_entrega_real DATE;;
+ALTER TABLE entregable ADD COLUMN IF NOT EXISTS estado_config_id INTEGER REFERENCES estado_entregable_config(estado_entregable_id);;
+
+-- Riesgos
+ALTER TABLE riesgos ADD COLUMN IF NOT EXISTS probabilidad VARCHAR(30);;
+ALTER TABLE riesgos ADD COLUMN IF NOT EXISTS impacto VARCHAR(30);;
+ALTER TABLE riesgos ADD COLUMN IF NOT EXISTS puntaje INTEGER;;
+ALTER TABLE riesgos ADD COLUMN IF NOT EXISTS estado_config_id INTEGER REFERENCES estado_riesgo_config(estado_riesgo_id);;
+
+-- Proyecto
+ALTER TABLE proyecto ADD COLUMN IF NOT EXISTS estado_config_id INTEGER REFERENCES estado_proyecto_config(estado_proyecto_id);;
+ALTER TABLE proyecto ADD COLUMN IF NOT EXISTS estrategia_peti_config_id INTEGER REFERENCES estrategia_peti_config(estrategia_peti_id);;
+
+-- Usuario
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS rol_config_id INTEGER REFERENCES rol_config(rol_id);;
+
+-- Documento
+ALTER TABLE documento ADD COLUMN IF NOT EXISTS tipo_documento_config_id INTEGER REFERENCES tipo_documento_config(tipo_documento_id);;
 
 DO $$ 
 BEGIN 

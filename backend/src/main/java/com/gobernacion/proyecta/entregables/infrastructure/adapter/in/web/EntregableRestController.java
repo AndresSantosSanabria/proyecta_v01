@@ -4,6 +4,7 @@ import com.gobernacion.proyecta.entregables.domain.port.in.EntregableUseCase;
 import com.gobernacion.proyecta.entregables.domain.model.Entregable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -22,9 +23,12 @@ public class EntregableRestController {
         return ResponseEntity.ok(entregableUseCase.listarPorHito(hitoId));
     }
 
-    @PatchMapping("/{id}/conformidad")
-    public ResponseEntity<Void> darConformidad(@PathVariable Integer id) {
-        entregableUseCase.darConformidad(id);
+    @PostMapping("/{id}/completar")
+    public ResponseEntity<Void> darConformidad(
+            @PathVariable Integer id,
+            @RequestParam LocalDate fechaEntrega,
+            @RequestParam String archivoPdf) {
+        entregableUseCase.darConformidad(id, fechaEntrega, archivoPdf);
         return ResponseEntity.ok().build();
     }
 

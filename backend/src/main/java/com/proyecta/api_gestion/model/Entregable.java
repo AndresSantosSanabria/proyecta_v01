@@ -1,5 +1,6 @@
 package com.proyecta.api_gestion.model;
 
+import com.proyecta.api_gestion.model.config.EstadoEntregableConfig;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -19,12 +20,19 @@ public class Entregable {
     @Column(nullable = false, length = 300)
     private String nombre;
 
+    @Column(length = 300)
+    private String descripcion;
+
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal ponderacion;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private EstadoEntregable estado = EstadoEntregable.PENDIENTE;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "estado_config_id", referencedColumnName = "estado_entregable_id")
+    private EstadoEntregableConfig estadoConfig;
 
     private Boolean conforme = false;
 
@@ -55,12 +63,56 @@ public class Entregable {
         }
     }
 
+    public void asegurarModificable() {
+        if (esTerminal()) {
+            throw new IllegalStateException(
+                "El entregable '" + this.nombre + "' ya está en estado terminal. No se permite modificar, reemplazar o eliminar su documento."
+            );
+        }
+    }
+
+    public void completar(String archivoPdf, LocalDate fechaEntrega) {
+        completar(archivoPdf, fechaEntrega, true);
+    }
+
+    public void completar(String archivoPdf, LocalDate fechaEntrega, boolean esConforme) {
+        asegurarModificable();
+        this.archivoPdf = archivoPdf;
+        this.fechaEntregaReal = fechaEntrega;
+        this.conforme = esConforme;
+        this.estadoConfig = null;
+        this.estado = esConforme ? EstadoEntregable.A_CONFORMIDAD : EstadoEntregable.COMPLETADO;
+    }
+
+    public boolean estaCompletado() {
+        return EstadoEntregable.COMPLETADO.equals(this.estado) || EstadoEntregable.A_CONFORMIDAD.equals(this.estado);
+    }
+
+    public boolean esConforme() {
+        if (estadoConfig != null) return estadoConfig.getEsConforme();
+        return EstadoEntregable.A_CONFORMIDAD.equals(this.estado) || Boolean.TRUE.equals(this.conforme);
+    }
+
+    public boolean esTerminal() {
+        if (estadoConfig != null) return estadoConfig.getEsTerminal();
+        return EstadoEntregable.COMPLETADO.equals(this.estado) || EstadoEntregable.A_CONFORMIDAD.equals(this.estado);
+    }
+
+    public String getEstadoCodigo() {
+        if (estadoConfig != null) return estadoConfig.getCodigo();
+        if (estado != null) return estado.name();
+        return null;
+    }
+
     // Getters and Setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
+
+    public String getDescripcion() { return descripcion; }
+    public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
 
     public BigDecimal getPonderacion() { return ponderacion; }
     public void setPonderacion(BigDecimal ponderacion) { this.ponderacion = ponderacion; }
@@ -85,4 +137,7 @@ public class Entregable {
 
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
+
+    public EstadoEntregableConfig getEstadoConfig() { return estadoConfig; }
+    public void setEstadoConfig(EstadoEntregableConfig estadoConfig) { this.estadoConfig = estadoConfig; }
 }

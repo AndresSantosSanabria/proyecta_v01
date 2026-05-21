@@ -8,12 +8,16 @@ import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.Riesgo;
+import com.proyecta.api_gestion.model.config.EstadoProyectoConfig;
+import com.proyecta.api_gestion.model.config.MatrizRiesgo;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.model.enums.Impacto;
 import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.enums.Probabilidad;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.RiesgoRepository;
+import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.service.IRiesgoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +34,9 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
     @Autowired
     private ProyectoRepository proyectoRepository;
+
+    @Autowired
+    private MatrizRiesgoRepository matrizRiesgoRepository;
 
     @Override
     public RiesgoListResponseDTO getRisksByProject(String projectId) {
@@ -49,7 +56,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
         Proyecto proyecto = proyectoRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con ID: " + projectId));
 
-        if (EstadoProyecto.CERRADO.equals(proyecto.getEstado())) {
+        if (esEstadoCerrado(proyecto)) {
             throw new ForbiddenException("No se pueden agregar riesgos a un proyecto cerrado.");
         }
 
@@ -60,9 +67,9 @@ public class RiesgoServiceImpl implements IRiesgoService {
         riesgo.setProyecto(proyecto);
         riesgo.setEstado(requestDto.estado());
         riesgo.setTratamiento(requestDto.tratamiento());
-        
-        NivelRiesgo nivelCalculado = calculateLevel(requestDto.probabilidad(), requestDto.impacto());
-        riesgo.setNivel(nivelCalculado);
+
+        String nivelCalculado = calcularNivelDesdeMatriz(requestDto.probabilidad(), requestDto.impacto());
+        riesgo.setNivel(parseNivelRiesgo(nivelCalculado));
 
         Riesgo savedRisk = riesgoRepository.save(riesgo);
         savedRisk.setCodigo("R" + String.format("%02d", savedRisk.getId()));
@@ -86,7 +93,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
             throw new ForbiddenException("El riesgo no pertenece al proyecto especificado.");
         }
 
-        if (EstadoProyecto.CERRADO.equals(riesgo.getProyecto().getEstado())) {
+        if (esEstadoCerrado(riesgo.getProyecto())) {
             throw new ForbiddenException("No se pueden editar riesgos de un proyecto cerrado.");
         }
 
@@ -95,7 +102,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
         riesgo.setImpacto(requestDto.impacto());
         riesgo.setTratamiento(requestDto.tratamiento());
         riesgo.setEstado(requestDto.estado());
-        riesgo.setNivel(calculateLevel(requestDto.probabilidad(), requestDto.impacto()));
+        riesgo.setNivel(parseNivelRiesgo(calcularNivelDesdeMatriz(requestDto.probabilidad(), requestDto.impacto())));
 
         return convertToResponseDto(riesgoRepository.save(riesgo));
     }
@@ -110,7 +117,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
             throw new ForbiddenException("El riesgo no pertenece al proyecto especificado.");
         }
 
-        if (EstadoProyecto.CERRADO.equals(riesgo.getProyecto().getEstado())) {
+        if (esEstadoCerrado(riesgo.getProyecto())) {
             throw new ForbiddenException("No se pueden eliminar riesgos de un proyecto cerrado.");
         }
 
@@ -127,44 +134,30 @@ public class RiesgoServiceImpl implements IRiesgoService {
             throw new ForbiddenException("El riesgo no pertenece al proyecto especificado.");
         }
 
-        // Registrar la verificación y marcar como TRATADO
         riesgo.setTratamiento(riesgo.getTratamiento() + "\nVERIFICACIÓN: " + verificacion);
-        riesgo.setEstado(com.proyecta.api_gestion.model.enums.EstadoRiesgo.TRATADO);
-        
+        riesgo.setEstado(EstadoRiesgo.TRATADO);
+
         riesgoRepository.save(riesgo);
     }
 
-    private NivelRiesgo calculateLevel(Probabilidad prob, Impacto imp) {
-        // probabilidad ALTA + impacto ALTO → nivel CRITICO
-        if (prob == Probabilidad.ALTA && imp == Impacto.ALTO) {
-            return NivelRiesgo.CRITICO;
-        }
-        // probabilidad ALTA + impacto MEDIO → nivel ALTO
-        if (prob == Probabilidad.ALTA && imp == Impacto.MEDIO) {
-            return NivelRiesgo.ALTO;
-        }
-        // probabilidad MEDIA + impacto ALTO → nivel ALTO
-        if (prob == Probabilidad.MEDIA && imp == Impacto.ALTO) {
-            return NivelRiesgo.ALTO;
-        }
-        // probabilidad MEDIA + impacto MEDIO → nivel MODERADO
-        if (prob == Probabilidad.MEDIA && imp == Impacto.MEDIO) {
-            return NivelRiesgo.MODERADO;
-        }
-        // probabilidad BAJA + cualquiera → nivel BAJO
-        if (prob == Probabilidad.BAJA) {
+    private String calcularNivelDesdeMatriz(Probabilidad prob, Impacto imp) {
+        return matrizRiesgoRepository.findNivelByProbabilidadAndImpacto(prob.name(), imp.name())
+                .orElse("BAJO");
+    }
+
+    private NivelRiesgo parseNivelRiesgo(String nivelStr) {
+        try {
+            return NivelRiesgo.valueOf(nivelStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
             return NivelRiesgo.BAJO;
         }
+    }
 
-        // Casos faltantes en la tabla, asumo:
-        if (prob == Probabilidad.ALTA && imp == Impacto.BAJO) {
-            return NivelRiesgo.MODERADO;
+    private boolean esEstadoCerrado(Proyecto proyecto) {
+        if (proyecto.getEstadoConfig() != null) {
+            return proyecto.getEstadoConfig().getEsTerminal();
         }
-        if (prob == Probabilidad.MEDIA && imp == Impacto.BAJO) {
-            return NivelRiesgo.BAJO;
-        }
-
-        return NivelRiesgo.BAJO;
+        return EstadoProyecto.CERRADO.equals(proyecto.getEstado()) || EstadoProyecto.FINALIZADO.equals(proyecto.getEstado());
     }
 
     private RiesgoResponseDTO convertToResponseDto(Riesgo riesgo) {

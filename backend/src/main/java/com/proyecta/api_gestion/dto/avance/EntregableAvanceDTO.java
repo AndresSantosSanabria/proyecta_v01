@@ -1,6 +1,5 @@
 package com.proyecta.api_gestion.dto.avance;
 
-import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -10,7 +9,7 @@ public record EntregableAvanceDTO(
     BigDecimal ponderacion,
     LocalDate fechaLimite,
     BigDecimal avance,
-    EstadoEntregable estado,
+    String estado,
     Long atraso,
     LocalDate fechaEntrega,
     String evidenciaPdf,

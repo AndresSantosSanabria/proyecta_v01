@@ -39,6 +39,24 @@ public interface IAvanceProyectoController {
             @PathVariable String proyectoId);
 
     @Operation(
+        summary     = "Marcar entregable como COMPLETADO + subir PDF",
+        description = "Marca un entregable como COMPLETADO, guarda el PDF de evidencia y lo vuelve inmutable."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description  = "Entregable completado exitosamente",
+            content = @Content(schema = @Schema(implementation = EntregableConformidadResponseDTO.class))
+        )
+    })
+    @StandardApiResponses
+    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> marcarCompletado(
+            @PathVariable String proyectoId,
+            @PathVariable Integer entregableId,
+            @Parameter(description = "fecha real de entrega (yyyy-MM-dd)") @RequestParam LocalDate fechaEntrega,
+            @Parameter(description = "archivo PDF de evidencia") @RequestPart("evidencia") MultipartFile evidencia);
+
+    @Operation(
         summary     = ProyectoAvanceSwaggerConstants.SUMMARY_PATCH_AVANCE,
         description = ProyectoAvanceSwaggerConstants.DESCRIPTION_PATCH_AVANCE
     )

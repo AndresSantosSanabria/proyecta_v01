@@ -8,16 +8,20 @@ import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Fase;
 import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.repository.EntregableRepository;
+import com.proyecta.api_gestion.repository.FaseRepository;
+import com.proyecta.api_gestion.repository.HitoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.service.interfaces.AvanceCalculatorService;
+import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
+import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
+import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -29,55 +33,117 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     private final ProyectoRepository proyectoRepository;
     private final EntregableRepository entregableRepository;
-    private final AvanceCalculatorService avanceCalculatorService;
-    private final FileStorageServiceImpl fileStorageService;
+    private final FaseRepository faseRepository;
+    private final HitoRepository hitoRepository;
+    private final IProgressCalculator progressCalculator;
+    private final IStorageProvider storageProvider;
+    private final EntityManager entityManager;
 
     public ProjectAdvanceServiceImpl(ProyectoRepository proyectoRepository,
                                      EntregableRepository entregableRepository,
-                                     AvanceCalculatorService avanceCalculatorService,
-                                     FileStorageServiceImpl fileStorageService) {
+                                     FaseRepository faseRepository,
+                                     HitoRepository hitoRepository,
+                                     IProgressCalculator progressCalculator,
+                                     IStorageProvider storageProvider,
+                                     EntityManager entityManager) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
-        this.avanceCalculatorService = avanceCalculatorService;
-        this.fileStorageService = fileStorageService;
+        this.faseRepository = faseRepository;
+        this.hitoRepository = hitoRepository;
+        this.progressCalculator = progressCalculator;
+        this.storageProvider = storageProvider;
+        this.entityManager = entityManager;
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public ProyectoAvanceResponseDTO obtenerAvanceDetallado(String proyectoId) {
+        progressCalculator.calcularYActualizarAvanceProyecto(proyectoId);
+
+        entityManager.flush();
+        entityManager.clear();
+
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 
         LocalDate hoy = LocalDate.now();
 
+        BigDecimal CIEN = new BigDecimal("100");
+
         List<FaseAvanceDTO> fasesDto = proyecto.getFases().stream()
                 .sorted(Comparator.comparing(Fase::getNombre))
-                .map(fase -> new FaseAvanceDTO(
-                        fase.getId(),
-                        fase.getNombre(),
-                        fase.getPonderacion(),
-                        fase.getAvanceCalculado(),
-                        fase.getHitos().stream()
-                                .sorted(Comparator.comparing(Hito::getNombre))
-                                .map(hito -> new HitoAvanceDTO(
+                .map(fase -> {
+                    List<HitoAvanceDTO> hitosDto = fase.getHitos().stream()
+                            .sorted(Comparator.comparing(Hito::getNombre))
+                            .map(hito -> {
+                                List<EntregableAvanceDTO> entregablesDto = hito.getEntregables().stream()
+                                        .sorted(Comparator.comparing(Entregable::getNombre))
+                                        .map(e -> mapToEntregableDTO(e, hoy))
+                                        .collect(Collectors.toList());
+
+                                BigDecimal sumaPonderacionEntregables = entregablesDto.stream()
+                                        .map(EntregableAvanceDTO::ponderacion)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                                BigDecimal avanceHito = BigDecimal.ZERO;
+                                if (sumaPonderacionEntregables.compareTo(BigDecimal.ZERO) > 0) {
+                                    avanceHito = entregablesDto.stream()
+                                            .map(eDto -> eDto.avance().multiply(eDto.ponderacion())
+                                                    .divide(sumaPonderacionEntregables, 10, RoundingMode.HALF_UP))
+                                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                            .setScale(2, RoundingMode.HALF_UP);
+                                }
+
+                                return new HitoAvanceDTO(
                                         hito.getId(),
                                         hito.getNombre(),
                                         hito.getPonderacion(),
-                                        hito.getAvanceCalculado(),
-                                        hito.getEntregables().stream()
-                                                .sorted(Comparator.comparing(Entregable::getNombre))
-                                                .map(e -> mapToEntregableDTO(e, hoy))
-                                                .collect(Collectors.toList())
-                                ))
-                                .collect(Collectors.toList())
-                ))
+                                        avanceHito,
+                                        entregablesDto
+                                );
+                            })
+                            .collect(Collectors.toList());
+
+                    BigDecimal sumaPonderacionHitos = hitosDto.stream()
+                            .map(HitoAvanceDTO::ponderacion)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    BigDecimal avanceFase = BigDecimal.ZERO;
+                    if (sumaPonderacionHitos.compareTo(BigDecimal.ZERO) > 0) {
+                        avanceFase = hitosDto.stream()
+                                .map(hDto -> hDto.avance().multiply(hDto.ponderacion())
+                                        .divide(sumaPonderacionHitos, 10, RoundingMode.HALF_UP))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                .setScale(2, RoundingMode.HALF_UP);
+                    }
+
+                    return new FaseAvanceDTO(
+                            fase.getId(),
+                            fase.getNombre(),
+                            fase.getPonderacion(),
+                            avanceFase,
+                            hitosDto
+                    );
+                })
                 .collect(Collectors.toList());
 
-        // Calcular métricas de resumen
+        BigDecimal sumaPonderacionFases = fasesDto.stream()
+                .map(FaseAvanceDTO::ponderacion)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal avanceTotalProyecto = BigDecimal.ZERO;
+        if (sumaPonderacionFases.compareTo(BigDecimal.ZERO) > 0) {
+            avanceTotalProyecto = fasesDto.stream()
+                    .map(fDto -> fDto.avance().multiply(fDto.ponderacion())
+                            .divide(sumaPonderacionFases, 10, RoundingMode.HALF_UP))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
         long conformes = proyecto.getFases().stream()
                 .flatMap(f -> f.getHitos().stream())
                 .flatMap(h -> h.getEntregables().stream())
-                .filter(Entregable::getConforme)
+                .filter(Entregable::esConforme)
                 .count();
 
         long total = proyecto.getFases().stream()
@@ -88,18 +154,19 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         long atrasados = proyecto.getFases().stream()
                 .flatMap(f -> f.getHitos().stream())
                 .flatMap(h -> h.getEntregables().stream())
-                .filter(e -> !e.getConforme() && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy))
+                .filter(e -> !e.esConforme()
+                        && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy))
                 .count();
 
         return new ProyectoAvanceResponseDTO(
                 proyecto.getId(),
-                proyecto.getId(), // Usando ID como código si no hay campo separado
+                proyecto.getId(),
                 proyecto.getNombre(),
-                proyecto.getAvanceTotal(),
+                avanceTotalProyecto,
                 conformes,
                 total,
                 atrasados,
-                0L, // Proximos a vencer (pendiente lógica específica)
+                0L,
                 hoy,
                 fasesDto
         );
@@ -107,11 +174,13 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     private EntregableAvanceDTO mapToEntregableDTO(Entregable e, LocalDate hoy) {
         Long atraso = null;
-        if (!e.getConforme() && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy)) {
+        boolean completado = e.esConforme();
+
+        if (!completado && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy)) {
             atraso = ChronoUnit.DAYS.between(e.getFechaLimite(), hoy);
         }
 
-        BigDecimal avance = e.getConforme() ? new BigDecimal("100") : BigDecimal.ZERO;
+        BigDecimal avance = completado ? new BigDecimal("100") : BigDecimal.ZERO;
 
         return new EntregableAvanceDTO(
                 e.getId(),
@@ -119,11 +188,11 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 e.getPonderacion(),
                 e.getFechaLimite(),
                 avance,
-                e.getEstado(),
+                e.getEstadoCodigo(),
                 atraso,
                 e.getFechaEntregaReal(),
                 e.getArchivoPdf(),
-                e.getArchivoPdf() != null ? "/api/v1/archivos/entregables/" + e.getId() + "/evidencia" : null
+                e.getArchivoPdf() != null ? "/api/v1/proyectos/" + e.getHito().getFase().getProyecto().getId() + "/avance/entregables/" + e.getId() + "/evidencia" : null
         );
     }
 
@@ -131,11 +200,11 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     public ProyectoSummaryDTO obtenerResumenProyecto(String proyectoId) {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
-        
+
         long conformes = proyecto.getFases().stream()
                 .flatMap(f -> f.getHitos().stream())
                 .flatMap(h -> h.getEntregables().stream())
-                .filter(Entregable::getConforme)
+                .filter(Entregable::esConforme)
                 .count();
 
         long total = proyecto.getFases().stream()
@@ -157,7 +226,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         if (evidencia == null || evidencia.isEmpty()) {
             throw new UnprocessableEntityException("El archivo de evidencia es requerido");
         }
-        
+
         if (!"application/pdf".equals(evidencia.getContentType())) {
             throw new UnprocessableEntityException("El archivo debe ser un PDF");
         }
@@ -165,34 +234,127 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         Entregable entregable = entregableRepository.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
 
+        entregable.asegurarModificable();
+
         if (!entregable.getHito().getFase().getProyecto().getId().equals(proyectoId)) {
             throw new UnprocessableEntityException("El entregable no pertenece al proyecto especificado");
         }
 
-        // Guardar archivo
         String fileName = "evidencia_" + proyectoId + "_" + entregableId + "_" + System.currentTimeMillis();
-        String storedName = fileStorageService.storeFile(evidencia, fileName);
+        String storedName = storageProvider.storeFile(evidencia, "evidencias", fileName);
 
-        // Actualizar entregable
-        entregable.setConforme(conformidad);
-        entregable.setFechaEntregaReal(fechaEntrega);
-        entregable.setArchivoPdf(storedName);
-        entregable.setEstado(EstadoEntregable.A_CONFORMIDAD);
-        
+        entregable.completar(storedName, fechaEntrega, Boolean.TRUE.equals(conformidad));
         entregableRepository.save(entregable);
+        entityManager.flush();
 
-        // Recalcular avances
-        avanceCalculatorService.calcularYActualizarAvanceHito(entregable.getHito().getId());
+        Integer hitoId = entregable.getHito().getId();
+        progressCalculator.calcularYActualizarAvanceHito(hitoId);
+        progressCalculator.calcularYActualizarAvanceProyecto(proyectoId);
 
-        // Obtener avance actualizado
-        Proyecto proyecto = proyectoRepository.findById(proyectoId).get();
+        entityManager.flush();
+        entityManager.refresh(entregable);
+
+        Proyecto proyectoActualizado = proyectoRepository.findById(proyectoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
+
+        LocalDate hoy = LocalDate.now();
+        List<FaseAvanceDTO> fasesDto = construirFasesDTO(proyectoActualizado, hoy);
+        BigDecimal avanceTotalProyecto = fasesDto.stream()
+                .map(fDto -> fDto.avance().multiply(fDto.ponderacion())
+                        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP))
+                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
+
+        long conformes = contarEntregablesConformes(proyectoActualizado);
+        long total = contarEntregablesTotales(proyectoActualizado);
+        long atrasados = contarEntregablesAtrasados(proyectoActualizado, hoy);
+
+        String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
+        ProyectoAvanceResponseDTO avanceMap = new ProyectoAvanceResponseDTO(
+                proyectoId,
+                proyectoId,
+                proyectoActualizado.getNombre(),
+                avanceTotalProyecto,
+                conformes,
+                total,
+                atrasados,
+                0L,
+                hoy,
+                fasesDto
+        );
 
         return new EntregableConformidadResponseDTO(
                 entregable.getId(),
-                entregable.getEstado(),
+                entregable.getEstadoCodigo(),
                 entregable.getFechaEntregaReal(),
-                "/api/v1/archivos/entregables/" + entregable.getId() + "/evidencia",
-                proyecto.getAvanceTotal()
+                evidenciaUrl,
+                avanceMap
         );
+    }
+
+    private List<FaseAvanceDTO> construirFasesDTO(Proyecto proyecto, LocalDate hoy) {
+        return proyecto.getFases().stream()
+                .sorted(Comparator.comparing(Fase::getNombre))
+                .map(fase -> {
+                    List<HitoAvanceDTO> hitosDto = fase.getHitos().stream()
+                            .sorted(Comparator.comparing(Hito::getNombre))
+                            .map(hito -> {
+                                List<EntregableAvanceDTO> entregablesDto = hito.getEntregables().stream()
+                                        .sorted(Comparator.comparing(Entregable::getNombre))
+                                        .map(e -> mapToEntregableDTO(e, hoy))
+                                        .collect(Collectors.toList());
+
+                                BigDecimal avanceHito = entregablesDto.stream()
+                                        .map(eDto -> eDto.avance().multiply(eDto.ponderacion())
+                                                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP))
+                                        .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
+
+                                return new HitoAvanceDTO(
+                                        hito.getId(),
+                                        hito.getNombre(),
+                                        hito.getPonderacion(),
+                                        avanceHito,
+                                        entregablesDto
+                                );
+                            })
+                            .collect(Collectors.toList());
+
+                    BigDecimal avanceFase = hitosDto.stream()
+                            .map(hDto -> hDto.avance().multiply(hDto.ponderacion())
+                                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP))
+                            .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
+
+                    return new FaseAvanceDTO(
+                            fase.getId(),
+                            fase.getNombre(),
+                            fase.getPonderacion(),
+                            avanceFase,
+                            hitosDto
+                    );
+                })
+                .collect(Collectors.toList());
+    }
+
+    private long contarEntregablesConformes(Proyecto proyecto) {
+        return proyecto.getFases().stream()
+                .flatMap(f -> f.getHitos().stream())
+                .flatMap(h -> h.getEntregables().stream())
+                .filter(Entregable::esConforme)
+                .count();
+    }
+
+    private long contarEntregablesTotales(Proyecto proyecto) {
+        return proyecto.getFases().stream()
+                .flatMap(f -> f.getHitos().stream())
+                .flatMap(h -> h.getEntregables().stream())
+                .count();
+    }
+
+    private long contarEntregablesAtrasados(Proyecto proyecto, LocalDate hoy) {
+        return proyecto.getFases().stream()
+                .flatMap(f -> f.getHitos().stream())
+                .flatMap(h -> h.getEntregables().stream())
+                .filter(e -> !e.esConforme()
+                        && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy))
+                .count();
     }
 }

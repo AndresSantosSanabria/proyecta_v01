@@ -147,7 +147,7 @@ public class CronogramaServiceImpl implements CronogramaService {
         }
 
         String fileName = "cronograma_" + projectId;
-        String storedPath = fileStorageService.storeFile(file, fileName);
+        String storedPath = fileStorageService.storeFile(file, "cronogramas", fileName);
 
         proyecto.setCronogramaPdf(storedPath);
         proyectoRepository.save(proyecto);
@@ -170,6 +170,6 @@ public class CronogramaServiceImpl implements CronogramaService {
             throw new ResourceNotFoundException("No se ha cargado un cronograma para este proyecto.");
         }
 
-        return fileStorageService.loadFileAsResource(proyecto.getCronogramaPdf());
+        return fileStorageService.loadFileAsResource("cronogramas", proyecto.getCronogramaPdf());
     }
 }

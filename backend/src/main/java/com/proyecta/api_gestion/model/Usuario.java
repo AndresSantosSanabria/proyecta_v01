@@ -1,5 +1,6 @@
 package com.proyecta.api_gestion.model;
 
+import com.proyecta.api_gestion.model.config.RolConfig;
 import com.proyecta.api_gestion.model.enums.Rol;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -25,6 +26,10 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private Rol rol;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rol_config_id", referencedColumnName = "rol_id")
+    private RolConfig rolConfig;
 
     @Column(columnDefinition = "BOOLEAN DEFAULT TRUE")
     private Boolean activo = true;
@@ -108,5 +113,24 @@ public class Usuario {
 
     public void setUltimoAcceso(LocalDateTime ultimoAcceso) {
         this.ultimoAcceso = ultimoAcceso;
+    }
+
+    public RolConfig getRolConfig() { return rolConfig; }
+    public void setRolConfig(RolConfig rolConfig) { this.rolConfig = rolConfig; }
+
+    public String getRolCodigo() {
+        if (rolConfig != null) return rolConfig.getCodigo();
+        if (rol != null) return rol.name();
+        return null;
+    }
+
+    public boolean esAdministrador() {
+        if (rolConfig != null) return rolConfig.esAdministrador();
+        return Rol.ADMINISTRADOR.equals(rol);
+    }
+
+    public boolean tieneAccesoGestion() {
+        if (rolConfig != null) return rolConfig.tieneAccesoGestion();
+        return Rol.ADMINISTRADOR.equals(rol) || Rol.GESTOR_PROYECTOS_TI.equals(rol) || Rol.GESTOR_PROYECTOS.equals(rol);
     }
 }

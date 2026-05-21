@@ -85,4 +85,11 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
         proyectoService.actualizarFurag(id, furag);
         return ResponseEntity.ok().build();
     }
+
+    @Override
+    @PostMapping("/recalcular-avances")
+    public ResponseEntity<ApiResponse<Void>> recalcularAvances() {
+        proyectoService.recalcularAvances();
+        return ResponseEntity.ok(ApiResponse.success("Avances recalculados exitosamente"));
+    }
 }

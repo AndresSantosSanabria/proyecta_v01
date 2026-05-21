@@ -14,6 +14,7 @@ public interface ProyectoService {
     ProyectoResumenDTO obtenerResumen(String id);
     void cerrarProyecto(String id);
     DashboardDTO obtenerDashboard();
+    void recalcularAvances();
     
     // FURAG
     com.proyecta.api_gestion.model.Furag obtenerFurag(String id);

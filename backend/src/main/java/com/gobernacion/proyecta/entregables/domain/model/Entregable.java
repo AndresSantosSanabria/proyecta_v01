@@ -4,9 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * Entidad de Dominio Pura: Entregable.
- */
 public class Entregable {
     private Integer id;
     private String nombre;
@@ -16,8 +13,13 @@ public class Entregable {
     private LocalDate fechaLimite;
     private LocalDate fechaEntregaReal;
     private String archivoPdf;
-    private Integer hitoId; // Referencia por ID para desacoplar del modelo de Hito por ahora
+    private Integer hitoId;
     private LocalDateTime fechaCreacion;
+
+    public Entregable() {
+        this.estado = "PENDIENTE";
+        this.conforme = false;
+    }
 
     // Getters y Setters
     public Integer getId() { return id; }
@@ -41,10 +43,23 @@ public class Entregable {
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
 
-    // Lógica de dominio
-    public void marcarConforme() {
+    public void asegurarModificable() {
+        if ("COMPLETADO".equals(this.estado)) {
+            throw new IllegalStateException(
+                "El entregable '" + this.nombre + "' ya está COMPLETADO. No se permite modificar, reemplazar o eliminar su documento."
+            );
+        }
+    }
+
+    public void completar(String archivoPdf, LocalDate fechaEntrega) {
+        asegurarModificable();
+        this.estado = "COMPLETADO";
         this.conforme = true;
-        this.estado = "CONFORME";
-        this.fechaEntregaReal = LocalDate.now();
+        this.archivoPdf = archivoPdf;
+        this.fechaEntregaReal = fechaEntrega;
+    }
+
+    public boolean estaCompletado() {
+        return "COMPLETADO".equals(this.estado);
     }
 }

@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.project.*;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
+import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.service.interfaces.AvanceCalculatorService;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
@@ -229,6 +230,10 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private String calcularEstado(Entregable entregable, LocalDate hoy, LocalDate fechaEntrega) {
+        if (EstadoEntregable.COMPLETADO.equals(entregable.getEstado())) {
+            return "Completado";
+        }
+
         if (entregable.getConforme()) {
             return "Conforme";
         }

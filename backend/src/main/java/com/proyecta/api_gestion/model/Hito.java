@@ -16,7 +16,7 @@ public class Hito {
     @Column(name = "hito_id")
     private Integer id;
 
-    @Column(nullable = false, length = 150)
+    @Column(length = 150)
     private String nombre;
 
     @Column(length = 300)

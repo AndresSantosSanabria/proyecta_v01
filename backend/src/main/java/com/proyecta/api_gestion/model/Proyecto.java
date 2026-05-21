@@ -1,5 +1,7 @@
 package com.proyecta.api_gestion.model;
 
+import com.proyecta.api_gestion.model.config.EstadoProyectoConfig;
+import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
 import jakarta.persistence.*;
@@ -68,6 +70,10 @@ public class Proyecto {
     @Column(length = 20)
     private EstadoProyecto estado = EstadoProyecto.ACTIVO;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "estado_config_id", referencedColumnName = "estado_proyecto_id")
+    private EstadoProyectoConfig estadoConfig;
+
     @Column(name = "avance_total", precision = 5, scale = 2)
     private BigDecimal avanceTotal = BigDecimal.ZERO;
 
@@ -87,6 +93,10 @@ public class Proyecto {
 
     @Column(name = "fecha_registro", updatable = false)
     private LocalDateTime fechaRegistro;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "estrategia_peti_config_id", referencedColumnName = "estrategia_peti_id")
+    private EstrategiaPetiConfig estrategiaPetiConfig;
 
     public Proyecto() {
     }
@@ -168,6 +178,23 @@ public class Proyecto {
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }
     public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
 
+    public EstadoProyectoConfig getEstadoConfig() { return estadoConfig; }
+    public void setEstadoConfig(EstadoProyectoConfig estadoConfig) { this.estadoConfig = estadoConfig; }
+
+    public EstrategiaPetiConfig getEstrategiaPetiConfig() { return estrategiaPetiConfig; }
+    public void setEstrategiaPetiConfig(EstrategiaPetiConfig estrategiaPetiConfig) { this.estrategiaPetiConfig = estrategiaPetiConfig; }
+
+    public String getEstadoCodigo() {
+        if (estadoConfig != null) return estadoConfig.getCodigo();
+        if (estado != null) return estado.name();
+        return null;
+    }
+
+    public boolean esEstadoTerminal() {
+        if (estadoConfig != null) return estadoConfig.getEsTerminal();
+        return EstadoProyecto.CERRADO.equals(estado);
+    }
+
     // --- Lógica de Negocio (Rich Domain Model) ---
 
     /**
@@ -186,5 +213,6 @@ public class Proyecto {
             throw new IllegalStateException("No se puede cerrar un proyecto que no ha alcanzado el 100% de avance.");
         }
         this.estado = EstadoProyecto.CERRADO;
+        // estadoConfig se mantiene sincronizado via FK
     }
 }

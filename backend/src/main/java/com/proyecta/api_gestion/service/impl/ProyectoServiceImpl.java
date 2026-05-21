@@ -7,6 +7,7 @@ import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
+import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,9 +25,11 @@ import java.util.stream.Collectors;
 public class ProyectoServiceImpl implements ProyectoService {
 
     private final ProyectoRepository proyectoRepository;
+    private final IProgressCalculator progressCalculator;
 
-    public ProyectoServiceImpl(ProyectoRepository proyectoRepository) {
+    public ProyectoServiceImpl(ProyectoRepository proyectoRepository, IProgressCalculator progressCalculator) {
         this.proyectoRepository = proyectoRepository;
+        this.progressCalculator = progressCalculator;
     }
 
     @Override
@@ -99,7 +102,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         // Equipo
         if (dto.equipoTrabajo() != null) {
             proyecto.setEquipoTrabajo(dto.equipoTrabajo().stream()
-                    .map(m -> new MiembroEquipo(m.nombre(), m.rol()))
+                    .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol()))
                     .collect(Collectors.toList()));
         }
 
@@ -206,12 +209,27 @@ public class ProyectoServiceImpl implements ProyectoService {
         long totalHitos = 0;
         long totalEntregables = 0;
         long entregablesConformes = 0;
+        List<String> entregables = new ArrayList<>();
+
+        boolean puedeCerrar = !p.esEstadoTerminal();
 
         for (Fase f : p.getFases()) {
             totalHitos += f.getHitos().size();
             for (Hito h : f.getHitos()) {
                 totalEntregables += h.getEntregables().size();
-                entregablesConformes += h.getEntregables().stream().filter(Entregable::getConforme).count();
+                entregablesConformes += h.getEntregables().stream()
+                        .filter(Entregable::esConforme)
+                        .count();
+                for (Entregable e : h.getEntregables()) {
+                    entregables.add(e.getNombre());
+                }
+
+                if (h.getAvanceCalculado() == null || h.getAvanceCalculado().compareTo(new BigDecimal("100")) < 0) {
+                    puedeCerrar = false;
+                }
+                if (!"APROBADO".equalsIgnoreCase(h.getEstadoRevision())) {
+                    puedeCerrar = false;
+                }
             }
         }
 
@@ -221,11 +239,13 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getDirector(),
                 p.getFechaInicio(),
                 p.getAvanceTotal(),
-                p.getEstado().name(),
+                p.getEstadoCodigo(),
                 totalFases,
                 totalHitos,
                 entregablesConformes,
-                totalEntregables
+                totalEntregables,
+                puedeCerrar,
+                entregables
         );
     }
 
@@ -269,6 +289,15 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     @Override
     @Transactional
+    public void recalcularAvances() {
+        List<Proyecto> proyectos = proyectoRepository.findAll();
+        for (Proyecto proyecto : proyectos) {
+            progressCalculator.calcularYActualizarAvanceProyecto(proyecto.getId());
+        }
+    }
+
+    @Override
+    @Transactional
     public void actualizarFurag(String id, Furag furag) {
         Proyecto proyecto = proyectoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
@@ -283,15 +312,19 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     private void validarPonderaciones(List<FaseDTO> fases) {
         int sumFases = fases.stream().mapToInt(FaseDTO::ponderacion).sum();
-        if (sumFases != 100) throw new BadRequestException("La suma de ponderaciones de las fases debe ser 100%");
-
+        if (sumFases <= 0) {
+            throw new BadRequestException("La suma de ponderaciones de las fases debe ser mayor a 0");
+        }
         for (FaseDTO fase : fases) {
             int sumHitos = fase.hitos().stream().mapToInt(HitoDTO::ponderacion).sum();
-            if (sumHitos != 100) throw new BadRequestException("La suma de ponderaciones de hitos en la fase '" + fase.nombre() + "' debe ser 100%");
-
+            if (sumHitos <= 0) {
+                throw new BadRequestException("La suma de ponderaciones de hitos en la fase '" + fase.nombre() + "' debe ser mayor a 0");
+            }
             for (HitoDTO hito : fase.hitos()) {
                 int sumEntregables = hito.entregables().stream().mapToInt(EntregableDTO::ponderacion).sum();
-                if (sumEntregables != 100) throw new BadRequestException("La suma de ponderaciones de entregables en el hito '" + hito.nombre() + "' debe ser 100%");
+                if (sumEntregables <= 0) {
+                    throw new BadRequestException("La suma de ponderaciones de entregables en el hito '" + hito.nombre() + "' debe ser mayor a 0");
+                }
             }
         }
     }
@@ -303,21 +336,21 @@ public class ProyectoServiceImpl implements ProyectoService {
             for (Hito h : f.getHitos()) {
                 for (Entregable e : h.getEntregables()) {
                     total++;
-                    if (e.getConforme()) conformes++;
-                    if (!e.getConforme() && e.getFechaLimite().isBefore(hoy)) atrasados++;
+                    if (e.esConforme()) conformes++;
+                    if (!e.esConforme() && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy)) atrasados++;
                 }
             }
         }
 
         return new ProyectoListDTO(
                 p.getId(),
-                p.getId(), // codigo is same as id
+                p.getId(),
                 p.getNombre(),
                 p.getDependencia(),
                 p.getDirector(),
                 p.getPeti(),
                 p.getAvanceTotal(),
-                p.getEstado(),
+                p.getEstadoCodigo(),
                 (int) total,
                 (int) conformes,
                 (int) atrasados
@@ -335,21 +368,21 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getObjetivoGeneral(),
                 p.getObjetivosEspecificos().stream().map(ObjetivoEspecifico::getDescripcion).collect(Collectors.toList()),
                 p.getFechaInicio(),
-                p.getEstado(),
+                p.getEstadoCodigo(),
                 p.getAvanceTotal(),
                 p.getPeti(),
                 p.getVigenciaPeti(),
-                p.getEstrategiaPeti(),
+                p.getEstrategiaPetiConfig() != null ? p.getEstrategiaPetiConfig().getCodigo() : null,
                 p.getTienePlanComunicaciones(),
                 p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getEntidad(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
-                p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getRol())).collect(Collectors.toList()),
+                p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol())).collect(Collectors.toList()),
                 p.getFurag() != null ? new FuragDTO(p.getFurag().getInfraestructuraDatos(), p.getFurag().getInteroperabilidad(), p.getFurag().getDigitalizacionAutomatizacion(), p.getFurag().getContratacionPublica(), p.getFurag().getServiciosNube(), p.getFurag().getSandbox(), p.getFurag().getTecnologiasEmergentes()) : null,
                 p.getFases().stream().map(f -> new FaseResponseDTO(
                         f.getId(), f.getNombre(), f.getDescripcion(), f.getPonderacion(), f.getAvanceCalculado(),
                         f.getHitos().stream().map(h -> new HitoResponseDTO(
                                 h.getId(), h.getNombre(), h.getDescripcion(), h.getPonderacion(), h.getAvanceCalculado(),
                                 h.getEntregables().stream().map(e -> new EntregableResponseDTO(
-                                        e.getId(), e.getNombre(), e.getPonderacion(), e.getEstado(), e.getConforme(), e.getFechaLimite()
+                                        e.getId(), e.getNombre(), e.getPonderacion(), e.getEstadoCodigo(), e.esConforme(), e.getFechaLimite()
                                 )).collect(Collectors.toList())
                         )).collect(Collectors.toList())
                 )).collect(Collectors.toList())

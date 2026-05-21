@@ -35,3 +35,27 @@ build/
 ### Application Config ###
 src/main/resources/application.properties
 !src/main/resources/application.properties.template
+.aider*
+
+# Ignore common log and temp files generated during development
+*.log
+*.log.*
+*.err
+*.out
+*._out
+*.stdout
+*.stderr
+*.tmp
+*.bak
+
+# IDE/workspace metadata
+.metadata/
+.metadata
+.project
+.classpath
+.settings/
+
+# Ignore compiled artifacts (already present but ensure coverage)
+target/
+**/target/
+

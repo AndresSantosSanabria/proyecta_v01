@@ -8,6 +8,7 @@ import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.repository.FaseRepository;
 import com.proyecta.api_gestion.repository.HitoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.AvanceCalculatorService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,8 @@ import java.util.List;
 
 @Service
 public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
+
+    private static final BigDecimal CIEN = new BigDecimal("100");
 
     private final ProyectoRepository proyectoRepository;
     private final FaseRepository faseRepository;
@@ -42,12 +45,7 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
 
         List<Fase> fases = faseRepository.findByProyectoId(proyectoId);
 
-        BigDecimal totalAvance = fases.stream()
-                .map(f -> f.getAvanceCalculado()
-                        .multiply(f.getPonderacion())
-                        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+        BigDecimal totalAvance = calcularAvanceProyecto(fases);
         proyecto.setAvanceTotal(totalAvance);
         proyectoRepository.save(proyecto);
 
@@ -60,14 +58,7 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         Fase fase = faseRepository.findById(faseId)
                 .orElseThrow(() -> new RuntimeException("Fase no encontrada: " + faseId));
 
-        List<Hito> hitos = hitoRepository.findByFaseId(faseId);
-
-        BigDecimal totalAvance = hitos.stream()
-                .map(h -> h.getAvanceCalculado()
-                        .multiply(h.getPonderacion())
-                        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+        BigDecimal totalAvance = calcularAvanceFase(fase);
         fase.setAvanceCalculado(totalAvance);
         faseRepository.save(fase);
 
@@ -84,13 +75,7 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         Hito hito = hitoRepository.findById(hitoId)
                 .orElseThrow(() -> new RuntimeException("Hito no encontrado: " + hitoId));
 
-        List<Entregable> entregables = entregableRepository.findByHitoId(hitoId);
-
-        BigDecimal totalAvance = entregables.stream()
-                .filter(Entregable::getConforme)
-                .map(Entregable::getPonderacion)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+        BigDecimal totalAvance = calcularAvanceHito(hito);
         hito.setAvanceCalculado(totalAvance);
         hitoRepository.save(hito);
 
@@ -99,5 +84,67 @@ public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
         }
 
         return totalAvance;
+    }
+
+    private BigDecimal calcularAvanceProyecto(List<Fase> fases) {
+        if (fases == null || fases.isEmpty()) return BigDecimal.ZERO;
+
+        BigDecimal sumaPonderaciones = fases.stream()
+                .map(Fase::getPonderacion)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (sumaPonderaciones.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+
+        return fases.stream()
+                .map(f -> {
+                    BigDecimal pesoNormalizado = f.getPonderacion()
+                            .divide(sumaPonderaciones, 10, RoundingMode.HALF_UP);
+                    return f.getAvanceCalculado().multiply(pesoNormalizado);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calcularAvanceFase(Fase fase) {
+        List<Hito> hitos = hitoRepository.findByFaseId(fase.getId());
+
+        if (hitos == null || hitos.isEmpty()) return BigDecimal.ZERO;
+
+        BigDecimal sumaPonderaciones = hitos.stream()
+                .map(Hito::getPonderacion)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (sumaPonderaciones.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+
+        return hitos.stream()
+                .map(h -> {
+                    BigDecimal pesoNormalizado = h.getPonderacion()
+                            .divide(sumaPonderaciones, 10, RoundingMode.HALF_UP);
+                    return h.getAvanceCalculado().multiply(pesoNormalizado);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calcularAvanceHito(Hito hito) {
+        List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId());
+
+        if (entregables == null || entregables.isEmpty()) return BigDecimal.ZERO;
+
+        BigDecimal sumaPonderaciones = entregables.stream()
+                .map(Entregable::getPonderacion)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (sumaPonderaciones.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+
+        BigDecimal sumaConformes = entregables.stream()
+                .filter(Entregable::esConforme)
+                .map(Entregable::getPonderacion)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return sumaConformes
+                .divide(sumaPonderaciones, 10, RoundingMode.HALF_UP)
+                .multiply(CIEN)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

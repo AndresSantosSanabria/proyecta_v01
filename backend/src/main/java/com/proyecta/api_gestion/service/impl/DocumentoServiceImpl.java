@@ -1,206 +1,210 @@
 package com.proyecta.api_gestion.service.impl;
 
-import com.proyecta.api_gestion.dto.document.DocumentoItemDTO;
-import com.proyecta.api_gestion.dto.document.DocumentoListResponseDTO;
-import com.proyecta.api_gestion.dto.document.DocumentoUploadResponseDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoDetailDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.model.Documento;
+import com.proyecta.api_gestion.model.DocumentoDinamico;
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.TipoDocumento;
+import com.proyecta.api_gestion.model.config.TipoDocumentoConfig;
+import com.proyecta.api_gestion.repository.DocumentoRepository;
+import com.proyecta.api_gestion.repository.DocumentoDinamicoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.config.TipoDocumentoConfigRepository;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
+import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class DocumentoServiceImpl implements IDocumentoService {
 
-    private final ProyectoRepository proyectoRepository;
-    private final String UPLOAD_DIR = "uploads/proyectos/";
+    private static final long MAX_FILE_SIZE = 20L * 1024 * 1024;
+    private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    private static final String STORAGE_SUBDIR = "documentos";
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    public DocumentoServiceImpl(ProyectoRepository proyectoRepository) {
+    private final DocumentoRepository documentoRepository;
+    private final ProyectoRepository proyectoRepository;
+    private final DocumentoDinamicoRepository documentoDinamicoRepository;
+    private final TipoDocumentoConfigRepository tipoDocumentoConfigRepository;
+    private final IStorageProvider storageProvider;
+
+    public DocumentoServiceImpl(
+            DocumentoRepository documentoRepository,
+            ProyectoRepository proyectoRepository,
+            DocumentoDinamicoRepository documentoDinamicoRepository,
+            TipoDocumentoConfigRepository tipoDocumentoConfigRepository,
+            IStorageProvider storageProvider) {
+        this.documentoRepository = documentoRepository;
         this.proyectoRepository = proyectoRepository;
+        this.documentoDinamicoRepository = documentoDinamicoRepository;
+        this.tipoDocumentoConfigRepository = tipoDocumentoConfigRepository;
+        this.storageProvider = storageProvider;
     }
 
     @Override
-    public DocumentoListResponseDTO listarDocumentos(String proyectoId) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + proyectoId));
+    @Transactional(readOnly = true)
+    public DocumentoListadoResponseDTO listarDocumentos(String proyectoId) {
+        validarExistenciaProyecto(proyectoId);
 
-        List<DocumentoItemDTO> documentos = new ArrayList<>();
-        
-        documentos.add(buildDocumentoItem(proyecto, TipoDocumento.VIABILIZACION));
-        documentos.add(buildDocumentoItem(proyecto, TipoDocumento.ACTA_CONSTITUCION));
-        documentos.add(buildDocumentoItem(proyecto, TipoDocumento.CRONOGRAMA));
-        if (Boolean.TRUE.equals(proyecto.getTienePlanComunicaciones())) {
-            documentos.add(buildDocumentoItem(proyecto, TipoDocumento.PLAN_COMUNICACIONES));
-        }
+        List<Documento> documentos = documentoRepository.findByProyectoIdOrderByFechaCargaDesc(proyectoId);
+        List<DocumentoDetailDTO> detalles = documentos.stream()
+                .map(this::toDetailDTO)
+                .toList();
 
-        return new DocumentoListResponseDTO(proyectoId, documentos);
-    }
-
-    private DocumentoItemDTO buildDocumentoItem(Proyecto proyecto, TipoDocumento tipo) {
-        String fileName = getFileNameByTipo(proyecto, tipo);
-        boolean cargado = fileName != null;
-        LocalDate fechaCarga = cargado ? getFechaCarga(proyecto.getId(), fileName) : null;
-        boolean requerido = isRequerido(tipo, proyecto);
-        
-        LocalDate fechaLimiteActa = null;
-        Integer diasRestantes = null;
-        
-        if (tipo == TipoDocumento.ACTA_CONSTITUCION) {
-            String viabFile = proyecto.getViabilizacionPdf();
-            if (viabFile != null) {
-                LocalDate viabFecha = getFechaCarga(proyecto.getId(), viabFile);
-                if (viabFecha != null) {
-                    fechaLimiteActa = viabFecha.plusMonths(6);
-                    diasRestantes = (int) ChronoUnit.DAYS.between(LocalDate.now(), fechaLimiteActa);
-                }
-            }
-        }
-
-        String descargaUrl = cargado ? "/api/v1/proyectos/" + proyecto.getId() + "/documentos/" + tipo.name() + "/descargar" : null;
-
-        return new DocumentoItemDTO(
-                tipo,
-                requerido,
-                cargado,
-                fileName,
-                fechaCarga,
-                fechaLimiteActa,
-                diasRestantes,
-                descargaUrl
-        );
-    }
-
-    private boolean isRequerido(TipoDocumento tipo, Proyecto proyecto) {
-        if (tipo == TipoDocumento.VIABILIZACION || tipo == TipoDocumento.ACTA_CONSTITUCION || tipo == TipoDocumento.CRONOGRAMA) {
-            return true;
-        }
-        if (tipo == TipoDocumento.PLAN_COMUNICACIONES) {
-            return Boolean.TRUE.equals(proyecto.getTienePlanComunicaciones());
-        }
-        return false;
-    }
-
-    private String getFileNameByTipo(Proyecto proyecto, TipoDocumento tipo) {
-        return switch (tipo) {
-            case VIABILIZACION -> proyecto.getViabilizacionPdf();
-            case ACTA_CONSTITUCION -> proyecto.getActaConstitucionPdf();
-            case CRONOGRAMA -> proyecto.getCronogramaPdf();
-            case PLAN_COMUNICACIONES -> proyecto.getPlanComunicacionesPdf();
-        };
-    }
-
-    private LocalDate getFechaCarga(String proyectoId, String fileName) {
-        try {
-            Path filePath = Paths.get(UPLOAD_DIR, proyectoId, fileName);
-            if (Files.exists(filePath)) {
-                return LocalDate.ofInstant(Files.getLastModifiedTime(filePath).toInstant(), ZoneId.systemDefault());
-            }
-        } catch (IOException e) {
-        }
-        return null;
+        return new DocumentoListadoResponseDTO(proyectoId, detalles);
     }
 
     @Override
     @Transactional
-    public DocumentoUploadResponseDTO cargarDocumento(String proyectoId, TipoDocumento tipoDocumento, MultipartFile archivo) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + proyectoId));
+    public DocumentoUploadResultDTO cargarDocumento(String proyectoId, String tipoDocumento, MultipartFile archivo) {
+        validarExistenciaProyecto(proyectoId);
+        storageProvider.validateFile(archivo, MAX_FILE_SIZE, ALLOWED_MIME_TYPES);
 
-        if (tipoDocumento == TipoDocumento.PLAN_COMUNICACIONES && !Boolean.TRUE.equals(proyecto.getTienePlanComunicaciones())) {
-            throw new BadRequestException("El proyecto no requiere Plan de Comunicaciones.");
+        Documento documentoExistente = documentoRepository
+                .findByProyectoIdAndTipoDocumentoConfigCodigo(proyectoId, tipoDocumento)
+                .orElse(null);
+
+        if (documentoExistente != null) {
+            storageProvider.deleteFile(STORAGE_SUBDIR, documentoExistente.getNombreAlmacenado());
+            documentoRepository.delete(documentoExistente);
         }
 
-        if (archivo == null || archivo.isEmpty()) {
-            throw new BadRequestException("El archivo no puede estar vacío");
-        }
-        
-        if (!"application/pdf".equals(archivo.getContentType())) {
-            throw new BadRequestException("Solo se permiten archivos PDF");
-        }
-        
-        if (archivo.getSize() > 20 * 1024 * 1024) {
-            throw new BadRequestException("El archivo excede el límite de 20MB");
-        }
+        String nombreOriginal = storageProvider.sanitizeFileName(archivo.getOriginalFilename());
+        String extension = extraerExtension(nombreOriginal);
+        String nombreUnico = generarNombreUnico(tipoDocumento, extension);
+        String mimeType = resolverMimeType(archivo);
 
-        try {
-            Path projectDir = Paths.get(UPLOAD_DIR, proyectoId);
-            if (!Files.exists(projectDir)) {
-                Files.createDirectories(projectDir);
-            }
+        String nombreAlmacenado = storageProvider.storeFile(archivo, STORAGE_SUBDIR, nombreUnico);
 
-            String oldFile = getFileNameByTipo(proyecto, tipoDocumento);
-            if (oldFile != null) {
-                Path oldPath = projectDir.resolve(oldFile);
-                Files.deleteIfExists(oldPath);
-            }
+        Documento documento = new Documento();
+        documento.setProyectoId(proyectoId);
+        documento.setTipoDocumentoConfig(tipoDocumentoConfigRepository.findByCodigo(tipoDocumento).orElse(null));
+        documento.setNombreOriginal(nombreOriginal);
+        documento.setNombreAlmacenado(nombreAlmacenado);
+        documento.setRutaAlmacenamiento(STORAGE_SUBDIR);
+        documento.setMimeType(mimeType);
+        documento.setTamanoBytes(archivo.getSize());
+        documento.setUrlDescarga(construirUrlDescarga(proyectoId, tipoDocumento));
 
-            String originalName = archivo.getOriginalFilename();
-            String extension = originalName != null && originalName.contains(".") ? originalName.substring(originalName.lastIndexOf(".")) : ".pdf";
-            String newFileName = tipoDocumento.name().toLowerCase() + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
-            
-            Path targetPath = projectDir.resolve(newFileName);
-            Files.copy(archivo.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+        Documento guardado = documentoRepository.save(documento);
 
-            switch (tipoDocumento) {
-                case VIABILIZACION -> proyecto.setViabilizacionPdf(newFileName);
-                case ACTA_CONSTITUCION -> proyecto.setActaConstitucionPdf(newFileName);
-                case CRONOGRAMA -> proyecto.setCronogramaPdf(newFileName);
-                case PLAN_COMUNICACIONES -> proyecto.setPlanComunicacionesPdf(newFileName);
-            }
-            proyectoRepository.save(proyecto);
-
-            String descargaUrl = "/api/v1/proyectos/" + proyecto.getId() + "/documentos/" + tipoDocumento.name() + "/descargar";
-            return new DocumentoUploadResponseDTO(
-                    tipoDocumento,
-                    newFileName,
-                    LocalDate.now(),
-                    descargaUrl
-            );
-
-        } catch (IOException e) {
-            throw new RuntimeException("Error al guardar el archivo", e);
-        }
+        return toUploadResultDTO(guardado);
     }
 
     @Override
-    public Resource descargarDocumento(String proyectoId, TipoDocumento tipoDocumento) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+    @Transactional(readOnly = true)
+    public Resource descargarDocumento(String proyectoId, String tipoDocumento) {
+        validarExistenciaProyecto(proyectoId);
+
+        Documento documento = documentoRepository
+                .findByProyectoIdAndTipoDocumentoConfigCodigo(proyectoId, tipoDocumento)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Documento no encontrado: " + tipoDocumento + " para proyecto " + proyectoId));
+
+        return storageProvider.loadFileAsResource(documento.getRutaAlmacenamiento(), documento.getNombreAlmacenado());
+    }
+
+    @Override
+    @Transactional
+    public void eliminarDocumento(String proyectoId, String tipoDocumento) {
+        validarExistenciaProyecto(proyectoId);
+
+        Documento documento = documentoRepository
+                .findByProyectoIdAndTipoDocumentoConfigCodigo(proyectoId, tipoDocumento)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Documento no encontrado: " + tipoDocumento + " para proyecto " + proyectoId));
+
+        storageProvider.deleteFile(documento.getRutaAlmacenamiento(), documento.getNombreAlmacenado());
+        documentoRepository.delete(documento);
+    }
+
+    private void validarExistenciaProyecto(String proyectoId) {
+        proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + proyectoId));
+    }
 
-        String fileName = getFileNameByTipo(proyecto, tipoDocumento);
-        if (fileName == null) {
-            throw new ResourceNotFoundException("El documento no ha sido cargado");
+    private String extraerExtension(String fileName) {
+        if (fileName == null) return "";
+        int dotIndex = fileName.lastIndexOf('.');
+        return dotIndex > 0 ? fileName.substring(dotIndex).toLowerCase() : "";
+    }
+
+    private String generarNombreUnico(String tipoDocumento, String extension) {
+        return tipoDocumento.toLowerCase() + "_" + UUID.randomUUID().toString();
+    }
+
+    private String resolverMimeType(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType != null && !contentType.isEmpty()) {
+            return contentType.toLowerCase();
         }
+        String ext = extraerExtension(file.getOriginalFilename()).toLowerCase();
+        return switch (ext) {
+            case ".pdf" -> "application/pdf";
+            case ".png" -> "image/png";
+            case ".jpg", ".jpeg" -> "image/jpeg";
+            case ".doc" -> "application/msword";
+            case ".docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case ".xls" -> "application/vnd.ms-excel";
+            case ".xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            default -> "application/octet-stream";
+        };
+    }
 
-        try {
-            Path filePath = Paths.get(UPLOAD_DIR, proyectoId, fileName).normalize();
-            Resource resource = new UrlResource(filePath.toUri());
+    private String construirUrlDescarga(String proyectoId, String tipoDocumento) {
+        return "/api/v1/proyectos/" + proyectoId + "/documentos/" + tipoDocumento + "/descargar";
+    }
 
-            if (resource.exists() && resource.isReadable()) {
-                return resource;
-            } else {
-                throw new ResourceNotFoundException("El archivo no se encuentra o no es legible");
-            }
-        } catch (Exception e) {
-            throw new ResourceNotFoundException("Error al leer el archivo");
-        }
+    private String formatearTamano(Long bytes) {
+        if (bytes == null) return "0 B";
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+    }
+
+    private DocumentoDetailDTO toDetailDTO(Documento doc) {
+        return new DocumentoDetailDTO(
+                doc.getId(),
+                doc.getTipoDocumentoCodigo(),
+                doc.getNombreOriginal(),
+                doc.getMimeType(),
+                doc.getTamanoBytes(),
+                formatearTamano(doc.getTamanoBytes()),
+                doc.getUrlDescarga(),
+                doc.getFechaCarga().format(DATE_FORMATTER)
+        );
+    }
+
+    private DocumentoUploadResultDTO toUploadResultDTO(Documento doc) {
+        return new DocumentoUploadResultDTO(
+                doc.getId(),
+                doc.getTipoDocumentoCodigo(),
+                doc.getNombreOriginal(),
+                doc.getNombreAlmacenado(),
+                doc.getMimeType(),
+                doc.getTamanoBytes(),
+                formatearTamano(doc.getTamanoBytes()),
+                doc.getUrlDescarga(),
+                doc.getFechaCarga().format(DATE_FORMATTER)
+        );
     }
 }

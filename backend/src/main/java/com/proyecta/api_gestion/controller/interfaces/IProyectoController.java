@@ -61,4 +61,8 @@ public interface IProyectoController {
     @Operation(summary = "EP-PROY-10 · Actualizar FURAG", description = "Actualizar respuestas FURAG del proyecto.")
     @PutMapping("/{id}/furag")
     ResponseEntity<Void> actualizarFurag(@PathVariable String id, @RequestBody com.proyecta.api_gestion.model.Furag furag);
+
+    @Operation(summary = "EP-PROY-11 · Recalcular avances", description = "Recalcular avances de todos los proyectos basado en estado de entregables.")
+    @PostMapping("/recalcular-avances")
+    ResponseEntity<ApiResponse<Void>> recalcularAvances();
 }
