@@ -19,3 +19,9 @@ springdoc.swagger-ui.path=/swagger-ui.html
 
 # Dashboard Config
 dashboard.ventana-vencimiento=7
+
+# Keycloak / OAuth2 Resource Server
+spring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_ISSUER_URI:http://172.20.6.59:8080/realms/gob-cundinamarca-devqa}
+spring.security.oauth2.resourceserver.jwt.jwk-set-uri=${KEYCLOAK_JWKS_URI:http://172.20.6.59:8080/realms/gob-cundinamarca-devqa/protocol/openid-connect/certs}
+gob.security.resource-client-ids=${GOB_RESOURCE_CLIENT_IDS:proyecta-web}
+gob.security.cors.allowed-origins=${GOB_CORS_ORIGINS:http://localhost:5173}

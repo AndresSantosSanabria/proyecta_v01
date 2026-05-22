@@ -8,13 +8,14 @@ import com.proyecta.api_gestion.dto.proyecto.ProyectoSummaryDTO;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
 import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/dashboard")
-@CrossOrigin(origins = "*")
+@PreAuthorize("hasRole('app_access')")
 public class DashboardController implements IDashboardController {
 
     private final DashboardService dashboardService;

@@ -19,7 +19,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/admin/ponderaciones")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('admin')")
 public class PonderacionAdministracionController {
 
     private final PonderacionGestionService ponderacionGestionService;

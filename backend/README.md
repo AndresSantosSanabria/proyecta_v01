@@ -1,59 +1,64 @@
-# api-gestion 
+# api-gestion
 
-Sistema de gestión de proyectos y dashboard analítico desarrollado con Spring Boot. Este proyecto proporciona una API robusta para la administración de proyectos, hitos y métricas de seguimiento.
+Sistema de gestion de proyectos y dashboard analitico desarrollado con Spring Boot.
 
-##  Tecnologías
+## Tecnologias
 
-- **Lenguaje:** Java 25
-- **Framework:** Spring Boot 4.0.5
-- **Persistencia:** Spring Data JPA + Hibernate
-- **Base de Datos:** PostgreSQL
-- **Documentación:** Swagger / OpenAPI 3
-- **Seguridad:** OAuth2 Resource Server
-- **Herramientas:** Maven, Lombok
+- Lenguaje: Java 25
+- Framework: Spring Boot 4.0.5
+- Persistencia: Spring Data JPA + Hibernate
+- Base de datos: PostgreSQL
+- Documentacion: Swagger / OpenAPI 3
+- Seguridad: OAuth2 Resource Server con Keycloak
 
-##  Requisitos Previos
+## Configuracion
 
-- **Java JDK 25** o superior.
-- **Maven 3.8+**
-- **PostgreSQL** (configurado con el esquema).
+1. Copia `src/main/resources/application.properties.template` a `src/main/resources/application.properties`.
+2. Ajusta la conexion a base de datos.
+3. Verifica las variables de Keycloak:
+   - `KEYCLOAK_ISSUER_URI`
+   - `KEYCLOAK_JWKS_URI`
+   - `GOB_RESOURCE_CLIENT_IDS`
+   - `GOB_CORS_ORIGINS`
 
-##  Configuración y Ejecución
+## Keycloak
 
-### 1. Clonar el repositorio
+- Realm: `gob-cundinamarca-devqa`
+- Issuer: `http://172.20.6.59:8080/realms/gob-cundinamarca-devqa`
+- Client ID: `proyecta-web`
+- Rol requerido para entrar al sistema: `app_access`
+
+## Frontend React
+
+El frontend debe usar OIDC con PKCE. No construyas la URL de login a mano.
+
 ```bash
-git clone <url-del-repositorio>
-cd api-gestion
+npm install oidc-client-ts
 ```
 
-### 2. Configurar Propiedades
-El archivo `application.properties` está excluido del repositorio por seguridad. Debes crear uno basado en la plantilla:
+```js
+import { UserManager } from "oidc-client-ts";
 
-```bash
-cp src/main/resources/application.properties.template src/main/resources/application.properties
+export const auth = new UserManager({
+  authority: "http://172.20.6.59:8080/realms/gob-cundinamarca-devqa",
+  client_id: "proyecta-web",
+  redirect_uri: "http://localhost:5173/callback",
+  post_logout_redirect_uri: "http://localhost:5173/",
+  response_type: "code",
+  scope: "openid profile email",
+  automaticSilentRenew: true,
+});
 ```
 
-Edita `src/main/resources/application.properties` con tus credenciales locales de base de datos.
+Flujo:
 
-### 3. Compilar y Ejecutar
-```bash
-mvn clean install
-mvn spring-boot:run
-```
+1. React ejecuta `auth.signinRedirect()`.
+2. Keycloak autentica al usuario.
+3. React procesa el callback con `auth.signinRedirectCallback()`.
+4. React llama a Spring con `Authorization: Bearer <token>`.
+5. Spring valida el JWT y aplica `hasRole('app_access')`.
 
-##  Documentación de la API
+## CORS
 
-Una vez que la aplicación esté corriendo, puedes acceder a la interfaz de Swagger para explorar y probar los endpoints:
+En desarrollo, el backend permite `http://localhost:5173`. Si el frontend usa otro origen, ajusta `gob.security.cors.allowed-origins`.
 
- [http://localhost:8080/swagger-ui.html]
-
-### Endpoints Principales:
-- **/api/dashboard**: Métricas y estadísticas consolidadas.
-
-
-## Seguridad
-
-El proyecto está configurado como un **OAuth2 Resource Server**. Asegúrate de configurar las propiedades de validación de JWT (como `spring.security.oauth2.resourceserver.jwt.issuer-uri`) si planeas habilitar la seguridad en producción.
-
----
-**Código configurado base sobre este proyecto**

@@ -9,7 +9,6 @@ import com.proyecta.api_gestion.repository.FaseRepository;
 import com.proyecta.api_gestion.repository.HitoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
-import com.proyecta.api_gestion.service.interfaces.AvanceCalculatorService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +17,7 @@ import java.math.RoundingMode;
 import java.util.List;
 
 @Service
-public class AvanceCalculatorServiceImpl implements AvanceCalculatorService {
+public class AvanceCalculatorServiceImpl implements IProgressCalculator {
 
     private static final BigDecimal CIEN = new BigDecimal("100");
 

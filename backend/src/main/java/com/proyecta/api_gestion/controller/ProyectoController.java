@@ -14,12 +14,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
 @Tag(name = "Módulo 2 — Proyectos", description = "Endpoints para la gestión de proyectos TIC")
-@CrossOrigin(origins = "*")
+@PreAuthorize("hasRole('app_access')")
 public class ProyectoController implements com.proyecta.api_gestion.controller.interfaces.IProyectoController {
 
     private final ProyectoService proyectoService;

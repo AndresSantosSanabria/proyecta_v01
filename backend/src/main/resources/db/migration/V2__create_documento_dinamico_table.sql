@@ -15,3 +15,7 @@ CREATE TABLE documento_dinamico (
 );
 
 CREATE INDEX idx_documento_dinamico_proyecto_tipo ON documento_dinamico(proyecto_id, tipo_documento);
+
+ALTER TABLE entregable DROP CONSTRAINT IF EXISTS entregable_estado_check;
+ALTER TABLE entregable ADD CONSTRAINT entregable_estado_check
+    CHECK (estado IN ('PENDIENTE', 'EN_PROCESO', 'A_CONFORMIDAD', 'COMPLETADO', 'ATRASADO'));

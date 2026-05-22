@@ -19,7 +19,6 @@ import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.RiesgoRepository;
 import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.service.IRiesgoService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,14 +28,17 @@ import java.util.stream.Collectors;
 @Service
 public class RiesgoServiceImpl implements IRiesgoService {
 
-    @Autowired
-    private RiesgoRepository riesgoRepository;
+    private final RiesgoRepository riesgoRepository;
+    private final ProyectoRepository proyectoRepository;
+    private final MatrizRiesgoRepository matrizRiesgoRepository;
 
-    @Autowired
-    private ProyectoRepository proyectoRepository;
-
-    @Autowired
-    private MatrizRiesgoRepository matrizRiesgoRepository;
+    public RiesgoServiceImpl(RiesgoRepository riesgoRepository,
+                             ProyectoRepository proyectoRepository,
+                             MatrizRiesgoRepository matrizRiesgoRepository) {
+        this.riesgoRepository = riesgoRepository;
+        this.proyectoRepository = proyectoRepository;
+        this.matrizRiesgoRepository = matrizRiesgoRepository;
+    }
 
     @Override
     public RiesgoListResponseDTO getRisksByProject(String projectId) {

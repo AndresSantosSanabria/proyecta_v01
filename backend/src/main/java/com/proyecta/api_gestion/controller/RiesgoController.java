@@ -9,12 +9,13 @@ import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
 import com.proyecta.api_gestion.service.IRiesgoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
-@CrossOrigin(origins = "*")
+@PreAuthorize("hasRole('app_access')")
 public class RiesgoController implements IRiesgoController {
 
     private final IRiesgoService riesgoService;

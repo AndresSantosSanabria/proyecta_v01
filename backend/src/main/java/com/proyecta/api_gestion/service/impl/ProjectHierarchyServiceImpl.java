@@ -5,7 +5,7 @@ import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.repository.*;
-import com.proyecta.api_gestion.service.interfaces.AvanceCalculatorService;
+import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +23,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private final HitoRepository hitoRepository;
     private final EntregableRepository entregableRepository;
     private final SystemParameterRepository systemParameterRepository;
-    private final AvanceCalculatorService avanceCalculatorService;
+    private final IProgressCalculator avanceCalculatorService;
 
     private static final String DIAS_POR_VENCER_PARAM = "dias_por_vencer";
     private static final int DIAS_POR_VENCER_DEFAULT = 7;
@@ -33,7 +33,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                                        HitoRepository hitoRepository,
                                        EntregableRepository entregableRepository,
                                        SystemParameterRepository systemParameterRepository,
-                                       AvanceCalculatorService avanceCalculatorService) {
+                                       IProgressCalculator avanceCalculatorService) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
