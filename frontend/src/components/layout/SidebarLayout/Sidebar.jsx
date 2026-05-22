@@ -27,6 +27,7 @@ const Sidebar = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
   const { user, roles, logout } = useAuthContext();
+  const isAdmin = roles.includes('admin');
 
   const projectMatch = location.pathname.match(/^\/projects\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
@@ -95,7 +96,13 @@ const Sidebar = () => {
       items: [
         { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> },
       ]
-    }
+    },
+    ...(isAdmin ? [{
+      category: 'ADMINISTRACION',
+      items: [
+        { name: 'Configuracion Seguridad', path: '/admin/seguridad', icon: <ShieldCheck size={22} /> },
+      ]
+    }] : [])
   ];
 
   return (
