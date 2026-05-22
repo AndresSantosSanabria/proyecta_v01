@@ -9,9 +9,46 @@ const projectService = {
    * Obtiene la lista completa de proyectos.
    * @returns {Promise<Array>}
    */
-  getAll: async () => {
-    const { data } = await apiClient.get('/proyectos');
+  getAll: async (params = {}) => {
+    const { data } = await apiClient.get('/proyectos', { params });
     return data;
+  },
+
+  /**
+   * Obtiene todos los proyectos recorriendo la paginacion del backend.
+   * @param {Object} params filtros opcionales (nombre, codigo, dependencia, estado, peti)
+   * @returns {Promise<Array>}
+   */
+  getAllUnpaged: async (params = {}) => {
+    const pageSize = 100;
+    let page = 0;
+    let hasNext = true;
+    const allProjects = [];
+
+    while (hasNext) {
+      const response = await projectService.getAll({
+        ...params,
+        page,
+        size: pageSize,
+        sort: 'id,asc',
+      });
+
+      const payload = response?.data;
+
+      // Compatibilidad: si algun ambiente devuelve arreglo plano en lugar de Page.
+      if (Array.isArray(payload)) {
+        allProjects.push(...payload);
+        break;
+      }
+
+      const content = Array.isArray(payload?.content) ? payload.content : [];
+      allProjects.push(...content);
+
+      hasNext = Boolean(payload && payload.last === false);
+      page += 1;
+    }
+
+    return allProjects;
   },
 
   /**

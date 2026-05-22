@@ -17,16 +17,8 @@ const ProjectsPage = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await projectService.getAll();
-        
-        // Manejamos tanto si viene un array directo como si viene paginado (objeto content)
-        const projectsData = response.data?.content || response.data;
-        
-        if (response.success && Array.isArray(projectsData)) {
-          setProjects(projectsData);
-        } else {
-          setError(response.message || 'Error al cargar el listado de proyectos');
-        }
+        const projectsData = await projectService.getAllUnpaged();
+        setProjects(Array.isArray(projectsData) ? projectsData : []);
       } catch (err) {
         console.error('Error fetching projects:', err);
         setError('No se pudo establecer conexión con el servidor');

@@ -1,14 +1,13 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+﻿import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ErrorBoundary from '../../common/ErrorBoundary';
 import './SidebarLayout.css';
 
 /**
  * SidebarLayout Component
- * Estructura base de la aplicación con Sidebar persistente.
- * Utiliza Outlet para renderizar las páginas dinámicamente.
- * Incluye ErrorBoundary para capturar errores en las páginas hijas.
+ * Estructura base de la aplicaciÃ³n con Sidebar persistente.
+ * Utiliza Outlet para renderizar las pÃ¡ginas dinÃ¡micamente.
+ * Incluye ErrorBoundary para capturar errores en las pÃ¡ginas hijas.
  */
 const SidebarLayout = () => {
   return (
@@ -24,3 +23,4 @@ const SidebarLayout = () => {
 };
 
 export default SidebarLayout;
+
