@@ -1,14 +1,15 @@
 package com.proyecta.api_gestion.controller;
 
+import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.report.ReporteConfigUpdateDTO;
+import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.ReporteConfig;
 import com.proyecta.api_gestion.repository.ReporteConfigRepository;
-import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 @Tag(name = "Configuración de Reportes", description = "Endpoints para administrar los tipos de reportes disponibles en el sistema.")
 @StandardApiResponses
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication) and @localUserAuthorization.hasAnyRole(authentication, 'ADMINISTRADOR')")
 public class ReporteConfigController {
 
     private final ReporteConfigRepository repository;

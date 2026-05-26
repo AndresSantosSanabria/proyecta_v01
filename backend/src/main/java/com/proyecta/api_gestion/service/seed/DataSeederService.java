@@ -15,6 +15,7 @@ public class DataSeederService {
     private final PatrocinadorSeeder patrocinadorSeeder;
     private final SystemParameterSeeder systemParameterSeeder;
     private final ReporteConfigSeeder reporteConfigSeeder;
+    private final SecurityCatalogSeeder securityCatalogSeeder;
     private final ProyectoSeeder proyectoSeeder;
 
     public DataSeederService(
@@ -22,11 +23,13 @@ public class DataSeederService {
             PatrocinadorSeeder patrocinadorSeeder,
             SystemParameterSeeder systemParameterSeeder,
             ReporteConfigSeeder reporteConfigSeeder,
+            SecurityCatalogSeeder securityCatalogSeeder,
             ProyectoSeeder proyectoSeeder) {
         this.usuarioSeeder = usuarioSeeder;
         this.patrocinadorSeeder = patrocinadorSeeder;
         this.systemParameterSeeder = systemParameterSeeder;
         this.reporteConfigSeeder = reporteConfigSeeder;
+        this.securityCatalogSeeder = securityCatalogSeeder;
         this.proyectoSeeder = proyectoSeeder;
     }
 
@@ -37,6 +40,7 @@ public class DataSeederService {
     public void seedAllData() {
         // Orden: Entidades independientes primero, luego las dependientes
         usuarioSeeder.seedUsuarios();
+        securityCatalogSeeder.seedSecurityCatalog();
         patrocinadorSeeder.seedPatrocinadores();
         systemParameterSeeder.seedSystemParameters();
         reporteConfigSeeder.seedReporteConfigs();

@@ -1,0 +1,14 @@
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS categoria_riesgo VARCHAR(120);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS causa TEXT;
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS consecuencia TEXT;
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS controles_existentes TEXT;
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS tipo_control VARCHAR(80);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS valoracion_control VARCHAR(80);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS probabilidad_residual VARCHAR(20);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS impacto_residual VARCHAR(20);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS nivel_residual VARCHAR(20);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS acciones_mitigacion TEXT;
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS entidad_responsable VARCHAR(150);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS rol_responsable VARCHAR(150);
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS fecha_accion DATE;
+ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS evidencia_indicador TEXT;

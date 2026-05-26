@@ -23,6 +23,7 @@ SET search_path TO proyecta_db;;
 -- 1.1 usuario
 CREATE TABLE IF NOT EXISTS usuario (
     usuario_id      SERIAL          PRIMARY KEY,
+    keycloak_sub    VARCHAR(120)    UNIQUE,
     nombre          VARCHAR(120)    NOT NULL,
     correo          VARCHAR(200)    NOT NULL UNIQUE,
     contrasena_hash TEXT,
@@ -301,6 +302,7 @@ ALTER TABLE proyecto ADD COLUMN IF NOT EXISTS estado_config_id INTEGER REFERENCE
 ALTER TABLE proyecto ADD COLUMN IF NOT EXISTS estrategia_peti_config_id INTEGER REFERENCES estrategia_peti_config(estrategia_peti_id);;
 
 -- Usuario
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS keycloak_sub VARCHAR(120) UNIQUE;;
 ALTER TABLE usuario ADD COLUMN IF NOT EXISTS rol_config_id INTEGER REFERENCES rol_config(rol_id);;
 
 -- Documento

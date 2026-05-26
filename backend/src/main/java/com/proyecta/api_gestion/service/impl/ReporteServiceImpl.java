@@ -1,7 +1,11 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.report.*;
+import com.proyecta.api_gestion.exception.ForbiddenException;
+import com.proyecta.api_gestion.model.Furag;
 import com.proyecta.api_gestion.repository.*;
+import com.proyecta.api_gestion.service.config.SystemParameterKeys;
+import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.interfaces.ReporteService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,17 +24,20 @@ public class ReporteServiceImpl implements ReporteService {
     private final EntregableRepository entregableRepository;
     private final RiesgoRepository riesgoRepository;
     private final ReporteConfigRepository reporteConfigRepository;
+    private final SystemParameterService systemParameterService;
 
     public ReporteServiceImpl(ProyectoRepository proyectoRepository,
                               FaseRepository faseRepository,
                               EntregableRepository entregableRepository,
                               RiesgoRepository riesgoRepository,
-                              ReporteConfigRepository reporteConfigRepository) {
+                              ReporteConfigRepository reporteConfigRepository,
+                              SystemParameterService systemParameterService) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.entregableRepository = entregableRepository;
         this.riesgoRepository = riesgoRepository;
         this.reporteConfigRepository = reporteConfigRepository;
+        this.systemParameterService = systemParameterService;
     }
 
     @Override
@@ -92,8 +99,17 @@ public class ReporteServiceImpl implements ReporteService {
     @Transactional(readOnly = true)
     public Optional<FuragReporteDTO> obtenerFurag(String proyectoId) {
         return proyectoRepository.findById(proyectoId).map(p ->
-                new FuragReporteDTO(p.getId(), p.getNombre(), p.getPeti(), p.getEstrategiaPeti() != null ? p.getEstrategiaPeti().name() : null, p.getVigenciaPeti(), p.getObjetivoGeneral())
-        );
+                {
+                    validarFuragObligatorio(p.getFurag(), proyectoId);
+                    return new FuragReporteDTO(
+                            p.getId(),
+                            p.getNombre(),
+                            p.getPeti(),
+                            p.getEstrategiaPeti() != null ? p.getEstrategiaPeti().name() : null,
+                            p.getVigenciaPeti(),
+                            p.getObjetivoGeneral()
+                    );
+                });
     }
 
     @Override
@@ -116,5 +132,25 @@ public class ReporteServiceImpl implements ReporteService {
     @Override
     public byte[] generarReportePortafolioExcel() {
         return "Contenido Excel simulado para portafolio".getBytes();
+    }
+
+    private void validarFuragObligatorio(Furag furag, String proyectoId) {
+        if (furag == null) {
+            throw new ForbiddenException("El proyecto " + proyectoId + " no tiene respuestas FURAG suficientes para generar el reporte.");
+        }
+
+        int minimoRespuestas = systemParameterService.getInt(SystemParameterKeys.FURAG_RESPUESTAS_OBLIGATORIAS, 7);
+        long respuestasCompletas = 0;
+        if (furag.getInfraestructuraDatos() != null) respuestasCompletas++;
+        if (furag.getInteroperabilidad() != null) respuestasCompletas++;
+        if (furag.getDigitalizacionAutomatizacion() != null) respuestasCompletas++;
+        if (furag.getContratacionPublica() != null) respuestasCompletas++;
+        if (furag.getServiciosNube() != null) respuestasCompletas++;
+        if (furag.getSandbox() != null) respuestasCompletas++;
+        if (furag.getTecnologiasEmergentes() != null) respuestasCompletas++;
+
+        if (respuestasCompletas < minimoRespuestas) {
+            throw new ForbiddenException("El proyecto " + proyectoId + " no tiene completas las respuestas FURAG obligatorias para generar el reporte.");
+        }
     }
 }

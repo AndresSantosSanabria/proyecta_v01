@@ -4,11 +4,12 @@ import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
 import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.SystemParameterRepository;
+import com.proyecta.api_gestion.service.config.SystemParameterKeys;
+import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
-import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -16,19 +17,21 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
+@org.springframework.transaction.annotation.Transactional(readOnly = true)
 public class DashboardServiceImpl implements DashboardService {
+
+    private static final Logger logger = LoggerFactory.getLogger(DashboardServiceImpl.class);
 
     private final ProyectoRepository proyectoRepository;
     private final EntregableRepository entregableRepository;
-    private final SystemParameterRepository systemParameterRepository;
-    private static final Logger logger = LoggerFactory.getLogger(DashboardServiceImpl.class);
+    private final SystemParameterService systemParameterService;
 
     public DashboardServiceImpl(ProyectoRepository proyectoRepository,
-            EntregableRepository entregableRepository,
-            SystemParameterRepository systemParameterRepository) {
+                                EntregableRepository entregableRepository,
+                                SystemParameterService systemParameterService) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
-        this.systemParameterRepository = systemParameterRepository;
+        this.systemParameterService = systemParameterService;
     }
 
     @Override
@@ -37,7 +40,6 @@ public class DashboardServiceImpl implements DashboardService {
         long cerrados = proyectoRepository.countCerrados();
         long total = proyectoRepository.countTotal();
 
-        // Avance promedio calculado desde el campo avance_total de cada proyecto
         BigDecimal avgAvance = proyectoRepository.getAvancePromedio();
         int avancePromedio = 0;
         if (avgAvance != null) {
@@ -46,7 +48,6 @@ public class DashboardServiceImpl implements DashboardService {
 
         LocalDate hoy = LocalDate.now();
 
-        // Tendencia: comparar avance real vs lo esperado por fechas
         BigDecimal sumaConforme = entregableRepository.sumPonderacionConformeActivos();
         BigDecimal sumaEsperada = entregableRepository.sumPonderacionEsperadaActivos(hoy);
         if (sumaConforme == null) sumaConforme = BigDecimal.ZERO;
@@ -58,18 +59,7 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         long totalAtrasados = entregableRepository.countAtrasadosTotal(hoy);
-
-        int ventana = systemParameterRepository.findByKey("dias_alerta_vencimiento")
-                .map(p -> {
-                    try {
-                        return Integer.parseInt(p.getValue());
-                    } catch (NumberFormatException e) {
-                        logger.warn("Formato inválido para parámetro dias_alerta_vencimiento: {}", p.getValue());
-                        return 7;
-                    }
-                })
-                .orElse(7);
-
+        int ventana = systemParameterService.getInt(SystemParameterKeys.DASHBOARD_VENTANA_VENCIMIENTO_DIAS, 7);
         long proximos = entregableRepository.countProximosActivos(hoy, hoy.plusDays(ventana));
 
         return new DashboardSummaryDTO(

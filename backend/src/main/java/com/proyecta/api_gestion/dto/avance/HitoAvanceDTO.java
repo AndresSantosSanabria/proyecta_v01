@@ -7,6 +7,11 @@ public record HitoAvanceDTO(
     Integer id,
     String nombre,
     BigDecimal ponderacion,
+    BigDecimal progresoProgramado,
+    BigDecimal progresoEjecutado,
+    BigDecimal diferencia,
+    BigDecimal eficacia,
+    String estado,
     BigDecimal avance,
     List<EntregableAvanceDTO> entregables
 ) {}

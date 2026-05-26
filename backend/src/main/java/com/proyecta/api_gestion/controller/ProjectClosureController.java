@@ -3,33 +3,27 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.controller.interfaces.IProjectClosureController;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
-import com.proyecta.api_gestion.model.enums.Rol;
-import com.proyecta.api_gestion.repository.UsuarioRepository;
 import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
 @CrossOrigin(origins = "*")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ProjectClosureController implements IProjectClosureController {
 
-    private static final Set<Rol> ROLES_AUTORIZADOS = Set.of(Rol.ADMINISTRADOR, Rol.GESTOR_PROYECTOS_TI);
-
     private final ProjectClosureService closureService;
-    private final UsuarioRepository usuarioRepository;
 
-    public ProjectClosureController(ProjectClosureService closureService,
-                                    UsuarioRepository usuarioRepository) {
+    public ProjectClosureController(ProjectClosureService closureService) {
         this.closureService = closureService;
-        this.usuarioRepository = usuarioRepository;
     }
 
     @Override
     @PostMapping("/{id}/cierre")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:CERRAR', #id, authentication)")
     public ResponseEntity<CierreProyectoResponse> cerrarProyecto(
             @PathVariable String id,
             @Valid @RequestBody CierreProyectoRequest request) {
@@ -37,5 +31,4 @@ public class ProjectClosureController implements IProjectClosureController {
         CierreProyectoResponse response = closureService.cerrarProyecto(id, request);
         return ResponseEntity.ok(response);
     }
-
 }

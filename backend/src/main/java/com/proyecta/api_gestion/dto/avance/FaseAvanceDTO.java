@@ -7,6 +7,11 @@ public record FaseAvanceDTO(
     Integer id,
     String nombre,
     BigDecimal ponderacion,
+    BigDecimal progresoProgramado,
+    BigDecimal progresoEjecutado,
+    BigDecimal diferencia,
+    BigDecimal eficacia,
+    String estado,
     BigDecimal avance,
     List<HitoAvanceDTO> hitos
 ) {}

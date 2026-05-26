@@ -1,0 +1,500 @@
+package com.proyecta.api_gestion.service.security.dynamic;
+
+import com.proyecta.api_gestion.dto.security.SeguridadAutorizacionMeDTO;
+import com.proyecta.api_gestion.dto.security.SeguridadMatrizPermisosUpdateRequest;
+import com.proyecta.api_gestion.dto.security.SeguridadPermisoDTO;
+import com.proyecta.api_gestion.dto.security.SeguridadRolDTO;
+import com.proyecta.api_gestion.dto.security.SeguridadRolRequest;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioProyectoDTO;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioProyectoRequest;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioUpdateRequest;
+import com.proyecta.api_gestion.dto.security.SystemParameterDTO;
+import com.proyecta.api_gestion.dto.security.SystemParameterUpsertRequest;
+import com.proyecta.api_gestion.exception.BadRequestException;
+import com.proyecta.api_gestion.exception.ForbiddenException;
+import com.proyecta.api_gestion.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.Usuario;
+import com.proyecta.api_gestion.model.security.SeguridadPermiso;
+import com.proyecta.api_gestion.model.security.SeguridadRol;
+import com.proyecta.api_gestion.model.security.SeguridadRolPermiso;
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
+import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadRolRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.SystemParameterRepository;
+import com.proyecta.api_gestion.service.config.SystemParameterKeys;
+import com.proyecta.api_gestion.service.config.SystemParameterService;
+import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Sort;
+
+@Service
+public class SecurityAdministrationService {
+
+    private final SeguridadUsuarioRepository usuarioRepository;
+    private final SeguridadRolRepository rolRepository;
+    private final SeguridadPermisoRepository permisoRepository;
+    private final SeguridadRolPermisoRepository rolPermisoRepository;
+    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final ProyectoRepository proyectoRepository;
+    private final SystemParameterRepository systemParameterRepository;
+    private final SystemParameterService systemParameterService;
+    private final SecurityCatalogCacheService catalogCacheService;
+    private final KeycloakIdentityExtractor identityExtractor;
+    private final LocalUserAuthorizationService localUserAuthorizationService;
+
+    public SecurityAdministrationService(
+            SeguridadUsuarioRepository usuarioRepository,
+            SeguridadRolRepository rolRepository,
+            SeguridadPermisoRepository permisoRepository,
+            SeguridadRolPermisoRepository rolPermisoRepository,
+            SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+            ProyectoRepository proyectoRepository,
+            SystemParameterRepository systemParameterRepository,
+            SystemParameterService systemParameterService,
+            SecurityCatalogCacheService catalogCacheService,
+            KeycloakIdentityExtractor identityExtractor,
+            LocalUserAuthorizationService localUserAuthorizationService) {
+        this.usuarioRepository = usuarioRepository;
+        this.rolRepository = rolRepository;
+        this.permisoRepository = permisoRepository;
+        this.rolPermisoRepository = rolPermisoRepository;
+        this.usuarioProyectoRepository = usuarioProyectoRepository;
+        this.proyectoRepository = proyectoRepository;
+        this.systemParameterRepository = systemParameterRepository;
+        this.systemParameterService = systemParameterService;
+        this.catalogCacheService = catalogCacheService;
+        this.identityExtractor = identityExtractor;
+        this.localUserAuthorizationService = localUserAuthorizationService;
+    }
+
+    public Page<SeguridadUsuarioDTO> listarUsuarios(String search, Pageable pageable) {
+        return usuarioRepository.search(search, pageable).map(this::toUsuarioDTO);
+    }
+
+    @Transactional
+    public SeguridadUsuarioDTO actualizarUsuario(SeguridadUsuarioUpdateRequest request) {
+        if (request == null || request.username() == null || request.username().isBlank()) {
+            throw new BadRequestException("El username del usuario es obligatorio.");
+        }
+
+        String username = normalizeText(request.username());
+        SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
+                .orElseGet(() -> {
+                    SeguridadUsuario nuevo = new SeguridadUsuario();
+                    nuevo.setUsername(username);
+                    String correo = normalizeText(request.correo());
+                    nuevo.setKeycloakSub(normalizeText(request.keycloakSub()) != null
+                            ? normalizeText(request.keycloakSub())
+                            : correo != null ? correo : username);
+                    nuevo.setNombre(normalizeText(request.nombre()) != null ? normalizeText(request.nombre()) : username);
+                    nuevo.setCorreo(correo != null ? correo : username);
+                    nuevo.setDependencia(normalizeText(request.dependencia()));
+                    nuevo.setActivo(request.activo() == null || request.activo());
+                    return nuevo;
+                });
+
+        String correo = normalizeText(request.correo());
+        String keycloakSub = normalizeText(request.keycloakSub());
+        if (keycloakSub != null) {
+            usuario.setKeycloakSub(keycloakSub);
+        } else if (correo != null) {
+            usuario.setKeycloakSub(correo);
+        }
+        if (normalizeText(request.nombre()) != null) {
+            usuario.setNombre(normalizeText(request.nombre()));
+        }
+        if (correo != null) {
+            usuario.setCorreo(correo);
+        }
+        usuario.setDependencia(normalizeText(request.dependencia()));
+        if (request.activo() != null) {
+            usuario.setActivo(request.activo());
+        }
+
+        SeguridadUsuario saved = usuarioRepository.save(usuario);
+        catalogCacheService.evictAll();
+        return toUsuarioDTO(saved);
+    }
+
+    public List<SeguridadPermisoDTO> listarPermisos() {
+        return permisoRepository.findAllByActivoTrueOrderByCodigoAsc().stream()
+                .map(this::toPermisoDTO)
+                .toList();
+    }
+
+    public List<SeguridadRolDTO> listarRolesConPermisos(boolean includeInactive) {
+        List<SeguridadRol> roles = includeInactive
+                ? rolRepository.findAll(Sort.by(Sort.Direction.ASC, "codigo"))
+                : rolRepository.findAllByActivoTrueOrderByCodigoAsc();
+        List<SeguridadRolPermiso> relaciones = rolPermisoRepository.findAllActiveWithRelations();
+
+        Map<Long, List<SeguridadPermisoDTO>> permisosPorRol = relaciones.stream()
+                .collect(Collectors.groupingBy(
+                        relation -> relation.getRol().getId(),
+                        LinkedHashMap::new,
+                        Collectors.mapping(relation -> toPermisoDTO(relation.getPermiso()), Collectors.toList())));
+
+        return roles.stream()
+                .map(rol -> new SeguridadRolDTO(
+                        rol.getId(),
+                        rol.getCodigo(),
+                        rol.getNombre(),
+                        rol.getDescripcion(),
+                        rol.getTransversal(),
+                        rol.getActivo(),
+                        permisosPorRol.getOrDefault(rol.getId(), List.of())))
+                .toList();
+    }
+
+    @Transactional
+    public SeguridadRolDTO guardarRol(SeguridadRolRequest request) {
+        if (request == null || normalizeText(request.codigo()) == null || normalizeText(request.nombre()) == null) {
+            throw new BadRequestException("codigo y nombre del rol son obligatorios.");
+        }
+
+        String codigo = normalizeRole(request.codigo());
+        String nombre = normalizeText(request.nombre());
+        String descripcion = normalizeText(request.descripcion());
+        boolean transversal = Boolean.TRUE.equals(request.transversal());
+        boolean activo = request.activo() == null || request.activo();
+
+        SeguridadRol rol = rolRepository.findByCodigoIgnoreCase(codigo).orElseGet(SeguridadRol::new);
+        boolean isNew = rol.getId() == null;
+        if (rol.getId() != null && SecurityRoleCatalog.isProtected(rol.getCodigo()) && !activo) {
+            throw new ForbiddenException("No se puede desactivar un rol base del sistema.");
+        }
+
+        rol.setCodigo(codigo);
+        rol.setNombre(nombre);
+        rol.setDescripcion(descripcion);
+        rol.setTransversal(transversal);
+        rol.setActivo(activo);
+
+        SeguridadRol saved = rolRepository.save(rol);
+        catalogCacheService.evictAll();
+        return toRolDTO(saved, new LinkedHashMap<>());
+    }
+
+    @Transactional
+    public SeguridadRolDTO eliminarRol(String codigo) {
+        String normalized = normalizeRole(codigo);
+        if (normalized == null) {
+            throw new BadRequestException("El codigo del rol es obligatorio.");
+        }
+
+        SeguridadRol rol = rolRepository.findByCodigoIgnoreCase(normalized)
+                .orElseThrow(() -> new ResourceNotFoundException("Rol no encontrado: " + normalized));
+
+        if (SecurityRoleCatalog.isProtected(rol.getCodigo())) {
+            throw new ForbiddenException("No se puede eliminar o desactivar un rol base del sistema.");
+        }
+
+        rol.setActivo(false);
+        SeguridadRol saved = rolRepository.save(rol);
+        catalogCacheService.evictAll();
+        return toRolDTO(saved, new LinkedHashMap<>());
+    }
+
+    @Transactional
+    public void actualizarMatriz(SeguridadMatrizPermisosUpdateRequest request) {
+        if (request == null || request.matriz() == null) {
+            throw new BadRequestException("La matriz de permisos es obligatoria.");
+        }
+
+        Set<String> roleCodes = request.matriz().keySet().stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (roleCodes.isEmpty()) {
+            throw new BadRequestException("Debe enviar al menos un rol para actualizar la matriz.");
+        }
+
+        Map<String, SeguridadRol> roles = rolRepository.findAllByActivoTrueOrderByCodigoAsc().stream()
+                .filter(rol -> rol.getCodigo() != null)
+                .filter(rol -> roleCodes.contains(rol.getCodigo().trim().toLowerCase(Locale.ROOT)))
+                .collect(Collectors.toMap(rol -> rol.getCodigo().trim().toLowerCase(Locale.ROOT), rol -> rol));
+
+        List<SeguridadRolPermiso> nuevasRelaciones = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : request.matriz().entrySet()) {
+            String roleCode = normalizeRole(entry.getKey());
+            SeguridadRol rol = roles.get(roleCode);
+            if (rol == null) {
+                throw new ResourceNotFoundException("Rol no encontrado: " + entry.getKey());
+            }
+
+            List<String> permissionCodes = entry.getValue() == null ? List.of() : entry.getValue();
+            for (String permissionCode : permissionCodes) {
+                String normalizedPermission = normalizePermission(permissionCode);
+                if (normalizedPermission == null) {
+                    continue;
+                }
+
+                SeguridadPermiso permiso = permisoRepository.findByCodigoIgnoreCase(normalizedPermission)
+                        .orElseThrow(() -> new ResourceNotFoundException("Permiso no encontrado: " + normalizedPermission));
+
+                SeguridadRolPermiso relation = new SeguridadRolPermiso();
+                relation.setRol(rol);
+                relation.setPermiso(permiso);
+                relation.setActivo(true);
+                nuevasRelaciones.add(relation);
+            }
+        }
+
+        rolPermisoRepository.deleteAllInBatch(rolPermisoRepository.findAll());
+        rolPermisoRepository.saveAll(nuevasRelaciones);
+        catalogCacheService.evictAll();
+    }
+
+    @Transactional
+    public SeguridadUsuarioProyectoDTO asignarUsuarioProyecto(SeguridadUsuarioProyectoRequest request) {
+        if (request == null) {
+            throw new BadRequestException("La solicitud de asignación es obligatoria.");
+        }
+
+        String username = normalizeText(request.username());
+        String proyectoId = normalizeText(request.proyectoId());
+        String cargo = normalizeText(request.cargo());
+
+        if (username == null || proyectoId == null || cargo == null) {
+            throw new BadRequestException("username, proyectoId y cargo son obligatorios.");
+        }
+
+        List<String> cargosPermitidos = listarCargosAsignacion();
+        if (cargosPermitidos.isEmpty()) {
+            throw new BadRequestException("No hay cargos de asignacion configurados en el sistema.");
+        }
+        if (cargosPermitidos.stream().noneMatch(cargo::equalsIgnoreCase)) {
+            throw new BadRequestException("El cargo enviado no esta permitido por la configuracion del sistema.");
+        }
+
+        SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
+                .orElseGet(() -> {
+                    SeguridadUsuario nuevo = new SeguridadUsuario();
+                    nuevo.setUsername(username);
+                    nuevo.setKeycloakSub(username);
+                    nuevo.setNombre(username);
+                    nuevo.setCorreo(username);
+                    nuevo.setDependencia(null);
+                    nuevo.setActivo(true);
+                    return usuarioRepository.save(nuevo);
+                });
+
+        SeguridadUsuarioProyecto assignment = usuarioProyectoRepository
+                .findByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(username, proyectoId, cargo)
+                .orElseGet(SeguridadUsuarioProyecto::new);
+
+        assignment.setUsuario(usuario);
+        assignment.setProyectoId(proyectoId);
+        assignment.setCargo(cargo);
+        assignment.setActivo(true);
+        assignment.setFechaAsignacion(LocalDateTime.now());
+        SeguridadUsuarioProyecto saved = usuarioProyectoRepository.save(assignment);
+        catalogCacheService.evictAll();
+        return toUsuarioProyectoDTO(saved);
+    }
+
+    public List<SeguridadUsuarioProyectoDTO> listarAsignaciones(String username) {
+        return usuarioProyectoRepository.findByUsername(username).stream()
+                .map(this::toUsuarioProyectoDTO)
+                .toList();
+    }
+
+    public List<String> listarCargosAsignacion() {
+        return systemParameterService.getCsv(
+                        SystemParameterKeys.SEGURIDAD_CARGOS_ASIGNACION,
+                        List.of())
+                .stream()
+                .map(value -> value == null ? null : value.trim())
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    public List<SystemParameterDTO> listarParametrosSistema() {
+        return systemParameterRepository.findAll(Sort.by(Sort.Direction.ASC, "key")).stream()
+                .map(param -> new SystemParameterDTO(param.getKey(), param.getValue(), param.getDescripcion()))
+                .toList();
+    }
+
+    @Transactional
+    public SystemParameterDTO guardarParametroSistema(SystemParameterUpsertRequest request) {
+        if (request == null || normalizeText(request.key()) == null || normalizeText(request.value()) == null) {
+            throw new BadRequestException("La clave y el valor del parametro son obligatorios.");
+        }
+
+        String key = normalizeText(request.key());
+        String value = normalizeText(request.value());
+        String descripcion = normalizeText(request.descripcion());
+
+        com.proyecta.api_gestion.model.SystemParameter parameter = systemParameterRepository.findByKey(key)
+                .orElseGet(com.proyecta.api_gestion.model.SystemParameter::new);
+        parameter.setKey(key);
+        parameter.setValue(value);
+        parameter.setDescripcion(descripcion);
+        com.proyecta.api_gestion.model.SystemParameter saved = systemParameterRepository.save(parameter);
+
+        return new SystemParameterDTO(saved.getKey(), saved.getValue(), saved.getDescripcion());
+    }
+
+    @Transactional
+    public void eliminarParametroSistema(String key) {
+        String normalized = normalizeText(key);
+        if (normalized == null) {
+            throw new BadRequestException("La clave del parametro es obligatoria.");
+        }
+
+        if (!systemParameterRepository.existsById(normalized)) {
+            throw new ResourceNotFoundException("Parametro no encontrado: " + normalized);
+        }
+
+        systemParameterRepository.deleteById(normalized);
+    }
+
+    public SeguridadAutorizacionMeDTO getAuthorizationFor(Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible resolver el usuario autenticado.");
+        }
+
+        Jwt jwt = identityExtractor.resolveJwt(authentication);
+        String nombre = identityExtractor.resolveDisplayName(authentication);
+        Set<String> roleCodes = authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .filter(value -> value != null && value.startsWith("ROLE_"))
+                .map(SecurityRoleCatalog::normalize)
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> permissions = authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .filter(value -> value != null && value.startsWith("PERM_"))
+                .map(value -> value.substring(5).toUpperCase(Locale.ROOT))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        boolean transversal = roleCodes.stream().anyMatch(SecurityRoleCatalog::isTransversal);
+        List<String> projects = catalogCacheService.getProjectsForUser(username);
+        boolean administradorLocal = false;
+
+        if (jwt != null) {
+            String email = normalizeText(identityExtractor.resolveEmail(authentication));
+            String displayName = normalizeText(nombre);
+            SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
+                    .orElseGet(() -> {
+                        SeguridadUsuario nuevo = new SeguridadUsuario();
+                        nuevo.setUsername(username);
+                        nuevo.setKeycloakSub(identityExtractor.resolveSub(authentication));
+                        nuevo.setNombre(displayName != null ? displayName : username);
+                        nuevo.setCorreo(email != null ? email : username);
+                        nuevo.setDependencia(identityExtractor.resolveDependencia(authentication));
+                        nuevo.setActivo(true);
+                        nuevo.setUltimoAcceso(LocalDateTime.now());
+                        return usuarioRepository.save(nuevo);
+                    });
+            administradorLocal = roleCodes.contains("admin");
+            usuario.setUltimoAcceso(LocalDateTime.now());
+            usuarioRepository.save(usuario);
+        }
+        try {
+            Usuario localUser = localUserAuthorizationService.requireLocalUser(authentication);
+            administradorLocal = administradorLocal || localUser.esAdministrador();
+        } catch (RuntimeException ignored) {
+            // Si no existe usuario local valido, se conserva la evaluacion previa.
+        }
+
+        return new SeguridadAutorizacionMeDTO(
+                username,
+                nombre != null ? nombre : username,
+                roleCodes.stream().toList(),
+                permissions.stream().toList(),
+                administradorLocal,
+                transversal,
+                projects);
+    }
+
+    private SeguridadUsuarioDTO toUsuarioDTO(SeguridadUsuario usuario) {
+        return new SeguridadUsuarioDTO(
+                usuario.getId(),
+                usuario.getUsername(),
+                usuario.getNombre(),
+                usuario.getCorreo(),
+                usuario.getDependencia(),
+                usuario.getActivo(),
+                usuario.getFechaCreacion(),
+                usuario.getUltimoAcceso());
+    }
+
+    private SeguridadPermisoDTO toPermisoDTO(SeguridadPermiso permiso) {
+        return new SeguridadPermisoDTO(
+                permiso.getId(),
+                permiso.getCodigo(),
+                permiso.getNombre(),
+                permiso.getDescripcion(),
+                permiso.getActivo());
+    }
+
+    private SeguridadRolDTO toRolDTO(SeguridadRol rol, Map<Long, List<SeguridadPermisoDTO>> permisosPorRol) {
+        return new SeguridadRolDTO(
+                rol.getId(),
+                rol.getCodigo(),
+                rol.getNombre(),
+                rol.getDescripcion(),
+                rol.getTransversal(),
+                rol.getActivo(),
+                permisosPorRol.getOrDefault(rol.getId(), List.of()));
+    }
+
+    private SeguridadUsuarioProyectoDTO toUsuarioProyectoDTO(SeguridadUsuarioProyecto item) {
+        Proyecto proyecto = item.getProyectoId() != null ? proyectoRepository.findById(item.getProyectoId()).orElse(null) : null;
+        return new SeguridadUsuarioProyectoDTO(
+                item.getId(),
+                item.getUsuario() != null ? item.getUsuario().getId() : null,
+                item.getUsuario() != null ? item.getUsuario().getUsername() : null,
+                item.getUsuario() != null ? item.getUsuario().getNombre() : null,
+                item.getProyectoId(),
+                proyecto != null ? proyecto.getId() : null,
+                proyecto != null ? proyecto.getNombre() : null,
+                item.getCargo(),
+                item.getActivo(),
+                item.getFechaAsignacion());
+    }
+
+    private String normalizeRole(String value) {
+        return normalizeText(value) != null ? normalizeText(value).toLowerCase(Locale.ROOT) : null;
+    }
+
+    private String normalizePermission(String value) {
+        return normalizeText(value) != null ? normalizeText(value).toUpperCase(Locale.ROOT) : null;
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+}

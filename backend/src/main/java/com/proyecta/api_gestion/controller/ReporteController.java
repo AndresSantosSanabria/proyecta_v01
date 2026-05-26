@@ -6,6 +6,7 @@ import com.proyecta.api_gestion.dto.report.*;
 import com.proyecta.api_gestion.service.interfaces.ReporteService;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/reportes")
 @CrossOrigin(origins = "*")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ReporteController implements IReporteController {
 
     private final ReporteService reporteService;
@@ -23,6 +25,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/configuracion")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
     public ResponseEntity<ApiResponse<List<ReporteConfigDTO>>> getConfiguracion() {
         List<ReporteConfigDTO> config = reporteService.obtenerConfiguracionReportes();
         return ResponseEntity.ok(ApiResponse.success(config, "Configuración de reportes obtenida con éxito"));
@@ -30,6 +33,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/vista-previa/{proyectoId}")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<ReporteVistaPreviaDTO>> getVistaPrevia(@PathVariable String proyectoId) {
         ReporteVistaPreviaDTO dto = reporteService.obtenerVistaPrevia(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
@@ -38,6 +42,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/todos-los-proyectos")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
     public ResponseEntity<ApiResponse<List<ProyectoReporteResumenDTO>>> getTodosLosProyectos() {
         List<ProyectoReporteResumenDTO> reportes = reporteService.obtenerTodosLosProyectos();
         return ResponseEntity.ok(ApiResponse.success(reportes, "Reporte de todos los proyectos obtenido con éxito"));
@@ -45,6 +50,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/proyectos-con-retrasos")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
     public ResponseEntity<ApiResponse<List<ProyectoReporteResumenDTO>>> getProyectosConRetrasos() {
         List<ProyectoReporteResumenDTO> reportes = reporteService.obtenerProyectosConRetrasos();
         return ResponseEntity.ok(ApiResponse.success(reportes, "Reporte de proyectos con retrasos obtenido con éxito"));
@@ -52,6 +58,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/plan-comunicaciones/{proyectoId}")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<PlanComunicacionesDTO>> getPlanComunicaciones(@PathVariable String proyectoId) {
         PlanComunicacionesDTO dto = reporteService.obtenerPlanComunicaciones(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
@@ -60,6 +67,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/furag/{proyectoId}")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<FuragReporteDTO>> getFurag(@PathVariable String proyectoId) {
         ReporteService service = reporteService;
         FuragReporteDTO dto = service.obtenerFurag(proyectoId)
@@ -69,13 +77,15 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/riesgos/{proyectoId}")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<List<RiesgoReporteDTO>>> getRiesgos(@PathVariable String proyectoId) {
         List<RiesgoReporteDTO> riesgos = reporteService.obtenerRiesgos(proyectoId);
         return ResponseEntity.ok(ApiResponse.success(riesgos, "Reporte de riesgos obtenido con éxito"));
     }
 
     @Override
-    public ResponseEntity<byte[]> descargarReporteProyectoPdf(String id) {
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
+    public ResponseEntity<byte[]> descargarReporteProyectoPdf(@PathVariable String id) {
         byte[] content = reporteService.generarReporteProyectoPdf(id);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=reporte-proyecto-" + id + ".pdf")
@@ -84,6 +94,7 @@ public class ReporteController implements IReporteController {
     }
 
     @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
     public ResponseEntity<byte[]> descargarReportePortafolioPdf() {
         byte[] content = reporteService.generarReportePortafolioPdf();
         return ResponseEntity.ok()
@@ -93,6 +104,7 @@ public class ReporteController implements IReporteController {
     }
 
     @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
     public ResponseEntity<byte[]> descargarReportePortafolioExcel() {
         byte[] content = reporteService.generarReportePortafolioExcel();
         return ResponseEntity.ok()

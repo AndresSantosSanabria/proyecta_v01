@@ -1,7 +1,9 @@
 package com.proyecta.api_gestion.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
+import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.repository.*;
@@ -20,15 +22,21 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final ActaCierreRepository actaCierreRepository;
     private final IProgressCalculator progressCalculator;
     private final ProjectClosureValidator closureValidator;
+    private final ProjectProgressMetricsService metricsService;
+    private final ObjectMapper objectMapper;
 
     public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
                                      ActaCierreRepository actaCierreRepository,
                                      IProgressCalculator progressCalculator,
-                                     ProjectClosureValidator closureValidator) {
+                                     ProjectClosureValidator closureValidator,
+                                     ProjectProgressMetricsService metricsService,
+                                     ObjectMapper objectMapper) {
         this.proyectoRepository = proyectoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.progressCalculator = progressCalculator;
         this.closureValidator = closureValidator;
+        this.metricsService = metricsService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -44,8 +52,14 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         closureValidator.validarCierre(projectId);
 
         BigDecimal avanceFinal = progressCalculator.calcularYActualizarAvanceProyecto(projectId);
-
         LocalDateTime fechaCierre = LocalDateTime.now();
+        ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, fechaCierre.toLocalDate());
+        String snapshotJson;
+        try {
+            snapshotJson = objectMapper.writeValueAsString(snapshot);
+        } catch (Exception ex) {
+            throw new IllegalStateException("No fue posible persistir el snapshot de avance del acta de cierre.", ex);
+        }
 
         ActaCierre acta = new ActaCierre(
                 proyecto,
@@ -53,6 +67,13 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 fechaCierre,
                 avanceFinal
         );
+        acta.setProgresoProgramadoFinal(snapshot.progresoProgramado());
+        acta.setProgresoEjecutadoFinal(snapshot.progresoEjecutado());
+        acta.setDiferenciaFinal(snapshot.diferencia());
+        acta.setEficaciaFinal(snapshot.eficacia());
+        acta.setEstadoFinal(snapshot.estado());
+        acta.setCorteCalculo(snapshot.corte());
+        acta.setSnapshotJson(snapshotJson);
 
         actaCierreRepository.save(acta);
 

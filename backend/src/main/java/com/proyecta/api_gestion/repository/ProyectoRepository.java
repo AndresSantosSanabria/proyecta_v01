@@ -93,7 +93,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
                 AND fecha_limite <= (CURRENT_DATE + (
                     SELECT (param_value || ' days')::INTERVAL
                     FROM system_parameters
-                    WHERE param_key = 'dias_alerta_vencimiento'
+                    WHERE param_key = 'ventana_vencimiento_dias'
                 ))
             )                                                                                AS proximos_vencer
         FROM metricas_base

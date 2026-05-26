@@ -15,7 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/dashboard")
-@PreAuthorize("hasRole('app_access')")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class DashboardController implements IDashboardController {
 
     private final DashboardService dashboardService;

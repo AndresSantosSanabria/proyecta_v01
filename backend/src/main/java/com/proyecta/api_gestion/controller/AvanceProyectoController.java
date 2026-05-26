@@ -15,12 +15,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
 @CrossOrigin(origins = "*")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class AvanceProyectoController implements IAvanceProyectoController {
 
     private final ProyectoAvanceService proyectoAvanceService;
@@ -37,6 +39,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
 
     @Override
     @GetMapping("/{proyectoId}/avance")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<ProyectoAvanceResponseDTO>> getAvanceProyecto(
             @PathVariable String proyectoId) {
         ProyectoAvanceResponseDTO detalle = proyectoAvanceService.obtenerAvanceDetallado(proyectoId);
@@ -45,6 +48,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
 
     @Override
     @PostMapping(value = "/{proyectoId}/avance/entregables/{entregableId}/completar", consumes = "multipart/form-data")
+    @PreAuthorize("@proyectoSecurity.canAccess('ENTREGABLE:APROBAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> marcarCompletado(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
@@ -57,6 +61,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
 
     @Override
     @PatchMapping(value = "/{proyectoId}/avance/entregables/{entregableId}", consumes = "multipart/form-data")
+    @PreAuthorize("@proyectoSecurity.canAccess('ENTREGABLE:APROBAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> marcarConformidad(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
@@ -69,6 +74,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
     }
 
     @GetMapping("/{proyectoId}/avance/entregables/{entregableId}/evidencia")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<Resource> descargarEvidencia(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId) {

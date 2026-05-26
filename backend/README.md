@@ -1,4 +1,4 @@
-# api-gestion
+﻿# api-gestion
 
 Sistema de gestion de proyectos y dashboard analitico desarrollado con Spring Boot.
 
@@ -20,6 +20,12 @@ Sistema de gestion de proyectos y dashboard analitico desarrollado con Spring Bo
    - `KEYCLOAK_JWKS_URI`
    - `GOB_RESOURCE_CLIENT_IDS`
    - `GOB_CORS_ORIGINS`
+
+## Laragon / PostgreSQL
+
+Si PostgreSQL de Laragon no arranca por un `postmaster.pid` huerfano, ejecuta
+`start-postgres-laragon.cmd` desde la raiz del proyecto. El script limpia el
+bloqueo y levanta el cluster de Laragon en `127.0.0.1:5432`.
 
 ## Keycloak
 
@@ -61,4 +67,5 @@ Flujo:
 ## CORS
 
 En desarrollo, el backend permite `http://localhost:5173`. Si el frontend usa otro origen, ajusta `gob.security.cors.allowed-origins`.
+
 

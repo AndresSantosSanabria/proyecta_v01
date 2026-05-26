@@ -14,6 +14,9 @@ public class Usuario {
     @Column(name = "usuario_id")
     private Integer id;
 
+    @Column(name = "keycloak_sub", unique = true, length = 120)
+    private String keycloakSub;
+
     @Column(nullable = false, length = 120)
     private String nombre;
 
@@ -57,6 +60,14 @@ public class Usuario {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getKeycloakSub() {
+        return keycloakSub;
+    }
+
+    public void setKeycloakSub(String keycloakSub) {
+        this.keycloakSub = keycloakSub;
     }
 
     public String getNombre() {

@@ -55,6 +55,7 @@ public class UsuarioSeeder {
             Usuario usuario = new Usuario();
             usuario.setNombre(nombre);
             usuario.setCorreo(correo);
+            usuario.setKeycloakSub(correo);
             usuario.setContrasenaHash(hash);
             usuario.setRol(rol);
             usuario.setActivo(true);

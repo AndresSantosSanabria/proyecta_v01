@@ -19,7 +19,7 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
-@PreAuthorize("hasRole('app_access')")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class DocumentoController implements IDocumentoController {
 
     private final IDocumentoService documentoService;
@@ -30,6 +30,7 @@ public class DocumentoController implements IDocumentoController {
 
     @Override
     @GetMapping("/{proyectoId}/documentos")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<DocumentoListadoResponseDTO>> listarDocumentos(@PathVariable String proyectoId) {
         DocumentoListadoResponseDTO response = documentoService.listarDocumentos(proyectoId);
         return ResponseEntity.ok(ApiResponse.success(response, "Documentos recuperados exitosamente"));
@@ -37,6 +38,7 @@ public class DocumentoController implements IDocumentoController {
 
     @Override
     @PostMapping(value = "/{proyectoId}/documentos/{tipoDocumento}", consumes = {"multipart/form-data"})
+    @PreAuthorize("@proyectoSecurity.canAccess('DOCUMENTO:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumento(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento,
@@ -49,6 +51,7 @@ public class DocumentoController implements IDocumentoController {
 
     @Override
     @GetMapping(value = "/{proyectoId}/documentos/{tipoDocumento}/descargar")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<Resource> descargarDocumento(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento) {
@@ -63,6 +66,7 @@ public class DocumentoController implements IDocumentoController {
 
     @Override
     @DeleteMapping("/{proyectoId}/documentos/{tipoDocumento}")
+    @PreAuthorize("@proyectoSecurity.canAccess('DOCUMENTO:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<Void>> eliminarDocumento(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento) {
@@ -74,6 +78,7 @@ public class DocumentoController implements IDocumentoController {
 
     // Endpoints alternativos para tipos de documento dinámicos (ej: evidencias)
     @PostMapping(value = "/{proyectoId}/documentos/dynamic/{tipoDocumento}", consumes = {"multipart/form-data"})
+    @PreAuthorize("@proyectoSecurity.canAccess('DOCUMENTO:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumentoDinamico(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento,
@@ -84,6 +89,7 @@ public class DocumentoController implements IDocumentoController {
     }
 
     @GetMapping(value = "/{proyectoId}/documentos/dynamic/{tipoDocumento}/descargar")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<Resource> descargarDocumentoDinamico(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento) {
@@ -96,6 +102,7 @@ public class DocumentoController implements IDocumentoController {
     }
 
     @DeleteMapping("/{proyectoId}/documentos/dynamic/{tipoDocumento}")
+    @PreAuthorize("@proyectoSecurity.canAccess('DOCUMENTO:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<Void>> eliminarDocumentoDinamico(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento) {
