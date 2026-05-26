@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Upload, Download, X, FileText, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import documentService from '../../../services/documentService';
+import { usePermission } from '../../../hooks/usePermission';
 import './DocumentUpload.css';
 
 const STATE = {
@@ -25,6 +26,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) => {
+  const canUpload = usePermission('DOCUMENTO:CARGAR');
   const [state, setState] = useState(STATE.IDLE);
   const [progress, setProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -149,6 +151,10 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
   const isUploading = state === STATE.UPLOADING;
   const isSuccess = state === STATE.SUCCESS;
   const isError = state === STATE.ERROR;
+
+  if (!canUpload) {
+    return null;
+  }
 
   return (
     <div className="document-upload">

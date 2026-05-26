@@ -1,12 +1,11 @@
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts';
 
-const keycloakBaseUrl = import.meta.env.VITE_KEYCLOAK_BASE_URL || 'http://172.20.6.59:8080';
-const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM || 'gob-cundinamarca-devqa';
-const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'proyecta-web';
+const keycloakBaseUrl = import.meta.env.VITE_KEYCLOAK_BASE_URL?.replace(/\/+$/, '');
+const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM;
+const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
 const authority = `${keycloakBaseUrl}/realms/${keycloakRealm}`;
-const redirectUri = import.meta.env.VITE_KEYCLOAK_REDIRECT_URI || `${window.location.origin}/callback`;
-const postLogoutRedirectUri =
-  import.meta.env.VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI || `${window.location.origin}/logged-out`;
+const redirectUri = import.meta.env.VITE_KEYCLOAK_REDIRECT_URI;
+const postLogoutRedirectUri = import.meta.env.VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI;
 
 const metadata = {
   issuer: authority,
@@ -28,9 +27,47 @@ export const auth = new UserManager({
   monitorSession: false,
   loadUserInfo: false,
   filterProtocolClaims: true,
-  userStore: new WebStorageStateStore({ store: window.localStorage }),
+  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
   metadata,
 });
+
+let loginRedirectPromise = null;
+
+export async function clearOidcStaleState() {
+  try {
+    await auth.clearStaleState();
+  } catch (error) {
+    console.warn('No fue posible limpiar el estado OIDC previo al login:', error);
+  }
+}
+
+export async function startLoginRedirect() {
+  if (loginRedirectPromise) {
+    return loginRedirectPromise;
+  }
+
+  loginRedirectPromise = (async () => {
+    await clearOidcStaleState();
+    return auth.signinRedirect();
+  })();
+
+  try {
+    return await loginRedirectPromise;
+  } finally {
+    loginRedirectPromise = null;
+  }
+}
+
+export async function startLogoutRedirect() {
+  try {
+    await auth.removeUser();
+    await auth.clearStaleState();
+  } catch (error) {
+    console.warn('No se pudo limpiar el estado OIDC antes del logout:', error);
+  }
+
+  return auth.signoutRedirect();
+}
 
 export function decodeJwtPayload(token) {
   if (!token || typeof token !== 'string') {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Lock, Info } from 'lucide-react';
 import projectService from '../../services/projectService';
@@ -7,14 +7,71 @@ import ProgressKPIs from '../../components/features/progress/ProgressKPIs';
 import ProgressTreeTable from '../../components/features/progress/ProgressTreeTable';
 import './ProjectProgressPage.css';
 
+const normalizeProgressPayload = (payload, fallbackCode) => {
+  const data = payload?.data ?? payload ?? {};
+  return {
+    codigo: data.codigo || data.proyectoId || fallbackCode,
+    nombre: data.nombre || data.nombreProyecto || 'Proyecto',
+    dependencia: data.dependencia || data.dependenciaNombre || '',
+    progresoProgramado: data.progresoProgramado ?? data.avanceProgramado ?? 0,
+    progresoEjecutado: data.progresoEjecutado ?? data.avanceTotal ?? 0,
+    diferencia: data.diferencia ?? 0,
+    eficacia: data.eficacia ?? 1,
+    estado: data.estado || 'EN_TIEMPO',
+    avanceTotal: data.avanceTotal ?? data.progresoEjecutado ?? 0,
+    entregablesConformidad: data.entregablesConformidad ?? data.entregablesConformes ?? 0,
+    entregablesConformes: data.entregablesConformes ?? data.entregablesConformidad ?? 0,
+    entregablesTotal: data.entregablesTotal ?? 0,
+    atrasados: data.entregablesAtrasados ?? data.atrasados ?? 0,
+    proximosVencer: data.proximosAVencer ?? data.proximosVencer ?? 0,
+    corte: data.corte || new Date().toISOString().slice(0, 10),
+    fases: Array.isArray(data.fases) ? data.fases : [],
+  };
+};
+
+const toNumber = (value) => {
+  if (value == null) return 0;
+  const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const flattenEntregables = (fases = []) => {
+  return fases.flatMap((fase) =>
+    (fase.hitos || []).flatMap((hito) =>
+      (hito.entregables || []).map((entregable) => ({
+        ...entregable,
+        faseNombre: fase.nombre,
+        hitoNombre: hito.nombre,
+      }))
+    )
+  );
+};
+
 const ProjectProgressPage = () => {
   const params = useParams();
   const codigoProyecto = (params.codigoProyecto || params.id || '').toUpperCase();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
   const [expandedNodes, setExpandedNodes] = useState({});
+  const [projectInfo, setProjectInfo] = useState(null);
+  const [progressData, setProgressData] = useState({
+    codigo: codigoProyecto,
+    nombre: 'Cargando proyecto...',
+    dependencia: '',
+    progresoProgramado: 0,
+    progresoEjecutado: 0,
+    diferencia: 0,
+    eficacia: 1,
+    estado: 'EN_TIEMPO',
+    avanceTotal: 0,
+    entregablesConformidad: 0,
+    entregablesConformes: 0,
+    entregablesTotal: 0,
+    atrasados: 0,
+    proximosVencer: 0,
+    fases: [],
+  });
 
   const toggleNode = (nodeId) => {
     setExpandedNodes(prev => ({
@@ -23,38 +80,22 @@ const ProjectProgressPage = () => {
     }));
   };
 
-  const isExpanded = (nodeId) => {
-    return expandedNodes[nodeId] !== false;
-  };
-
-  const [progressData, setProgressData] = useState({
-    codigo: codigoProyecto,
-    nombre: 'Cargando proyecto...',
-    avanceTotal: 0,
-    entregablesConformidad: 0,
-    entregablesTotal: 0,
-    atrasados: 0,
-    proximosVencer: 0,
-    fases: []
-  });
+  const isExpanded = (nodeId) => expandedNodes[nodeId] !== false;
 
   const fetchProgress = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await projectService.getProgress(codigoProyecto);
-      const apiData = response.data || response;
-
-      const hasFases = apiData.fases && apiData.fases.length > 0;
-      setProgressData({
-        codigo: apiData.codigo || apiData.proyectoId || codigoProyecto,
-        nombre: apiData.nombre || apiData.nombreProyecto || 'Proyecto',
-        avanceTotal: hasFases ? parseFloat(apiData.avanceTotal || apiData.avance || 0) : 0,
-        entregablesConformidad: hasFases ? (apiData.entregablesConformidad || apiData.entregablesConformes || 0) : 0,
-        entregablesTotal: hasFases ? (apiData.entregablesTotal || 0) : 0,
-        atrasados: hasFases ? (apiData.atrasados || apiData.entregablesAtrasados || 0) : 0,
-        proximosVencer: hasFases ? (apiData.proximosVencer || 0) : 0,
-        fases: hasFases ? apiData.fases : []
-      });
+      const [progressResponse, projectResponse] = await Promise.all([
+        projectService.getProgress(codigoProyecto),
+        projectService.getById(codigoProyecto),
+      ]);
+      setProgressData(normalizeProgressPayload(progressResponse?.data, codigoProyecto));
+      const projectData = projectResponse?.data?.data ?? projectResponse?.data ?? null;
+      setProjectInfo(projectData);
+      setProgressData((current) => ({
+        ...current,
+        dependencia: projectData?.dependencia || current.dependencia || '',
+      }));
       setError(null);
     } catch (err) {
       console.error('Error fetching project progress:', err);
@@ -72,6 +113,42 @@ const ProjectProgressPage = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  const resumenExcel = useMemo(() => {
+    const entregables = flattenEntregables(progressData.fases || []);
+    const corte = progressData.corte ? new Date(progressData.corte) : new Date();
+
+    const programadosAlCorte = entregables.filter((ent) => {
+      if (!ent.fechaLimite) return false;
+      return new Date(ent.fechaLimite) <= corte;
+    }).length;
+
+    const entregadosAlCorte = entregables.filter((ent) => Boolean(ent.fechaEntrega || ent.fechaEntregaReal || ent.estadoCodigo === 'COMPLETADO' || ent.estadoCodigo === 'A_CONFORMIDAD' || ent.estado === 'A_CONFORMIDAD')).length;
+
+    const entregadosATiempo = entregables.filter((ent) => {
+      const fechaEntrega = ent.fechaEntrega || ent.fechaEntregaReal;
+      if (!fechaEntrega || !ent.fechaLimite) return false;
+      return new Date(fechaEntrega) <= new Date(ent.fechaLimite);
+    }).length;
+
+    const eficacia = programadosAlCorte > 0 ? (entregadosAlCorte / programadosAlCorte) * 100 : 100;
+    const eficiencia = entregadosAlCorte > 0 ? (entregadosATiempo / entregadosAlCorte) * 100 : 100;
+
+    return {
+      meta: projectInfo?.objetivoGeneral || projectInfo?.meta || progressData.nombre,
+      dependencia: projectInfo?.dependencia || progressData.dependencia || 'Sin dependencia',
+      programado: toNumber(progressData.progresoProgramado),
+      avance: toNumber(progressData.progresoEjecutado),
+      diferencia: toNumber(progressData.diferencia),
+      estado: progressData.estado || 'EN_TIEMPO',
+      totalEntregables: toNumber(progressData.entregablesTotal),
+      programadosAlCorte,
+      entregadosAlCorte,
+      entregadosATiempo,
+      eficacia,
+      eficiencia,
+    };
+  }, [progressData, projectInfo]);
+
   if (loading) {
     return <div className="progress-page-container"><h2>Cargando avance...</h2></div>;
   }
@@ -80,11 +157,70 @@ const ProjectProgressPage = () => {
     <div className="progress-page-container">
       <ProgressHeader codigo={progressData.codigo} />
 
+      <section className="excel-summary-card">
+        <div className="excel-summary-top">
+          <div className="excel-summary-title">
+            <span className="excel-kicker">INDICADORES AL CORTE</span>
+            <h2>{progressData.codigo} · {progressData.nombre}</h2>
+            <p>{resumenExcel.meta}</p>
+          </div>
+          <div className={`excel-state ${resumenExcel.estado === 'ATRASO' ? 'danger' : 'success'}`}>
+            {resumenExcel.estado}
+          </div>
+        </div>
+
+        <div className="excel-summary-grid">
+          <article>
+            <span>Meta</span>
+            <strong>{resumenExcel.meta}</strong>
+          </article>
+          <article>
+            <span>Dependencia</span>
+            <strong>{resumenExcel.dependencia}</strong>
+          </article>
+          <article>
+            <span>Programado</span>
+            <strong>{resumenExcel.programado.toFixed(0)}%</strong>
+          </article>
+          <article>
+            <span>Avance</span>
+            <strong>{resumenExcel.avance.toFixed(0)}%</strong>
+          </article>
+          <article>
+            <span>Diferencia</span>
+            <strong>{resumenExcel.diferencia.toFixed(0)}%</strong>
+          </article>
+          <article>
+            <span>Total entregables</span>
+            <strong>{resumenExcel.totalEntregables}</strong>
+          </article>
+          <article>
+            <span>Programados al corte</span>
+            <strong>{resumenExcel.programadosAlCorte}</strong>
+          </article>
+          <article>
+            <span>Entregados al corte</span>
+            <strong>{resumenExcel.entregadosAlCorte}</strong>
+          </article>
+          <article>
+            <span>Eficacia</span>
+            <strong>{resumenExcel.eficacia.toFixed(1)}%</strong>
+          </article>
+          <article>
+            <span>Eficiencia</span>
+            <strong>{resumenExcel.eficiencia.toFixed(1)}%</strong>
+          </article>
+        </div>
+      </section>
+
       <ProgressKPIs progressData={progressData} />
 
       <div className="info-alert">
         <Info size={18} className="info-icon" />
-        <p>Los campos marcados con <Lock size={14} className="inline-icon" /> son <strong>calculados automáticamente</strong> por el sistema. Solo puedes marcar entregables como "A conformidad" y subir el PDF de evidencia.</p>
+        <p>
+          Los campos marcados con <Lock size={14} className="inline-icon" /> son calculados automáticamente por el sistema.
+          El semáforo del entregable se basa en los días devueltos por el backend.
+        </p>
       </div>
 
       {error && (
@@ -96,6 +232,7 @@ const ProjectProgressPage = () => {
 
       <ProgressTreeTable
         progressData={progressData}
+        excelSummary={resumenExcel}
         isExpanded={isExpanded}
         toggleNode={toggleNode}
         proyectoId={codigoProyecto}

@@ -52,11 +52,11 @@ const ProjectClosurePage = () => {
             nombre: apiData.nombre || '',
             director: apiData.director || '',
             fechaInicio: apiData.fechaInicio || '',
-            avanceTotal: apiData.avanceTotal || 0,
+            avanceTotal: apiData.avanceTotal || apiData.avance_total || apiData.progresoEjecutado || 0,
             estado: apiData.estado || 'ACTIVO',
             totalFases: apiData.totalFases || 0,
             totalHitos: apiData.totalHitos || 0,
-            entregablesConformes: apiData.entregablesConformes || 0,
+            entregablesConformes: apiData.entregablesConformes || apiData.entregablesConformidad || 0,
             totalEntregables: apiData.totalEntregables || 0,
             puedeCerrar: apiData.puede_cerrar !== undefined ? apiData.puede_cerrar : false,
             entregables: apiData.entregables || []

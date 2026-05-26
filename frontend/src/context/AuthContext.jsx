@@ -1,14 +1,32 @@
-﻿/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import apiClient from '../api/axiosConfig';
-import { auth, extractRolesFromToken } from '../utils/auth';
+import { auth, extractRolesFromToken, startLoginRedirect, startLogoutRedirect } from '../utils/auth';
+import authzService from '../services/authzService';
 
 export const AuthContext = createContext(null);
+
+const normalizeRole = (role) => {
+  if (!role) return '';
+  const value = role.toString().trim();
+  const cleaned = value.toUpperCase().startsWith('ROLE_') ? value.toUpperCase().slice(5) : value.toUpperCase();
+  const aliases = {
+    ADMINISTRADOR: 'ADMIN',
+    GESTOR_PROYECTOS_TI: 'GESTOR_TIC',
+    GESTOR_PROYECTOS: 'DIRECTOR_PROYECTO',
+    ANALISTA_PROYECTOS: 'CONSULTA',
+  };
+  return aliases[cleaned] || cleaned;
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [backendProfile, setBackendProfile] = useState(null);
   const [backendRoles, setBackendRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [assignedProjects, setAssignedProjects] = useState([]);
+  const [transversal, setTransversal] = useState(false);
+  const [isAdminLocal, setIsAdminLocal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,29 +38,54 @@ export function AuthProvider({ children }) {
         if (mounted) {
           setBackendProfile(null);
           setBackendRoles([]);
+          setPermissions([]);
+          setAssignedProjects([]);
+          setTransversal(false);
+          setIsAdminLocal(false);
         }
         return;
       }
 
       try {
-        const response = await apiClient.get('/usuarios/me');
-        const payload = response?.data;
+        const [profileResponse, authzResponse] = await Promise.all([
+          apiClient.get('/usuarios/me'),
+          authzService.getMe(),
+        ]);
+
+        const payload = profileResponse?.data;
         const backendUser = payload?.data ?? null;
         const backendRoleList = backendUser?.rol
           ? backendUser.rol.split(',').map((role) => role.trim()).filter(Boolean)
           : [];
+        const authzPayload = authzResponse?.data ?? authzResponse;
+        const authzUser = authzPayload?.data ?? null;
 
         if (mounted) {
           setBackendProfile(backendUser);
           setBackendRoles(backendRoleList);
+          setPermissions(Array.isArray(authzUser?.permisos) ? authzUser.permisos : []);
+          setAssignedProjects(Array.isArray(authzUser?.proyectosAsignados) ? authzUser.proyectosAsignados : []);
+          setTransversal(Boolean(authzUser?.transversal));
+          setIsAdminLocal(Boolean(authzUser?.administradorLocal));
         }
       } catch (profileError) {
         if (mounted) {
           setBackendProfile(null);
           setBackendRoles([]);
+          setPermissions([]);
+          setAssignedProjects([]);
+          setTransversal(false);
+          setIsAdminLocal(false);
         }
 
         console.warn('No fue posible obtener el perfil validado por backend:', profileError);
+
+        if (mounted && profileError?.response?.status === 403) {
+          setError(new Error('El usuario autenticado no existe o está inactivo en el backend.'));
+          startLogoutRedirect().catch((logoutError) => {
+            console.error('No se pudo cerrar la sesión tras la validación local:', logoutError);
+          });
+        }
       }
     };
 
@@ -83,6 +126,10 @@ export function AuthProvider({ children }) {
       setUser(null);
       setBackendProfile(null);
       setBackendRoles([]);
+      setPermissions([]);
+      setAssignedProjects([]);
+      setTransversal(false);
+      setIsAdminLocal(false);
       setLoading(false);
     };
 
@@ -92,7 +139,7 @@ export function AuthProvider({ children }) {
     };
 
     const handleAccessTokenExpired = () => {
-      auth.signinRedirect().catch((redirectError) => {
+      startLoginRedirect().catch((redirectError) => {
         console.error('No se pudo redirigir al login tras expirar el token:', redirectError);
       });
     };
@@ -118,6 +165,14 @@ export function AuthProvider({ children }) {
     [tokenRoles, backendRoles]
   );
   const isAuthenticated = Boolean(user && user.access_token && !user.expired);
+  const can = (permissionCode) => permissions.includes(permissionCode);
+  const isProjectAssigned = (projectId) => {
+    const normalizedProjectId = (projectId || '').toString().trim().toLowerCase();
+    return assignedProjects.some((item) => {
+      const code = typeof item === 'object' && item !== null ? item.codigo || item.id : item;
+      return (code || '').toString().trim().toLowerCase() === normalizedProjectId;
+    });
+  };
 
   const value = {
     isAuthenticated,
@@ -126,19 +181,19 @@ export function AuthProvider({ children }) {
     user,
     backendProfile,
     roles,
+    permissions,
+    assignedProjects,
+    transversal,
+    isAdminLocal,
     accessToken: user?.access_token ?? null,
-    login: () => auth.signinRedirect(),
-    logout: async () => {
-      try {
-        await auth.removeUser();
-        await auth.clearStaleState();
-      } catch (clearError) {
-        console.warn('No se pudo limpiar el estado OIDC antes del logout:', clearError);
-      }
-
-      return auth.signoutRedirect();
+    login: () => startLoginRedirect(),
+    logout: () => startLogoutRedirect(),
+    hasRole: (role) => {
+      const expected = normalizeRole(role);
+      return roles.some((current) => normalizeRole(current) === expected);
     },
-    hasRole: (role) => roles.includes(role),
+    hasPermission: can,
+    isProjectAssigned,
     getUser: () => auth.getUser(),
   };
 

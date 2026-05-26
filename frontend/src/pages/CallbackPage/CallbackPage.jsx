@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../../utils/auth';
+import { auth, clearOidcStaleState } from '../../utils/auth';
 
 const CallbackPage = () => {
   const navigate = useNavigate();
@@ -20,14 +20,10 @@ const CallbackPage = () => {
       })
       .catch((err) => {
         console.error('Error procesando callback de OIDC:', err);
-        setError('Fallo la autenticacion. Volviendo al login...');
-        handledRef.current = false;
-
-        setTimeout(() => {
-          auth.signinRedirect().catch((redirectError) => {
-            console.error('No se pudo reiniciar el login:', redirectError);
-          });
-        }, 1500);
+        clearOidcStaleState().finally(() => {
+          setError('Fallo la autenticacion. Regresando al inicio...');
+          navigate('/', { replace: true });
+        });
       });
   }, [navigate]);
 

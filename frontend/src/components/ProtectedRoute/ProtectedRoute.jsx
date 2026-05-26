@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../../context/AuthContext';
+import { startLoginRedirect } from '../../utils/auth';
 
 const LoadingState = ({ title, subtitle }) => (
   <div style={{
@@ -19,19 +20,19 @@ const LoadingState = ({ title, subtitle }) => (
 );
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, loading, error, login, hasRole, logout } = useAuthContext();
+  const { isAuthenticated, loading, error, hasRole, logout, isAdminLocal, transversal } = useAuthContext();
   const location = useLocation();
   const loginTriggeredRef = useRef(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated && !loginTriggeredRef.current) {
       loginTriggeredRef.current = true;
-      login().catch((authError) => {
+      startLoginRedirect().catch((authError) => {
         loginTriggeredRef.current = false;
         console.error('Error iniciando login:', authError);
       });
     }
-  }, [loading, isAuthenticated, login]);
+  }, [loading, isAuthenticated]);
 
   if (loading) {
     return (
@@ -59,7 +60,7 @@ const ProtectedRoute = () => {
         <button
           onClick={() => {
             loginTriggeredRef.current = false;
-            login();
+            startLoginRedirect();
           }}
           style={{
             padding: '10px 20px',
@@ -81,7 +82,9 @@ const ProtectedRoute = () => {
     return <LoadingState title="Redirigiendo a Keycloak..." subtitle={`Ruta solicitada: ${location.pathname}`} />;
   }
 
-  if (!hasRole('app_access')) {
+  const hasBaseAccess = isAdminLocal || transversal || hasRole('APP_ACCESS');
+
+  if (!hasBaseAccess) {
     return (
       <div style={{
         display: 'flex',
@@ -94,7 +97,7 @@ const ProtectedRoute = () => {
         padding: '24px',
       }}>
         <h2>Acceso denegado</h2>
-        <p>Tu usuario no tiene el rol requerido <strong>app_access</strong>.</p>
+        <p>Tu usuario no tiene el rol base requerido <strong>APP_ACCESS</strong> o no está marcado como administrador local.</p>
         <button
           onClick={() => {
             loginTriggeredRef.current = false;

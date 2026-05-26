@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, CheckCircle, AlertCircle, Upload } from 'lucide-react';
 import projectService from '../../services/projectService';
 import documentService from '../../services/documentService';
+import { usePermission } from '../../hooks/usePermission';
 import Stepper from '../../components/features/wizard/Stepper';
 import Paso1DatosGenerales from '../../components/features/wizard/steps/Paso1DatosGenerales';
 import Paso2PatrocinadorEquipo from '../../components/features/wizard/steps/Paso2PatrocinadorEquipo';
@@ -10,6 +11,7 @@ import Paso3FasesHitosEntregables from '../../components/features/wizard/steps/P
 import Paso4PetiComunicaciones from '../../components/features/wizard/steps/Paso4PetiComunicaciones';
 import Paso5Furag from '../../components/features/wizard/steps/Paso5Furag';
 import Paso6GestionDocumental from '../../components/features/wizard/steps/Paso6GestionDocumental';
+import AccessDeniedPage from '../AccessDeniedPage/AccessDeniedPage';
 import './NewProjectPage.css';
 
 const INITIAL_STATE = {
@@ -52,6 +54,11 @@ const NewProjectPage = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [uploadState, setUploadState] = useState({}); // { tipo: 'pending'|'uploading'|'done'|'error' }
+  const canCreateProject = usePermission('PROYECTO:CREAR');
+
+  if (!canCreateProject) {
+    return <AccessDeniedPage />;
+  }
 
   const DOCUMENT_MAP = [
     { field: 'viabilizacionPdf', tipo: 'VIABILIZACION', label: 'Viabilización' },

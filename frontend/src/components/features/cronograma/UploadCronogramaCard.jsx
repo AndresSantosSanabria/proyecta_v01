@@ -1,5 +1,6 @@
 import React from 'react';
 import { Upload, Download, Loader2 } from 'lucide-react';
+import { usePermission } from '../../../hooks/usePermission';
 
 const UploadCronogramaCard = ({ 
   proyectoId, 
@@ -9,6 +10,12 @@ const UploadCronogramaCard = ({
   handleDownload, 
   fileInputRef 
 }) => {
+  const canUpload = usePermission('CRONOGRAMA:CARGAR');
+
+  if (!canUpload) {
+    return null;
+  }
+
   return (
     <div className="cronograma-card">
       <h3 className="card-title">Subir Cronograma</h3>

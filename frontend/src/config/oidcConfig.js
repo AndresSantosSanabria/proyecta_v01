@@ -1,15 +1,16 @@
-/**
- * Configuración OIDC para Keycloak
- * Authority: Servidor de Keycloak
- * Client ID: proyecta-web (tipo público - sin client secret)
- * Flow: Authorization Code con PKCE (S256)
- */
+const keycloakBaseUrl = import.meta.env.VITE_KEYCLOAK_BASE_URL?.replace(/\/+$/, '');
+const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM;
+const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
 
+/**
+ * Configuración OIDC para Keycloak.
+ * Esta copia usa las mismas variables que `src/utils/auth.js` para evitar drift.
+ */
 const oidcConfig = {
-  authority: 'http://172.20.6.59:8080/realms/gob-cundinamarca-devqa',
-  client_id: 'proyecta-web',
-  redirect_uri: `${window.location.origin}/callback`,
-  post_logout_redirect_uri: `${window.location.origin}/`,
+  authority: `${keycloakBaseUrl}/realms/${keycloakRealm}`,
+  client_id: clientId,
+  redirect_uri: import.meta.env.VITE_KEYCLOAK_REDIRECT_URI,
+  post_logout_redirect_uri: import.meta.env.VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI,
   response_type: 'code',
   scope: 'openid profile email',
   loadUserInfo: true,

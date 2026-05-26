@@ -150,6 +150,10 @@
   overflow: hidden;
 }
 
+.visual-cronograma-section.empty-state {
+  min-height: 220px;
+}
+
 .section-header {
   padding: 1.5rem;
   border-bottom: 1px solid #f0f0f0;
@@ -170,6 +174,11 @@
   width: 100%;
   min-width: 800px;
   border-collapse: collapse;
+}
+
+.empty-cronograma {
+  padding: 1.5rem;
+  color: #64748b;
 }
 
 .gantt-header-row th {

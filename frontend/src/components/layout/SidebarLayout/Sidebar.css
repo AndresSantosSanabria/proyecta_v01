@@ -1,5 +1,5 @@
 .sidebar {
-  width: 280px;
+  width: 248px;
   height: 100vh;
   background-color: #1a4331; /* Verde oscuro principal */
   color: #ffffff;
@@ -14,29 +14,29 @@
 }
 
 .sidebar.collapsed {
-  width: 80px;
+  width: 72px;
 }
 
 /* Header & Brand */
 .sidebar-header {
-  padding: 1.5rem;
+  padding: 1.2rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 80px;
+  min-height: 72px;
 }
 
 .brand-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .brand-logo {
   background-color: #2d5a44;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 7px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50,12 +50,12 @@
 
 .brand-name {
   font-weight: 800;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   letter-spacing: 0.5px;
 }
 
 .brand-tagline {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: #a0aec0;
   font-weight: 500;
 }
@@ -78,18 +78,18 @@
 /* Navigation */
 .sidebar-nav {
   flex: 1;
-  padding: 1.5rem 0;
+  padding: 1.1rem 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .nav-group {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .nav-category {
-  padding: 0 1.5rem 0.75rem;
-  font-size: 0.65rem;
+  padding: 0 1.1rem 0.6rem;
+  font-size: 0.62rem;
   font-weight: 700;
   color: #718096;
   letter-spacing: 1.5px;
@@ -99,11 +99,11 @@
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 0.85rem 1.5rem;
+  padding: 0.72rem 1.1rem;
   color: #cbd5e0;
   text-decoration: none;
   transition: all 0.2s;
-  gap: 16px;
+  gap: 12px;
   position: relative;
 }
 
@@ -136,7 +136,7 @@
 }
 
 .nav-text {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -164,7 +164,7 @@
 
 /* Footer & Profile */
 .sidebar-footer {
-  padding: 1.5rem;
+  padding: 1rem 1.1rem;
   background-color: #143527;
   display: flex;
   align-items: center;
@@ -180,15 +180,15 @@
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   background-color: #2d5a44;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.76rem;
   flex-shrink: 0;
   border: 2px solid rgba(255, 255, 255, 0.1);
 }
@@ -201,12 +201,12 @@
 
 .user-name {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   white-space: nowrap;
 }
 
 .user-role {
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   color: #718096;
   white-space: nowrap;
 }
@@ -216,8 +216,8 @@
   border: none;
   color: #a0aec0;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 7px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,8 +241,8 @@
   border: none;
   color: #a0aec0;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 7px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;

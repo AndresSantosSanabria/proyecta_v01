@@ -1,8 +1,8 @@
-﻿import axios from 'axios';
-import { auth } from '../utils/auth';
+import axios from 'axios';
+import { auth, startLoginRedirect } from '../utils/auth';
 
 const apiProyecta = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,7 +26,7 @@ apiProyecta.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       console.warn('Sesion invalida, redirigiendo al login de Keycloak...');
-      auth.signinRedirect().catch((redirectError) => {
+      startLoginRedirect().catch((redirectError) => {
         console.error('No se pudo redirigir al login:', redirectError);
       });
     }

@@ -33,7 +33,7 @@ const projectService = {
         sort: 'id,asc',
       });
 
-      const payload = response?.data;
+      const payload = response?.data?.data ?? response?.data;
 
       // Compatibilidad: si algun ambiente devuelve arreglo plano en lugar de Page.
       if (Array.isArray(payload)) {

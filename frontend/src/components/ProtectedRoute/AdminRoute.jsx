@@ -44,9 +44,10 @@ const AdminDenied = () => (
 );
 
 const AdminRoute = () => {
-  const { hasRole } = useAuthContext();
+  const { hasPermission, transversal, isAdminLocal, hasRole } = useAuthContext();
 
-  if (!hasRole('admin')) {
+  const hasAdminAccess = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || hasPermission('SISTEMA:CONFIGURAR');
+  if (!hasAdminAccess) {
     return <AdminDenied />;
   }
 

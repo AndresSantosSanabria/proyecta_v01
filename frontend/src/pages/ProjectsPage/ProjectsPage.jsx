@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProjectListTable from '../../components/features/projects/ProjectListTable';
 import projectService from '../../services/projectService';
+import { usePermission } from '../../hooks/usePermission';
 import { Plus, Search, Filter } from 'lucide-react';
 import './ProjectsPage.css';
 
@@ -11,6 +13,8 @@ const ProjectsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [error, setError] = useState(null);
+  const canCreateProject = usePermission('PROYECTO:CREAR');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -50,10 +54,12 @@ const ProjectsPage = () => {
           <h1>Proyectos TIC</h1>
           <p className="subtitle">Gestión y seguimiento de todos los proyectos</p>
         </div>
-        <button className="btn-new-project">
-          <Plus size={18} />
-          <span>Nuevo Proyecto</span>
-        </button>
+        {canCreateProject && (
+          <button className="btn-new-project" onClick={() => navigate('/proyectos/nuevo')}>
+            <Plus size={18} />
+            <span>Nuevo Proyecto</span>
+          </button>
+        )}
       </header>
 
       <section className="filters-section">

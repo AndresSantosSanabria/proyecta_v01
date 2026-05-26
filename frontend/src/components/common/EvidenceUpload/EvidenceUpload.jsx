@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import projectService from '../../../services/projectService';
+import { usePermission } from '../../../hooks/usePermission';
 import './EvidenceUpload.css';
 
 const STATE = {
@@ -14,11 +15,16 @@ const MAX_SIZE_MB = 20;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
 const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
+  const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
   const [state, setState] = useState(STATE.IDLE);
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
+
+  if (!canUploadEvidence) {
+    return null;
+  }
 
   const validateFile = (file) => {
     if (!file) return 'No se seleccionó ningún archivo.';

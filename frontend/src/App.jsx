@@ -1,7 +1,8 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import SidebarLayout from './components/layout/SidebarLayout/SidebarLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import AdminRoute from './components/ProtectedRoute/AdminRoute';
+import ProjectAccessRoute from './components/ProtectedRoute/ProjectAccessRoute';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage/ProjectsPage';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
@@ -9,9 +10,11 @@ import NewProjectPage from './pages/NewProjectPage/NewProjectPage';
 import ProjectProgressPage from './pages/ProjectProgressPage/ProjectProgressPage';
 import CronogramaPage from './pages/CronogramaPage/CronogramaPage';
 import ProjectClosurePage from './pages/ProjectClosurePage/ProjectClosurePage';
+import RiesgosPage from './pages/RiesgosPage/RiesgosPage';
 import CallbackPage from './pages/CallbackPage/CallbackPage';
 import LoggedOutPage from './pages/LoggedOutPage/LoggedOutPage';
 import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
+import AccessDeniedPage from './pages/AccessDeniedPage/AccessDeniedPage';
 import './App.css';
 
 /**
@@ -23,6 +26,7 @@ function App() {
     <Routes>
       <Route path="/callback" element={<CallbackPage />} />
       <Route path="/logged-out" element={<LoggedOutPage />} />
+      <Route path="/access-denied" element={<AccessDeniedPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<SidebarLayout />}>
@@ -31,19 +35,24 @@ function App() {
           <Route path="proyectos/nuevo" element={<NewProjectPage />} />
 
           {/* Módulos de Proyecto */}
-          <Route path="projects/:id/progress" element={<ProjectProgressPage />} />
-          <Route path="proyectos/:codigoProyecto/avance" element={<ProjectProgressPage />} />
-          <Route path="projects/:id/schedule" element={<CronogramaPage />} />
-          <Route
-            path="projects/:id/risks"
-            element={<div className="container"><h1>Matriz de Riesgos en construcción</h1></div>}
-          />
-          <Route path="projects/:id/closure" element={<ProjectClosurePage />} />
+          <Route element={<ProjectAccessRoute />}>
+            <Route path="projects/:id" element={<Outlet />}>
+              <Route path="progress" element={<ProjectProgressPage />} />
+              <Route path="schedule" element={<CronogramaPage />} />
+              <Route path="risks" element={<RiesgosPage />} />
+              <Route path="closure" element={<ProjectClosurePage />} />
+            </Route>
+            <Route path="proyectos/:codigoProyecto" element={<Outlet />}>
+              <Route path="avance" element={<ProjectProgressPage />} />
+              <Route path="riesgos" element={<RiesgosPage />} />
+            </Route>
+          </Route>
 
           <Route path="reports" element={<ReportsPage />} />
-          <Route path="admin/seguridad" element={<AdminRoute />}>
+          <Route path="admin/configuracion" element={<AdminRoute />}>
             <Route index element={<SecurityConfigPage />} />
           </Route>
+          <Route path="admin/seguridad" element={<Navigate to="/admin/configuracion" replace />} />
         </Route>
       </Route>
 

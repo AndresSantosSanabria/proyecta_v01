@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, CalendarRange } from 'lucide-react';
 import cronogramaService from '../../services/cronogramaService';
 import DocumentUpload from '../../components/common/DocumentUpload';
 import CronogramaHeader from '../../components/features/cronograma/CronogramaHeader';
@@ -46,28 +46,23 @@ const CronogramaPage = () => {
     );
   }
 
-  const hasRealData = cronogramaData?.data?.vistaGantt && cronogramaData.data.vistaGantt.length > 0;
+  const hasRealData = Boolean(cronogramaData?.data?.vistaGantt?.length);
+  const resumenApi = resumenData?.data?.data ?? resumenData?.data ?? {};
 
-  const displayResumen = (resumenData?.data && hasRealData) ? {
-    fechaInicio: resumenData.data.fechaInicio || 'Pendiente',
-    director: resumenData.data.director || 'No asignado',
-    fases: resumenData.data.totalFases || 0,
-    totalHitos: resumenData.data.totalHitos || 0,
-    avance: `${(resumenData.data.avanceTotal || 0).toFixed(0)}%`,
-  } : {
-    fechaInicio: resumenData?.data?.fechaInicio || '2024-03-15',
-    director: resumenData?.data?.director || 'No asignado',
-    fases: 2,
-    totalHitos: 4,
-    avance: '40%',
+  const displayResumen = {
+    fechaInicio: resumenApi.fechaInicio || 'Sin fecha',
+    director: resumenApi.director || 'No asignado',
+    fases: resumenApi.totalFases || 0,
+    totalHitos: resumenApi.totalHitos || 0,
+    avance: resumenApi.avance_total ? `${Number(resumenApi.avance_total).toFixed(0)}%` : `${Number(resumenApi.avanceTotal || 0).toFixed(0)}%`,
   };
 
   const displayCronograma = hasRealData ? cronogramaData.data.vistaGantt.map((fase) => {
     const hitosMapped = fase.hitos?.map((h) => {
       const start = new Date(h.fechaInicio);
       const end = new Date(h.fechaFin);
-      const mesInicio = start.getUTCMonth();
-      const duracion = (end.getUTCMonth() - start.getUTCMonth()) + 1;
+      const mesInicio = Number.isNaN(start.getTime()) ? 0 : start.getUTCMonth();
+      const duracion = Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) ? 1 : (end.getUTCMonth() - start.getUTCMonth()) + 1;
 
       return {
         id: `h${h.hitoId}`,
@@ -96,30 +91,7 @@ const CronogramaPage = () => {
       avance: fase.avance || 0,
       hitos: hitosMapped,
     };
-  }) : [
-    {
-      id: 'f1',
-      nombre: 'F1: Análisis y Diseño del Sistema (Demo)',
-      mesInicio: 0,
-      duracionMeses: 4,
-      avance: 100,
-      hitos: [
-        { id: 'h1', nombre: 'Levantamiento y Validación de Requisitos', mesInicio: 0, duracionMeses: 3, avance: 100, fechaInicio: '2026-01-01', fechaFin: '2026-03-31' },
-        { id: 'h2', nombre: 'Diseño Técnico del Sistema', mesInicio: 2, duracionMeses: 2, avance: 50, fechaInicio: '2026-03-01', fechaFin: '2026-04-30' },
-      ],
-    },
-    {
-      id: 'f2',
-      nombre: 'F2: Desarrollo e Implementación (Demo)',
-      mesInicio: 3,
-      duracionMeses: 5,
-      avance: 0,
-      hitos: [
-        { id: 'h3', nombre: 'Desarrollo del Sistema y Pruebas Técnicas', mesInicio: 4, duracionMeses: 2, avance: 0, fechaInicio: '2026-05-01', fechaFin: '2026-06-30' },
-        { id: 'h4', nombre: 'Implementación Completa y Capacitación', mesInicio: 6, duracionMeses: 2, avance: 0, fechaInicio: '2026-07-01', fechaFin: '2026-08-31' },
-      ],
-    },
-  ];
+  }) : [];
 
   const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 
@@ -130,7 +102,7 @@ const CronogramaPage = () => {
       {cronogramaError && (
         <div className="error-container">
           <AlertCircle size={20} />
-          <span>Error al cargar los datos del cronograma. Mostrando vista previa.</span>
+          <span>No se pudo cargar el cronograma real. Verifica que el proyecto tenga fases e hitos configurados.</span>
         </div>
       )}
 
@@ -144,7 +116,18 @@ const CronogramaPage = () => {
         <ProjectInfoCard displayResumen={displayResumen} />
       </div>
 
-      <GanttChart displayCronograma={displayCronograma} meses={meses} />
+      {hasRealData ? (
+        <GanttChart displayCronograma={displayCronograma} meses={meses} />
+      ) : (
+        <div className="visual-cronograma-section empty-state">
+          <div className="section-header">
+            <h2><CalendarRange size={18} /> Sin líneas de tiempo registradas</h2>
+          </div>
+          <div className="empty-cronograma">
+            No hay fases ni hitos cargados para construir una vista de cronograma real.
+          </div>
+        </div>
+      )}
     </div>
   );
 };

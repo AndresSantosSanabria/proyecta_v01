@@ -9,7 +9,7 @@
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
-  --radius: 14px;
+  --radius: 12px;
   --font-sans: 'Inter', -apple-system, sans-serif;
   --shadow-premium: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
@@ -31,16 +31,17 @@
 
 body {
   font-family: var(--font-sans);
+  font-size: 15px;
   background-color: var(--bg-main);
   color: var(--text-main);
-  line-height: 1.5;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 /* Header Styles */
@@ -48,11 +49,11 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 .title-group h1 {
-  font-size: 2.25rem;
+  font-size: 1.95rem;
   font-weight: 800;
   letter-spacing: -0.025em;
   margin-bottom: 0.5rem;
@@ -60,14 +61,14 @@ body {
 
 .subtitle {
   color: var(--text-muted);
-  font-size: 1.1rem;
+  font-size: 0.98rem;
 }
 
 /* Button Styles */
 .btn-primary {
   background-color: var(--primary);
   color: white;
-  padding: 0.75rem 1.5rem;
+  padding: 0.65rem 1.2rem;
   border-radius: var(--radius);
   border: none;
   font-weight: 600;
@@ -88,14 +89,14 @@ body {
 /* Grid and Cards */
 .project-grid {
   display: grid;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .project-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
-  padding: 1.5rem;
+  padding: 1.15rem;
   transition: all 0.3s ease;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
@@ -115,7 +116,7 @@ body {
 }
 
 .card-header h3 {
-  font-size: 1.25rem;
+  font-size: 1.08rem;
   font-weight: 700;
 }
 
@@ -143,7 +144,7 @@ body {
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 1rem;
-  font-size: 0.875rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
 }
 
@@ -153,7 +154,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 50vh;
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: var(--text-muted);
   animation: pulse 2s infinite;
 }

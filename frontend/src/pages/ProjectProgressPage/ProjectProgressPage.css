@@ -29,12 +29,130 @@
   font-size: 1.1rem;
 }
 
+.excel-summary-card {
+  margin-bottom: 1.25rem;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.95), rgba(255, 255, 255, 0.92));
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+}
+
+.excel-summary-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.excel-summary-title {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.excel-kicker {
+  width: fit-content;
+  padding: 0.36rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.1);
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.excel-summary-title h2 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.excel-summary-title p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.excel-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0.9rem;
+  min-height: 42px;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.excel-state.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #166534;
+}
+
+.excel-state.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #991b1b;
+}
+
+.excel-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.excel-summary-grid article {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.excel-summary-grid article span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.excel-summary-grid article strong {
+  font-size: 1rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
 /* KPI Grid */
 .progress-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
   margin-bottom: 2rem;
+}
+
+.compact-grid .progress-card {
+  min-height: 145px;
+}
+
+.metric-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.table-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
 }
 
 .progress-card {
@@ -163,17 +281,19 @@
 .tree-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 1600px;
 }
 
-.tree-table th {
-  background-color: #1a4331;
-  color: white;
-  padding: 0.8rem 1.5rem;
-  text-align: left;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+.tree-table.excel-table th {
+  background: #d9f3cd;
+  color: #0f172a;
+  padding: 0.9rem 1rem;
+  text-align: center;
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 800;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
 }
 
 .tree-table th svg {
@@ -183,24 +303,39 @@
 }
 
 .tree-table td {
-  padding: 1rem 1.5rem;
+  padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--border-color);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   vertical-align: middle;
+}
+
+.tree-table .col-node {
+  min-width: 360px;
+  text-align: left;
+}
+
+.tree-table .col-ponderacion,
+.tree-table .col-fecha,
+.tree-table .col-avance,
+.tree-table .col-estado,
+.tree-table .col-acciones {
+  min-width: 108px;
+  text-align: center;
 }
 
 /* Row Hierarchies */
 .row-root {
-  background-color: #24583d;
-  color: white;
+  background: #d9f3cd;
+  color: #0f172a;
+  font-weight: 800;
 }
 
 .row-root td {
-  border-bottom: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .row-phase {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: rgba(248, 250, 252, 0.92);
 }
 
 .dark .row-phase {
@@ -322,6 +457,10 @@
   background-color: #1a4d35;
 }
 
+.action-col {
+  min-width: 170px;
+}
+
 /* Utilities */
 .success-bg {
   background: var(--success) !important;
@@ -395,4 +534,41 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1200px) {
+  .excel-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .progress-page-container {
+    padding: 1rem;
+  }
+
+  .excel-summary-top,
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .excel-summary-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .progress-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tree-table {
+    min-width: 1250px;
+  }
+
+  .action-col-absolute {
+    position: static;
+    transform: none;
+    right: auto;
+    top: auto;
+  }
 }

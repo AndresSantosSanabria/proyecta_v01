@@ -18,6 +18,7 @@ import {
 import { useTheme } from '../../../context/ThemeContext';
 import dashboardService from '../../../services/dashboardService';
 import { useAuthContext } from '../../../context/AuthContext';
+import { usePermission } from '../../../hooks/usePermission';
 import './Sidebar.css';
 
 const Sidebar = () => {
@@ -26,10 +27,11 @@ const Sidebar = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
-  const { user, roles, logout } = useAuthContext();
-  const isAdmin = roles.includes('admin');
+  const { user, roles, logout, isAdminLocal, transversal, hasRole } = useAuthContext();
+  const canConfigureByPermission = usePermission('SISTEMA:CONFIGURAR');
+  const canConfigure = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || canConfigureByPermission;
 
-  const projectMatch = location.pathname.match(/^\/projects\/([a-zA-Z0-9-]+)/);
+  const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
 
   useEffect(() => {
@@ -97,10 +99,10 @@ const Sidebar = () => {
         { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> },
       ]
     },
-    ...(isAdmin ? [{
+    ...(canConfigure ? [{
       category: 'ADMINISTRACION',
       items: [
-        { name: 'Configuracion Seguridad', path: '/admin/seguridad', icon: <ShieldCheck size={22} /> },
+        { name: 'Configuracion Seguridad', path: '/admin/configuracion', icon: <ShieldCheck size={22} /> },
       ]
     }] : [])
   ];
