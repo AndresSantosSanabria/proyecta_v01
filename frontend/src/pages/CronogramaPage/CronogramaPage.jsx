@@ -1,5 +1,5 @@
-import React from 'react';
 import { useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Loader2, CalendarRange } from 'lucide-react';
 import cronogramaService from '../../services/cronogramaService';
@@ -10,8 +10,18 @@ import GanttChart from '../../components/features/cronograma/GanttChart';
 import './CronogramaPage.css';
 
 const CronogramaPage = () => {
-  const { id: proyectoId } = useParams();
+  const { id: rawProyectoId } = useParams();
+  const proyectoId = String(rawProyectoId || '').trim().toUpperCase();
   const queryClient = useQueryClient();
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+
+  const formatSummaryValue = (value, fallback = 'Sin dato') => {
+    if (value === null || value === undefined || value === '') return fallback;
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value.toLocaleString('es-CO') : fallback;
+    }
+    return String(value);
+  };
 
   const {
     data: cronogramaData,
@@ -55,6 +65,49 @@ const CronogramaPage = () => {
     fases: resumenApi.totalFases || 0,
     totalHitos: resumenApi.totalHitos || 0,
     avance: resumenApi.avance_total ? `${Number(resumenApi.avance_total).toFixed(0)}%` : `${Number(resumenApi.avanceTotal || 0).toFixed(0)}%`,
+    meta: formatSummaryValue(
+      resumenApi.meta
+      || resumenApi.objetivoGeneral
+      || resumenApi.objetivo_general
+      || resumenApi.descripcion
+      || resumenApi.nombre
+      || 'Sin meta definida',
+    ),
+    dependencia: formatSummaryValue(
+      resumenApi.dependencia
+      || resumenApi.dependenciaResponsable
+      || resumenApi.dependencia_responsable
+      || resumenApi.area
+      || 'No asignada',
+    ),
+    programado: formatSummaryValue(
+      resumenApi.programado_total
+      || resumenApi.programado
+      || resumenApi.programadoTotal
+      || resumenApi.totalProgramado
+      || resumenApi.porcentajeProgramado
+      || '0',
+    ),
+    programadosAlCorte: formatSummaryValue(
+      resumenApi.programados_al_corte
+      || resumenApi.programadosAlCorte
+      || resumenApi.programados
+      || 0,
+    ),
+    entregadosAlCorte: formatSummaryValue(
+      resumenApi.entregados_al_corte
+      || resumenApi.entregadosAlCorte
+      || resumenApi.entregados
+      || 0,
+    ),
+    eficacia: resumenApi.eficacia
+      ?? resumenApi.eficaciaTotal
+      ?? resumenApi.eficacia_total
+      ?? 100,
+    eficiencia: resumenApi.eficiencia
+      ?? resumenApi.eficienciaTotal
+      ?? resumenApi.eficiencia_total
+      ?? 100,
   };
 
   const displayCronograma = hasRealData ? cronogramaData.data.vistaGantt.map((fase) => {
@@ -73,7 +126,7 @@ const CronogramaPage = () => {
         fechaInicio: h.fechaInicio,
         fechaFin: h.fechaFin,
       };
-    }) || [];
+    }).sort((a, b) => a.mesInicio - b.mesInicio) || [];
 
     const mesInicioFase = hitosMapped.length > 0
       ? Math.min(...hitosMapped.map((h) => h.mesInicio))
@@ -91,9 +144,14 @@ const CronogramaPage = () => {
       avance: fase.avance || 0,
       hitos: hitosMapped,
     };
-  }) : [];
+  }).sort((a, b) => a.mesInicio - b.mesInicio) : [];
 
   const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const parseYear = (value) => {
+    const date = value ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? date.getUTCFullYear() : new Date().getUTCFullYear();
+  };
+  const ganttYear = parseYear(displayResumen.fechaInicio);
 
   return (
     <div className="cronograma-container">
@@ -113,11 +171,15 @@ const CronogramaPage = () => {
           label="Cronograma del Proyecto"
           onUploadSuccess={handleCronogramaUpload}
         />
-        <ProjectInfoCard displayResumen={displayResumen} />
+        <ProjectInfoCard
+          displayResumen={displayResumen}
+          expanded={summaryExpanded}
+          onToggleExpanded={() => setSummaryExpanded((prev) => !prev)}
+        />
       </div>
 
       {hasRealData ? (
-        <GanttChart displayCronograma={displayCronograma} meses={meses} />
+        <GanttChart displayCronograma={displayCronograma} meses={meses} year={ganttYear} />
       ) : (
         <div className="visual-cronograma-section empty-state">
           <div className="section-header">

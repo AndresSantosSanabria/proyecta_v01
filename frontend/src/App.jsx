@@ -2,10 +2,12 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import SidebarLayout from './components/layout/SidebarLayout/SidebarLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import AdminRoute from './components/ProtectedRoute/AdminRoute';
+import AnalyticsRoute from './components/ProtectedRoute/AnalyticsRoute';
 import ProjectAccessRoute from './components/ProtectedRoute/ProjectAccessRoute';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage/ProjectsPage';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
+import AnalyticsPage from './pages/AnalyticsPage/AnalyticsPage';
 import NewProjectPage from './pages/NewProjectPage/NewProjectPage';
 import ProjectProgressPage from './pages/ProjectProgressPage/ProjectProgressPage';
 import CronogramaPage from './pages/CronogramaPage/CronogramaPage';
@@ -49,6 +51,9 @@ function App() {
           </Route>
 
           <Route path="reports" element={<ReportsPage />} />
+          <Route element={<AnalyticsRoute />}>
+            <Route path="analytics" element={<AnalyticsPage />} />
+          </Route>
           <Route path="admin/configuracion" element={<AdminRoute />}>
             <Route index element={<SecurityConfigPage />} />
           </Route>

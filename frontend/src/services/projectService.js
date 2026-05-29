@@ -1,5 +1,7 @@
 import apiClient from '../api/axiosConfig';
 
+const normalizeProjectId = (id) => String(id || '').trim().toUpperCase();
+
 /**
  * Servicio encargado de la gestión de proyectos.
  * Sigue el principio de Single Responsibility centrándose solo en la comunicación de red.
@@ -57,7 +59,7 @@ const projectService = {
    * @returns {Promise<Object>}
    */
   getById: async (id) => {
-    const { data } = await apiClient.get(`/proyectos/${id}`);
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}`);
     return data;
   },
 
@@ -77,7 +79,7 @@ const projectService = {
    * @returns {Promise<Object>}
    */
   getProgress: async (id) => {
-    const { data } = await apiClient.get(`/proyectos/${id}/avance`);
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}/avance`);
     return data;
   },
 
@@ -87,7 +89,7 @@ const projectService = {
    * @returns {Promise<Object>}
    */
   getSummary: async (id) => {
-    const { data } = await apiClient.get(`/proyectos/${id}/resumen`);
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}/resumen`);
     return data;
   },
 
@@ -98,7 +100,7 @@ const projectService = {
    * @returns {Promise<Object>}
    */
   closeProject: async (id, closureData) => {
-    const { data } = await apiClient.post(`/proyectos/${id}/cierre`, closureData);
+    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre`, closureData);
     return data;
   },
 
@@ -108,7 +110,7 @@ const projectService = {
     formData.append('fechaEntrega', fechaEntrega || new Date().toISOString().split('T')[0]);
 
     const { data } = await apiClient.post(
-      `/proyectos/${proyectoId}/avance/entregables/${entregableId}/completar`,
+      `/proyectos/${normalizeProjectId(proyectoId)}/avance/entregables/${entregableId}/completar`,
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },

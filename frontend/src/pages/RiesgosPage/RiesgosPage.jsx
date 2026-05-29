@@ -1,6 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertTriangle, Plus, RefreshCw, Radar, ShieldAlert, Sparkles, Trash2, Table2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Info,
+  Plus,
+  RefreshCw,
+  Radar,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+  X,
+  Save,
+  Pencil,
+} from 'lucide-react';
 import riskService from '../../services/riskService';
 import { usePermission } from '../../hooks/usePermission';
 import './RiesgosPage.css';
@@ -8,7 +20,14 @@ import './RiesgosPage.css';
 const DEFAULT_PROBABILIDADES = ['BAJA', 'MEDIA', 'ALTA'];
 const DEFAULT_IMPACTOS = ['BAJO', 'MEDIO', 'ALTO'];
 const ESTADOS = ['PENDIENTE', 'TRATADO'];
-const DEFAULT_NIVELES = ['BAJO', 'MODERADO', 'ALTO', 'CRITICO'];
+const DEFAULT_NIVELES = ['BAJO', 'MODERADO', 'ALTO', 'EXTREMO'];
+const RISK_LEVEL_LABELS = {
+  BAJO: 'Bajo',
+  MODERADO: 'Moderado',
+  ALTO: 'Alto',
+  EXTREMO: 'Extremo',
+  CRITICO: 'Extremo',
+};
 
 const emptyForm = {
   categoriaRiesgo: '',
@@ -31,10 +50,37 @@ const emptyForm = {
   estado: 'PENDIENTE',
 };
 
-const toNumber = (value) => {
-  if (value == null) return 0;
-  const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+const deriveInherentScore = (probability, impact) => {
+  const p = String(probability || '').toUpperCase();
+  const i = String(impact || '').toUpperCase();
+  const pMap = { BAJA: 1, MEDIA: 2, ALTA: 3 };
+  const iMap = { BAJO: 1, MEDIO: 2, ALTO: 3 };
+  return (pMap[p] || 0) + (iMap[i] || 0);
+};
+
+const getRiskLevelFromScore = (score) => {
+  if (score >= 2 && score <= 4) return 'BAJO';
+  if (score === 5) return 'MODERADO';
+  if (score >= 6 && score <= 7) return 'ALTO';
+  if (score >= 8 && score <= 10) return 'EXTREMO';
+  return 'BAJO';
+};
+
+const formatLongText = (value, fallback = '—') => {
+  if (value == null || value === '') return fallback;
+  return value;
+};
+
+const normalizeRiskLevel = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return 'SIN_NIVEL';
+  if (normalized === 'CRITICO') return 'EXTREMO';
+  return normalized;
+};
+
+const formatRiskLevelLabel = (value) => {
+  const key = normalizeRiskLevel(value);
+  return RISK_LEVEL_LABELS[key] || key.replace(/_/g, ' ');
 };
 
 const RiesgosPage = () => {
@@ -45,11 +91,46 @@ const RiesgosPage = () => {
   const [error, setError] = useState(null);
   const [riskList, setRiskList] = useState([]);
   const [matrix, setMatrix] = useState([]);
-  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [matrixHelpOpen, setMatrixHelpOpen] = useState(false);
+  const [openSelect, setOpenSelect] = useState(null);
 
-  const fetchData = async () => {
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingId(null);
+    setForm(emptyForm);
+    setOpenSelect(null);
+  };
+
+  useEffect(() => {
+    if (!modalOpen && !matrixHelpOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      if (modalOpen) {
+        closeModal();
+        return;
+      }
+      setMatrixHelpOpen(false);
+    };
+
+    document.body.classList.add('modal-open');
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.classList.remove('modal-open');
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [matrixHelpOpen, modalOpen]);
+
+  const toggleSelect = (name) => {
+    setOpenSelect((current) => (current === name ? null : name));
+  };
+
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [riskResp, matrixResp] = await Promise.all([
@@ -69,15 +150,24 @@ const RiesgosPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [proyectoId]);
 
   useEffect(() => {
-    fetchData();
-  }, [proyectoId]);
+    const timer = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [fetchData]);
 
   const matrixLookup = useMemo(() => {
     return matrix.reduce((acc, item) => {
-      acc[`${item.probabilidad}|${item.impacto}`] = item;
+      acc[`${item.probabilidad}|${item.impacto}`] = {
+        probabilidad: item.probabilidad,
+        impacto: item.impacto,
+        nivel: normalizeRiskLevel(item.nivel || item.nivelResultante || item.nivel_resultante || 'SIN_NIVEL'),
+        color: item.color || item.colorHex || item.color_hex || null,
+      };
       return acc;
     }, {});
   }, [matrix]);
@@ -104,20 +194,61 @@ const RiesgosPage = () => {
   );
 
   const stats = useMemo(() => {
-    const counts = { BAJO: 0, MODERADO: 0, ALTO: 0, CRITICO: 0 };
+    const counts = { BAJO: 0, MODERADO: 0, ALTO: 0, EXTREMO: 0 };
     riskList.forEach((risk) => {
-      const key = String(risk.nivel || '').toUpperCase();
+      const key = normalizeRiskLevel(risk.nivel);
       if (counts[key] !== undefined) counts[key] += 1;
     });
     return counts;
   }, [riskList]);
 
-  const deriveInherentScore = (probability, impact) => {
-    const p = String(probability || '').toUpperCase();
-    const i = String(impact || '').toUpperCase();
-    const pMap = { BAJA: 1, MEDIA: 2, ALTA: 3 };
-    const iMap = { BAJO: 1, MEDIO: 2, ALTO: 3 };
-    return (pMap[p] || 0) * (iMap[i] || 0);
+  const treatmentStats = useMemo(() => {
+    return riskList.reduce(
+      (acc, risk) => {
+        const key = String(risk.estado || 'PENDIENTE').toUpperCase();
+        if (key === 'TRATADO') acc.TRATADO += 1;
+        else acc.PENDIENTE += 1;
+        return acc;
+      },
+      { TRATADO: 0, PENDIENTE: 0 }
+    );
+  }, [riskList]);
+
+  const openCreateModal = () => {
+    if (!canEdit) return;
+    setEditingId(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  };
+
+  const openMatrixHelp = () => {
+    setMatrixHelpOpen(true);
+  };
+
+  const startEdit = (risk) => {
+    if (!canEdit) return;
+    setEditingId(risk.id);
+    setForm({
+      categoriaRiesgo: risk.categoriaRiesgo || '',
+      descripcion: risk.descripcion || '',
+      causa: risk.causa || '',
+      consecuencia: risk.consecuencia || '',
+      probabilidad: risk.probabilidad || 'MEDIA',
+      impacto: risk.impacto || 'MEDIO',
+      probabilidadResidual: risk.probabilidadResidual || '',
+      impactoResidual: risk.impactoResidual || '',
+      controlesExistentes: risk.controlesExistentes || '',
+      tipoControl: risk.tipoControl || '',
+      valoracionControl: risk.valoracionControl || '',
+      tratamiento: risk.tratamiento || '',
+      accionesMitigacion: risk.accionesMitigacion || '',
+      entidadResponsable: risk.entidadResponsable || '',
+      rolResponsable: risk.rolResponsable || '',
+      fechaAccion: risk.fechaAccion || '',
+      evidenciaIndicador: risk.evidenciaIndicador || '',
+      estado: risk.estado || 'PENDIENTE',
+    });
+    setModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
@@ -153,8 +284,7 @@ const RiesgosPage = () => {
         await riskService.createRisk(proyectoId, payload);
       }
 
-      setForm(emptyForm);
-      setEditingId(null);
+      closeModal();
       await fetchData();
     } catch (err) {
       setError(err?.response?.data?.detail || 'No fue posible guardar el riesgo.');
@@ -163,40 +293,11 @@ const RiesgosPage = () => {
     }
   };
 
-  const startEdit = (risk) => {
-    setEditingId(risk.id);
-    setForm({
-      categoriaRiesgo: risk.categoriaRiesgo || '',
-      descripcion: risk.descripcion || '',
-      causa: risk.causa || '',
-      consecuencia: risk.consecuencia || '',
-      probabilidad: risk.probabilidad || 'MEDIA',
-      impacto: risk.impacto || 'MEDIO',
-      probabilidadResidual: risk.probabilidadResidual || '',
-      impactoResidual: risk.impactoResidual || '',
-      controlesExistentes: risk.controlesExistentes || '',
-      tipoControl: risk.tipoControl || '',
-      valoracionControl: risk.valoracionControl || '',
-      tratamiento: risk.tratamiento || '',
-      accionesMitigacion: risk.accionesMitigacion || '',
-      entidadResponsable: risk.entidadResponsable || '',
-      rolResponsable: risk.rolResponsable || '',
-      fechaAccion: risk.fechaAccion || '',
-      evidenciaIndicador: risk.evidenciaIndicador || '',
-      estado: risk.estado || 'PENDIENTE',
-    });
-  };
-
   const removeRisk = async (riskId) => {
     if (!canEdit) return;
     if (!window.confirm('¿Eliminar este riesgo?')) return;
     await riskService.deleteRisk(proyectoId, riskId);
     await fetchData();
-  };
-
-  const resetForm = () => {
-    setForm(emptyForm);
-    setEditingId(null);
   };
 
   if (loading) {
@@ -217,8 +318,8 @@ const RiesgosPage = () => {
           </span>
           <h1>Matriz de Riesgos</h1>
           <p>
-            La vista reproduce el formato de control institucional: identificación, valoración inherente, controles,
-            riesgo residual y responsables.
+            Vista resumida para identificar, valorar y tratar riesgos. El detalle completo se captura en un modal
+            para evitar una pantalla saturada y facilitar la lectura.
           </p>
         </div>
         <div className="hero-metrics">
@@ -234,6 +335,12 @@ const RiesgosPage = () => {
           </article>
           <button className="btn-refresh" onClick={fetchData} type="button">
             <RefreshCw size={16} /> Refrescar
+          </button>
+          <button className="btn-help" onClick={openMatrixHelp} type="button">
+            <Info size={16} /> Cómo leer la matriz
+          </button>
+          <button className="btn-primary btn-add-risk" onClick={openCreateModal} type="button" disabled={!canEdit}>
+            <Plus size={16} /> Agregar riesgo
           </button>
         </div>
       </section>
@@ -258,323 +365,559 @@ const RiesgosPage = () => {
           <span>Alto</span>
           <strong>{stats.ALTO}</strong>
         </div>
-        <div className="risk-stat critico">
-          <span>Crítico</span>
-          <strong>{stats.CRITICO}</strong>
+        <div className="risk-stat extremo">
+          <span>Extremo</span>
+          <strong>{stats.EXTREMO}</strong>
         </div>
       </div>
 
-      <div className="risk-layout wide-risk-layout">
-        <section className="panel risks-table-panel">
-          <div className="panel-title">
-            <div>
-              <h2>Registro de riesgos</h2>
-              <span className="panel-subtitle">Formato técnico de seguimiento</span>
-            </div>
-            <span className="panel-chip">{riskList.length} filas</span>
+      <section className="panel risks-table-panel">
+        <div className="panel-title">
+          <div>
+            <h2>Registro de riesgos</h2>
+            <span className="panel-subtitle">Listado resumido, acciones en modal y niveles claros</span>
           </div>
+          <span className="panel-chip">{riskList.length} registros</span>
+        </div>
 
-          <div className="wide-table-wrap">
-            <table className="risk-table">
-              <thead>
+        <div className="wide-table-wrap">
+          <table className="risk-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Riesgo</th>
+                <th>Inherente</th>
+                <th>Residual</th>
+                <th>Controles</th>
+                <th>Responsable</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {riskList.length === 0 ? (
                 <tr>
-                  <th rowSpan={2}>#</th>
-                  <th rowSpan={2}>Categoría del riesgo</th>
-                  <th rowSpan={2}>Descripción del riesgo</th>
-                  <th rowSpan={2}>Causa</th>
-                  <th rowSpan={2}>Consecuencia</th>
-                  <th colSpan={4}>Riesgo Inherente</th>
-                  <th colSpan={3}>Valoración de Controles</th>
-                  <th colSpan={3}>Riesgo Residual</th>
-                  <th rowSpan={2}>Tratamiento</th>
-                  <th rowSpan={2}>Acciones de Mitigación</th>
-                  <th rowSpan={2}>Entidad Responsable</th>
-                  <th rowSpan={2}>Rol Responsable</th>
-                  <th rowSpan={2}>Fecha de la Acción</th>
-                  <th rowSpan={2}>Evidencia / Indicador</th>
-                  <th rowSpan={2}>Acciones</th>
+                  <td colSpan={8}>
+                    <div className="empty-box">No hay riesgos registrados para este proyecto.</div>
+                  </td>
                 </tr>
-                <tr>
-                  <th>Prob.</th>
-                  <th>Impacto</th>
-                  <th>Calificación</th>
-                  <th>Nivel</th>
-                  <th>Controles</th>
-                  <th>Tipo</th>
-                  <th>Valoración</th>
-                  <th>Prob.</th>
-                  <th>Impacto</th>
-                  <th>Nivel</th>
-                </tr>
-              </thead>
-              <tbody>
-                {riskList.length === 0 ? (
-                  <tr>
-                    <td colSpan={21}>
-                      <div className="empty-box">No hay riesgos registrados para este proyecto.</div>
-                    </td>
-                  </tr>
-                ) : (
-                  riskList.map((risk, index) => {
-                    const score = deriveInherentScore(risk.probabilidad, risk.impacto);
-                    return (
-                      <tr key={risk.id}>
-                        <td>{index + 1}</td>
-                        <td>{risk.categoriaRiesgo || '—'}</td>
-                        <td className="cell-wide">{risk.descripcion}</td>
-                        <td className="cell-wide">{risk.causa || '—'}</td>
-                        <td className="cell-wide">{risk.consecuencia || '—'}</td>
-                        <td>
+              ) : (
+                riskList.map((risk, index) => {
+                  const score = deriveInherentScore(risk.probabilidad, risk.impacto);
+                  const level = normalizeRiskLevel(risk.nivel || getRiskLevelFromScore(score));
+                  const residualLevel = normalizeRiskLevel(risk.nivelResidual || 'SIN_NIVEL');
+
+                  return (
+                    <tr key={risk.id}>
+                      <td>{index + 1}</td>
+                      <td className="risk-cell-left">
+                        <strong>{formatLongText(risk.categoriaRiesgo, 'Sin categoría')}</strong>
+                        <span>{formatLongText(risk.descripcion)}</span>
+                        <small>
+                          Causa: {formatLongText(risk.causa)} · Consecuencia: {formatLongText(risk.consecuencia)}
+                        </small>
+                      </td>
+                      <td>
+                        <div className="risk-stack">
                           <span className="code-pill">{risk.probabilidad || '—'}</span>
-                        </td>
-                        <td>
                           <span className="code-pill">{risk.impacto || '—'}</span>
-                        </td>
-                        <td>
-                          <span className="code-pill">{score || '—'}</span>
-                        </td>
-                        <td>
-                          <span className={`risk-badge ${String(risk.nivel || '').toLowerCase()}`}>
-                            {risk.nivel || 'SIN NIVEL'}
-                          </span>
-                        </td>
-                        <td className="cell-wide">{risk.controlesExistentes || '—'}</td>
-                        <td>{risk.tipoControl || '—'}</td>
-                        <td>{risk.valoracionControl || '—'}</td>
-                        <td>
+                          <span className="code-pill strong">{score || '—'}</span>
+                          <span className={`risk-badge ${level.toLowerCase()}`}>{formatRiskLevelLabel(level)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="risk-stack">
                           <span className="code-pill">{risk.probabilidadResidual || '—'}</span>
-                        </td>
-                        <td>
                           <span className="code-pill">{risk.impactoResidual || '—'}</span>
-                        </td>
-                        <td>
-                          <span className={`risk-badge ${String(risk.nivelResidual || '').toLowerCase()}`}>
-                            {risk.nivelResidual || '—'}
-                          </span>
-                        </td>
-                        <td className="cell-wide">{risk.tratamiento || '—'}</td>
-                        <td className="cell-wide">{risk.accionesMitigacion || '—'}</td>
-                        <td>{risk.entidadResponsable || '—'}</td>
-                        <td>{risk.rolResponsable || '—'}</td>
-                        <td>{risk.fechaAccion || '—'}</td>
-                        <td className="cell-wide">{risk.evidenciaIndicador || '—'}</td>
-                        <td>
-                          <div className="row-actions">
-                            <button type="button" className="btn-secondary compact" onClick={() => startEdit(risk)} disabled={!canEdit}>
-                              Editar
-                            </button>
-                            <button type="button" className="btn-danger compact" onClick={() => removeRisk(risk.id)} disabled={!canEdit}>
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                          <span className={`risk-badge ${residualLevel.toLowerCase()}`}>{formatRiskLevelLabel(residualLevel)}</span>
+                        </div>
+                      </td>
+                      <td className="risk-cell-left">
+                        <strong>{formatLongText(risk.controlesExistentes)}</strong>
+                        <span>{formatLongText(risk.tipoControl)} {risk.valoracionControl ? `· ${risk.valoracionControl}` : ''}</span>
+                      </td>
+                      <td className="risk-cell-left">
+                        <strong>{formatLongText(risk.entidadResponsable)}</strong>
+                        <span>{formatLongText(risk.rolResponsable)}</span>
+                      </td>
+                      <td>
+                        <span className={`risk-badge ${String(risk.estado || '').toLowerCase()}`}>
+                          {risk.estado || 'PENDIENTE'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button
+                            type="button"
+                            className="btn-secondary compact"
+                            onClick={() => startEdit(risk)}
+                            disabled={!canEdit}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-danger compact"
+                            onClick={() => removeRisk(risk.id)}
+                            disabled={!canEdit}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-        <section className="panel">
-          <div className="panel-title">
-            <div>
-              <h2>{editingId ? 'Editar riesgo' : 'Nuevo riesgo'}</h2>
-              <span className="panel-subtitle">CRUD real sobre el proyecto</span>
-            </div>
-            <span className="panel-chip">{canEdit ? 'Modo edición' : 'Solo lectura'}</span>
-          </div>
-
-          <form className="risk-form" onSubmit={handleSubmit}>
-            <label>
-              Categoría del riesgo
-              <input
-                value={form.categoriaRiesgo}
-                onChange={(e) => setForm((prev) => ({ ...prev, categoriaRiesgo: e.target.value }))}
-                placeholder="Estratégico, operativo, tecnológico..."
-              />
-            </label>
-            <label>
-              Descripción del riesgo
-              <textarea
-                value={form.descripcion}
-                onChange={(e) => setForm((prev) => ({ ...prev, descripcion: e.target.value }))}
-                required
-                rows={3}
-              />
-            </label>
-            <label>
-              Causa
-              <textarea
-                value={form.causa}
-                onChange={(e) => setForm((prev) => ({ ...prev, causa: e.target.value }))}
-                rows={3}
-              />
-            </label>
-            <label>
-              Consecuencia
-              <textarea
-                value={form.consecuencia}
-                onChange={(e) => setForm((prev) => ({ ...prev, consecuencia: e.target.value }))}
-                rows={3}
-              />
-            </label>
-
-            <div className="form-grid">
-              <label>
-                Probabilidad inherente
-                <select
-                  value={form.probabilidad}
-                  onChange={(e) => setForm((prev) => ({ ...prev, probabilidad: e.target.value }))}
-                >
-                  {matrixProbabilidades.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Impacto inherente
-                <select value={form.impacto} onChange={(e) => setForm((prev) => ({ ...prev, impacto: e.target.value }))}>
-                  {matrixImpactos.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Probabilidad residual
-                <select
-                  value={form.probabilidadResidual}
-                  onChange={(e) => setForm((prev) => ({ ...prev, probabilidadResidual: e.target.value }))}
-                >
-                  <option value="">Sin definir</option>
-                  {matrixProbabilidades.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Impacto residual
-                <select value={form.impactoResidual} onChange={(e) => setForm((prev) => ({ ...prev, impactoResidual: e.target.value }))}>
-                  <option value="">Sin definir</option>
-                  {matrixImpactos.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <label>
-              Controles existentes
-              <textarea
-                value={form.controlesExistentes}
-                onChange={(e) => setForm((prev) => ({ ...prev, controlesExistentes: e.target.value }))}
-                rows={3}
-              />
-            </label>
-
-            <div className="form-grid">
-              <label>
-                Tipo de control
-                <input
-                  value={form.tipoControl}
-                  onChange={(e) => setForm((prev) => ({ ...prev, tipoControl: e.target.value }))}
-                  placeholder="Preventivo, detectivo, correctivo..."
-                />
-              </label>
-              <label>
-                Valoración del control
-                <input
-                  value={form.valoracionControl}
-                  onChange={(e) => setForm((prev) => ({ ...prev, valoracionControl: e.target.value }))}
-                  placeholder="Alta, media, baja"
-                />
-              </label>
-            </div>
-
-            <label>
-              Tratamiento
-              <textarea
-                value={form.tratamiento}
-                onChange={(e) => setForm((prev) => ({ ...prev, tratamiento: e.target.value }))}
-                rows={3}
-              />
-            </label>
-
-            <label>
-              Acciones de mitigación
-              <textarea
-                value={form.accionesMitigacion}
-                onChange={(e) => setForm((prev) => ({ ...prev, accionesMitigacion: e.target.value }))}
-                rows={3}
-              />
-            </label>
-
-            <div className="form-grid">
-              <label>
-                Entidad responsable
-                <input
-                  value={form.entidadResponsable}
-                  onChange={(e) => setForm((prev) => ({ ...prev, entidadResponsable: e.target.value }))}
-                  placeholder="Secretaría TIC, despacho..."
-                />
-              </label>
-              <label>
-                Rol responsable
-                <input
-                  value={form.rolResponsable}
-                  onChange={(e) => setForm((prev) => ({ ...prev, rolResponsable: e.target.value }))}
-                  placeholder="Gerente del proyecto, líder..."
-                />
-              </label>
-              <label>
-                Fecha de la acción
-                <input
-                  type="date"
-                  value={form.fechaAccion}
-                  onChange={(e) => setForm((prev) => ({ ...prev, fechaAccion: e.target.value }))}
-                />
-              </label>
-              <label>
-                Estado
-                <select value={form.estado} onChange={(e) => setForm((prev) => ({ ...prev, estado: e.target.value }))}>
-                  {ESTADOS.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <label>
-              Evidencia / Indicador
-              <textarea
-                value={form.evidenciaIndicador}
-                onChange={(e) => setForm((prev) => ({ ...prev, evidenciaIndicador: e.target.value }))}
-                rows={3}
-              />
-            </label>
-
-            <div className="form-actions">
-              <button type="button" className="btn-secondary" onClick={resetForm}>
-                Cancelar
-              </button>
-              <button className="btn-primary" disabled={!canEdit || saving} type="submit">
-                <Plus size={16} /> {editingId ? 'Guardar cambios' : 'Crear riesgo'}
+      {modalOpen && (
+        <div className="risk-modal-overlay" role="presentation" onClick={closeModal}>
+          <div className="risk-modal" role="dialog" aria-modal="true" aria-labelledby="risk-modal-title" onClick={(event) => event.stopPropagation()}>
+            <div className="risk-modal-header">
+              <div>
+                <span className="panel-chip">{editingId ? 'Editar riesgo' : 'Nuevo riesgo'}</span>
+                <h2 id="risk-modal-title">{editingId ? 'Editar riesgo' : 'Agregar riesgo'}</h2>
+                <p>Completa los campos clave. La matriz debe poder leerse sin cargar la pantalla completa.</p>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={closeModal} aria-label="Cerrar">
+                <X size={18} />
               </button>
             </div>
-          </form>
-        </section>
-      </div>
+
+            <form className="risk-form risk-form-modal" onSubmit={handleSubmit}>
+              <div className="form-grid form-grid-2">
+                <label>
+                  Categoría del riesgo
+                  <input
+                    value={form.categoriaRiesgo}
+                    onChange={(e) => setForm((prev) => ({ ...prev, categoriaRiesgo: e.target.value }))}
+                    placeholder="Estratégico, operativo, tecnológico..."
+                  />
+                </label>
+                <label>
+                  Estado
+                  <div className="custom-select">
+                    <button
+                      type="button"
+                      className="custom-select-trigger"
+                      onClick={() => toggleSelect('estado')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openSelect === 'estado'}
+                    >
+                      <span>{form.estado}</span>
+                      <span className="custom-select-arrow">⌄</span>
+                    </button>
+                    {openSelect === 'estado' && (
+                      <div className="custom-select-menu" role="listbox" aria-label="Estado del riesgo">
+                        {ESTADOS.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={`custom-select-option ${form.estado === item ? 'active' : ''}`}
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, estado: item }));
+                              setOpenSelect(null);
+                            }}
+                            role="option"
+                            aria-selected={form.estado === item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              <label>
+                Descripción del riesgo
+                <textarea
+                  value={form.descripcion}
+                  onChange={(e) => setForm((prev) => ({ ...prev, descripcion: e.target.value }))}
+                  required
+                  rows={3}
+                  placeholder="Describe el evento o condición de riesgo de forma concreta."
+                />
+              </label>
+
+              <div className="form-grid form-grid-2">
+                <label>
+                  Causa
+                  <textarea
+                    value={form.causa}
+                    onChange={(e) => setForm((prev) => ({ ...prev, causa: e.target.value }))}
+                    rows={3}
+                    placeholder="Origen o detonante del riesgo."
+                  />
+                </label>
+                <label>
+                  Consecuencia
+                  <textarea
+                    value={form.consecuencia}
+                    onChange={(e) => setForm((prev) => ({ ...prev, consecuencia: e.target.value }))}
+                    rows={3}
+                    placeholder="Efecto esperado si ocurre."
+                  />
+                </label>
+              </div>
+
+              <div className="form-grid form-grid-2">
+                <label>
+                  Probabilidad inherente
+                  <div className="custom-select">
+                    <button
+                      type="button"
+                      className="custom-select-trigger"
+                      onClick={() => toggleSelect('probabilidad')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openSelect === 'probabilidad'}
+                    >
+                      <span>{form.probabilidad}</span>
+                      <span className="custom-select-arrow">⌄</span>
+                    </button>
+                    {openSelect === 'probabilidad' && (
+                      <div className="custom-select-menu" role="listbox" aria-label="Probabilidad inherente">
+                        {matrixProbabilidades.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={`custom-select-option ${form.probabilidad === item ? 'active' : ''}`}
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, probabilidad: item }));
+                              setOpenSelect(null);
+                            }}
+                            role="option"
+                            aria-selected={form.probabilidad === item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+                <label>
+                  Impacto inherente
+                  <div className="custom-select">
+                    <button
+                      type="button"
+                      className="custom-select-trigger"
+                      onClick={() => toggleSelect('impacto')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openSelect === 'impacto'}
+                    >
+                      <span>{form.impacto}</span>
+                      <span className="custom-select-arrow">⌄</span>
+                    </button>
+                    {openSelect === 'impacto' && (
+                      <div className="custom-select-menu" role="listbox" aria-label="Impacto inherente">
+                        {matrixImpactos.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={`custom-select-option ${form.impacto === item ? 'active' : ''}`}
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, impacto: item }));
+                              setOpenSelect(null);
+                            }}
+                            role="option"
+                            aria-selected={form.impacto === item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+                <label>
+                  Probabilidad residual
+                  <div className="custom-select">
+                    <button
+                      type="button"
+                      className="custom-select-trigger"
+                      onClick={() => toggleSelect('probabilidadResidual')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openSelect === 'probabilidadResidual'}
+                    >
+                      <span>{form.probabilidadResidual || 'Sin definir'}</span>
+                      <span className="custom-select-arrow">⌄</span>
+                    </button>
+                    {openSelect === 'probabilidadResidual' && (
+                      <div className="custom-select-menu" role="listbox" aria-label="Probabilidad residual">
+                        <button
+                          type="button"
+                          className={`custom-select-option ${!form.probabilidadResidual ? 'active' : ''}`}
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, probabilidadResidual: '' }));
+                            setOpenSelect(null);
+                          }}
+                          role="option"
+                          aria-selected={!form.probabilidadResidual}
+                        >
+                          Sin definir
+                        </button>
+                        {matrixProbabilidades.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={`custom-select-option ${form.probabilidadResidual === item ? 'active' : ''}`}
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, probabilidadResidual: item }));
+                              setOpenSelect(null);
+                            }}
+                            role="option"
+                            aria-selected={form.probabilidadResidual === item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+                <label>
+                  Impacto residual
+                  <div className="custom-select">
+                    <button
+                      type="button"
+                      className="custom-select-trigger"
+                      onClick={() => toggleSelect('impactoResidual')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openSelect === 'impactoResidual'}
+                    >
+                      <span>{form.impactoResidual || 'Sin definir'}</span>
+                      <span className="custom-select-arrow">⌄</span>
+                    </button>
+                    {openSelect === 'impactoResidual' && (
+                      <div className="custom-select-menu" role="listbox" aria-label="Impacto residual">
+                        <button
+                          type="button"
+                          className={`custom-select-option ${!form.impactoResidual ? 'active' : ''}`}
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, impactoResidual: '' }));
+                            setOpenSelect(null);
+                          }}
+                          role="option"
+                          aria-selected={!form.impactoResidual}
+                        >
+                          Sin definir
+                        </button>
+                        {matrixImpactos.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={`custom-select-option ${form.impactoResidual === item ? 'active' : ''}`}
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, impactoResidual: item }));
+                              setOpenSelect(null);
+                            }}
+                            role="option"
+                            aria-selected={form.impactoResidual === item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              <label>
+                Controles existentes
+                <textarea
+                  value={form.controlesExistentes}
+                  onChange={(e) => setForm((prev) => ({ ...prev, controlesExistentes: e.target.value }))}
+                  rows={3}
+                  placeholder="Controles actuales que ya reducen el riesgo."
+                />
+              </label>
+
+              <div className="form-grid form-grid-2">
+                <label>
+                  Tipo de control
+                  <input
+                    value={form.tipoControl}
+                    onChange={(e) => setForm((prev) => ({ ...prev, tipoControl: e.target.value }))}
+                    placeholder="Preventivo, detectivo, correctivo..."
+                  />
+                </label>
+                <label>
+                  Valoración del control
+                  <input
+                    value={form.valoracionControl}
+                    onChange={(e) => setForm((prev) => ({ ...prev, valoracionControl: e.target.value }))}
+                    placeholder="Alta, media, baja"
+                  />
+                </label>
+              </div>
+
+              <label>
+                Tratamiento
+                <textarea
+                  value={form.tratamiento}
+                  onChange={(e) => setForm((prev) => ({ ...prev, tratamiento: e.target.value }))}
+                  rows={3}
+                  placeholder="Aceptar, mitigar, transferir o evitar."
+                />
+              </label>
+
+              <label>
+                Acciones de mitigación
+                <textarea
+                  value={form.accionesMitigacion}
+                  onChange={(e) => setForm((prev) => ({ ...prev, accionesMitigacion: e.target.value }))}
+                  rows={3}
+                  placeholder="Acciones concretas para reducir probabilidad o impacto."
+                />
+              </label>
+
+              <div className="form-grid form-grid-2">
+                <label>
+                  Entidad responsable
+                  <input
+                    value={form.entidadResponsable}
+                    onChange={(e) => setForm((prev) => ({ ...prev, entidadResponsable: e.target.value }))}
+                    placeholder="Secretaría TIC, despacho..."
+                  />
+                </label>
+                <label>
+                  Rol responsable
+                  <input
+                    value={form.rolResponsable}
+                    onChange={(e) => setForm((prev) => ({ ...prev, rolResponsable: e.target.value }))}
+                    placeholder="Gerente del proyecto, líder..."
+                  />
+                </label>
+                <label>
+                  Fecha de la acción
+                  <input
+                    type="date"
+                    value={form.fechaAccion}
+                    onChange={(e) => setForm((prev) => ({ ...prev, fechaAccion: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Evidencia / Indicador
+                  <input
+                    value={form.evidenciaIndicador}
+                    onChange={(e) => setForm((prev) => ({ ...prev, evidenciaIndicador: e.target.value }))}
+                    placeholder="Cómo se verificará el control"
+                  />
+                </label>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" className="btn-secondary" onClick={closeModal}>
+                  Cancelar
+                </button>
+                <button className="btn-primary" disabled={!canEdit || saving} type="submit">
+                  <Save size={16} /> {editingId ? 'Guardar cambios' : 'Crear riesgo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {matrixHelpOpen && (
+        <div className="matrix-help-overlay" role="presentation" onClick={() => setMatrixHelpOpen(false)}>
+          <div
+            className="matrix-help-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="matrix-help-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="matrix-help-header">
+              <div>
+                <span className="panel-chip">Referencia rápida</span>
+                <h2 id="matrix-help-title">Cómo funciona la matriz de riesgos</h2>
+                <p>
+                  La matriz traduce probabilidad e impacto en un nivel de riesgo estandarizado. El color ayuda a
+                  leer la severidad de un vistazo y el control siempre debe bajar el residual.
+                </p>
+                <div className="matrix-help-summary">
+                  <span className="summary-pill success">Tratados: {treatmentStats.TRATADO}</span>
+                  <span className="summary-pill warning">Pendientes: {treatmentStats.PENDIENTE}</span>
+                </div>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={() => setMatrixHelpOpen(false)} aria-label="Cerrar">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="matrix-help-content">
+              <section className="matrix-help-notes">
+                <article>
+                  <span>1. Probabilidad</span>
+                  <strong>Qué tan posible es que ocurra el evento.</strong>
+                </article>
+                <article>
+                  <span>2. Impacto</span>
+                  <strong>Qué tan grave sería si el riesgo ocurre.</strong>
+                </article>
+                <article>
+                  <span>3. Nivel resultante</span>
+                  <strong>El sistema cruza ambos valores y asigna BAJO, MODERADO, ALTO o EXTREMO.</strong>
+                </article>
+                <article>
+                  <span>4. Residual</span>
+                  <strong>Después de controles, el nivel esperado debe bajar si la mitigación funciona.</strong>
+                </article>
+              </section>
+
+              <section className="matrix-help-sample">
+                <div className="panel-title compact">
+                  <div>
+                    <h3>Lectura visual</h3>
+                    <span className="panel-subtitle">Filas = probabilidad, columnas = impacto</span>
+                  </div>
+                  <span className="panel-chip">{matrix.length} cruces</span>
+                </div>
+                <div className="matrix-grid-preview matrix-grid-preview-modal">
+                  <div className="matrix-grid-header empty"></div>
+                  {matrixImpactos.map((impacto) => (
+                    <div key={impacto} className="matrix-grid-header">
+                      {impacto}
+                    </div>
+                  ))}
+                  {matrixRows.map((row) => (
+                    <Fragment key={row.prob}>
+                      <div className="matrix-grid-header row">{row.prob}</div>
+                      {row.cells.map((cell, index) => (
+                        <div
+                          key={`${row.prob}-${matrixImpactos[index]}`}
+                          className={`matrix-grid-cell ${cell?.nivel ? normalizeRiskLevel(cell.nivel).toLowerCase() : 'vacio'}`}
+                          style={cell?.color ? { borderColor: cell.color } : undefined}
+                        >
+                          {cell ? (
+                            <>
+                              <strong>{formatRiskLevelLabel(cell.nivel)}</strong>
+                              <span>
+                                {cell.probabilidad} · {cell.impacto}
+                              </span>
+                            </>
+                          ) : (
+                            <span>Sin dato</span>
+                          )}
+                        </div>
+                      ))}
+                    </Fragment>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

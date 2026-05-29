@@ -7,10 +7,43 @@
 }
 
 .projects-header {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.projects-header__topbar {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 12%, transparent), transparent 45%),
+    linear-gradient(180deg, var(--bg-card), var(--bg-muted));
+  box-shadow: var(--shadow-premium);
+}
+
+.header-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.header-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-main) 82%, transparent);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .header-title-group h1 {
@@ -25,13 +58,33 @@
   font-size: 0.95rem;
 }
 
+.btn-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+  color: var(--text-main);
+  padding: 0.72rem 1rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-toolbar:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
+}
+
 .btn-new-project {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: #246345;
+  background: linear-gradient(180deg, #2c7a54, #245d42);
   color: white;
-  padding: 0.7rem 1.25rem;
+  padding: 0.72rem 1.25rem;
   border-radius: 10px;
   border: none;
   font-weight: 600;
@@ -42,22 +95,25 @@
 }
 
 .btn-new-project:hover {
-  background-color: #1a4d35;
   transform: translateY(-1px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .filters-section {
-  display: flex;
-  gap: 1rem;
+  display: grid;
+  gap: 0.9rem;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+  background: linear-gradient(180deg, var(--bg-card), color-mix(in srgb, var(--bg-card) 86%, var(--bg-muted)));
+  box-shadow: var(--shadow-soft);
 }
 
 .search-box {
   position: relative;
-  flex: 1;
-  min-width: 300px;
+  width: 100%;
 }
 
 .search-icon {
@@ -86,7 +142,8 @@
 }
 
 .select-filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -107,27 +164,61 @@
   border-color: var(--primary);
 }
 
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filter-chip--clear {
+  border-color: color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-main) 82%, transparent);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 768px) {
-  .projects-header {
+  .projects-header__topbar {
     flex-direction: column;
-    gap: 1rem;
+    align-items: stretch;
   }
-  
-  .search-box {
-    min-width: 100%;
-  }
-  
-  .select-filters {
+
+  .header-actions-group {
     width: 100%;
   }
-  
+
+  .btn-toolbar,
+  .btn-new-project {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .filters-section {
+    padding: 0.9rem;
+  }
+
+  .select-filters {
+    grid-template-columns: 1fr;
+  }
+
   .filter-select {
-    flex: 1;
     min-width: 0;
   }
 }

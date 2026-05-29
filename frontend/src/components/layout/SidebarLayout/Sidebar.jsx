@@ -13,7 +13,8 @@ import {
   Activity,
   Calendar,
   AlertTriangle,
-  CheckSquare
+  CheckSquare,
+  BarChart3
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import dashboardService from '../../../services/dashboardService';
@@ -97,6 +98,7 @@ const Sidebar = () => {
       category: 'CONSULTAS',
       items: [
         { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> },
+        { name: 'Analíticas', path: '/analytics', icon: <BarChart3 size={22} /> },
       ]
     },
     ...(canConfigure ? [{

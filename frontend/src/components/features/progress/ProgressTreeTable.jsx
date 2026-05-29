@@ -3,14 +3,18 @@ import {
   Lock,
   FileText,
   Upload,
+  Eye,
   ChevronDown,
   ChevronRight,
   Layers,
   Target,
   Package,
   Download,
+  X,
+  Loader2,
 } from 'lucide-react';
 import EvidenceUpload from '../../common/EvidenceUpload';
+import apiClient from '../../../api/axiosConfig';
 import { usePermission } from '../../../hooks/usePermission';
 
 const toNumber = (value) => {
@@ -19,11 +23,53 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const toDisplayPercent = (value) => {
+  const numeric = toNumber(value);
+  if (Math.abs(numeric) <= 1) {
+    return numeric * 100;
+  }
+  return numeric;
+};
+
 const getEvidenciaFile = (ent) => ent.evidenciaPdf || ent.archivo || ent.evidencia || null;
 const getEvidenciaUrl = (ent) => ent.evidenciaUrl || ent.descargaUrl || null;
 const getEntregableId = (ent) => ent.entregableId || ent.id;
 const getFechaEntrega = (ent) => ent.fechaEntrega || ent.fechaEntregaReal || null;
 const getDiasAtraso = (ent) => ent.diasAtraso ?? ent.atraso ?? null;
+
+const normalizeEvidencePath = (url) => {
+  if (!url) return '';
+  return String(url)
+    .trim()
+    .replace(/^https?:\/\/[^/]+\/api\/v1/i, '')
+    .replace(/^\/api\/v1/i, '')
+    .replace(/^\//, '');
+};
+
+const isPdfBlob = async (blob) => {
+  if (!(blob instanceof Blob) || blob.size === 0) {
+    return false;
+  }
+  const signature = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+  const text = new TextDecoder('ascii').decode(signature);
+  return text.startsWith('%PDF-');
+};
+
+const getEvidenceBlob = async (url) => {
+  const path = normalizeEvidencePath(url);
+  if (!path) {
+    throw new Error('No se encontró la URL de la evidencia.');
+  }
+
+  const response = await apiClient.get(path, { responseType: 'blob' });
+  const blob = response.data;
+
+  if (!(await isPdfBlob(blob))) {
+    throw new Error('El archivo recibido no es un PDF válido.');
+  }
+
+  return blob;
+};
 
 const semaforoDias = (dias, tieneEvidencia) => {
   if (dias == null) return 'neutral';
@@ -39,7 +85,7 @@ const NodeMetric = ({ value, suffix = '%' }) => (
   </span>
 );
 
-const TreeTableRow = ({ fase, isExpanded, toggleNode, onOpenEvidence, onDownloadEvidencia }) => {
+const TreeTableRow = ({ fase, isExpanded, toggleNode, onOpenEvidence, onPreviewEvidence }) => {
   const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
   const ponderacionFase = toNumber(fase.ponderacion);
   const programadoFase = toNumber(fase.progresoProgramado ?? fase.avanceProgramado ?? fase.avance ?? 0);
@@ -123,9 +169,13 @@ const TreeTableRow = ({ fase, isExpanded, toggleNode, onOpenEvidence, onDownload
               const programadoEnt = toNumber(ent.progresoProgramado ?? ent.avanceProgramado ?? ent.avance ?? 0);
               const ejecutadoEnt = toNumber(ent.progresoEjecutado ?? ent.avance ?? 0);
               const diferenciaEnt = toNumber(ent.diferencia ?? (programadoEnt - ejecutadoEnt));
-              const eficaciaEnt = toNumber(ent.eficacia ?? (programadoEnt === 0 ? 1 : ejecutadoEnt / programadoEnt));
+              const eficaciaEnt = toDisplayPercent(ent.eficacia ?? (programadoEnt === 0 ? 1 : ejecutadoEnt / programadoEnt));
               const diasAtraso = getDiasAtraso(ent);
               const semaforo = semaforoDias(diasAtraso, tieneDocumento);
+              const fechaEntregaValida = fechaEntrega && ent.fechaLimite
+                ? new Date(fechaEntrega) <= new Date(ent.fechaLimite)
+                : false;
+              const eficienciaEnt = tieneDocumento && fechaEntregaValida ? 100 : 0;
 
               return (
                 <tr key={entregableId} className="row-deliverable">
@@ -142,10 +192,11 @@ const TreeTableRow = ({ fase, isExpanded, toggleNode, onOpenEvidence, onDownload
                           className="file-link-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDownloadEvidencia(ent);
+                            onPreviewEvidence(ent);
                           }}
+                          title="Ver evidencia"
                         >
-                          <FileText size={14} /> {evidenciaFile} <Download size={12} />
+                          <Eye size={14} /> {evidenciaFile}
                         </button>
                       )}
                     </div>
@@ -162,8 +213,8 @@ const TreeTableRow = ({ fase, isExpanded, toggleNode, onOpenEvidence, onDownload
                   </td>
                   <td>{fechaEntrega || '—'}</td>
                   <td>{diasAtraso == null ? '—' : `${diasAtraso >= 0 ? '+' : ''}${diasAtraso}d`}</td>
-                  <td>{(eficaciaEnt * 100).toFixed(1)}%</td>
-                  <td>{tieneDocumento ? '100.0%' : '0.0%'}</td>
+                  <td>{eficaciaEnt.toFixed(1)}%</td>
+                  <td>{eficienciaEnt.toFixed(1)}%</td>
                   <td className="action-col">
                     {!tieneDocumento && canUploadEvidence ? (
                       <button
@@ -189,6 +240,15 @@ const TreeTableRow = ({ fase, isExpanded, toggleNode, onOpenEvidence, onDownload
 
 const ProgressTreeTable = ({ progressData, excelSummary, isExpanded, toggleNode, proyectoId, onEvidenceUploaded }) => {
   const [showEvidenceModal, setShowEvidenceModal] = React.useState(null);
+  const [previewEvidence, setPreviewEvidence] = React.useState({ open: false, loading: false, error: '', name: '', url: '', objectUrl: '' });
+
+  React.useEffect(() => {
+    return () => {
+      if (previewEvidence.objectUrl) {
+        window.URL.revokeObjectURL(previewEvidence.objectUrl);
+      }
+    };
+  }, [previewEvidence.objectUrl]);
 
   const handleOpenEvidence = (entregableId) => setShowEvidenceModal(entregableId);
   const handleCloseEvidence = () => setShowEvidenceModal(null);
@@ -197,13 +257,21 @@ const ProgressTreeTable = ({ progressData, excelSummary, isExpanded, toggleNode,
     if (onEvidenceUploaded) onEvidenceUploaded();
   };
 
+  const setPreviewError = (message) => {
+    setPreviewEvidence((current) => ({
+      ...current,
+      loading: false,
+      error: message,
+      objectUrl: '',
+    }));
+  };
+
   const handleDownloadEvidencia = async (ent) => {
     const url = getEvidenciaUrl(ent);
     const file = getEvidenciaFile(ent);
     if (!url) return;
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
+      const blob = await getEvidenceBlob(url);
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
@@ -213,17 +281,101 @@ const ProgressTreeTable = ({ progressData, excelSummary, isExpanded, toggleNode,
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch {
-      window.open(url, '_blank');
+      setPreviewError('No fue posible descargar la evidencia. El archivo no es un PDF válido o no está disponible.');
     }
   };
+
+  const closePreviewEvidence = () => {
+    setPreviewEvidence((current) => {
+      if (current.objectUrl) {
+        window.URL.revokeObjectURL(current.objectUrl);
+      }
+      return { open: false, loading: false, error: '', name: '', url: '', objectUrl: '' };
+    });
+  };
+
+  const handlePreviewEvidencia = async (ent) => {
+    const url = getEvidenciaUrl(ent);
+    const file = getEvidenciaFile(ent);
+    if (!url) return;
+
+    setPreviewEvidence((current) => {
+      if (current.objectUrl) {
+        window.URL.revokeObjectURL(current.objectUrl);
+      }
+      return {
+        open: true,
+        loading: true,
+        error: '',
+        name: file || 'evidencia.pdf',
+        url,
+        objectUrl: '',
+      };
+    });
+
+    try {
+      const blob = await getEvidenceBlob(url);
+      const objectUrl = window.URL.createObjectURL(blob);
+      setPreviewEvidence((current) => ({
+        ...current,
+        loading: false,
+        objectUrl,
+      }));
+    } catch (error) {
+      console.error('Preview error:', error);
+      setPreviewError('No fue posible previsualizar la evidencia. El archivo no es un PDF válido o no está disponible.');
+    }
+  };
+
+  React.useEffect(() => {
+    if (!previewEvidence.open) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closePreviewEvidence();
+      }
+    };
+
+    document.body.classList.add('modal-open');
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.classList.remove('modal-open');
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [previewEvidence.open]);
 
   const avanceTotal = toNumber(progressData.progresoEjecutado ?? progressData.avanceTotal ?? 0);
   const corte = progressData.corte ? new Date(progressData.corte).toLocaleDateString('es-CO') : new Date().toLocaleDateString('es-CO');
   const dependencia = excelSummary?.dependencia || progressData.dependencia || '—';
-  const entregablesProgramados = toNumber(excelSummary?.programadosAlCorte ?? progressData.entregablesProgramadosAlCorte ?? progressData.entregablesProgramados ?? 0);
-  const entregablesConformes = toNumber(excelSummary?.entregadosAlCorte ?? progressData.entregablesConformes ?? progressData.entregablesConformidad ?? 0);
-  const eficacia = toNumber(excelSummary?.eficacia ?? progressData.eficacia ?? (entregablesProgramados === 0 ? 1 : entregablesConformes / entregablesProgramados));
-  const eficiencia = toNumber(excelSummary?.eficiencia ?? progressData.eficiencia ?? (entregablesConformes === 0 ? 1 : entregablesConformes / Math.max(1, progressData.entregablesTotal || 1)));
+  const entregablesProgramados = toNumber(
+    progressData.entregablesProgramadosAlCorte
+    ?? excelSummary?.programadosAlCorte
+    ?? progressData.entregablesProgramados
+    ?? 0,
+  );
+  const entregablesConformes = toNumber(
+    progressData.entregablesEntregadosAlCorte
+    ?? excelSummary?.entregadosAlCorte
+    ?? progressData.entregablesConformes
+    ?? progressData.entregablesConformidad
+    ?? 0,
+  );
+  const entregablesATiempo = toNumber(
+    progressData.entregablesEntregadosATiempo
+    ?? excelSummary?.entregadosATiempo
+    ?? 0,
+  );
+  const eficacia = toDisplayPercent(
+    progressData.eficacia
+    ?? excelSummary?.eficacia
+    ?? (entregablesProgramados === 0 ? 0 : entregablesConformes / entregablesProgramados),
+  );
+  const eficiencia = toDisplayPercent(
+    progressData.eficiencia
+    ?? excelSummary?.eficiencia
+    ?? (entregablesConformes === 0 ? 0 : entregablesATiempo / entregablesConformes),
+  );
 
   return (
     <div className="detailed-table-container">
@@ -286,8 +438,8 @@ const ProgressTreeTable = ({ progressData, excelSummary, isExpanded, toggleNode,
               <td>{toNumber(progressData.entregablesTotal).toFixed(0)}</td>
               <td>{entregablesProgramados.toFixed(0)}</td>
               <td>{entregablesConformes.toFixed(0)}</td>
-              <td>{(eficacia * 100).toFixed(1)}%</td>
-              <td>{(eficiencia * 100).toFixed(1)}%</td>
+              <td>{eficacia.toFixed(1)}%</td>
+              <td>{eficiencia.toFixed(1)}%</td>
               <td>{dependencia}</td>
             </tr>
 
@@ -298,7 +450,7 @@ const ProgressTreeTable = ({ progressData, excelSummary, isExpanded, toggleNode,
                 isExpanded={isExpanded}
                 toggleNode={toggleNode}
                 onOpenEvidence={handleOpenEvidence}
-                onDownloadEvidencia={handleDownloadEvidencia}
+                onPreviewEvidence={handlePreviewEvidencia}
               />
             ))}
           </tbody>
@@ -312,6 +464,83 @@ const ProgressTreeTable = ({ progressData, excelSummary, isExpanded, toggleNode,
           onClose={handleCloseEvidence}
           onSuccess={handleEvidenceSuccess}
         />
+      )}
+
+      {previewEvidence.open && (
+        <div className="evidence-preview-overlay" onClick={closePreviewEvidence}>
+          <div className="evidence-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="evidence-preview-header">
+              <div>
+                <span className="evidence-preview-kicker">Evidencia PDF</span>
+                <h3>{previewEvidence.name}</h3>
+              </div>
+              <button
+                type="button"
+                className="evidence-preview-close"
+                onClick={closePreviewEvidence}
+                aria-label="Cerrar vista previa"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="evidence-preview-body">
+              {previewEvidence.loading && (
+                <div className="evidence-preview-loading">
+                  <Loader2 size={28} className="animate-spin" />
+                  <p>Preparando vista previa...</p>
+                </div>
+              )}
+
+              {!previewEvidence.loading && previewEvidence.error && (
+                <div className="evidence-preview-error">
+                  <p>{previewEvidence.error}</p>
+                  <button
+                    type="button"
+                    className="evidence-preview-download"
+                    onClick={() => handleDownloadEvidencia({ evidenciaUrl: previewEvidence.url, evidenciaPdf: previewEvidence.name })}
+                  >
+                    <Download size={14} />
+                    Descargar PDF
+                  </button>
+                </div>
+              )}
+
+              {!previewEvidence.loading && !previewEvidence.error && previewEvidence.objectUrl && (
+                <iframe
+                  className="evidence-preview-frame"
+                  src={previewEvidence.objectUrl}
+                  title={previewEvidence.name}
+                />
+              )}
+            </div>
+
+            <div className="evidence-preview-footer">
+              <button type="button" className="evidence-preview-secondary" onClick={closePreviewEvidence}>
+                Cerrar
+              </button>
+              {previewEvidence.objectUrl ? (
+                <a
+                  className="evidence-preview-download"
+                  href={previewEvidence.objectUrl}
+                  download={previewEvidence.name}
+                >
+                  <Download size={14} />
+                  Descargar PDF
+                </a>
+              ) : previewEvidence.url ? (
+                <button
+                  type="button"
+                  className="evidence-preview-download"
+                  onClick={() => handleDownloadEvidencia({ evidenciaUrl: previewEvidence.url, evidenciaPdf: previewEvidence.name })}
+                >
+                  <Download size={14} />
+                  Descargar PDF
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

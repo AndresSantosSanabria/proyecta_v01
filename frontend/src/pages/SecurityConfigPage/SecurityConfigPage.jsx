@@ -1,28 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import {
-  ShieldCheck,
-  KeyRound,
-  Users,
-  FolderKanban,
+  BadgeCheck,
+  Ban,
+  CircleAlert,
+  Clock3,
+  Pencil,
+  Plus,
+  RefreshCw,
   Save,
   Search,
-  RefreshCw,
-  UserPlus,
-  BadgeCheck,
-  CircleAlert,
-  ListChecks,
-  Eye,
-  AlertTriangle,
+  ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
-import projectService from '../../services/projectService';
 import './SecurityConfigPage.css';
 
-const emptyAssignment = {
-  username: '',
-  proyectoId: '',
-  cargo: '',
+const SECURITY_TABS = {
+  USERS: 'usuarios',
+  ROLES: 'roles',
 };
 
 const emptyUserForm = {
@@ -30,6 +26,7 @@ const emptyUserForm = {
   nombre: '',
   correo: '',
   dependencia: '',
+  rol: '',
   activo: true,
 };
 
@@ -41,238 +38,190 @@ const emptyRoleForm = {
   activo: true,
 };
 
-const cargoParameterKey = 'seguridad_cargos_asignacion';
+const ACTION_ORDER = ['VER', 'LISTAR', 'CONSULTAR', 'DESCARGAR', 'CREAR', 'REGISTRAR', 'CARGAR', 'SUBIR', 'EDITAR', 'ACTUALIZAR', 'MODIFICAR'];
 
-const sectionItems = [
-  { key: 'usuarios', label: 'Usuarios', description: 'Ver y editar cuentas' },
-  { key: 'roles', label: 'Roles', description: 'Administrar los perfiles' },
-  { key: 'matriz', label: 'Matriz', description: 'Permisos globales' },
-  { key: 'cobertura', label: 'Cobertura', description: 'Pruebas por rol' },
-  { key: 'asignaciones', label: 'Asignaciones', description: 'Vincular usuarios' },
-];
-
-const coverageModules = [
-  { key: 'dashboard', label: 'Dashboard', requiredPermissions: [], note: 'Acceso base de aplicación' },
-  { key: 'projects', label: 'Proyectos', requiredPermissions: ['PROYECTO:VER'], note: 'Listado y detalle' },
-  { key: 'progress', label: 'Avance del proyecto', requiredPermissions: ['PROYECTO:VER'], note: 'Seguimiento operativo' },
-  { key: 'schedule', label: 'Cronograma', requiredPermissions: ['PROYECTO:VER', 'CRONOGRAMA:CARGAR'], note: 'Consulta y carga' },
-  { key: 'risk', label: 'Matriz de riesgos', requiredPermissions: ['PROYECTO:VER'], note: 'Sin permiso específico propio' },
-  { key: 'closure', label: 'Cierre del proyecto', requiredPermissions: ['PROYECTO:CERRAR'], note: 'Cierre formal' },
-  { key: 'reports', label: 'Reportes', requiredPermissions: ['PROYECTO:VER'], note: 'Consulta de analítica' },
-  { key: 'security', label: 'Seguridad del sistema', requiredPermissions: ['SISTEMA:CONFIGURAR'], note: 'Administración central' },
-];
-
-const coverageFindings = [
-  {
-    key: 'reportes',
-    title: 'Reportes',
-    level: 'Pendiente',
-    detail: 'No se ve un permiso fino en el controlador de reportes. Conviene protegerlo por funcionalidad.',
-  },
-  {
-    key: 'riesgos',
-    title: 'Matriz de riesgos',
-    level: 'Parcial',
-    detail: 'Tiene acceso base, pero no un permiso dedicado por acción. Puede limitar la segmentacion por rol.',
-  },
-  {
-    key: 'jerarquia',
-    title: 'Jerarquia del proyecto',
-    level: 'Parcial',
-    detail: 'Revisar la exposicion del controlador para asegurar permiso por operacion y no solo por pantalla.',
-  },
-];
-
-const groupLabel = (groupKey) => {
-  const labels = {
-    PROYECTO: 'Gestión de Proyectos',
-    ENTREGABLE: 'Entregables',
-    EVIDENCIA: 'Evidencias',
-    DOCUMENTO: 'Documentos',
-    CRONOGRAMA: 'Cronograma',
-    SISTEMA: 'Administración del Sistema',
-    OTROS: 'Otros permisos',
-  };
-
-  return labels[groupKey] || groupKey;
+const roleLabels = {
+  PROYECTO: 'Gestion de Proyectos',
+  ENTREGABLE: 'Entregables',
+  EVIDENCIA: 'Evidencias',
+  DOCUMENTO: 'Documentos',
+  CRONOGRAMA: 'Cronograma',
+  SISTEMA: 'Administracion del Sistema',
+  OTROS: 'Otros permisos',
 };
 
-const parseCargoOptions = (value) => {
-  if (!value) {
-    return [];
+const normalizeRoleValue = (value) => {
+  if (!value) return '';
+  if (Array.isArray(value)) return value[0] || '';
+  return value.toString().split(',')[0].trim();
+};
+
+const formatDateTime = (value) => {
+  if (!value) return 'Sin registro';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.toString();
   }
 
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+};
+
+const getUserRoleCode = (user) => normalizeRoleValue(user?.rolCodigo || user?.rol || user?.role || user?.roles || '');
+
+const getUserRoleLabel = (user) => user?.rolNombre || user?.rolLabel || user?.rolCodigo || user?.rol || user?.role || user?.roles || '';
+
+const getUserLastAccess = (user) => (
+  user?.ultimoAcceso
+  || user?.lastLogin
+  || user?.lastAccess
+  || user?.fechaUltimoAcceso
+  || user?.updatedAt
+  || user?.fechaActualizacion
+  || null
+);
+
+const getAvatarColor = (name) => {
+  const palette = ['#2563eb', '#0f766e', '#7c3aed', '#d97706', '#059669', '#dc2626', '#0ea5e9', '#9333ea'];
+  if (!name) return palette[0];
+
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  return palette[Math.abs(hash) % palette.length];
+};
+
+const mapUserToForm = (user) => ({
+  username: user?.username || '',
+  nombre: user?.nombre || '',
+  correo: user?.correo || '',
+  dependencia: user?.dependencia || '',
+  rol: getUserRoleCode(user),
+  activo: Boolean(user?.activo),
+});
+
+const groupPermissions = (permissions) => {
+  const grouped = permissions.reduce((accumulator, permission) => {
+    const [groupKey = 'OTROS', actionKey = 'OTRO'] = (permission.codigo || '').split(':');
+    if (!accumulator[groupKey]) {
+      accumulator[groupKey] = [];
+    }
+    accumulator[groupKey].push({ ...permission, actionKey });
+    return accumulator;
+  }, {});
+
+  const order = Object.keys(roleLabels);
+
+  return Object.entries(grouped)
+    .sort(([left], [right]) => {
+      const leftIndex = order.includes(left) ? order.indexOf(left) : order.length;
+      const rightIndex = order.includes(right) ? order.indexOf(right) : order.length;
+      return leftIndex - rightIndex || left.localeCompare(right);
+    })
+    .map(([groupKey, groupPermissionsList]) => ({
+      key: groupKey,
+      label: roleLabels[groupKey] || groupKey,
+      permissions: groupPermissionsList.sort((left, right) => {
+        const leftIndex = ACTION_ORDER.indexOf(left.actionKey);
+        const rightIndex = ACTION_ORDER.indexOf(right.actionKey);
+        if (leftIndex === -1 && rightIndex === -1) return left.nombre.localeCompare(right.nombre);
+        if (leftIndex === -1) return 1;
+        if (rightIndex === -1) return -1;
+        return leftIndex - rightIndex || left.nombre.localeCompare(right.nombre);
+      }),
+    }));
+};
+
+const emptyMessage = (title, detail) => (
+  <div className="empty-state">
+    <strong>{title}</strong>
+    <span>{detail}</span>
+  </div>
+);
+
+const extractApiDetail = (error) => {
+  return error?.response?.data?.detail
+    || error?.response?.data?.title
+    || error?.message
+    || '';
 };
 
 const SecurityConfigPage = () => {
   const { permissions: authPermissions, isAdminLocal, transversal, hasRole } = useAuthContext();
+
+  const [activeSection, setActiveSection] = useState(SECURITY_TABS.USERS);
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
-  const [systemParameters, setSystemParameters] = useState([]);
-  const [selectedParameterKey, setSelectedParameterKey] = useState(cargoParameterKey);
-  const [creatingParameter, setCreatingParameter] = useState(false);
-  const [parameterForm, setParameterForm] = useState({
-    key: cargoParameterKey,
-    value: '',
-    descripcion: '',
-  });
   const [users, setUsers] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [cargoOptions, setCargoOptions] = useState([]);
-  const [matrix, setMatrix] = useState({});
-  const [selectedUserSearch, setSelectedUserSearch] = useState('');
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedRoleCode, setSelectedRoleCode] = useState('');
-  const [roleTemplateCode, setRoleTemplateCode] = useState('');
-  const [roleForm, setRoleForm] = useState(emptyRoleForm);
-  const [creatingRole, setCreatingRole] = useState(false);
-  const [userForm, setUserForm] = useState(emptyUserForm);
-  const [assignment, setAssignment] = useState(emptyAssignment);
-  const [assignmentPreview, setAssignmentPreview] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [savingRole, setSavingRole] = useState(false);
-  const [savingMatrix, setSavingMatrix] = useState(false);
-  const [savingUser, setSavingUser] = useState(false);
-  const [savingAssignment, setSavingAssignment] = useState(false);
-  const [savingParameter, setSavingParameter] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [activeSection, setActiveSection] = useState('usuarios');
+  const [usersLoadError, setUsersLoadError] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [roleSearch, setRoleSearch] = useState('');
+
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [userForm, setUserForm] = useState(emptyUserForm);
+  const [savingUser, setSavingUser] = useState(false);
+
+  const [selectedRoleCode, setSelectedRoleCode] = useState('');
+  const [creatingRole, setCreatingRole] = useState(false);
+  const [roleEditorOpen, setRoleEditorOpen] = useState(false);
+  const [roleTemplateCode, setRoleTemplateCode] = useState('');
+  const [roleForm, setRoleForm] = useState(emptyRoleForm);
+  const [roleDraftPermissions, setRoleDraftPermissions] = useState(new Set());
+  const [savingRole, setSavingRole] = useState(false);
+  const [savingPermissions, setSavingPermissions] = useState(false);
+
+  const canConfigure = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || authPermissions.includes('SISTEMA:CONFIGURAR');
 
   const selectedRole = useMemo(
     () => roles.find((role) => role.codigo === selectedRoleCode) || null,
     [roles, selectedRoleCode]
   );
 
-  const permissionsByGroup = useMemo(() => {
-    return permissions.reduce((accumulator, permission) => {
-      const groupKey = (permission.codigo || 'OTROS').split(':')[0] || 'OTROS';
-      if (!accumulator[groupKey]) {
-        accumulator[groupKey] = [];
-      }
-      accumulator[groupKey].push(permission);
-      return accumulator;
-    }, {});
-  }, [permissions]);
+  const permissionGroups = useMemo(() => groupPermissions(permissions), [permissions]);
 
-  const cargoParameter = useMemo(
-    () => systemParameters.find((parameter) => parameter.key === cargoParameterKey) || null,
-    [systemParameters]
-  );
-
-  const selectedParameter = useMemo(
-    () => systemParameters.find((parameter) => parameter.key === selectedParameterKey) || null,
-    [systemParameters, selectedParameterKey]
-  );
-
-  useEffect(() => {
-    if (selectedRole) {
-      setRoleForm({
-        codigo: selectedRole.codigo || '',
-        nombre: selectedRole.nombre || '',
-        descripcion: selectedRole.descripcion || '',
-        transversal: Boolean(selectedRole.transversal),
-        activo: Boolean(selectedRole.activo),
-      });
-    }
-  }, [selectedRole]);
-
-  useEffect(() => {
-    if (creatingParameter) {
-      return;
-    }
-
-    if (!selectedParameter && systemParameters.length === 0) {
-      return;
-    }
-
-    const nextParameter = selectedParameter || cargoParameter || systemParameters[0] || null;
-    if (!nextParameter) {
-      return;
-    }
-
-    if (!selectedParameterKey && nextParameter.key && nextParameter.key !== selectedParameterKey) {
-      setSelectedParameterKey(nextParameter.key);
-    }
-
-    setParameterForm({
-      key: nextParameter.key || '',
-      value: nextParameter.value || '',
-      descripcion: nextParameter.descripcion || '',
+  const filteredUsers = useMemo(() => {
+    const query = userSearch.trim().toLowerCase();
+    if (!query) return users;
+    return users.filter((user) => {
+      const haystack = [user.nombre, user.username, user.correo, user.dependencia, getUserRoleCode(user), getUserRoleLabel(user)]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
     });
+  }, [users, userSearch]);
 
-    if (nextParameter.key === cargoParameterKey) {
-      const parsedCargoOptions = parseCargoOptions(nextParameter.value);
-      if (parsedCargoOptions.length > 0) {
-        setCargoOptions(parsedCargoOptions);
-      }
-    }
-  }, [creatingParameter, cargoParameter, selectedParameter, selectedParameterKey, systemParameters]);
-
-  useEffect(() => {
-    if (selectedParameterKey === cargoParameterKey && !creatingParameter) {
-      const parsedCargoOptions = parseCargoOptions(parameterForm.value);
-      setCargoOptions(parsedCargoOptions);
-      setAssignment((current) => ({
-        ...current,
-        cargo: parsedCargoOptions.length > 0 ? (current.cargo || parsedCargoOptions[0]) : '',
-      }));
-    }
-  }, [creatingParameter, parameterForm.value, selectedParameterKey]);
-
-  useEffect(() => {
-    if (!selectedRoleCode && roles.length > 0 && !creatingRole) {
-      setSelectedRoleCode(roles[0].codigo);
-    }
-  }, [roles, selectedRoleCode, creatingRole]);
-
-  const loadAssignmentsForUser = async (username) => {
-    if (!username) {
-      setAssignmentPreview([]);
-      return;
-    }
-
-    try {
-      const assignmentsResponse = await securityService.listAssignments(username);
-      const assignmentsData = Array.isArray(assignmentsResponse?.data) ? assignmentsResponse.data : [];
-      setAssignmentPreview(assignmentsData);
-    } catch (assignmentsError) {
-      console.error('Error cargando asignaciones del usuario:', assignmentsError);
-      setAssignmentPreview([]);
-    }
-  };
+  const filteredRoles = useMemo(() => {
+    const query = roleSearch.trim().toLowerCase();
+    if (!query) return roles;
+    return roles.filter((role) => {
+      const haystack = [role.nombre, role.codigo, role.descripcion].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [roles, roleSearch]);
 
   const loadData = async (search = '') => {
     try {
       setLoading(true);
       setError('');
 
-      let profileData = null;
-      try {
-        const profileResponse = await securityService.getAuthorization();
-        profileData = profileResponse?.data ?? null;
-      } catch (profileError) {
-        console.warn('No fue posible cargar la autorizacion actual:', profileError);
-      }
-
-      const [
-        rolesResult,
-        permissionsResult,
-        usersResult,
-        projectsResult,
-        cargosResult,
-        parametersResult,
-      ] = await Promise.allSettled([
+      const [rolesResult, permissionsResult, usersResult] = await Promise.allSettled([
         securityService.listRoles({ includeInactive: true }),
         securityService.listPermissions(),
         securityService.listUsers({ search, size: 100 }),
-        projectService.getAllUnpaged(),
-        securityService.listAssignmentCargos(),
-        securityService.listSystemParameters(),
       ]);
 
       const rolesData = rolesResult.status === 'fulfilled' && Array.isArray(rolesResult.value?.data)
@@ -284,113 +233,76 @@ const SecurityConfigPage = () => {
       const usersData = usersResult.status === 'fulfilled' && Array.isArray(usersResult.value?.data?.content)
         ? usersResult.value.data.content
         : [];
-      const projectsPayload = projectsResult.status === 'fulfilled' && Array.isArray(projectsResult.value)
-        ? projectsResult.value
-        : [];
-      const cargosData = cargosResult.status === 'fulfilled' && Array.isArray(cargosResult.value?.data)
-        ? cargosResult.value.data
-        : [];
-      const parametersData = parametersResult.status === 'fulfilled' && Array.isArray(parametersResult.value?.data)
-        ? parametersResult.value.data
-        : [];
+
+      const usersFetchFailed = usersResult.status === 'rejected';
+      setUsersLoadError(
+        usersFetchFailed
+          ? `No se pudo cargar la lista de usuarios. ${extractApiDetail(usersResult.reason)}`
+          : ''
+      );
 
       setRoles(rolesData);
       setPermissions(permissionsData);
-      setSystemParameters(parametersData);
       setUsers(usersData);
-      setProjects(projectsPayload);
-      const cargoParameterData = parametersData.find((parameter) => parameter.key === cargoParameterKey) || null;
-      const derivedCargoOptions = parseCargoOptions(cargoParameterData?.value);
-      setCargoOptions(derivedCargoOptions.length > 0 ? derivedCargoOptions : cargosData);
-      setAssignment((current) => ({
-        ...current,
-        cargo: current.cargo || derivedCargoOptions[0] || cargosData[0] || '',
-      }));
 
-      const nextMatrix = {};
-      rolesData.forEach((role) => {
-        nextMatrix[role.codigo] = new Set((role.permisos || []).map((permiso) => permiso.codigo));
-      });
-      setMatrix(nextMatrix);
+      if (!creatingRole) {
+        const nextRole = (selectedRoleCode && rolesData.find((role) => role.codigo === selectedRoleCode))
+          || rolesData[0]
+          || null;
 
-      if (selectedRoleCode && !rolesData.some((role) => role.codigo === selectedRoleCode)) {
-        setSelectedRoleCode(rolesData[0]?.codigo || '');
-      }
-      if (!selectedRoleCode && rolesData.length > 0) {
-        setSelectedRoleCode(rolesData[0].codigo);
-      }
-
-      if (!selectedParameterKey && parametersData.length > 0) {
-        setSelectedParameterKey(parametersData[0].key || cargoParameterKey);
+        if (nextRole) {
+          setSelectedRoleCode(nextRole.codigo);
+          setRoleForm({
+            codigo: nextRole.codigo || '',
+            nombre: nextRole.nombre || '',
+            descripcion: nextRole.descripcion || '',
+            transversal: Boolean(nextRole.transversal),
+            activo: Boolean(nextRole.activo),
+          });
+          setRoleDraftPermissions(new Set((nextRole.permisos || []).map((permiso) => permiso.codigo)));
+        } else {
+          setSelectedRoleCode('');
+          setRoleForm(emptyRoleForm);
+          setRoleDraftPermissions(new Set());
+        }
       }
 
       if (selectedUser?.username) {
-        await loadAssignmentsForUser(selectedUser.username);
-      } else if (profileData?.username) {
-        setAssignmentPreview(profileData.proyectosAsignados || []);
+        const freshUser = usersData.find((item) => item.username === selectedUser.username) || null;
+        if (freshUser) {
+          setSelectedUser(freshUser);
+          setUserForm(mapUserToForm(freshUser));
+        } else {
+          setSelectedUser(null);
+          setUserForm(emptyUserForm);
+        }
       }
     } catch (fetchError) {
-      console.error('Error cargando configuracion administrativa:', fetchError);
-      setError('No fue posible cargar la configuracion dinamica de seguridad.');
+      console.error('Error cargando configuracion de seguridad:', fetchError);
+      setError('No fue posible cargar la configuracion de seguridad.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData().catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleReload = () => {
-    loadData(selectedUserSearch).catch(console.error);
+    loadData(userSearch).catch(console.error);
   };
 
   const handleSearch = async (event) => {
     event.preventDefault();
-    await loadData(selectedUserSearch);
+    await loadData(userSearch);
   };
 
-  const togglePermission = (roleCode, permissionCode) => {
-    setMatrix((current) => {
-      const next = { ...current };
-      const currentSet = new Set(next[roleCode] || []);
-      if (currentSet.has(permissionCode)) {
-        currentSet.delete(permissionCode);
-      } else {
-        currentSet.add(permissionCode);
-      }
-      next[roleCode] = currentSet;
-      return next;
-    });
-  };
-
-  const handleSaveMatrix = async () => {
-    if (!canConfigure) {
-      setError('No tienes permisos para modificar la matriz de seguridad.');
-      return;
-    }
-
-    try {
-      setSavingMatrix(true);
-      setError('');
-      const payload = Object.fromEntries(
-        Object.entries(matrix).map(([roleCode, permissionsSet]) => [roleCode, Array.from(permissionsSet)])
-      );
-      await securityService.saveRolePermissions(payload);
-      setNotice('La matriz de permisos se actualizo correctamente.');
-      await loadData(selectedUserSearch);
-    } catch (saveError) {
-      console.error('Error guardando matriz:', saveError);
-      setError('No fue posible guardar la matriz de permisos.');
-    } finally {
-      setSavingMatrix(false);
-    }
-  };
-
-  const resetRoleForm = () => {
-    setCreatingRole(false);
-    setRoleForm(emptyRoleForm);
-    setSelectedRoleCode('');
+  const handleUserFieldChange = (field) => (event) => {
+    const value = field === 'activo' ? event.target.checked : event.target.value;
+    setUserForm((current) => ({ ...current, [field]: value }));
   };
 
   const handleRoleFieldChange = (field) => (event) => {
@@ -398,32 +310,79 @@ const SecurityConfigPage = () => {
     setRoleForm((current) => ({ ...current, [field]: value }));
   };
 
-  const handleSelectRole = (role) => {
-    setCreatingRole(false);
-    setSelectedRoleCode(role.codigo);
-    setRoleTemplateCode(role.codigo);
-    setRoleForm({
-      codigo: role.codigo || '',
-      nombre: role.nombre || '',
-      descripcion: role.descripcion || '',
-      transversal: Boolean(role.transversal),
-      activo: Boolean(role.activo),
-    });
-    setActiveSection('roles');
+  const handleSelectUser = (user) => {
+    setCreatingUser(false);
+    setSelectedUser(user);
+    setUserForm(mapUserToForm(user));
+    setActiveSection(SECURITY_TABS.USERS);
   };
 
-  const handleNewRole = () => {
-    setCreatingRole(true);
-    setRoleForm(emptyRoleForm);
-    setSelectedRoleCode('');
-    setRoleTemplateCode(roles.find((role) => role.codigo === 'director_proyecto')?.codigo || roles[0]?.codigo || '');
-    setActiveSection('roles');
+  const handleNewUser = () => {
+    setCreatingUser(true);
+    setSelectedUser(null);
+    setUserForm({
+      ...emptyUserForm,
+      rol: roles[0]?.codigo || '',
+    });
+    setActiveSection(SECURITY_TABS.USERS);
+  };
+
+  const handleCancelUserEdit = () => {
+    setCreatingUser(false);
+    setSelectedUser(null);
+    setUserForm(emptyUserForm);
+  };
+
+  const handleSaveUser = async (event, overrides = {}) => {
+    event.preventDefault();
+
+    if (!canConfigure) {
+      setError('No tienes permisos para modificar usuarios.');
+      return;
+    }
+
+    if (!userForm.username.trim()) {
+      setError('El username es obligatorio.');
+      return;
+    }
+
+    try {
+      setSavingUser(true);
+      setError('');
+      await securityService.updateUser({
+        username: userForm.username.trim(),
+        nombre: userForm.nombre.trim(),
+        correo: userForm.correo.trim(),
+        dependencia: userForm.dependencia.trim(),
+        rol: userForm.rol.trim(),
+        activo: typeof overrides.activo === 'boolean' ? overrides.activo : Boolean(userForm.activo),
+      });
+
+      setNotice(creatingUser ? 'El usuario se creo correctamente.' : 'El usuario se actualizo correctamente.');
+      setCreatingUser(false);
+      setSelectedUser(null);
+      setUserForm(emptyUserForm);
+      await loadData(userSearch);
+    } catch (saveError) {
+      console.error('Error guardando usuario:', saveError);
+      setError('No fue posible guardar el usuario.');
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
+  const handleDeactivateUser = async () => {
+    await handleSaveUser({ preventDefault: () => {} }, { activo: false });
   };
 
   const buildMatrixPayload = (extraRoleCode = '', extraPermissions = []) => {
     const payload = Object.fromEntries(
-      Object.entries(matrix).map(([roleCode, permissionsSet]) => [roleCode, Array.from(permissionsSet)])
+      roles.map((role) => [role.codigo, Array.from(new Set((role.permisos || []).map((permiso) => permiso.codigo)))])
     );
+
+    if (selectedRoleCode && !creatingRole) {
+      payload[selectedRoleCode] = Array.from(roleDraftPermissions);
+    }
 
     if (extraRoleCode) {
       payload[extraRoleCode] = extraPermissions;
@@ -436,50 +395,88 @@ const SecurityConfigPage = () => {
     event.preventDefault();
 
     if (!canConfigure) {
-      setError('No tienes permisos para administrar roles.');
+      setError('No tienes permisos para modificar roles.');
+      return;
+    }
+
+    if (!roleForm.codigo.trim() || !roleForm.nombre.trim()) {
+      setError('El codigo y el nombre del rol son obligatorios.');
       return;
     }
 
     try {
       setSavingRole(true);
+      setSavingPermissions(true);
       setError('');
 
       const payload = {
-        codigo: roleForm.codigo,
-        nombre: roleForm.nombre,
-        descripcion: roleForm.descripcion,
+        codigo: roleForm.codigo.trim(),
+        nombre: roleForm.nombre.trim(),
+        descripcion: roleForm.descripcion.trim(),
         transversal: Boolean(roleForm.transversal),
         activo: Boolean(roleForm.activo),
       };
 
-      if (selectedRoleCode) {
-        await securityService.updateRole(selectedRoleCode, payload);
-      } else {
+      if (creatingRole) {
         await securityService.createRole(payload);
-
-        const templatePermissions = roleTemplateCode
-          ? Array.from(matrix[roleTemplateCode] || [])
-          : [];
-        const matrixPayload = buildMatrixPayload(roleForm.codigo, templatePermissions);
-        await securityService.saveRolePermissions(matrixPayload);
+        await securityService.saveRolePermissions(
+          buildMatrixPayload(payload.codigo, Array.from(roleDraftPermissions))
+        );
+      } else if (selectedRoleCode) {
+        await securityService.updateRole(selectedRoleCode, payload);
+        await securityService.saveRolePermissions(buildMatrixPayload());
       }
 
-      setNotice('El rol se guardo correctamente.');
-      await loadData(selectedUserSearch);
+      setNotice(creatingRole ? 'El rol se creo correctamente.' : 'El rol se actualizo correctamente.');
       setCreatingRole(false);
-      setSelectedRoleCode(roleForm.codigo || selectedRoleCode);
+      setRoleEditorOpen(false);
+      setRoleTemplateCode('');
+      await loadData(userSearch);
+      setSelectedRoleCode(payload.codigo);
     } catch (saveError) {
       console.error('Error guardando rol:', saveError);
       setError('No fue posible guardar el rol.');
     } finally {
       setSavingRole(false);
+      setSavingPermissions(false);
     }
   };
 
+  const handleSelectRole = (role) => {
+    setCreatingRole(false);
+    setRoleEditorOpen(true);
+    setRoleTemplateCode('');
+    setSelectedRoleCode(role.codigo);
+    setRoleForm({
+      codigo: role.codigo || '',
+      nombre: role.nombre || '',
+      descripcion: role.descripcion || '',
+      transversal: Boolean(role.transversal),
+      activo: Boolean(role.activo),
+    });
+    setRoleDraftPermissions(new Set((role.permisos || []).map((permiso) => permiso.codigo)));
+    setActiveSection(SECURITY_TABS.ROLES);
+  };
+
+  const handleNewRole = () => {
+    setCreatingRole(true);
+    setRoleEditorOpen(true);
+    setSelectedRoleCode('');
+    setRoleForm(emptyRoleForm);
+    setRoleTemplateCode(roles[0]?.codigo || '');
+    setRoleDraftPermissions(new Set((roles[0]?.permisos || []).map((permiso) => permiso.codigo)));
+    setActiveSection(SECURITY_TABS.ROLES);
+  };
+
+  const handleRoleTemplateChange = (value) => {
+    setRoleTemplateCode(value);
+    const template = roles.find((role) => role.codigo === value) || null;
+    const templatePermissions = new Set((template?.permisos || []).map((permiso) => permiso.codigo));
+    setRoleDraftPermissions(templatePermissions);
+  };
+
   const handleDeleteRole = async () => {
-    if (!selectedRoleCode) {
-      return;
-    }
+    if (!selectedRoleCode || creatingRole) return;
 
     if (!canConfigure) {
       setError('No tienes permisos para desactivar roles.');
@@ -492,8 +489,12 @@ const SecurityConfigPage = () => {
       await securityService.deleteRole(selectedRoleCode);
       setNotice('El rol se desactivo correctamente.');
       setCreatingRole(false);
-      resetRoleForm();
-      await loadData(selectedUserSearch);
+      setRoleEditorOpen(false);
+      setRoleTemplateCode('');
+      setSelectedRoleCode('');
+      setRoleForm(emptyRoleForm);
+      setRoleDraftPermissions(new Set());
+      await loadData(userSearch);
     } catch (deleteError) {
       console.error('Error desactivando rol:', deleteError);
       setError('No fue posible desactivar el rol.');
@@ -502,892 +503,451 @@ const SecurityConfigPage = () => {
     }
   };
 
-  const handleParameterFieldChange = (field) => (event) => {
-    const value = event.target.value;
-    setParameterForm((current) => ({ ...current, [field]: value }));
-  };
+  const handleCancelRoleEdit = () => {
+    setCreatingRole(false);
+    setRoleEditorOpen(false);
+    setRoleTemplateCode('');
 
-  const handleSelectParameter = (parameter) => {
-    setCreatingParameter(false);
-    setSelectedParameterKey(parameter.key || cargoParameterKey);
-    setParameterForm({
-      key: parameter.key || '',
-      value: parameter.value || '',
-      descripcion: parameter.descripcion || '',
-    });
-    setActiveSection('roles');
-  };
-
-  const handleNewParameter = () => {
-    setCreatingParameter(true);
-    setSelectedParameterKey('');
-    setParameterForm({
-      key: '',
-      value: '',
-      descripcion: '',
-    });
-    setActiveSection('roles');
-  };
-
-  const handleSaveParameter = async () => {
-    if (!canConfigure) {
-      setError('No tienes permisos para administrar parametros.');
-      return;
-    }
-
-    const normalizedKey = (parameterForm.key || '').trim().toLowerCase();
-    const normalizedValue = (parameterForm.value || '').trim();
-    if (!normalizedKey || !normalizedValue) {
-      setError('La clave y el valor del parametro son obligatorios.');
-      return;
-    }
-
-    try {
-      setSavingParameter(true);
-      setError('');
-      await securityService.saveSystemParameter({
-        key: normalizedKey,
-        value: normalizedValue,
-        descripcion: (parameterForm.descripcion || '').trim(),
+    if (selectedRole) {
+      setRoleForm({
+        codigo: selectedRole.codigo || '',
+        nombre: selectedRole.nombre || '',
+        descripcion: selectedRole.descripcion || '',
+        transversal: Boolean(selectedRole.transversal),
+        activo: Boolean(selectedRole.activo),
       });
-      setNotice('El parametro se actualizo correctamente.');
-      setCreatingParameter(false);
-      await loadData(selectedUserSearch);
-    } catch (parameterError) {
-      console.error('Error guardando parametro del sistema:', parameterError);
-      setError('No fue posible guardar el parametro del sistema.');
-    } finally {
-      setSavingParameter(false);
-    }
-  };
-
-  const handleDeleteParameter = async () => {
-    if (!canConfigure || !selectedParameterKey) {
+      setRoleDraftPermissions(new Set((selectedRole.permisos || []).map((permiso) => permiso.codigo)));
       return;
     }
 
-    if (selectedParameterKey === cargoParameterKey) {
-      setError('No se puede eliminar el parametro de cargos de asignacion porque es requerido por el sistema.');
-      return;
-    }
-
-    try {
-      setSavingParameter(true);
-      setError('');
-      await securityService.deleteSystemParameter(selectedParameterKey);
-      setNotice('El parametro se elimino correctamente.');
-      setSelectedParameterKey(cargoParameterKey);
-      setCreatingParameter(false);
-      await loadData(selectedUserSearch);
-    } catch (parameterError) {
-      console.error('Error eliminando parametro del sistema:', parameterError);
-      setError('No fue posible eliminar el parametro del sistema.');
-    } finally {
-      setSavingParameter(false);
-    }
+    setRoleForm(emptyRoleForm);
+    setRoleDraftPermissions(new Set());
   };
 
-  const handleUserFieldChange = (field) => (event) => {
-    const value = field === 'activo' ? event.target.checked : event.target.value;
-    setUserForm((current) => ({ ...current, [field]: value }));
+  const hasRoleEditorOpen = roleEditorOpen;
+
+  const roleTypeLabel = (role) => (role?.transversal ? 'SISTEMA' : 'PERSONALIZADO');
+  const roleTypeClass = (role) => (role?.transversal ? 'system' : 'custom');
+
+  const permissionBucketMatches = (permission, bucket) => {
+    const action = (permission?.actionKey || '').toUpperCase();
+    if (bucket === 'visualizar') {
+      return ['VER', 'LISTAR', 'CONSULTAR'].includes(action);
+    }
+    if (bucket === 'crear') {
+      return ['CREAR', 'REGISTRAR', 'CARGAR', 'SUBIR'].includes(action);
+    }
+    if (bucket === 'editar') {
+      return ['EDITAR', 'ACTUALIZAR', 'MODIFICAR'].includes(action);
+    }
+    return !['VER', 'LISTAR', 'CONSULTAR', 'CREAR', 'REGISTRAR', 'CARGAR', 'SUBIR', 'EDITAR', 'ACTUALIZAR', 'MODIFICAR'].includes(action);
   };
 
-  const handleEditUser = async (user) => {
-    setSelectedUser(user);
-    setUserForm({
-      username: user.username || '',
-      nombre: user.nombre || '',
-      correo: user.correo || '',
-      dependencia: user.dependencia || '',
-      activo: Boolean(user.activo),
-    });
-    setActiveSection('usuarios');
-    await loadAssignmentsForUser(user.username);
+  const matrixColumnDescriptions = {
+    visualizar: 'Permite consultar y ver información dentro del módulo.',
+    crear: 'Permite registrar o crear nuevos elementos en este módulo.',
+    editar: 'Permite modificar registros existentes del módulo.',
+    especiales: 'Permisos especiales o acciones transversales definidas para este módulo.',
   };
 
-  const handleCancelUserEdit = () => {
-    setSelectedUser(null);
-    setUserForm(emptyUserForm);
-    loadData(selectedUserSearch).catch(console.error);
+  const matrixColumnShortcuts = {
+    visualizar: 'Consultar y ver registros del módulo.',
+    crear: 'Crear o registrar nuevos elementos.',
+    editar: 'Modificar elementos ya existentes.',
+    especiales: 'Acciones transversales o permisos avanzados.',
   };
 
-  const handleSaveUser = async (event) => {
-    event.preventDefault();
+  const getBucketCodes = (group, bucket) => group.permissions
+    .filter((permission) => permissionBucketMatches(permission, bucket))
+    .map((permission) => permission.codigo);
 
-    if (!canConfigure) {
-      setError('No tienes permisos para editar usuarios.');
-      return;
+  const isBucketChecked = (codes) => codes.length > 0 && codes.every((code) => roleDraftPermissions.has(code));
+
+  const getMatrixCellTitle = (group, bucket, codes) => {
+    const baseDescription = matrixColumnDescriptions[bucket] || bucket;
+    if (!codes.length) {
+      return `${group.label}: no existen permisos de ${bucket} para este módulo.`;
     }
 
-    try {
-      setSavingUser(true);
-      setError('');
-
-      const response = await securityService.updateUser({
-        username: userForm.username,
-        nombre: userForm.nombre,
-        correo: userForm.correo,
-        dependencia: userForm.dependencia,
-        activo: userForm.activo,
-      });
-
-      const updatedUser = response?.data ?? null;
-      setNotice('El usuario fue actualizado correctamente.');
-      if (updatedUser) {
-        setSelectedUser(updatedUser);
-        setUserForm({
-          username: updatedUser.username || userForm.username,
-          nombre: updatedUser.nombre || userForm.nombre,
-          correo: updatedUser.correo || userForm.correo,
-          dependencia: updatedUser.dependencia || userForm.dependencia,
-          activo: Boolean(updatedUser.activo),
-        });
-      }
-
-      await loadData(selectedUserSearch);
-      await loadAssignmentsForUser(userForm.username);
-    } catch (saveError) {
-      console.error('Error actualizando usuario:', saveError);
-      setError('No fue posible actualizar el usuario.');
-    } finally {
-      setSavingUser(false);
-    }
+    const stateDescription = isBucketChecked(codes)
+      ? 'Actualmente está activado.'
+      : 'Actualmente está desactivado.';
+    return `${group.label}. ${baseDescription} ${stateDescription}`;
   };
 
-  const handleAssignChange = (field) => (event) => {
-    const value = event.target.value;
-    setAssignment((current) => ({ ...current, [field]: value }));
-  };
+  const getPermissionTooltip = (permission) => (
+    `${permission.nombre}${permission.descripcion ? `: ${permission.descripcion}` : ''}`
+  );
 
-  const handleAssignUser = async (event) => {
-    event.preventDefault();
-
-    if (!canConfigure) {
-      setError('No tienes permisos para asignar usuarios a proyectos.');
-      return;
-    }
-
-    try {
-      setSavingAssignment(true);
-      setError('');
-      await securityService.assignUserToProject(assignment);
-      setNotice('El usuario fue asignado al proyecto correctamente.');
-      setAssignment({
-        ...emptyAssignment,
-        cargo: cargoOptions[0] || '',
-      });
-      await loadData(selectedUserSearch);
-    } catch (assignError) {
-      console.error('Error asignando usuario a proyecto:', assignError);
-      setError('No fue posible guardar la asignacion del usuario al proyecto.');
-    } finally {
-      setSavingAssignment(false);
-    }
-  };
-
-  const filteredUsers = users.filter((item) => {
-    const haystack = `${item.nombre || ''} ${item.correo || ''} ${item.username || ''}`.toLowerCase();
-    return haystack.includes(selectedUserSearch.toLowerCase());
-  });
-
-  const rolesCount = roles.length;
-  const permissionsCount = permissions.length;
-  const canConfigure = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || authPermissions.includes('SISTEMA:CONFIGURAR');
-  const assignedRoleCoverage = useMemo(() => {
-    return roles.map((role) => {
-      const permissionsSet = matrix[role.codigo] || new Set();
-      const totalApplicable = coverageModules.filter((module) => module.requiredPermissions.length > 0).length;
-      const complete = coverageModules.filter((module) => {
-        if (module.requiredPermissions.length === 0) {
-          return true;
-        }
-        return module.requiredPermissions.every((permissionCode) => permissionsSet.has(permissionCode));
-      }).length;
-      const partial = coverageModules.filter((module) => {
-        if (module.requiredPermissions.length === 0) {
-          return false;
-        }
-        const matched = module.requiredPermissions.filter((permissionCode) => permissionsSet.has(permissionCode)).length;
-        return matched > 0 && matched < module.requiredPermissions.length;
-      }).length;
-      const pending = Math.max(totalApplicable - complete - partial, 0);
-
-      return {
-        role,
-        complete,
-        partial,
-        pending,
-      };
-    });
-  }, [matrix, roles]);
-
-  const getCoverageState = (roleCode, module) => {
-    if (module.requiredPermissions.length === 0) {
-      return { label: 'Base', tone: 'base' };
-    }
-
-    const rolePermissions = matrix[roleCode] || new Set();
-    const matchedCount = module.requiredPermissions.filter((permissionCode) => rolePermissions.has(permissionCode)).length;
-
-    if (matchedCount === module.requiredPermissions.length) {
-      return { label: 'OK', tone: 'ok' };
-    }
-
-    if (matchedCount > 0) {
-      return { label: 'Parcial', tone: 'partial' };
-    }
-
-    return { label: 'Pendiente', tone: 'pending' };
-  };
-
-  const coverageStats = useMemo(() => {
-    const totalModules = coverageModules.length;
-    const totalRoles = roles.length;
-    const rolesWithFullCoverage = assignedRoleCoverage.filter((item) => item.pending === 0 && item.partial === 0 && item.complete > 0).length;
-    const criticalFindings = coverageFindings.filter((item) => item.level === 'Pendiente').length;
-
-    return {
-      totalModules,
-      totalRoles,
-      rolesWithFullCoverage,
-      criticalFindings,
+  const getConstraintTooltip = (key) => {
+    const tooltips = {
+      transversal: 'Activa acceso amplio sobre el alcance del rol dentro de los módulos permitidos.',
+      activo: 'Define si este rol puede seguir utilizándose en la plataforma.',
+      access: 'Acceso heredado desde el contexto del rol. Solo lectura.',
     };
-  }, [assignedRoleCoverage, roles]);
 
-  const rolePermissionCount = (roleCode) => {
-    return matrix[roleCode] ? Array.from(matrix[roleCode]).length : 0;
+    return tooltips[key] || 'Configuración del comportamiento del rol.';
   };
 
-  const assignmentCargoValue = assignment.cargo || cargoOptions[0] || '';
+  const togglePermissionBucket = (codes) => {
+    if (!canConfigure || codes.length === 0) return;
 
-  const renderPermissionGroups = () => {
-    if (!selectedRole) {
-      return <div className="empty-state">No hay roles disponibles para editar.</div>;
-    }
+    setRoleDraftPermissions((current) => {
+      const next = new Set(current);
+      const shouldAdd = codes.some((code) => !next.has(code));
 
-    return (
-      <>
-        <div className="role-editor-header">
-          <div>
-            <h3>{selectedRole.nombre}</h3>
-            <p>{selectedRole.descripcion || 'Sin descripcion'}</p>
-          </div>
-          <div className="role-summary-badges">
-            <span className="summary-badge">{selectedRole.codigo}</span>
-            <span className="summary-badge">{selectedRole.transversal ? 'Transversal' : 'Negocio'}</span>
-            <span className={`summary-badge ${selectedRole.activo ? 'good' : 'bad'}`}>
-              {selectedRole.activo ? 'Activo' : 'Inactivo'}
-            </span>
-          </div>
-        </div>
+      codes.forEach((code) => {
+        if (shouldAdd) {
+          next.add(code);
+        } else {
+          next.delete(code);
+        }
+      });
 
-        <div className="role-editor-note">
-          Selecciona los permisos funcionales que este rol tendra disponibles en el sistema.
-        </div>
-
-        <div className="permission-groups">
-          {Object.entries(permissionsByGroup).map(([groupKey, items]) => (
-            <div key={groupKey} className="permission-group">
-              <div className="permission-group-header">
-                <strong>{groupLabel(groupKey)}</strong>
-                <span>{items.length} permisos</span>
-              </div>
-              <div className="permission-grid">
-                {items.map((permission) => {
-                  const checked = Boolean(matrix[selectedRole.codigo]?.has(permission.codigo));
-                  return (
-                    <label key={permission.codigo} className="permission-chip">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={!canConfigure}
-                        onChange={() => togglePermission(selectedRole.codigo, permission.codigo)}
-                      />
-                      <span className="permission-chip-box" />
-                      <div className="permission-chip-text">
-                        <strong>{permission.nombre}</strong>
-                        <small>{permission.codigo}</small>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </>
-    );
+      return next;
+    });
   };
 
   return (
     <div className="security-admin-page">
-      <header className="security-page-topbar">
-        <div className="page-title-block">
-          <h1>Gestión de Roles del Sistema</h1>
-          <p>Administra los perfiles y ajusta permisos atómicos desde una vista tipo editor.</p>
+      <header className="security-header">
+        <div className="security-header-copy">
+          <p className="security-eyebrow">Configuracion Seguridad</p>
+          <h1>Gestion de Roles y Permisos</h1>
+          <p>
+            Dos flujos claros, una sola pantalla: usuarios con rol asignable y roles con su matriz integrada en el mismo editor.
+          </p>
         </div>
-        <div className="page-topbar-actions">
-          <span className="page-topbar-pill">{isAdminLocal ? 'admin' : 'usuario'}</span>
+
+        <div className="security-header-actions">
+          <div className="quick-actions" aria-label="Acciones rÃ¡pidas">
+            <button type="button" className="quick-action audit" disabled title="PrÃ³ximamente">
+              <ShieldCheck size={14} />
+              AuditorÃ­a
+            </button>
+            <button
+              type="button"
+              className={`quick-action roles ${activeSection === SECURITY_TABS.ROLES ? 'active' : ''}`}
+              onClick={() => setActiveSection(SECURITY_TABS.ROLES)}
+            >
+              <Users size={14} />
+              Roles
+            </button>
+            <button type="button" className="quick-action create" onClick={handleNewUser} disabled={!canConfigure}>
+              <Plus size={14} />
+              Crear Usuario
+            </button>
+          </div>
           <button type="button" className="btn-secondary" onClick={handleReload} disabled={loading}>
             <RefreshCw size={16} />
-            Refrescar
+            Actualizar
           </button>
         </div>
       </header>
 
-      <section className="security-tabs" aria-label="Secciones de seguridad">
-        {sectionItems.map((section) => (
-          <button
-            key={section.key}
-            type="button"
-            className={`security-tab ${activeSection === section.key ? 'active' : ''}`}
-            onClick={() => setActiveSection(section.key)}
-          >
-            <strong>{section.label}</strong>
-            <span>{section.description}</span>
-          </button>
-        ))}
-      </section>
-
-      <section className="stats-grid">
-        <article className="stat-card">
-          <Users size={20} />
-          <div>
-            <span>Usuarios registrados</span>
-            <strong>{users.length}</strong>
-          </div>
-        </article>
-        <article className="stat-card">
-          <BadgeCheck size={20} />
-          <div>
-            <span>Roles configurados</span>
-            <strong>{rolesCount}</strong>
-          </div>
-        </article>
-        <article className="stat-card">
-          <FolderKanban size={20} />
-          <div>
-            <span>Proyectos</span>
-            <strong>{projects.length}</strong>
-          </div>
-        </article>
-        <article className="stat-card">
-          <ListChecks size={20} />
-          <div>
-            <span>Permisos atomicos</span>
-            <strong>{permissionsCount}</strong>
-          </div>
-        </article>
-      </section>
-
       {error && (
-        <div className="message-box error">
+        <div className="feedback-banner error">
           <CircleAlert size={18} />
           <span>{error}</span>
         </div>
       )}
 
+      {usersLoadError && (
+        <div className="feedback-banner error">
+          <CircleAlert size={18} />
+          <span>{usersLoadError}</span>
+        </div>
+      )}
+
       {notice && (
-        <div className="message-box success">
+        <div className="feedback-banner success">
           <BadgeCheck size={18} />
           <span>{notice}</span>
         </div>
       )}
 
-      {activeSection === 'roles' && (
-        <section className="config-panel">
-          <div className="section-title">
-            <div>
-              <h2>Gestión de Roles del Sistema</h2>
-              <p>Administra los perfiles y ajusta permisos atomicos desde una vista tipo editor.</p>
-            </div>
-            <div className="section-actions">
-              <span className="status-pill">{selectedRole ? selectedRole.codigo : 'Sin rol'}</span>
-              <button type="button" className="btn-secondary" onClick={handleNewRole} disabled={!canConfigure || loading}>
-                Nuevo rol
-              </button>
-              <button type="button" className="btn-primary" onClick={handleSaveRole} disabled={savingRole || loading || !canConfigure}>
-                <Save size={16} />
-                {savingRole ? 'Guardando...' : selectedRoleCode ? 'Guardar rol' : 'Crear rol'}
-              </button>
-              <button type="button" className="btn-secondary" onClick={handleSaveMatrix} disabled={savingMatrix || loading || !canConfigure}>
-                <Save size={16} />
-                {savingMatrix ? 'Guardando...' : 'Guardar permisos'}
-              </button>
-              {selectedRoleCode && (
-                <button type="button" className="btn-secondary" onClick={handleDeleteRole} disabled={savingRole || loading || !canConfigure}>
-                  Desactivar
+      {activeSection === SECURITY_TABS.USERS && (
+        <section className="security-workspace users-workspace">
+          <article className="panel panel-main users-panel">
+            <div className="panel-topbar">
+              <div>
+                <h2>GestiÃ³n de Usuarios</h2>
+                <p>Control de acceso, roles y estados del personal del sistema.</p>
+              </div>
+
+              <div className="panel-actions">
+                <form className="inline-search" onSubmit={handleSearch}>
+                  <Search size={15} />
+                  <input
+                    type="text"
+                    value={userSearch}
+                    onChange={(event) => setUserSearch(event.target.value)}
+                    placeholder="Buscar usuario"
+                  />
+                </form>
+
+                <button type="button" className="btn-secondary" onClick={handleReload} disabled={loading}>
+                  <RefreshCw size={16} />
+                  Refrescar
                 </button>
-              )}
-            </div>
-          </div>
-
-          <form className="role-form-panel" onSubmit={handleSaveRole}>
-            <div className="section-title compact">
-              <div>
-                <h3>{selectedRoleCode ? 'Editar rol' : 'Nuevo rol'}</h3>
-                <p>Los roles protegidos no pueden eliminarse ni apagarse desde la consola.</p>
               </div>
             </div>
 
-            <div className="editor-grid role-form-grid">
-              <label>
-                <span>Codigo del rol</span>
-                <input
-                  value={roleForm.codigo}
-                  onChange={handleRoleFieldChange('codigo')}
-                  disabled={Boolean(selectedRoleCode) || !canConfigure}
-                  placeholder="ej: coordinador_calidad"
-                />
-              </label>
-              <label>
-                <span>Nombre</span>
-                <input value={roleForm.nombre} onChange={handleRoleFieldChange('nombre')} disabled={!canConfigure} />
-              </label>
-              <label className="role-form-wide">
-                <span>Descripcion</span>
-                <input value={roleForm.descripcion} onChange={handleRoleFieldChange('descripcion')} disabled={!canConfigure} />
-              </label>
-              <label className="switch-field">
-                <span>Transversal</span>
-                <label className="switch">
-                  <input type="checkbox" checked={Boolean(roleForm.transversal)} onChange={handleRoleFieldChange('transversal')} disabled={!canConfigure} />
-                  <span />
-                </label>
-              </label>
-                <label className="switch-field">
-                  <span>Activo</span>
-                  <label className="switch">
-                    <input type="checkbox" checked={Boolean(roleForm.activo)} onChange={handleRoleFieldChange('activo')} disabled={!canConfigure} />
-                    <span />
-                  </label>
-                </label>
-                {creatingRole && (
-                  <label className="role-form-wide">
-                    <span>Copiar permisos desde</span>
-                    <select value={roleTemplateCode} onChange={(event) => setRoleTemplateCode(event.target.value)} disabled={!canConfigure || roles.length === 0}>
-                      <option value="">Sin plantilla</option>
-                      {roles.map((role) => (
-                        <option key={role.codigo} value={role.codigo}>
-                          {role.nombre} - {role.codigo}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-              </div>
-            </form>
-
-          {loading ? (
-            <div className="empty-state">Cargando configuracion...</div>
-          ) : (
-            <>
-            <div className="role-workspace">
-              <aside className="role-catalog">
-                <div className="role-catalog-header">
-                  <strong>Perfiles de Usuario Configurados</strong>
-                  <span>{roles.length} roles</span>
-                </div>
-
-                {roles.map((role) => (
-                  <button
-                    type="button"
-                    key={role.codigo}
-                    className={`role-card ${selectedRoleCode === role.codigo ? 'active' : ''}`}
-                    onClick={() => handleSelectRole(role)}
-                  >
-                    <div className="role-card-icon">
-                      <ShieldCheck size={18} />
-                    </div>
-                    <div className="role-card-body">
-                      <strong>{role.nombre}</strong>
-                      <span>{role.descripcion || 'Sin descripcion'}</span>
-                      <div className="role-card-meta">
-                        <span>{role.codigo}</span>
-                        <span>{rolePermissionCount(role.codigo)} permisos</span>
-                      </div>
-                    </div>
-                    <div className={`role-card-pill ${role.transversal ? 'transversal' : 'business'}`}>
-                      {role.transversal ? 'TRANSVERSAL' : 'NEGOCIO'}
-                    </div>
-                  </button>
-                ))}
-              </aside>
-
-              <article className="role-editor-panel">
-                {renderPermissionGroups()}
-              </article>
-            </div>
-
-            <div className="parameter-panel">
-              <div className="section-title compact">
-                <div>
-                  <h3>Parametros del sistema</h3>
-                  <p>Todos los parametros editables se guardan en base de datos y dejan de depender del frontend.</p>
-                </div>
-                <div className="section-actions">
-                  <button type="button" className="btn-secondary" onClick={handleNewParameter} disabled={savingParameter || !canConfigure}>
-                    Nuevo parametro
-                  </button>
-                  <button type="button" className="btn-secondary" onClick={handleDeleteParameter} disabled={savingParameter || !canConfigure || !selectedParameterKey}>
-                    Eliminar
-                  </button>
-                  <button type="button" className="btn-primary" onClick={handleSaveParameter} disabled={savingParameter || !canConfigure}>
-                    <Save size={16} />
-                    {savingParameter ? 'Guardando...' : 'Guardar parametro'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="parameter-list parameter-list-selectable">
-                {systemParameters.map((parameter) => (
-                  <button
-                    type="button"
-                    key={parameter.key}
-                    className={`parameter-row parameter-row-button ${selectedParameterKey === parameter.key ? 'selected' : ''}`}
-                    onClick={() => handleSelectParameter(parameter)}
-                  >
-                    <div>
-                      <strong>{parameter.key}</strong>
-                      <span>{parameter.descripcion || 'Sin descripcion'}</span>
-                    </div>
-                    <code>{parameter.value}</code>
-                  </button>
-                ))}
-              </div>
-
-              <div className="parameter-card">
-                <div className="parameter-card-head">
-                  <strong>{parameterForm.key || cargoParameterKey}</strong>
-                  <span>{creatingParameter ? 'Nuevo parametro' : selectedParameterKey === cargoParameterKey ? `${cargoOptions.length} cargos` : 'Parametro editable'}</span>
-                </div>
-                <div className="parameter-form-grid">
-                  <label>
-                    <span>Clave</span>
-                    <input
-                      value={parameterForm.key}
-                      onChange={handleParameterFieldChange('key')}
-                      disabled={!canConfigure || (selectedParameterKey && !creatingParameter)}
-                      placeholder="clave_del_parametro"
-                    />
-                  </label>
-                  <label>
-                    <span>Valor</span>
-                    <textarea
-                      rows={4}
-                      value={parameterForm.value}
-                      onChange={handleParameterFieldChange('value')}
-                      disabled={!canConfigure}
-                      placeholder="Valor del parametro"
-                    />
-                  </label>
-                  <label>
-                    <span>Descripcion</span>
-                    <textarea
-                      rows={2}
-                      value={parameterForm.descripcion}
-                      onChange={handleParameterFieldChange('descripcion')}
-                      disabled={!canConfigure}
-                      placeholder="Descripcion funcional del parametro"
-                    />
-                  </label>
-                </div>
-                {selectedParameterKey === cargoParameterKey && !creatingParameter && (
-                  <p className="parameter-help">
-                    Los cargos se leen desde este parametro y se usan en la asignacion de usuarios a proyectos.
-                  </p>
-                )}
-              </div>
-            </div>
-            </>
-          )}
-        </section>
-      )}
-
-      {activeSection === 'cobertura' && (
-        <section className="config-panel">
-          <div className="section-title">
-            <div>
-              <h2>Cobertura global por rol</h2>
-              <p>Vista de validacion para probar diferentes usuarios, revisar permisos y detectar brechas del sistema.</p>
-            </div>
-            <div className="section-actions">
-              <span className="status-pill">{coverageStats.totalRoles} roles</span>
-              <span className="status-pill">{coverageStats.totalModules} modulos</span>
-            </div>
-          </div>
-
-          <section className="coverage-summary-grid">
-            <article className="coverage-summary-card">
-              <Eye size={18} />
-              <div>
-                <span>Roles revisados</span>
-                <strong>{coverageStats.totalRoles}</strong>
-              </div>
-            </article>
-            <article className="coverage-summary-card">
-              <BadgeCheck size={18} />
-              <div>
-                <span>Roles con cobertura completa</span>
-                <strong>{coverageStats.rolesWithFullCoverage}</strong>
-              </div>
-            </article>
-            <article className="coverage-summary-card">
-              <AlertTriangle size={18} />
-              <div>
-                <span>Brechas criticas</span>
-                <strong>{coverageStats.criticalFindings}</strong>
-              </div>
-            </article>
-          </section>
-
-          <div className="coverage-layout">
-            <article className="coverage-panel">
-              <div className="section-title compact">
-                <div>
-                  <h3>Matriz de cobertura por modulo</h3>
-                  <p>Compara la cobertura de acceso entre roles para cada funcionalidad principal.</p>
-                </div>
-              </div>
-
-              <div className="coverage-table-wrap">
-                <table className="coverage-table">
-                  <thead>
-                    <tr>
-                      <th>Modulo</th>
-                      {roles.map((role) => (
-                        <th key={role.codigo}>
-                          <div className="role-th">
-                            <strong>{role.nombre}</strong>
-                            <span>{role.codigo}</span>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {coverageModules.map((module) => (
-                      <tr key={module.key}>
-                        <td>
-                          <div className="permission-cell">
-                            <strong>{module.label}</strong>
-                            <span>{module.note}</span>
-                          </div>
-                        </td>
-                        {roles.map((role) => {
-                          const coverageState = getCoverageState(role.codigo, module);
-                          return (
-                            <td key={`${role.codigo}-${module.key}`} className="matrix-checkbox-cell">
-                              <span className={`coverage-badge ${coverageState.tone}`}>{coverageState.label}</span>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </article>
-
-            <aside className="coverage-panel">
-              <div className="section-title compact">
-                <div>
-                  <h3>Brechas detectadas</h3>
-                  <p>Puntos a revisar para pruebas de permisos y endurecimiento del sistema.</p>
-                </div>
-              </div>
-
-              <div className="coverage-findings">
-                {coverageFindings.map((finding) => (
-                  <article key={finding.key} className={`coverage-finding ${finding.level.toLowerCase()}`}>
-                    <div className="coverage-finding-head">
-                      <strong>{finding.title}</strong>
-                      <span>{finding.level}</span>
-                    </div>
-                    <p>{finding.detail}</p>
-                  </article>
-                ))}
-              </div>
-
-              <div className="coverage-role-list">
-                <div className="coverage-role-list-head">
-                  <strong>Resumen por rol</strong>
-                  <span>OK / Parcial / Pendiente</span>
-                </div>
-                {assignedRoleCoverage.map((item) => (
-                  <div key={item.role.codigo} className="coverage-role-row">
-                    <div>
-                      <strong>{item.role.nombre}</strong>
-                      <span>{item.role.codigo}</span>
-                    </div>
-                    <div className="coverage-role-metrics">
-                      <span className="coverage-badge ok">{item.complete} OK</span>
-                      <span className="coverage-badge partial">{item.partial} Parcial</span>
-                      <span className="coverage-badge pending">{item.pending} Pend.</span>
-                    </div>
+            {creatingUser && (
+              <div className="create-user-panel">
+                <div className="create-user-header">
+                  <div>
+                    <p className="security-eyebrow">Configuracion Seguridad</p>
+                    <h2>Crear Usuario</h2>
+                    <p>Configure los datos basicos y privilegios de acceso al sistema.</p>
                   </div>
-                ))}
+
+                  <button type="button" className="btn-ghost-dark" onClick={handleCancelUserEdit}>
+                    <span aria-hidden="true">â†</span>
+                    Volver al listado
+                  </button>
+                </div>
+
+                <form className="create-user-form" onSubmit={handleSaveUser}>
+                  <div className="create-user-grid">
+                    <label className="span-full">
+                      <span>Nombre completo *</span>
+                      <input
+                        value={userForm.nombre}
+                        onChange={handleUserFieldChange('nombre')}
+                        disabled={!canConfigure}
+                        placeholder="Ej. Juan Perez"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Usuario (login) *</span>
+                      <input
+                        value={userForm.username}
+                        onChange={handleUserFieldChange('username')}
+                        disabled={!canConfigure}
+                        placeholder="fasantos"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Rol asignado *</span>
+                      <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || roles.length === 0}>
+                        <option value="">{roles.length === 0 ? 'Sin roles disponibles' : '-- Seleccione un rol --'}</option>
+                        {roles.map((role) => (
+                          <option key={role.codigo} value={role.codigo}>
+                            {role.nombre} - {role.codigo}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      <span>Correo</span>
+                      <input type="email" value={userForm.correo} onChange={handleUserFieldChange('correo')} disabled={!canConfigure} placeholder="correo@dominio.com" />
+                    </label>
+
+                    <label>
+                      <span>Dependencia</span>
+                      <input value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
+                    </label>
+
+                    <label className="toggle-field compact-toggle">
+                      <span>Activo</span>
+                      <label className="switch">
+                        <input type="checkbox" checked={Boolean(userForm.activo)} onChange={handleUserFieldChange('activo')} disabled={!canConfigure} />
+                        <span />
+                      </label>
+                    </label>
+                  </div>
+
+                  <div className="create-user-footer">
+                    <button type="button" className="btn-secondary" onClick={handleCancelUserEdit} disabled={savingUser}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className="btn-primary" disabled={savingUser || !canConfigure}>
+                      <BadgeCheck size={16} />
+                      {savingUser ? 'Guardando...' : 'Crear Usuario'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </aside>
-          </div>
-        </section>
-      )}
+            )}
 
-      {activeSection === 'matriz' && (
-        <section className="config-panel">
-          <div className="section-title">
-            <div>
-              <h2>Matriz de Privilegios del Sistema</h2>
-              <p>Vista completa para revisar que puede hacer cada rol. Los cambios se guardan desde la pestaña Roles.</p>
-            </div>
-            <div className="section-actions">
-              <span className="status-pill">{permissionsCount} permisos</span>
-              <button type="button" className="btn-secondary" onClick={handleSaveMatrix} disabled={savingMatrix || loading || !canConfigure}>
-                <Save size={16} />
-                {savingMatrix ? 'Guardando...' : 'Guardar matriz'}
-              </button>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="empty-state">Cargando matriz...</div>
-          ) : (
-            <div className="matrix-wrapper matrix-compact">
-              <table className="matrix-table">
+            {!creatingUser && (
+              <div className="table-shell user-table-shell">
+              <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Modulo / Funcionalidad</th>
-                    {roles.map((role) => (
-                      <th key={role.codigo}>
-                        <div className="role-th">
-                          <strong>{role.nombre}</strong>
-                          <span>{role.codigo}</span>
-                        </div>
-                      </th>
-                    ))}
+                    <th>ID</th>
+                    <th>Usuario</th>
+                    <th>Nombre Completo</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Ãšltimo acceso</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {permissions.map((permission) => (
-                    <tr key={permission.codigo}>
-                      <td>
-                        <div className="permission-cell">
-                          <strong>{permission.codigo}</strong>
-                          <span>{permission.nombre}</span>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="table-empty-cell">
+                        Cargando usuarios...
+                      </td>
+                    </tr>
+                  ) : usersLoadError ? (
+                    <tr>
+                      <td colSpan={7} className="table-empty-cell">
+                        <div className="empty-state">
+                          <strong>Usuarios no disponibles</strong>
+                          <span>El backend devolviÃ³ un error al consultar la relaciÃ³n proyecta_db.usuarios. Revisa la base de datos o la migraciÃ³n de ese esquema.</span>
                         </div>
                       </td>
-                      {roles.map((role) => {
-                        const checked = Boolean(matrix[role.codigo]?.has(permission.codigo));
-                        return (
-                          <td key={`${role.codigo}-${permission.codigo}`} className="matrix-checkbox-cell">
-                            <label className="checkbox-wrap">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                disabled={!canConfigure}
-                                onChange={() => togglePermission(role.codigo, permission.codigo)}
-                              />
-                              <span />
-                            </label>
-                          </td>
-                        );
-                      })}
                     </tr>
-                  ))}
+                  ) : filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="table-empty-cell">
+                        No hay usuarios disponibles.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((user, index) => {
+                      const isSelected = selectedUser?.username === user.username;
+                      const initial = (user.nombre || user.username || '?')[0].toUpperCase();
+                      const avatarColor = getAvatarColor(user.nombre || user.username);
+                      const roleValue = getUserRoleLabel(user);
+                      const lastAccess = formatDateTime(getUserLastAccess(user));
+
+                      return (
+                        <tr
+                          key={user.id || user.username || index}
+                          className={isSelected ? 'selected-row' : ''}
+                          onClick={() => handleSelectUser(user)}
+                        >
+                          <td className="id-cell">#{user.id || index + 1}</td>
+                          <td>
+                            <div className="user-chip">
+                              <span className="user-avatar" style={{ background: avatarColor }}>
+                                {initial}
+                              </span>
+                              <div>
+                                <strong>{user.username}</strong>
+                                <span>@{user.username}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{user.nombre || 'Sin nombre'}</td>
+                          <td>
+                            {roleValue ? (
+                              <span className="soft-pill">{roleValue}</span>
+                            ) : (
+                              <span className="muted-text">Sin rol</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`status-chip ${user.activo ? 'active' : 'inactive'}`}>
+                              {user.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="last-access">
+                              <Clock3 size={14} />
+                              {lastAccess}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="row-actions">
+                              <button
+                                type="button"
+                                className="icon-button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleSelectUser(user);
+                                }}
+                                title="Editar usuario"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
+                                <input type="checkbox" checked={Boolean(user.activo)} readOnly />
+                                <span />
+                              </label>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
-            </div>
-          )}
-        </section>
-      )}
-
-      {activeSection === 'usuarios' && (
-        <section className="config-panel">
-          <div className="section-title">
-            <div>
-              <h2>Usuarios del sistema</h2>
-              <p>Selecciona un usuario para editar sus datos base y revisar sus asignaciones.</p>
-            </div>
-            <span className="status-pill">{selectedUser ? `Editando: ${selectedUser.username}` : 'Modo consulta'}</span>
-          </div>
-
-          <form className="search-form" onSubmit={handleSearch}>
-            <Search size={16} />
-            <input
-              type="text"
-              value={selectedUserSearch}
-              onChange={(event) => setSelectedUserSearch(event.target.value)}
-              placeholder="Buscar usuario por nombre, correo o username"
-            />
-            <button type="submit" className="btn-secondary compact">
-              Buscar
-            </button>
-          </form>
-
-          <div className="users-management">
-            <div className="users-table-card">
-              <div className="users-table">
-                <div className="users-table-head">
-                  <span>Usuario</span>
-                  <span>Correo</span>
-                  <span>Dependencia</span>
-                  <span>Estado</span>
-                  <span />
-                </div>
-                {loading ? (
-                  <div className="empty-state">Cargando usuarios...</div>
-                ) : filteredUsers.length === 0 ? (
-                  <div className="empty-state">No hay usuarios disponibles.</div>
-                ) : (
-                  filteredUsers.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`user-row ${selectedUser?.username === item.username ? 'selected' : ''}`}
-                      onClick={() => handleEditUser(item)}
-                    >
-                      <span className="user-row-main">
-                        <strong>{item.nombre}</strong>
-                        <small>{item.username}</small>
-                      </span>
-                      <span>{item.correo}</span>
-                      <span>{item.dependencia || 'No definida'}</span>
-                      <span className={`user-status ${item.activo ? 'active' : 'inactive'}`}>
-                        {item.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                      <span className="user-row-action">Editar</span>
-                    </button>
-                  ))
-                )}
               </div>
-            </div>
+            )}
+          </article>
 
-            <form className="user-editor-card" onSubmit={handleSaveUser}>
-              <div className="section-title compact">
+          {selectedUser && !creatingUser && (
+            <aside className="panel panel-aside user-editor-sheet">
+              <form className="editor-form" onSubmit={handleSaveUser}>
+              <div className="editor-head">
                 <div>
-                  <h3>Edicion de usuario</h3>
-                  <p>Actualiza nombre, correo, dependencia y estado.</p>
+                    <h3>{creatingUser ? 'Crear Usuario' : selectedUser ? 'Editar Usuario' : 'Selecciona un usuario'}</h3>
+                    <p>
+                      {creatingUser
+                        ? 'Crea una cuenta y asigna su rol de forma directa.'
+                        : selectedUser
+                        ? `Editando ${selectedUser.nombre || selectedUser.username}`
+                        : 'Selecciona una fila para ver el detalle.'}
+                  </p>
+                </div>
+
+                <div className="editor-badges">
+                  <span className="soft-pill">{roles.length} roles</span>
+                  {selectedUser && (
+                    <span className={`status-chip ${selectedUser.activo ? 'active' : 'inactive'}`}>
+                      {selectedUser.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="editor-grid">
+              <div className="form-grid">
                 <label>
                   <span>Username</span>
-                  <input value={userForm.username} onChange={handleUserFieldChange('username')} disabled />
+                  <input
+                    value={userForm.username}
+                    onChange={handleUserFieldChange('username')}
+                    disabled={Boolean(selectedUser) && !creatingUser}
+                    placeholder="usuario.sistema"
+                  />
                 </label>
+
                 <label>
                   <span>Nombre</span>
-                  <input value={userForm.nombre} onChange={handleUserFieldChange('nombre')} disabled={!canConfigure} />
+                  <input value={userForm.nombre} onChange={handleUserFieldChange('nombre')} disabled={!canConfigure} placeholder="Nombre completo" />
                 </label>
+
                 <label>
                   <span>Correo</span>
-                  <input type="email" value={userForm.correo} onChange={handleUserFieldChange('correo')} disabled={!canConfigure} />
+                  <input type="email" value={userForm.correo} onChange={handleUserFieldChange('correo')} disabled={!canConfigure} placeholder="correo@dominio.com" />
                 </label>
+
                 <label>
                   <span>Dependencia</span>
-                  <input value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} />
+                  <input value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
                 </label>
-                <label className="switch-field">
+
+                <label className="span-full">
+                  <span>Rol</span>
+                  <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || roles.length === 0}>
+                    <option value="">{roles.length === 0 ? 'Sin roles disponibles' : 'Selecciona un rol'}</option>
+                    {roles.map((role) => (
+                      <option key={role.codigo} value={role.codigo}>
+                        {role.nombre} - {role.codigo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="toggle-field">
                   <span>Activo</span>
                   <label className="switch">
                     <input type="checkbox" checked={Boolean(userForm.activo)} onChange={handleUserFieldChange('activo')} disabled={!canConfigure} />
@@ -1396,114 +956,389 @@ const SecurityConfigPage = () => {
                 </label>
               </div>
 
-              <div className="editor-actions">
+              <div className="form-actions">
                 <button type="button" className="btn-secondary" onClick={handleCancelUserEdit} disabled={savingUser}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary" disabled={savingUser || !userForm.username || !canConfigure}>
+                {selectedUser && selectedUser.activo && (
+                  <button type="button" className="btn-ghost-danger" onClick={handleDeactivateUser} disabled={savingUser || !canConfigure}>
+                    <Ban size={16} />
+                    Desactivar
+                  </button>
+                )}
+                <button type="submit" className="btn-primary" disabled={savingUser || !canConfigure}>
                   <Save size={16} />
-                  {savingUser ? 'Guardando...' : 'Guardar usuario'}
+                  {savingUser ? 'Guardando...' : creatingUser ? 'Crear usuario' : 'Guardar usuario'}
                 </button>
               </div>
-            </form>
-          </div>
+              </form>
+            </aside>
+          )}
         </section>
       )}
 
-      {activeSection === 'asignaciones' && (
-        <section className="config-columns">
-          <article className="config-card">
-            <div className="section-title compact">
-              <div>
-                <h2>Asignacion de proyectos a usuarios</h2>
-                <p>Busca un usuario y vinculalo a un proyecto con un cargo especifico.</p>
+            {activeSection === SECURITY_TABS.ROLES && !hasRoleEditorOpen && (
+        <section className="security-workspace roles-workspace">
+          <article className="panel panel-main roles-panel">
+            <div className="panel-topbar roles-topbar">
+              <div className="roles-header-copy">
+                <p className="security-eyebrow">GESTIÓN DE ROLES</p>
+                <h2>Gestión de Roles</h2>
+                <p>Administre los niveles de acceso y perfiles de seguridad del sistema.</p>
+              </div>
+
+              <div className="panel-actions roles-actions">
+                <button type="button" className="btn-secondary" onClick={() => setActiveSection(SECURITY_TABS.USERS)}>
+                  <Users size={16} />
+                  Usuarios
+                </button>
+                <div className="inline-search">
+                  <Search size={15} />
+                  <input
+                    type="text"
+                    value={roleSearch}
+                    onChange={(event) => setRoleSearch(event.target.value)}
+                    placeholder="Buscar rol"
+                  />
+                </div>
+                <button type="button" className="btn-primary" onClick={handleNewRole} disabled={!canConfigure || loading}>
+                  <Plus size={16} />
+                  Nuevo Rol Personalizado
+                </button>
               </div>
             </div>
 
-            <div className="assignment-panel-note">
-              <strong>Usuario seleccionado:</strong>
-              <span>{selectedUser ? `${selectedUser.nombre} (${selectedUser.username})` : 'Ninguno'}</span>
-            </div>
-
-            <div className="assignment-grid">
-              <label>
-                <span>Usuario</span>
-                <select value={assignment.username} onChange={handleAssignChange('username')} disabled={!canConfigure}>
-                  <option value="">Seleccionar usuario</option>
-                  {filteredUsers.map((item) => (
-                    <option key={item.id} value={item.username}>
-                      {item.nombre} - {item.correo}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Proyecto</span>
-                <select value={assignment.proyectoId} onChange={handleAssignChange('proyectoId')} disabled={!canConfigure}>
-                  <option value="">Seleccionar proyecto</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.codigo || project.id} - {project.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Cargo en el proyecto</span>
-                <select
-                  value={assignmentCargoValue}
-                  onChange={handleAssignChange('cargo')}
-                  disabled={!canConfigure || cargoOptions.length === 0}
-                >
-                  {cargoOptions.length === 0 ? (
-                    <option value="">Sin cargos configurados</option>
+            <div className="table-shell roles-table-shell">
+              <table className="data-table roles-table">
+                <thead>
+                  <tr>
+                    <th>Nombre del rol</th>
+                    <th>Descripción</th>
+                    <th>Tipo de perfil</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="table-empty-cell">Cargando roles...</td>
+                    </tr>
+                  ) : filteredRoles.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="table-empty-cell">
+                        {emptyMessage('No hay roles', 'Crea un rol para empezar a definir su matriz de permisos.')}
+                      </td>
+                    </tr>
                   ) : (
-                    cargoOptions.map((cargo) => (
-                      <option key={cargo} value={cargo}>
-                        {cargo}
-                      </option>
-                    ))
+                    filteredRoles.map((role) => {
+                      const selected = role.codigo === selectedRoleCode;
+                      return (
+                        <tr key={role.codigo} className={selected ? 'selected-row' : ''} onClick={() => handleSelectRole(role)}>
+                          <td>
+                            <div className="role-table-name">
+                              <span className="role-table-badge">
+                                <ShieldCheck size={15} />
+                              </span>
+                              <div>
+                                <strong>{role.nombre}</strong>
+                                <span>ID: {role.id ? `#${role.id}` : role.codigo}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="role-table-description">{role.descripcion || 'Sin descripción'}</td>
+                          <td>
+                            <span className={`profile-chip ${roleTypeClass(role)}`}>{roleTypeLabel(role)}</span>
+                          </td>
+                          <td>
+                            <span className={`status-chip ${role.activo ? 'active' : 'inactive'}`}>
+                              {role.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="row-actions">
+                              <button
+                                type="button"
+                                className="icon-button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleSelectRole(role);
+                                }}
+                                title="Editar rol"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
+                                <input type="checkbox" checked={Boolean(role.activo)} readOnly />
+                                <span />
+                              </label>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
-                </select>
-              </label>
-            </div>
-
-            <div className="editor-actions">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleAssignUser}
-                disabled={savingAssignment || !canConfigure || cargoOptions.length === 0 || projects.length === 0}
-              >
-                <UserPlus size={16} />
-                {savingAssignment ? 'Guardando...' : 'Asignar usuario'}
-              </button>
+                </tbody>
+              </table>
             </div>
           </article>
+        </section>
+      )}
 
-          <article className="config-card">
-            <div className="section-title compact">
-              <div>
-                <h2>Asignaciones del usuario</h2>
-                <p>Vista resumida de los proyectos y cargos vinculados.</p>
-              </div>
-            </div>
-
-            <div className="assignment-preview">
-              {assignmentPreview.length === 0 ? (
-                <p className="empty-state">No hay asignaciones registradas para el usuario seleccionado.</p>
-              ) : (
-                assignmentPreview.map((item) => (
-                  <div key={`${item.proyectoId}-${item.cargo}`} className="assignment-item">
-                    <strong>{item.proyectoCodigo || item.proyectoId}</strong>
-                    <span>{item.proyectoNombre || item.proyectoId}</span>
-                    <small>{item.cargo}</small>
+            {activeSection === SECURITY_TABS.ROLES && hasRoleEditorOpen && (
+        <section className="security-workspace roles-workspace">
+          <article className="panel panel-aside role-editor premium-role-editor">
+            <form className="editor-form role-editor-form" onSubmit={handleSaveRole}>
+              <div className="editor-head role-editor-head">
+                <div>
+                  <div className="role-editor-title-row">
+                    <span className="role-editor-icon">
+                      <ShieldCheck size={18} />
+                    </span>
+                    <div>
+                      <h3>{creatingRole ? 'Nuevo Rol Personalizado' : 'Editar Perfil de Seguridad'}</h3>
+                      <p>
+                        {creatingRole
+                          ? 'Defina el perfil y ajuste los privilegios antes de guardar.'
+                          : `Modificando privilegios para: ${selectedRole?.nombre || 'Rol seleccionado'}`}
+                      </p>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+
+                <button type="button" className="btn-ghost-dark" onClick={handleCancelRoleEdit}>
+                  <span aria-hidden="true">←</span>
+                  Volver al Listado
+                </button>
+              </div>
+
+              <div className="role-core-grid">
+                {creatingRole && (
+                  <label className="span-full">
+                    <span>Código del rol *</span>
+                    <input
+                      value={roleForm.codigo}
+                      onChange={handleRoleFieldChange('codigo')}
+                      disabled={!canConfigure}
+                      placeholder="ej: visualizadores_maestro"
+                    />
+                  </label>
+                )}
+
+                <label>
+                  <span>Nombre del rol *</span>
+                  <input
+                    value={roleForm.nombre}
+                    onChange={handleRoleFieldChange('nombre')}
+                    disabled={!canConfigure}
+                    placeholder="Visualizadores Maestro"
+                  />
+                </label>
+
+                <label>
+                  <span>Descripción del perfil</span>
+                  <textarea
+                    value={roleForm.descripcion}
+                    onChange={handleRoleFieldChange('descripcion')}
+                    disabled={!canConfigure}
+                    placeholder="Pueden ver los estados de las cuentas y revisar índices analíticos"
+                    rows={2}
+                  />
+                </label>
+              </div>
+
+              <section className="role-section-card">
+                <div className="role-section-header">
+                  <div>
+                    <h4>Restricciones de Datos y Workflow</h4>
+                    <p>Configure el alcance del rol y su comportamiento base dentro de la plataforma.</p>
+                  </div>
+                </div>
+
+                <div className="role-constraint-grid">
+                  <div className="constraint-card">
+                    <h5>Visibilidad de Información</h5>
+                    <div className="constraint-list">
+                      <label className="constraint-item" title={getConstraintTooltip('transversal')}>
+                        <input type="checkbox" checked={Boolean(roleForm.transversal)} onChange={handleRoleFieldChange('transversal')} />
+                        <span>Privacidad Estricta</span>
+                      </label>
+                      <label className="constraint-item" title={getConstraintTooltip('activo')}>
+                        <input type="checkbox" checked={Boolean(roleForm.activo)} onChange={handleRoleFieldChange('activo')} />
+                        <span>Rol Activo</span>
+                      </label>
+                      <label className="constraint-item" title={getConstraintTooltip('access')}>
+                        <input type="checkbox" checked={Boolean(selectedRole?.transversal)} readOnly disabled />
+                        <span>Acceso Transversal</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="constraint-card">
+                    <h5>Acceso a Bloques</h5>
+                    {creatingRole && (
+                      <div className="template-strip template-strip-role">
+                        <label>
+                          <span>Copiar permisos desde</span>
+                          <select value={roleTemplateCode} onChange={(event) => handleRoleTemplateChange(event.target.value)} disabled={!canConfigure || roles.length === 0}>
+                            <option value="">{roles.length === 0 ? 'Sin roles para copiar' : 'Sin plantilla'}</option>
+                            {roles.map((role) => (
+                              <option key={role.codigo} value={role.codigo}>
+                                {role.nombre} - {role.codigo}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    )}
+
+                    <div className="workflow-block-grid">
+                        {permissionGroups.slice(0, 5).map((group) => {
+                          const codes = getBucketCodes(group, 'visualizar');
+                          const checked = isBucketChecked(codes);
+                          return (
+                          <label
+                            key={group.key}
+                            className={`workflow-block ${checked ? 'checked' : ''}`}
+                            title={getMatrixCellTitle(group, 'visualizar', codes)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => togglePermissionBucket(codes)}
+                            />
+                            <span className="workflow-block-copy">{group.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="role-section-card">
+                <div className="role-section-header">
+                  <div>
+                    <h4>Responsabilidades de Procesamiento</h4>
+                    <p>Seleccione los módulos donde este rol actuará como operador directo.</p>
+                  </div>
+                </div>
+
+                <div className="workflow-responsibility-grid">
+                  {permissionGroups.map((group) => {
+                    const allCodes = group.permissions.map((permission) => permission.codigo);
+                    const checked = isBucketChecked(allCodes);
+                    return (
+                      <label
+                        key={group.key}
+                        className={`responsibility-card ${checked ? 'checked' : ''}`}
+                        title={`${group.label}: habilita permisos de operación directa sobre este módulo.`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => togglePermissionBucket(allCodes)}
+                        />
+                        <span className="responsibility-copy">{group.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="role-section-card matrix-section-card">
+                <div className="matrix-head">
+                  <div>
+                    <h4>Matriz de Privilegios del Sistema</h4>
+                    <p>Controle qué acciones puede ejecutar este perfil sobre cada módulo funcional.</p>
+                  </div>
+                  <span className="soft-pill">{permissionGroups.length} módulos</span>
+                </div>
+
+                <div className="matrix-table-shell">
+                  <table className="matrix-table">
+                    <thead>
+                      <tr>
+                        <th title="Módulo o funcionalidad a la que aplican los permisos.">Módulo / Funcionalidad</th>
+                        <th title={`${matrixColumnDescriptions.visualizar} ${matrixColumnShortcuts.visualizar}`}>Visualizar</th>
+                        <th title={`${matrixColumnDescriptions.crear} ${matrixColumnShortcuts.crear}`}>Crear</th>
+                        <th title={`${matrixColumnDescriptions.editar} ${matrixColumnShortcuts.editar}`}>Editar</th>
+                        <th title={`${matrixColumnDescriptions.especiales} ${matrixColumnShortcuts.especiales}`}>Especiales</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {permissionGroups.map((group) => {
+                        const viewCodes = getBucketCodes(group, 'visualizar');
+                        const createCodes = getBucketCodes(group, 'crear');
+                        const editCodes = getBucketCodes(group, 'editar');
+                        const specialCodes = getBucketCodes(group, 'especiales');
+                        const cells = [
+                          { key: 'visualizar', codes: viewCodes },
+                          { key: 'crear', codes: createCodes },
+                          { key: 'editar', codes: editCodes },
+                          { key: 'especiales', codes: specialCodes },
+                        ];
+
+                        return (
+                          <tr key={group.key}>
+                            <td>
+                              <div
+                                className="matrix-module-cell"
+                                title={group.permissions.map((permission) => getPermissionTooltip(permission)).join(' · ')}
+                              >
+                                <span className="matrix-module-icon">
+                                  <ShieldCheck size={15} />
+                                </span>
+                                <div>
+                                  <strong>{group.label}</strong>
+                                  <span>{group.key}</span>
+                                </div>
+                              </div>
+                            </td>
+                            {cells.map((cell) => {
+                              const checked = isBucketChecked(cell.codes);
+                              const cellTitle = getMatrixCellTitle(group, cell.key, cell.codes);
+                              return (
+                                <td key={`${group.key}-${cell.key}`} className="matrix-center-cell" title={cellTitle}>
+                                  {cell.codes.length === 0 ? (
+                                    <span className="muted-text" title={cellTitle}>N/A</span>
+                                  ) : (
+                                    <label className={`matrix-toggle ${checked ? 'checked' : ''}`} title={cellTitle}>
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => togglePermissionBucket(cell.codes)}
+                                      />
+                                      <span />
+                                    </label>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="form-actions sticky-actions">
+                  <button type="button" className="btn-secondary" onClick={handleCancelRoleEdit} disabled={savingRole || savingPermissions}>
+                    Cancelar
+                  </button>
+                  {selectedRole && !creatingRole && (
+                    <button type="button" className="btn-ghost-danger" onClick={handleDeleteRole} disabled={savingRole || savingPermissions || !canConfigure}>
+                      <Ban size={16} />
+                      Desactivar
+                    </button>
+                  )}
+                  <button type="submit" className="btn-primary" disabled={savingRole || savingPermissions || !canConfigure}>
+                    <Save size={16} />
+                    {savingRole || savingPermissions ? 'Guardando...' : creatingRole ? 'Crear rol' : 'Guardar rol'}
+                  </button>
+                </div>
+              </section>
+            </form>
           </article>
         </section>
       )}
@@ -1512,3 +1347,4 @@ const SecurityConfigPage = () => {
 };
 
 export default SecurityConfigPage;
+

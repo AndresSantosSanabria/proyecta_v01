@@ -1,5 +1,7 @@
 import apiClient from '../api/axiosConfig';
 
+const normalizeProjectId = (proyectoId) => String(proyectoId || '').trim().toUpperCase();
+
 /**
  * Servicio encargado de la gestión del cronograma del proyecto.
  */
@@ -11,7 +13,7 @@ const cronogramaService = {
    */
   getCronograma: async (proyectoId) => {
     try {
-      const { data } = await apiClient.get(`/proyectos/${proyectoId}/cronograma`);
+      const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(proyectoId)}/cronograma`);
       return data;
     } catch (error) {
       console.error(`Error fetching cronograma for project ${proyectoId}:`, error);
@@ -26,7 +28,7 @@ const cronogramaService = {
    */
   getResumenProyecto: async (proyectoId) => {
     try {
-      const { data } = await apiClient.get(`/proyectos/${proyectoId}/resumen`);
+      const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(proyectoId)}/resumen`);
       return data;
     } catch (error) {
       console.error(`Error fetching resumen for project ${proyectoId}:`, error);
@@ -45,7 +47,7 @@ const cronogramaService = {
       const formData = new FormData();
       formData.append('archivo', file);
 
-      const { data } = await apiClient.post(`/proyectos/${proyectoId}/cronograma`, formData, {
+      const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(proyectoId)}/cronograma`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -64,7 +66,7 @@ const cronogramaService = {
    */
   downloadCronograma: async (proyectoId) => {
     try {
-      const response = await apiClient.get(`/proyectos/${proyectoId}/cronograma/descargar`, {
+      const response = await apiClient.get(`/proyectos/${normalizeProjectId(proyectoId)}/cronograma/descargar`, {
         responseType: 'blob',
       });
       return response.data;

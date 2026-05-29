@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const DEPENDENCIAS = [
   'Infraestructura',
@@ -14,9 +14,34 @@ const DEPENDENCIAS = [
 ];
 
 const Paso1DatosGenerales = ({ data, onChange, errors }) => {
+  const [dependenciaOpen, setDependenciaOpen] = useState(false);
+  const dependenciaRef = useRef(null);
+
   const handleChange = (field, value) => {
     onChange({ [field]: value });
   };
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (dependenciaRef.current && !dependenciaRef.current.contains(event.target)) {
+        setDependenciaOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setDependenciaOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   const handleObjetivoAdd = () => {
     const nuevos = [...(data.objetivosEspecificos || []), ''];
@@ -62,16 +87,43 @@ const Paso1DatosGenerales = ({ data, onChange, errors }) => {
 
         <div className="form-group">
           <label className="form-label">Dependencia Responsable *</label>
-          <select
-            className={`form-input ${errors.dependencia ? 'input-error' : ''}`}
-            value={data.dependencia || ''}
-            onChange={(e) => handleChange('dependencia', e.target.value)}
-          >
-            <option value="">Seleccione una dependencia</option>
-            {DEPENDENCIAS.map((dep) => (
-              <option key={dep} value={dep}>{dep}</option>
-            ))}
-          </select>
+          <div className="custom-select" ref={dependenciaRef}>
+            <button
+              type="button"
+              className={`form-input custom-select-trigger ${errors.dependencia ? 'input-error' : ''} ${dependenciaOpen ? 'open' : ''}`}
+              onClick={() => setDependenciaOpen((current) => !current)}
+              aria-haspopup="listbox"
+              aria-expanded={dependenciaOpen}
+            >
+              <span className={`custom-select-value ${data.dependencia ? 'selected' : 'placeholder'}`}>
+                {data.dependencia || 'Seleccione una dependencia'}
+              </span>
+              <span className={`custom-select-caret ${dependenciaOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
+            </button>
+
+            {dependenciaOpen && (
+              <div className="custom-select-menu" role="listbox" aria-label="Dependencia Responsable">
+                {DEPENDENCIAS.map((dep) => {
+                  const selected = data.dependencia === dep;
+                  return (
+                    <button
+                      key={dep}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      className={`custom-select-option ${selected ? 'selected' : ''}`}
+                      onClick={() => {
+                        handleChange('dependencia', dep);
+                        setDependenciaOpen(false);
+                      }}
+                    >
+                      {dep}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           {errors.dependencia && <span className="error-text">{errors.dependencia}</span>}
         </div>
 

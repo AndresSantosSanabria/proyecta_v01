@@ -20,14 +20,6 @@ const ProjectAccessRoute = () => {
     return <Outlet />;
   }
 
-  console.warn('Access denied for project', projectId, 'Assigned projects:', assignedProjects);
-
-  // Permitir acceso temporal en modo desarrollo si falla la validación
-  if (import.meta.env.DEV) {
-    console.warn('Permitiendo acceso en modo desarrollo por defecto.');
-    return <Outlet />;
-  }
-
   return <Navigate to="/access-denied" replace />;
 };
 

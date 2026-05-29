@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Upload, Download, X, FileText, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, Download, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import documentService from '../../../services/documentService';
 import { usePermission } from '../../../hooks/usePermission';
 import './DocumentUpload.css';
@@ -31,7 +31,64 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
   const [progress, setProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const fileInputRef = useRef(null);
+  const formatSize = useCallback((bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateExistingDocument = async () => {
+      if (!proyectoId || !tipoDocumento) {
+        if (!cancelled) setIsLoadingExisting(false);
+        return;
+      }
+
+      try {
+        if (!cancelled) setIsLoadingExisting(true);
+        const response = await documentService.listarDocumentos(proyectoId);
+        const documentos = response?.data?.documentos ?? response?.data?.data?.documentos ?? response?.data?.data ?? [];
+        const existing = Array.isArray(documentos)
+          ? documentos.find((doc) => String(doc.tipoDocumento || doc.tipo_documento || '').toUpperCase() === String(tipoDocumento).toUpperCase())
+          : null;
+
+        if (cancelled) return;
+
+        if (existing) {
+          const bytes = existing.tamanoBytes || existing.tamano_bytes || 0;
+          setUploadedFile({
+            id: existing.id,
+            tipoDocumento: existing.tipoDocumento || existing.tipo_documento || tipoDocumento,
+            nombreOriginal: existing.nombreOriginal || existing.nombre_original || existing.nombreAlmacenado || existing.nombre_almacenado || 'Documento cargado',
+            nombreAlmacenado: existing.nombreAlmacenado || existing.nombre_almacenado,
+            mimeType: existing.mimeType || existing.mime_type,
+            tamanoBytes: bytes,
+            tamanoFormateado: existing.tamanoFormateado || existing.tamano_formateado || formatSize(bytes),
+            urlDescarga: existing.urlDescarga || existing.url_descarga,
+            fechaCarga: existing.fechaCarga || existing.fecha_carga,
+          });
+          setState(STATE.SUCCESS);
+        } else {
+          setState(STATE.IDLE);
+        }
+      } catch (error) {
+        console.error('Error cargando documento existente:', error);
+        if (!cancelled) setState(STATE.IDLE);
+      } finally {
+        if (!cancelled) setIsLoadingExisting(false);
+      }
+    };
+
+    hydrateExistingDocument();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formatSize, proyectoId, tipoDocumento]);
 
   const validateFile = useCallback((file) => {
     if (!file) return 'No se seleccionó ningún archivo.';
@@ -139,13 +196,8 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
     setProgress(0);
     setUploadedFile(null);
     setErrorMessage('');
+    setIsLoadingExisting(false);
   }, []);
-
-  const formatSize = (bytes) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
 
   const isIdle = state === STATE.IDLE || state === STATE.DRAGGING;
   const isUploading = state === STATE.UPLOADING;
@@ -154,6 +206,25 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
 
   if (!canUpload) {
     return null;
+  }
+
+  if (isLoadingExisting) {
+    return (
+      <div className="document-upload">
+        <div className="document-upload-header">
+          <h3 className="document-upload-title">{label || 'Subir documento'}</h3>
+        </div>
+        <div className="upload-progress">
+          <Loader2 className="upload-progress-spinner animate-spin" size={32} />
+          <div className="upload-progress-info">
+            <p className="upload-progress-text">Verificando documento existente...</p>
+            <div className="progress-bar-container">
+              <div className="progress-bar-fill" style={{ width: '100%' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
