@@ -17,6 +17,7 @@ import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.enums.Probabilidad;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.RiesgoRepository;
+import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.service.IRiesgoService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,16 +38,19 @@ public class RiesgoServiceImpl implements IRiesgoService {
             new MatrixRule("MEDIA", "ALTO", "ALTO", "#ef4444"),
             new MatrixRule("ALTA", "BAJO", "MODERADO", "#f59e0b"),
             new MatrixRule("ALTA", "MEDIO", "ALTO", "#ef4444"),
-            new MatrixRule("ALTA", "ALTO", "CRITICO", "#dc2626")
+            new MatrixRule("ALTA", "ALTO", "EXTREMO", "#dc2626")
     );
 
     private final RiesgoRepository riesgoRepository;
     private final ProyectoRepository proyectoRepository;
+    private final MatrizRiesgoRepository matrizRiesgoRepository;
 
     public RiesgoServiceImpl(RiesgoRepository riesgoRepository,
-                             ProyectoRepository proyectoRepository) {
+                             ProyectoRepository proyectoRepository,
+                             MatrizRiesgoRepository matrizRiesgoRepository) {
         this.riesgoRepository = riesgoRepository;
         this.proyectoRepository = proyectoRepository;
+        this.matrizRiesgoRepository = matrizRiesgoRepository;
     }
 
     @Override
@@ -65,6 +69,14 @@ public class RiesgoServiceImpl implements IRiesgoService {
     @Override
     @Transactional(readOnly = true)
     public List<MatrizRiesgoDTO> getRiskMatrix() {
+        List<MatrizRiesgoDTO> catalogo = matrizRiesgoRepository.findAllByOrderByIdAsc().stream()
+                .map(rule -> new MatrizRiesgoDTO(rule.getProbabilidad(), rule.getImpacto(), rule.getNivelResultante(), rule.getColor()))
+                .toList();
+
+        if (!catalogo.isEmpty()) {
+            return catalogo;
+        }
+
         return MATRIX_RULES.stream()
                 .map(rule -> new MatrizRiesgoDTO(rule.probabilidad(), rule.impacto(), rule.nivel(), rule.color()))
                 .toList();
@@ -207,15 +219,17 @@ public class RiesgoServiceImpl implements IRiesgoService {
             throw new BadRequestException("La probabilidad e impacto son obligatorios para calcular el nivel de riesgo.");
         }
 
-        return MATRIX_RULES.stream()
-                .filter(rule -> rule.probabilidad().equalsIgnoreCase(probabilidad) && rule.impacto().equalsIgnoreCase(impacto))
-                .map(MatrixRule::nivel)
-                .findFirst()
-                .orElseThrow(() -> new BadRequestException("No existe una formula de matriz de riesgo para la combinacion enviada."));
+        return matrizRiesgoRepository.findByProbabilidadIgnoreCaseAndImpactoIgnoreCase(probabilidad, impacto)
+                .map(com.proyecta.api_gestion.model.config.MatrizRiesgo::getNivelResultante)
+                .orElseGet(() -> MATRIX_RULES.stream()
+                        .filter(rule -> rule.probabilidad().equalsIgnoreCase(probabilidad) && rule.impacto().equalsIgnoreCase(impacto))
+                        .map(MatrixRule::nivel)
+                        .findFirst()
+                        .orElseThrow(() -> new BadRequestException("No existe una formula de matriz de riesgo para la combinacion enviada.")));
     }
 
     private Integer calcularCalificacionInherente(Probabilidad prob, Impacto imp) {
-        return escalaProbabilidad(prob) * escalaImpacto(imp);
+        return escalaProbabilidad(prob) + escalaImpacto(imp);
     }
 
     private Integer escalaProbabilidad(Probabilidad probabilidad) {
@@ -242,7 +256,14 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
     private NivelRiesgo parseNivelRiesgo(String nivelStr) {
         try {
-            return NivelRiesgo.valueOf(nivelStr.toUpperCase(Locale.ROOT));
+            String normalized = nivelStr == null ? null : nivelStr.trim().toUpperCase(Locale.ROOT);
+            if (normalized == null || normalized.isBlank()) {
+                return NivelRiesgo.BAJO;
+            }
+            if ("CRITICO".equals(normalized)) {
+                normalized = "EXTREMO";
+            }
+            return NivelRiesgo.valueOf(normalized);
         } catch (IllegalArgumentException e) {
             return NivelRiesgo.BAJO;
         }

@@ -9,6 +9,7 @@ import com.proyecta.api_gestion.model.Documento;
 import com.proyecta.api_gestion.model.DocumentoDinamico;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.config.TipoDocumentoConfig;
+import com.proyecta.api_gestion.model.enums.TipoDocumento;
 import com.proyecta.api_gestion.repository.DocumentoRepository;
 import com.proyecta.api_gestion.repository.DocumentoDinamicoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
@@ -94,10 +95,14 @@ public class DocumentoServiceImpl implements IDocumentoService {
         String mimeType = resolverMimeType(archivo);
 
         String nombreAlmacenado = storageProvider.storeFile(archivo, STORAGE_SUBDIR, nombreUnico);
+        TipoDocumento tipoDocumentoEnum = resolverTipoDocumento(tipoDocumento);
+        TipoDocumentoConfig tipoDocumentoConfig = tipoDocumentoConfigRepository.findByCodigo(tipoDocumento)
+                .orElseThrow(() -> new BadRequestException("Tipo de documento no configurado: " + tipoDocumento));
 
         Documento documento = new Documento();
         documento.setProyectoId(proyectoId);
-        documento.setTipoDocumentoConfig(tipoDocumentoConfigRepository.findByCodigo(tipoDocumento).orElse(null));
+        documento.setTipoDocumento(tipoDocumentoEnum);
+        documento.setTipoDocumentoConfig(tipoDocumentoConfig);
         documento.setNombreOriginal(nombreOriginal);
         documento.setNombreAlmacenado(nombreAlmacenado);
         documento.setRutaAlmacenamiento(STORAGE_SUBDIR);
@@ -172,6 +177,17 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
     private String construirUrlDescarga(String proyectoId, String tipoDocumento) {
         return "/api/v1/proyectos/" + proyectoId + "/documentos/" + tipoDocumento + "/descargar";
+    }
+
+    private TipoDocumento resolverTipoDocumento(String tipoDocumento) {
+        if (tipoDocumento == null || tipoDocumento.isBlank()) {
+            throw new BadRequestException("El tipo de documento es obligatorio.");
+        }
+        try {
+            return TipoDocumento.valueOf(tipoDocumento.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Tipo de documento no válido: " + tipoDocumento);
+        }
     }
 
     private String formatearTamano(Long bytes) {

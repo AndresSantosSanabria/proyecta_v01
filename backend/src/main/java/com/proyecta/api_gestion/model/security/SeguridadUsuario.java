@@ -11,7 +11,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "usuarios")
+@Table(name = "usuarios", schema = "proyecta_db")
 public class SeguridadUsuario {
 
     @Id
@@ -32,6 +32,12 @@ public class SeguridadUsuario {
 
     @Column(name = "dependencia", length = 180)
     private String dependencia;
+
+    @Column(name = "rol_codigo", length = 120)
+    private String rolCodigo;
+
+    @Column(name = "rol_nombre", length = 180)
+    private String rolNombre;
 
     @Column(name = "activo", nullable = false)
     private Boolean activo = true;
@@ -95,6 +101,22 @@ public class SeguridadUsuario {
 
     public void setDependencia(String dependencia) {
         this.dependencia = dependencia;
+    }
+
+    public String getRolCodigo() {
+        return rolCodigo;
+    }
+
+    public void setRolCodigo(String rolCodigo) {
+        this.rolCodigo = rolCodigo;
+    }
+
+    public String getRolNombre() {
+        return rolNombre;
+    }
+
+    public void setRolNombre(String rolNombre) {
+        this.rolNombre = rolNombre;
     }
 
     public Boolean getActivo() {

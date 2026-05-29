@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,7 +45,9 @@ public class AdminConfiguracionController {
     @GetMapping("/usuarios")
     public ResponseEntity<ApiResponse<Page<SeguridadUsuarioDTO>>> listarUsuarios(
             @RequestParam(required = false) String search,
+            Authentication authentication,
             Pageable pageable) {
+        securityAdministrationService.sincronizarUsuarioAutenticado(authentication);
         return ResponseEntity.ok(ApiResponse.success(
                 securityAdministrationService.listarUsuarios(search, pageable),
                 "Usuarios listados correctamente"));

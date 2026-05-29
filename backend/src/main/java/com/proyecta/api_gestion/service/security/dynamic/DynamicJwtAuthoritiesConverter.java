@@ -1,5 +1,7 @@
 package com.proyecta.api_gestion.service.security.dynamic;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,6 +17,8 @@ import java.util.Set;
 
 @Component
 public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+
+    private static final Logger logger = LoggerFactory.getLogger(DynamicJwtAuthoritiesConverter.class);
 
     private final List<String> resourceClientIds;
     private final SecurityCatalogCacheService catalogCacheService;
@@ -39,8 +43,12 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
         Set<String> roles = identityExtractor.resolveRealmAndClientRoles(authenticationFrom(jwt), resourceClientIds);
         roles.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase(Locale.ROOT))));
 
-        catalogCacheService.getPermissionsForRoles(roles).forEach(permission ->
-                authorities.add(new SimpleGrantedAuthority("PERM_" + permission.toUpperCase(Locale.ROOT))));
+        try {
+            catalogCacheService.getPermissionsForRoles(roles).forEach(permission ->
+                    authorities.add(new SimpleGrantedAuthority("PERM_" + permission.toUpperCase(Locale.ROOT))));
+        } catch (RuntimeException ex) {
+            logger.warn("No se pudieron resolver permisos del catálogo de seguridad. Se continuó con roles del JWT: {}", ex.getMessage());
+        }
 
         addScopes(jwt.getClaimAsString("scope"), authorities);
         addScopes(jwt.getClaimAsStringList("scp"), authorities);

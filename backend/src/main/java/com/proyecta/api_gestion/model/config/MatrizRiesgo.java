@@ -17,8 +17,11 @@ public class MatrizRiesgo {
     @Column(nullable = false, length = 10)
     private String impacto;
 
-    @Column(name = "nivel_resultante", nullable = false, length = 20)
+    @Column(name = "nivel_riesgo", nullable = false, length = 20)
     private String nivelResultante;
+
+    @Column(name = "color", nullable = false, length = 20)
+    private String color;
 
     public MatrizRiesgo() {}
 
@@ -33,4 +36,7 @@ public class MatrizRiesgo {
 
     public String getNivelResultante() { return nivelResultante; }
     public void setNivelResultante(String nivelResultante) { this.nivelResultante = nivelResultante; }
+
+    public String getColor() { return color; }
+    public void setColor(String color) { this.color = color; }
 }

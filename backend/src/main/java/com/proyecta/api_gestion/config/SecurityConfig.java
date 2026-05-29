@@ -52,9 +52,9 @@ public class SecurityConfig {
                     "/actuator/info",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
-                    "/swagger-ui.html",
-                    "/api/v1/**"
+                    "/swagger-ui.html"
                 ).permitAll()
+                .requestMatchers("/api/v1/**").authenticated()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

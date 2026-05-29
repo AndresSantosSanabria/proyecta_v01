@@ -13,7 +13,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "rol_permiso")
+@Table(name = "rol_permiso", schema = "proyecta_db")
 public class SeguridadRolPermiso {
 
     @Id

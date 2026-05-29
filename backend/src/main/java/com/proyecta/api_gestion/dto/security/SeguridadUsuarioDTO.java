@@ -9,6 +9,8 @@ public record SeguridadUsuarioDTO(
         String correo,
         String dependencia,
         Boolean activo,
+        String rolCodigo,
+        String rolNombre,
         LocalDateTime fechaCreacion,
         LocalDateTime ultimoAcceso
 ) {}

@@ -8,10 +8,15 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 
 @Repository
 public interface RiesgoRepository extends JpaRepository<Riesgo, Integer> {
     List<Riesgo> findByProyectoId(String proyectoId);
+
+    long countByProyecto_Id(String proyectoId);
+
+    long countByProyecto_IdAndEstado(String proyectoId, EstadoRiesgo estado);
 
     @Query("""
         SELECT new com.proyecta.api_gestion.dto.report.RiesgoReporteDTO(

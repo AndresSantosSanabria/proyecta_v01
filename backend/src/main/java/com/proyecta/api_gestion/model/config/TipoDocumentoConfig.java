@@ -21,7 +21,7 @@ public class TipoDocumentoConfig {
     @Column(length = 300)
     private String descripcion;
 
-    @Column(name = "requiere_pdf", nullable = false)
+    @Column(name = "require_pdf", nullable = false)
     private Boolean requierePdf = true;
 
     @Column(nullable = false)

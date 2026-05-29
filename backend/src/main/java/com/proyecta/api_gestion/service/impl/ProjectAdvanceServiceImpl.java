@@ -20,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
@@ -50,24 +52,24 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public ProyectoAvanceResponseDTO obtenerAvanceDetallado(String proyectoId) {
         Proyecto proyecto = cargarProyecto(proyectoId);
-        final Proyecto proyectoBase = proyecto;
 
         if (proyecto.esEstadoTerminal()) {
-            return actaCierreRepository.findByProyectoId(proyectoId)
-                    .map(ActaCierre::getSnapshotJson)
-                    .filter(json -> json != null && !json.isBlank())
-                    .map(metricsService::deserializar)
-                    .orElseGet(() -> metricsService.construir(proyectoBase, LocalDate.now()));
+            ActaCierre acta = actaCierreRepository.findByProyectoId(proyectoId)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "El proyecto " + proyectoId + " está cerrado pero no tiene un snapshot de cierre persistido."));
+
+            String snapshotJson = acta.getSnapshotJson();
+            if (snapshotJson == null || snapshotJson.isBlank()) {
+                throw new IllegalStateException(
+                        "El proyecto " + proyectoId + " está cerrado pero su snapshot de cierre está vacío.");
+            }
+
+            return metricsService.deserializar(snapshotJson);
         }
 
-        progressCalculator.calcularYActualizarAvanceProyecto(proyectoId);
-        entityManager.flush();
-        entityManager.clear();
-
-        proyecto = cargarProyecto(proyectoId);
         return metricsService.construir(proyecto, LocalDate.now());
     }
 
@@ -78,7 +80,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
         return new ProyectoSummaryDTO(
                 avance.progresoEjecutado(),
-                avance.entregablesConformes() + "/" + avance.entregablesTotal(),
+                avance.entregablesEntregadosAlCorte() + "/" + avance.entregablesProgramadosAlCorte(),
                 avance.entregablesAtrasados(),
                 avance.proximosAVencer()
         );
@@ -94,6 +96,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         if (!"application/pdf".equals(evidencia.getContentType())) {
             throw new UnprocessableEntityException("El archivo debe ser un PDF");
         }
+
+        validarPdfReal(evidencia);
 
         Entregable entregable = entregableRepository.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
@@ -133,6 +137,18 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 evidenciaUrl,
                 avance
         );
+    }
+
+    private void validarPdfReal(MultipartFile evidencia) {
+        try {
+            byte[] encabezado = evidencia.getInputStream().readNBytes(5);
+            String firma = new String(encabezado, StandardCharsets.US_ASCII);
+            if (!firma.startsWith("%PDF-")) {
+                throw new UnprocessableEntityException("El archivo cargado no es un PDF válido.");
+            }
+        } catch (IOException ex) {
+            throw new UnprocessableEntityException("No fue posible validar el archivo PDF cargado.");
+        }
     }
 
     private Proyecto cargarProyecto(String proyectoId) {

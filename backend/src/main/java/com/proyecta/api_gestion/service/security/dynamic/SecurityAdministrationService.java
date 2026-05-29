@@ -16,6 +16,7 @@ import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.Usuario;
+import com.proyecta.api_gestion.model.config.RolConfig;
 import com.proyecta.api_gestion.model.security.SeguridadPermiso;
 import com.proyecta.api_gestion.model.security.SeguridadRol;
 import com.proyecta.api_gestion.model.security.SeguridadRolPermiso;
@@ -96,6 +97,79 @@ public class SecurityAdministrationService {
     }
 
     @Transactional
+    public SeguridadUsuario sincronizarUsuarioAutenticado(Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        String email = normalizeText(identityExtractor.resolveEmail(authentication));
+        String displayName = normalizeText(identityExtractor.resolveDisplayName(authentication));
+        String keycloakSub = normalizeText(identityExtractor.resolveSub(authentication));
+
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible resolver el usuario autenticado.");
+        }
+
+        SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
+                .orElseGet(() -> {
+                    SeguridadUsuario nuevo = new SeguridadUsuario();
+                    nuevo.setUsername(username);
+                    nuevo.setKeycloakSub(keycloakSub != null ? keycloakSub : username);
+                    nuevo.setNombre(displayName != null ? displayName : username);
+                    nuevo.setCorreo(email != null ? email : username);
+                    nuevo.setDependencia(identityExtractor.resolveDependencia(authentication));
+                    nuevo.setActivo(true);
+                    return nuevo;
+                });
+
+        boolean shouldSave = false;
+        if (keycloakSub != null && !keycloakSub.equalsIgnoreCase(normalizeText(usuario.getKeycloakSub()))) {
+            usuario.setKeycloakSub(keycloakSub);
+            shouldSave = true;
+        }
+        if (displayName != null && !displayName.equalsIgnoreCase(normalizeText(usuario.getNombre()))) {
+            usuario.setNombre(displayName);
+            shouldSave = true;
+        }
+        if (email != null && !email.equalsIgnoreCase(normalizeText(usuario.getCorreo()))) {
+            usuario.setCorreo(email);
+            shouldSave = true;
+        }
+
+        String dependencia = normalizeText(identityExtractor.resolveDependencia(authentication));
+        if (dependencia != null && !dependencia.equalsIgnoreCase(normalizeText(usuario.getDependencia()))) {
+            usuario.setDependencia(dependencia);
+            shouldSave = true;
+        }
+
+        if (usuario.getActivo() == null) {
+            usuario.setActivo(true);
+            shouldSave = true;
+        }
+
+        try {
+            Usuario localUser = localUserAuthorizationService.requireLocalUser(authentication);
+            RolConfig rolConfig = localUser != null ? localUser.getRolConfig() : null;
+            String rolCodigo = localUser != null ? normalizeText(localUser.getRolCodigo()) : null;
+            String rolNombre = rolConfig != null ? normalizeText(rolConfig.getNombre()) : null;
+
+            if (rolCodigo != null && !rolCodigo.equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
+                usuario.setRolCodigo(rolCodigo);
+                shouldSave = true;
+            }
+            if (rolNombre != null && !rolNombre.equalsIgnoreCase(normalizeText(usuario.getRolNombre()))) {
+                usuario.setRolNombre(rolNombre);
+                shouldSave = true;
+            }
+        } catch (RuntimeException ignored) {
+            // Si el usuario local no existe aun, se conserva la sincronizacion basica.
+        }
+
+        if (shouldSave || usuario.getId() == null) {
+            usuario = usuarioRepository.save(usuario);
+        }
+
+        return usuario;
+    }
+
+    @Transactional
     public SeguridadUsuarioDTO actualizarUsuario(SeguridadUsuarioUpdateRequest request) {
         if (request == null || request.username() == null || request.username().isBlank()) {
             throw new BadRequestException("El username del usuario es obligatorio.");
@@ -133,6 +207,13 @@ public class SecurityAdministrationService {
         usuario.setDependencia(normalizeText(request.dependencia()));
         if (request.activo() != null) {
             usuario.setActivo(request.activo());
+        }
+
+        String rolCodigo = normalizeText(request.rol());
+        if (rolCodigo != null) {
+            SeguridadRol rol = rolRepository.findByCodigoIgnoreCase(rolCodigo).orElse(null);
+            usuario.setRolCodigo(rolCodigo);
+            usuario.setRolNombre(rol != null ? rol.getNombre() : rolCodigo);
         }
 
         SeguridadUsuario saved = usuarioRepository.save(usuario);
@@ -400,20 +481,7 @@ public class SecurityAdministrationService {
         boolean administradorLocal = false;
 
         if (jwt != null) {
-            String email = normalizeText(identityExtractor.resolveEmail(authentication));
-            String displayName = normalizeText(nombre);
-            SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
-                    .orElseGet(() -> {
-                        SeguridadUsuario nuevo = new SeguridadUsuario();
-                        nuevo.setUsername(username);
-                        nuevo.setKeycloakSub(identityExtractor.resolveSub(authentication));
-                        nuevo.setNombre(displayName != null ? displayName : username);
-                        nuevo.setCorreo(email != null ? email : username);
-                        nuevo.setDependencia(identityExtractor.resolveDependencia(authentication));
-                        nuevo.setActivo(true);
-                        nuevo.setUltimoAcceso(LocalDateTime.now());
-                        return usuarioRepository.save(nuevo);
-                    });
+            SeguridadUsuario usuario = sincronizarUsuarioAutenticado(authentication);
             administradorLocal = roleCodes.contains("admin");
             usuario.setUltimoAcceso(LocalDateTime.now());
             usuarioRepository.save(usuario);
@@ -443,6 +511,8 @@ public class SecurityAdministrationService {
                 usuario.getCorreo(),
                 usuario.getDependencia(),
                 usuario.getActivo(),
+                usuario.getRolCodigo(),
+                usuario.getRolNombre(),
                 usuario.getFechaCreacion(),
                 usuario.getUltimoAcceso());
     }

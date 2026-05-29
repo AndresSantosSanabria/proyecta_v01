@@ -6,5 +6,6 @@ public record SeguridadUsuarioUpdateRequest(
         String correo,
         String dependencia,
         Boolean activo,
+        String rol,
         String keycloakSub
 ) {}

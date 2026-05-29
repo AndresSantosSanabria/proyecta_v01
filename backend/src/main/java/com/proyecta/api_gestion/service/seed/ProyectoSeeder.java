@@ -1,17 +1,23 @@
 package com.proyecta.api_gestion.service.seed;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.*;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.RiesgoRepository;
+import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.io.InputStream;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Seeder especializado para proyectos y su estructura jerárquica.
@@ -26,13 +32,19 @@ public class ProyectoSeeder {
     private final ProyectoRepository proyectoRepository;
     private final RiesgoRepository riesgoRepository;
     private final PatrocinadorSeeder patrocinadorSeeder;
+    private final ProyectoService proyectoService;
+    private final ObjectMapper objectMapper;
 
     public ProyectoSeeder(ProyectoRepository proyectoRepository,
                           RiesgoRepository riesgoRepository,
-                          PatrocinadorSeeder patrocinadorSeeder) {
+                          PatrocinadorSeeder patrocinadorSeeder,
+                          ProyectoService proyectoService,
+                          ObjectMapper objectMapper) {
         this.proyectoRepository = proyectoRepository;
         this.riesgoRepository = riesgoRepository;
         this.patrocinadorSeeder = patrocinadorSeeder;
+        this.proyectoService = proyectoService;
+        this.objectMapper = objectMapper;
     }
 
     public void seedProyectos() {
@@ -150,6 +162,9 @@ public class ProyectoSeeder {
         
         // Proyecto masivo para testing
         crearProyectoMasivo();
+
+        // Proyecto realista para pruebas funcionales del flujo completo
+        crearProyectoRealista();
         
         logger.info("✓ Proyectos semilla cargados");
     }
@@ -217,6 +232,7 @@ public class ProyectoSeeder {
 
     private void crearProyectoMasivo() {
         if (proyectoRepository.findById("IS-PROY-CUN-008").isPresent()) {
+            proyectoRepository.findById("IS-PROY-CUN-008").ifPresent(this::agregarRiesgosMasivos);
             return;
         }
         
@@ -267,6 +283,127 @@ public class ProyectoSeeder {
         }
         
         proyectoRepository.save(p);
+        agregarRiesgosMasivos(p);
         logger.debug("Proyecto masivo creado: IS-PROY-CUN-008");
+    }
+
+    private void crearProyectoRealista() {
+        try {
+            if (proyectoRepository.existsByNombreAndDependencia(
+                    "Modernización Integral de la Atención Ciudadana y Gestión TIC",
+                    "Secretaría de Transformación Digital")) {
+                return;
+            }
+
+            try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("examples/proyecto-realista.json")) {
+                if (inputStream == null) {
+                    logger.warn("No se encontró el archivo examples/proyecto-realista.json; se omite el proyecto realista.");
+                    return;
+                }
+
+                String json = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+                ProyectoCreateDTO dto = objectMapper.readValue(json, ProyectoCreateDTO.class);
+                proyectoService.crearProyecto(dto);
+                logger.debug("Proyecto realista sembrado desde examples/proyecto-realista.json");
+            }
+        } catch (Exception ex) {
+            logger.error("No fue posible sembrar el proyecto realista de ejemplo", ex);
+        }
+    }
+
+    private void agregarRiesgosMasivos(Proyecto proyecto) {
+        if (!riesgoRepository.findByProyectoId(proyecto.getId()).isEmpty()) {
+            return;
+        }
+
+        List<Riesgo> riesgos = new ArrayList<>();
+        riesgos.add(crearRiesgo(proyecto, "R01", "Sobrecarga de demanda sobre la mesa de ayuda", "Operativo", "Alta rotación de solicitudes en temporadas de corte", "Aumento de tiempos de respuesta y saturación del equipo de soporte", Probabilidad.ALTA, Impacto.MEDIO, Probabilidad.MEDIA, Impacto.MEDIO, "Priorización por criticidad, colas de atención y refuerzo temporal de soporte", "Preventivo", "Alta", "Escalar a mesa de nivel 2 y redistribuir tickets por criticidad", "Dirección TIC", "Coordinador de Soporte", LocalDate.now().plusDays(15), "Indicador: tiempo promedio de respuesta", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R02", "Desalineación entre alcance y necesidades reales", "Funcional", "Cambios frecuentes en requisitos durante la ejecución", "Reprocesos, incremento de alcance y retrasos acumulados", Probabilidad.ALTA, Impacto.ALTO, Probabilidad.MEDIA, Impacto.ALTO, "Control de cambios con comité y actas de validación", "Preventivo", "Alta", "Registrar cambios en comité y ajustar backlog", "Oficina de Planeación TIC", "Analista Funcional", LocalDate.now().plusDays(20), "Indicador: número de cambios aprobados", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R03", "Fallas en autenticación o permisos", "Tecnológico", "Configuración incompleta de roles o expiración de credenciales", "Bloqueo de usuarios y detención de procesos críticos", Probabilidad.MEDIA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Monitoreo de logs, pruebas de acceso y respaldo de cuentas críticas", "Correctivo", "Alta", "Rotar credenciales y validar permisos por ambiente", "Seguridad de la Información", "Administrador de Seguridad", LocalDate.now().plusDays(12), "Indicador: accesos fallidos por hora", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R04", "Pérdida de integridad de datos", "Datos", "Errores de sincronización o validaciones incompletas", "Información inconsistente en reportes y trazabilidad", Probabilidad.MEDIA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Backups automáticos, validaciones de negocio y auditoría", "Preventivo", "Alta", "Ejecutar conciliación diaria y revisión de logs", "Gestión de Datos", "Arquitecto de Datos", LocalDate.now().plusDays(18), "Indicador: inconsistencias detectadas", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R05", "Retraso en entregas críticas de desarrollo", "Cronograma", "Dependencias técnicas y disponibilidad parcial del equipo", "Atraso de hitos y compresión de pruebas", Probabilidad.MEDIA, Impacto.MEDIO, Probabilidad.MEDIA, Impacto.BAJO, "Plan de iteraciones, seguimiento semanal y tablero Kanban", "Preventivo", "Media", "Reasignar tareas y bloquear alcance no prioritario", "PMO TIC", "Líder de Proyecto", LocalDate.now().plusDays(10), "Indicador: tareas vencidas", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R06", "Caídas en ambientes de prueba", "Infraestructura", "Recursos limitados y pruebas concurrentes", "Interrupción de validaciones y pérdida de productividad", Probabilidad.MEDIA, Impacto.MEDIO, Probabilidad.BAJA, Impacto.BAJO, "Ventanas de prueba, monitoreo y recursos reservados", "Correctivo", "Media", "Reiniciar ambientes y validar estabilidad previa", "Infraestructura TIC", "Administrador de Ambientes", LocalDate.now().plusDays(14), "Indicador: disponibilidad de ambientes", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R07", "Rechazo del usuario final", "Adopción", "Pantallas poco familiares o capacitación insuficiente", "Baja utilización de la solución y regreso a procesos manuales", Probabilidad.MEDIA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Capacitación, acompañamiento y mejora UX iterativa", "Preventivo", "Alta", "Ajustar interfaz y reforzar formación", "Gestión del Cambio", "Líder de Adopción", LocalDate.now().plusDays(25), "Indicador: usuarios capacitados vs usuarios activos", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R08", "Desfase de fechas de entregables", "Cronograma", "Dependencias externas y validaciones tardías", "Atrasos acumulados y reprogramación de fases", Probabilidad.ALTA, Impacto.MEDIO, Probabilidad.MEDIA, Impacto.MEDIO, "Alertas tempranas y revisión de hitos semanales", "Preventivo", "Alta", "Escalar alertas y ajustar secuencias", "PMO TIC", "Gestor del Cronograma", LocalDate.now().plusDays(9), "Indicador: entregables vencidos", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R09", "Documentación incompleta", "Documental", "Falta de estandarización al registrar evidencias", "Dificultad para auditoría y cierre técnico", Probabilidad.MEDIA, Impacto.MEDIO, Probabilidad.BAJA, Impacto.BAJO, "Checklist documental y revisión de calidad", "Preventivo", "Media", "Completar evidencias faltantes antes de cierre", "Gestión Documental", "Analista Documental", LocalDate.now().plusDays(17), "Indicador: documentos pendientes", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R10", "Integración inestable con servicios externos", "Integración", "Cambios en contratos o latencia en APIs", "Errores intermitentes y reintentos fallidos", Probabilidad.MEDIA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Versionamiento de contratos y pruebas contractuales", "Preventivo", "Alta", "Ajustar timeouts y manejar fallback", "Arquitectura de Integración", "Líder Técnico", LocalDate.now().plusDays(13), "Indicador: porcentaje de fallos de integración", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R11", "Sobrecarga de reportes al corte", "Desempeño", "Consultas complejas sobre grandes volúmenes de datos", "Lentitud en tableros y reportes institucionales", Probabilidad.MEDIA, Impacto.MEDIO, Probabilidad.BAJA, Impacto.BAJO, "Índices de BD y caché de consultas", "Preventivo", "Media", "Optimizar consultas y programar generación nocturna", "Desarrollo", "Ingeniero Backend", LocalDate.now().plusDays(11), "Indicador: tiempo de generación de reportes", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R12", "Fuga de documentos sensibles", "Seguridad", "Permisos mal configurados o enlaces expuestos", "Exposición de información confidencial", Probabilidad.BAJA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Acceso por rol, auditoría y trazabilidad", "Preventivo", "Alta", "Revisar permisos y revocar accesos no autorizados", "Seguridad de la Información", "Oficial de Seguridad", LocalDate.now().plusDays(7), "Indicador: accesos inusuales", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R13", "Dependencia de una sola persona clave", "Gestión del talento", "Conocimiento concentrado en un miembro del equipo", "Riesgo de paro parcial ante ausencia", Probabilidad.MEDIA, Impacto.MEDIO, Probabilidad.BAJA, Impacto.BAJO, "Documentación técnica y pareamiento", "Preventivo", "Media", "Asignar suplente y transferir conocimiento", "PMO TIC", "Líder Funcional", LocalDate.now().plusDays(30), "Indicador: dependencia crítica", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R14", "Errores de configuración en ambientes", "Técnico", "Parámetros distintos entre desarrollo, pruebas y producción", "Comportamientos inconsistentes y fallos de despliegue", Probabilidad.MEDIA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Plantillas de configuración y revisión por pares", "Preventivo", "Alta", "Homologar variables de entorno", "DevOps", "Ingeniero DevOps", LocalDate.now().plusDays(16), "Indicador: incidencias por despliegue", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R15", "Cambio normativo o de lineamientos", "Normativo", "Nuevas directrices institucionales o regulatorias", "Reajuste de alcance, validaciones y tiempos", Probabilidad.BAJA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Seguimiento jurídico y revisión periódica", "Preventivo", "Media", "Ajustar el diseño a la nueva directriz", "Asesoría Jurídica", "Abogado TIC", LocalDate.now().plusDays(45), "Indicador: cambios regulatorios", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R16", "Baja calidad en datos de entrada", "Datos", "Cargas manuales con información incompleta o duplicada", "Resultados erróneos y reprocesos", Probabilidad.MEDIA, Impacto.MEDIO, Probabilidad.BAJA, Impacto.BAJO, "Validaciones de formato y catálogos maestros", "Preventivo", "Media", "Depurar datos y bloquear entradas inválidas", "Gestión de Datos", "Analista de Calidad", LocalDate.now().plusDays(21), "Indicador: registros rechazados", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R17", "Pérdida de evidencias de avance", "Control interno", "Carga incorrecta o borrado accidental de archivos", "Dificultad para demostrar cumplimiento", Probabilidad.MEDIA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Repositorio central y respaldo automático", "Preventivo", "Alta", "Restaurar evidencias desde backup", "Control Interno", "Gestor de Evidencias", LocalDate.now().plusDays(8), "Indicador: evidencias faltantes", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R18", "Atraso en aprobaciones internas", "Gobernanza", "Tiempos de revisión superiores a lo previsto", "Bloqueo de hitos y dependencia del comité", Probabilidad.ALTA, Impacto.MEDIO, Probabilidad.MEDIA, Impacto.BAJO, "Agenda de comité y tiempos máximos de respuesta", "Preventivo", "Media", "Escalar aprobaciones pendientes", "Comité TIC", "Secretaría Técnica", LocalDate.now().plusDays(6), "Indicador: aprobaciones pendientes", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R19", "Sobrecarga de soporte post-implementación", "Operación", "Alta demanda inicial tras la salida a producción", "Retrasos en atención y percepción negativa del usuario", Probabilidad.MEDIA, Impacto.MEDIO, Probabilidad.BAJA, Impacto.BAJO, "Plan de estabilización y mesa de ayuda reforzada", "Correctivo", "Media", "Ampliar cobertura temporal de soporte", "Soporte TIC", "Coordinador de Soporte", LocalDate.now().plusDays(18), "Indicador: tickets abiertos", EstadoRiesgo.PENDIENTE));
+        riesgos.add(crearRiesgo(proyecto, "R20", "Inconsistencias entre avance físico y avance reportado", "Seguimiento", "Registro tardío de entregables o evidencia mal cargada", "Desfase entre la realidad del proyecto y el semáforo", Probabilidad.MEDIA, Impacto.ALTO, Probabilidad.BAJA, Impacto.MEDIO, "Validación semanal de evidencias y corte operativo", "Preventivo", "Alta", "Cruzar evidencia con avance y corregir el reporte", "PMO TIC", "Analista de Seguimiento", LocalDate.now().plusDays(5), "Indicador: diferencias entre reporte y ejecución", EstadoRiesgo.PENDIENTE));
+
+        riesgoRepository.saveAll(riesgos);
+        riesgos.forEach(riesgo -> {
+            if (riesgo.getId() != null && (riesgo.getCodigo() == null || riesgo.getCodigo().isBlank())) {
+                riesgo.setCodigo("R" + String.format("%02d", riesgo.getId()));
+            }
+        });
+        riesgoRepository.saveAll(riesgos);
+    }
+
+    private Riesgo crearRiesgo(Proyecto proyecto,
+                               String codigo,
+                               String descripcion,
+                               String categoria,
+                               String causa,
+                               String consecuencia,
+                               Probabilidad probabilidad,
+                               Impacto impacto,
+                               Probabilidad probabilidadResidual,
+                               Impacto impactoResidual,
+                               String controlesExistentes,
+                               String tipoControl,
+                               String valoracionControl,
+                               String tratamiento,
+                               String entidadResponsable,
+                               String rolResponsable,
+                               LocalDate fechaAccion,
+                               String evidenciaIndicador,
+                               EstadoRiesgo estado) {
+        Riesgo riesgo = new Riesgo();
+        riesgo.setProyecto(proyecto);
+        riesgo.setCodigo(codigo);
+        riesgo.setDescripcion(descripcion);
+        riesgo.setCategoriaRiesgo(categoria);
+        riesgo.setCausa(causa);
+        riesgo.setConsecuencia(consecuencia);
+        riesgo.setProbabilidad(probabilidad);
+        riesgo.setImpacto(impacto);
+        riesgo.setNivel(calcularNivel(probabilidad, impacto));
+        riesgo.setProbabilidadResidual(probabilidadResidual);
+        riesgo.setImpactoResidual(impactoResidual);
+        riesgo.setNivelResidual(calcularNivel(probabilidadResidual, impactoResidual));
+        riesgo.setControlesExistentes(controlesExistentes);
+        riesgo.setTipoControl(tipoControl);
+        riesgo.setValoracionControl(valoracionControl);
+        riesgo.setTratamiento(tratamiento);
+        riesgo.setAccionesMitigacion("Implementar seguimiento semanal, bitácora de control y responsables por acción.");
+        riesgo.setEntidadResponsable(entidadResponsable);
+        riesgo.setRolResponsable(rolResponsable);
+        riesgo.setFechaAccion(fechaAccion);
+        riesgo.setEvidenciaIndicador(evidenciaIndicador);
+        riesgo.setEstado(estado);
+        riesgo.setFechaActualizacion(LocalDateTime.now());
+        return riesgo;
+    }
+
+    private NivelRiesgo calcularNivel(Probabilidad probabilidad, Impacto impacto) {
+        if (probabilidad == null || impacto == null) {
+            return NivelRiesgo.BAJO;
+        }
+        String clave = probabilidad.name() + "-" + impacto.name();
+        return switch (clave) {
+            case "BAJA-BAJO", "BAJA-MEDIO", "MEDIA-BAJO" -> NivelRiesgo.BAJO;
+            case "BAJA-ALTO", "MEDIA-MEDIO", "ALTA-BAJO" -> NivelRiesgo.MODERADO;
+            case "MEDIA-ALTO", "ALTA-MEDIO" -> NivelRiesgo.ALTO;
+            case "ALTA-ALTO" -> NivelRiesgo.EXTREMO;
+            default -> NivelRiesgo.BAJO;
+        };
     }
 }

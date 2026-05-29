@@ -5,7 +5,9 @@ import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.model.enums.RespuestaFurag;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import jakarta.persistence.criteria.Predicate;
@@ -19,16 +21,21 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
 public class ProyectoServiceImpl implements ProyectoService {
 
     private final ProyectoRepository proyectoRepository;
+    private final FuragRespuestaRepository furagRespuestaRepository;
     private final IProgressCalculator progressCalculator;
 
-    public ProyectoServiceImpl(ProyectoRepository proyectoRepository, IProgressCalculator progressCalculator) {
+    public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
+                               FuragRespuestaRepository furagRespuestaRepository,
+                               IProgressCalculator progressCalculator) {
         this.proyectoRepository = proyectoRepository;
+        this.furagRespuestaRepository = furagRespuestaRepository;
         this.progressCalculator = progressCalculator;
     }
 
@@ -41,7 +48,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 predicates.add(cb.like(cb.lower(root.get("nombre")), "%" + nombre.toLowerCase() + "%"));
             }
             if (codigo != null && !codigo.isBlank()) {
-                predicates.add(cb.equal(root.get("id"), codigo));
+                predicates.add(cb.equal(root.get("id"), normalizeProjectId(codigo)));
             }
             if (dependencia != null && !dependencia.isBlank()) {
                 predicates.add(cb.equal(root.get("dependencia"), dependencia));
@@ -61,8 +68,9 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional(readOnly = true)
     public ProyectoResponseDTO obtenerPorId(String id) {
-        Proyecto proyecto = proyectoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
         return mapToResponseDto(proyecto);
     }
 
@@ -164,14 +172,16 @@ public class ProyectoServiceImpl implements ProyectoService {
         }).collect(Collectors.toList()));
 
         Proyecto guardado = proyectoRepository.save(proyecto);
+        sincronizarRespuestasFurag(guardado);
         return new ProyectoCreatedDTO(guardado.getId(), guardado.getId(), guardado.getNombre(), guardado.getEstado(), "Proyecto creado exitosamente");
     }
 
     @Override
     @Transactional
     public ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto) {
-        Proyecto proyecto = proyectoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
 
         if (dto.nombre() != null) proyecto.setNombre(dto.nombre());
         if (dto.dependencia() != null) proyecto.setDependencia(dto.dependencia());
@@ -194,16 +204,18 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional
     public void eliminarProyecto(String id) {
-        Proyecto proyecto = proyectoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
         proyectoRepository.delete(proyecto);
     }
 
     @Override
     @Transactional(readOnly = true)
     public ProyectoResumenDTO obtenerResumen(String id) {
-        Proyecto p = proyectoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto p = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
 
         long totalFases = p.getFases().size();
         long totalHitos = 0;
@@ -252,12 +264,16 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional
     public void cerrarProyecto(String id) {
-        Proyecto proyecto = proyectoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
-        
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+
+        BigDecimal avanceActual = progressCalculator.calcularYActualizarAvanceProyecto(normalizedId);
+        proyecto.setAvanceTotal(avanceActual);
+
         // Uso de la lógica rica del dominio
         proyecto.cerrar();
-        
+
         proyectoRepository.save(proyecto);
     }
 
@@ -282,8 +298,9 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional(readOnly = true)
     public Furag obtenerFurag(String id) {
-        Proyecto proyecto = proyectoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
         return proyecto.getFurag();
     }
 
@@ -299,10 +316,12 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional
     public void actualizarFurag(String id, Furag furag) {
-        Proyecto proyecto = proyectoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
         proyecto.setFurag(furag);
-        proyectoRepository.save(proyecto);
+        Proyecto guardado = proyectoRepository.save(proyecto);
+        sincronizarRespuestasFurag(guardado);
     }
 
     private String generarCodigo() {
@@ -357,6 +376,10 @@ public class ProyectoServiceImpl implements ProyectoService {
         );
     }
 
+    private String normalizeProjectId(String id) {
+        return id == null ? null : id.trim().toUpperCase(Locale.ROOT);
+    }
+
     private ProyectoResponseDTO mapToResponseDto(Proyecto p) {
         return new ProyectoResponseDTO(
                 p.getId(),
@@ -387,5 +410,38 @@ public class ProyectoServiceImpl implements ProyectoService {
                         )).collect(Collectors.toList())
                 )).collect(Collectors.toList())
         );
+    }
+
+    private void sincronizarRespuestasFurag(Proyecto proyecto) {
+        if (proyecto == null || proyecto.getId() == null) {
+            return;
+        }
+
+        furagRespuestaRepository.deleteByProyecto_Id(proyecto.getId());
+
+        Furag furag = proyecto.getFurag();
+        if (furag == null) {
+            return;
+        }
+
+        furagRespuestaRepository.saveAll(List.of(
+                buildFuragRespuesta(proyecto, "FURAG_INFRAESTRUCTURA_DATOS", "Infraestructura de datos", furag.getInfraestructuraDatos()),
+                buildFuragRespuesta(proyecto, "FURAG_INTEROPERABILIDAD", "Interoperabilidad", furag.getInteroperabilidad()),
+                buildFuragRespuesta(proyecto, "FURAG_DIGITALIZACION_AUTOMATIZACION", "Digitalización y automatización", furag.getDigitalizacionAutomatizacion()),
+                buildFuragRespuesta(proyecto, "FURAG_CONTRATACION_PUBLICA", "Contratación pública", furag.getContratacionPublica()),
+                buildFuragRespuesta(proyecto, "FURAG_SERVICIOS_NUBE", "Servicios en nube", furag.getServiciosNube()),
+                buildFuragRespuesta(proyecto, "FURAG_SANDBOX", "Sandbox", furag.getSandbox()),
+                buildFuragRespuesta(proyecto, "FURAG_TECNOLOGIAS_EMERGENTES", "Tecnologías emergentes", furag.getTecnologiasEmergentes())
+        ));
+    }
+
+    private FuragRespuesta buildFuragRespuesta(Proyecto proyecto, String codigo, String pregunta, RespuestaFurag respuesta) {
+        FuragRespuesta item = new FuragRespuesta();
+        item.setProyecto(proyecto);
+        item.setCodigoPregunta(codigo);
+        item.setPregunta(pregunta);
+        item.setRespuesta(respuesta);
+        item.setObligatoria(true);
+        return item;
     }
 }

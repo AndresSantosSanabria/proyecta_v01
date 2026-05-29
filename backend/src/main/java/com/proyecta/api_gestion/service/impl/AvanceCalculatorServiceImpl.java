@@ -1,5 +1,8 @@
 package com.proyecta.api_gestion.service.impl;
 
+import com.proyecta.api_gestion.dto.avance.FaseAvanceDTO;
+import com.proyecta.api_gestion.dto.avance.HitoAvanceDTO;
+import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Fase;
 import com.proyecta.api_gestion.model.Hito;
@@ -13,42 +16,38 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 public class AvanceCalculatorServiceImpl implements IProgressCalculator {
-
-    private static final BigDecimal CIEN = new BigDecimal("100");
 
     private final ProyectoRepository proyectoRepository;
     private final FaseRepository faseRepository;
     private final HitoRepository hitoRepository;
     private final EntregableRepository entregableRepository;
+    private final ProjectProgressMetricsService metricsService;
 
     public AvanceCalculatorServiceImpl(ProyectoRepository proyectoRepository,
                                        FaseRepository faseRepository,
                                        HitoRepository hitoRepository,
-                                       EntregableRepository entregableRepository) {
+                                       EntregableRepository entregableRepository,
+                                       ProjectProgressMetricsService metricsService) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
         this.entregableRepository = entregableRepository;
+        this.metricsService = metricsService;
     }
 
     @Override
     @Transactional
     public BigDecimal calcularYActualizarAvanceProyecto(String proyectoId) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
-                .orElseThrow(() -> new RuntimeException("Proyecto no encontrado: " + proyectoId));
-
-        List<Fase> fases = faseRepository.findByProyectoId(proyectoId);
-
-        BigDecimal totalAvance = calcularAvanceProyecto(fases);
-        proyecto.setAvanceTotal(totalAvance);
+        Proyecto proyecto = cargarProyecto(proyectoId);
+        ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, java.time.LocalDate.now());
+        sincronizarPersistencia(proyecto, snapshot);
         proyectoRepository.save(proyecto);
-
-        return totalAvance;
+        return snapshot.avanceTotal();
     }
 
     @Override
@@ -56,16 +55,16 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
     public BigDecimal calcularYActualizarAvanceFase(Integer faseId) {
         Fase fase = faseRepository.findById(faseId)
                 .orElseThrow(() -> new RuntimeException("Fase no encontrada: " + faseId));
+        Proyecto proyecto = fase.getProyecto();
+        ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, java.time.LocalDate.now());
+        sincronizarPersistencia(proyecto, snapshot);
+        proyectoRepository.save(proyecto);
 
-        BigDecimal totalAvance = calcularAvanceFase(fase);
-        fase.setAvanceCalculado(totalAvance);
-        faseRepository.save(fase);
-
-        if (fase.getProyecto() != null) {
-            calcularYActualizarAvanceProyecto(fase.getProyecto().getId());
-        }
-
-        return totalAvance;
+        return snapshot.fases().stream()
+                .filter(faseAvance -> faseId.equals(faseAvance.id()))
+                .map(FaseAvanceDTO::avance)
+                .findFirst()
+                .orElse(BigDecimal.ZERO);
     }
 
     @Override
@@ -73,77 +72,62 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
     public BigDecimal calcularYActualizarAvanceHito(Integer hitoId) {
         Hito hito = hitoRepository.findById(hitoId)
                 .orElseThrow(() -> new RuntimeException("Hito no encontrado: " + hitoId));
+        Proyecto proyecto = hito.getFase().getProyecto();
+        ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, java.time.LocalDate.now());
+        sincronizarPersistencia(proyecto, snapshot);
+        proyectoRepository.save(proyecto);
 
-        BigDecimal totalAvance = calcularAvanceHito(hito);
-        hito.setAvanceCalculado(totalAvance);
-        hitoRepository.save(hito);
+        return snapshot.fases().stream()
+                .flatMap(fase -> fase.hitos().stream())
+                .filter(hitoAvance -> hitoId.equals(hitoAvance.id()))
+                .map(HitoAvanceDTO::avance)
+                .findFirst()
+                .orElse(BigDecimal.ZERO);
+    }
 
-        if (hito.getFase() != null) {
-            calcularYActualizarAvanceFase(hito.getFase().getId());
+    private Proyecto cargarProyecto(String proyectoId) {
+        return proyectoRepository.findById(proyectoId)
+                .orElseThrow(() -> new RuntimeException("Proyecto no encontrado: " + proyectoId));
+    }
+
+    private void sincronizarPersistencia(Proyecto proyecto, ProyectoAvanceResponseDTO snapshot) {
+        if (proyecto.getFases() == null || snapshot.fases() == null) {
+            return;
         }
 
-        return totalAvance;
-    }
+        Map<Integer, Fase> fasesPorId = new LinkedHashMap<>();
+        for (Fase fase : proyecto.getFases()) {
+            if (fase != null && fase.getId() != null) {
+                fasesPorId.put(fase.getId(), fase);
+            }
+        }
 
-    private BigDecimal calcularAvanceProyecto(List<Fase> fases) {
-        if (fases == null || fases.isEmpty()) return BigDecimal.ZERO;
+        for (FaseAvanceDTO faseSnapshot : snapshot.fases()) {
+            Fase fase = fasesPorId.get(faseSnapshot.id());
+            if (fase == null) {
+                continue;
+            }
+            fase.setAvanceCalculado(faseSnapshot.avance());
 
-        BigDecimal sumaPonderaciones = fases.stream()
-                .map(Fase::getPonderacion)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (fase.getHitos() == null || faseSnapshot.hitos() == null) {
+                continue;
+            }
 
-        if (sumaPonderaciones.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+            Map<Integer, Hito> hitosPorId = new LinkedHashMap<>();
+            for (Hito hito : fase.getHitos()) {
+                if (hito != null && hito.getId() != null) {
+                    hitosPorId.put(hito.getId(), hito);
+                }
+            }
 
-        return fases.stream()
-                .map(f -> {
-                    BigDecimal pesoNormalizado = f.getPonderacion()
-                            .divide(sumaPonderaciones, 10, RoundingMode.HALF_UP);
-                    return f.getAvanceCalculado().multiply(pesoNormalizado);
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-    }
+            for (HitoAvanceDTO hitoSnapshot : faseSnapshot.hitos()) {
+                Hito hito = hitosPorId.get(hitoSnapshot.id());
+                if (hito != null) {
+                    hito.setAvanceCalculado(hitoSnapshot.avance());
+                }
+            }
+        }
 
-    private BigDecimal calcularAvanceFase(Fase fase) {
-        List<Hito> hitos = hitoRepository.findByFaseId(fase.getId());
-
-        if (hitos == null || hitos.isEmpty()) return BigDecimal.ZERO;
-
-        BigDecimal sumaPonderaciones = hitos.stream()
-                .map(Hito::getPonderacion)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        if (sumaPonderaciones.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
-
-        return hitos.stream()
-                .map(h -> {
-                    BigDecimal pesoNormalizado = h.getPonderacion()
-                            .divide(sumaPonderaciones, 10, RoundingMode.HALF_UP);
-                    return h.getAvanceCalculado().multiply(pesoNormalizado);
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calcularAvanceHito(Hito hito) {
-        List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId());
-
-        if (entregables == null || entregables.isEmpty()) return BigDecimal.ZERO;
-
-        BigDecimal sumaPonderaciones = entregables.stream()
-                .map(Entregable::getPonderacion)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        if (sumaPonderaciones.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
-
-        BigDecimal sumaConformes = entregables.stream()
-                .filter(Entregable::esConforme)
-                .map(Entregable::getPonderacion)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return sumaConformes
-                .divide(sumaPonderaciones, 10, RoundingMode.HALF_UP)
-                .multiply(CIEN)
-                .setScale(2, RoundingMode.HALF_UP);
+        proyecto.setAvanceTotal(snapshot.avanceTotal());
     }
 }

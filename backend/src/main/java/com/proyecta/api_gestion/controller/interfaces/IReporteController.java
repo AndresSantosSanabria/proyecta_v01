@@ -1,8 +1,8 @@
 package com.proyecta.api_gestion.controller.interfaces;
 
+import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.report.*;
-import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,15 +14,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
-@Tag(name = "Reportes", description = "Endpoints para la visualización de reportes y configuración")
+@Tag(name = "Reportes", description = "Endpoints para la visualizacion de reportes y configuracion")
 public interface IReporteController {
 
-    @Operation(summary = "Obtener configuración de reportes", description = "Lista los reportes disponibles para el menú lateral.")
+    @Operation(summary = "Obtener configuracion de reportes", description = "Lista los reportes disponibles para el menu lateral.")
     @StandardApiResponses
     @GetMapping("/configuracion")
     ResponseEntity<ApiResponse<List<ReporteConfigDTO>>> getConfiguracion();
 
-    @Operation(summary = "Obtener vista previa de reporte", description = "Calcula métricas clave para la visualización previa de un reporte de proyecto.")
+    @Operation(summary = "Obtener vista previa de reporte", description = "Calcula metricas clave para la visualizacion previa de un reporte de proyecto.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vista previa generada"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Proyecto no encontrado", content = @Content)
@@ -65,7 +65,23 @@ public interface IReporteController {
     @GetMapping("/portafolio/descargar")
     ResponseEntity<byte[]> descargarReportePortafolioPdf();
 
-    @Operation(summary = "Exportar portafolio a Excel", description = "Genera y descarga un Excel con la analítica del portafolio.")
+    @Operation(summary = "Descargar reporte PDF de proyectos con retrasos", description = "Genera y descarga un PDF con los proyectos que presentan retrasos.")
+    @GetMapping("/proyectos-con-retrasos/descargar")
+    ResponseEntity<byte[]> descargarReporteProyectosConRetrasosPdf();
+
+    @Operation(summary = "Descargar reporte PDF de plan de comunicaciones", description = "Genera y descarga un PDF con el plan de comunicaciones de un proyecto.")
+    @GetMapping("/plan-comunicaciones/{proyectoId}/descargar")
+    ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf(@PathVariable String proyectoId);
+
+    @Operation(summary = "Descargar reporte PDF FURAG", description = "Genera y descarga un PDF con el reporte FURAG de un proyecto.")
+    @GetMapping("/furag/{proyectoId}/descargar")
+    ResponseEntity<byte[]> descargarReporteFuragPdf(@PathVariable String proyectoId);
+
+    @Operation(summary = "Descargar reporte PDF de riesgos", description = "Genera y descarga un PDF con el estado de los riesgos de un proyecto.")
+    @GetMapping("/riesgos/{proyectoId}/descargar")
+    ResponseEntity<byte[]> descargarReporteRiesgosPdf(@PathVariable String proyectoId);
+
+    @Operation(summary = "Exportar portafolio a Excel", description = "Genera y descarga un Excel con la analitica del portafolio.")
     @GetMapping("/portafolio/excel")
     ResponseEntity<byte[]> descargarReportePortafolioExcel();
 }

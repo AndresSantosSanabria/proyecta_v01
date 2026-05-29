@@ -13,7 +13,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "usuario_proyecto")
+@Table(name = "usuario_proyecto", schema = "proyecta_db")
 public class SeguridadUsuarioProyecto {
 
     @Id

@@ -11,6 +11,7 @@ import com.proyecta.api_gestion.model.Fase;
 import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -18,9 +19,11 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 @Service
+@Transactional(readOnly = true)
 public class ProjectProgressMetricsService {
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
@@ -34,20 +37,26 @@ public class ProjectProgressMetricsService {
     }
 
     public ProyectoAvanceResponseDTO construir(Proyecto proyecto, LocalDate corte) {
-        List<Fase> fasesProyecto = proyecto.getFases() == null ? List.of() : proyecto.getFases();
-        List<FaseAvanceDTO> fases = fasesProyecto.stream()
+        List<Fase> fasesProyecto = fasesSeguras(proyecto).stream()
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(Fase::getNombre, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+
+        List<FaseAvanceDTO> fases = fasesProyecto.stream()
                 .map(fase -> construirFase(fase, corte))
                 .toList();
 
         BigDecimal progresoProgramado = escalar(agregarPorPesoFase(fases, FaseAvanceDTO::progresoProgramado));
         BigDecimal progresoEjecutado = escalar(agregarPorPesoFase(fases, FaseAvanceDTO::progresoEjecutado));
         BigDecimal diferencia = progresoProgramado.subtract(progresoEjecutado).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal eficacia = calcularEficacia(progresoProgramado, progresoEjecutado);
         String estado = diferencia.compareTo(ZERO) <= 0 ? "EN_TIEMPO" : "ATRASO";
 
-        long entregablesConformes = contarEntregablesConformes(proyecto);
+        long entregablesProgramadosAlCorte = contarEntregablesProgramadosAlCorte(proyecto, corte);
+        long entregablesEntregadosAlCorte = contarEntregablesEntregadosAlCorte(proyecto, corte);
+        long entregablesEntregadosATiempo = contarEntregablesEntregadosATiempo(proyecto, corte);
+        BigDecimal eficaciaCorte = calcularRatio(entregablesEntregadosAlCorte, entregablesProgramadosAlCorte);
+        BigDecimal eficienciaCorte = calcularRatio(entregablesEntregadosATiempo, entregablesEntregadosAlCorte);
+        long entregablesConformes = entregablesEntregadosAlCorte;
         long entregablesTotal = contarEntregablesTotales(proyecto);
         long entregablesAtrasados = contarEntregablesAtrasados(proyecto, corte);
         long proximosAVencer = contarEntregablesPorVencer(proyecto, corte);
@@ -59,13 +68,17 @@ public class ProjectProgressMetricsService {
                 progresoProgramado,
                 progresoEjecutado,
                 diferencia,
-                eficacia,
+                eficaciaCorte,
+                eficienciaCorte,
                 estado,
                 progresoEjecutado,
                 entregablesConformes,
                 entregablesTotal,
                 entregablesAtrasados,
                 proximosAVencer,
+                entregablesProgramadosAlCorte,
+                entregablesEntregadosAlCorte,
+                entregablesEntregadosATiempo,
                 corte,
                 fases
         );
@@ -88,10 +101,12 @@ public class ProjectProgressMetricsService {
     }
 
     private FaseAvanceDTO construirFase(Fase fase, LocalDate corte) {
-        List<Hito> hitosFase = fase.getHitos() == null ? List.of() : fase.getHitos();
-        List<HitoAvanceDTO> hitos = hitosFase.stream()
+        List<Hito> hitosFase = hitosSeguros(fase).stream()
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(Hito::getNombre, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+
+        List<HitoAvanceDTO> hitos = hitosFase.stream()
                 .map(hito -> construirHito(hito, corte))
                 .toList();
 
@@ -116,10 +131,12 @@ public class ProjectProgressMetricsService {
     }
 
     private HitoAvanceDTO construirHito(Hito hito, LocalDate corte) {
-        List<Entregable> entregablesHito = hito.getEntregables() == null ? List.of() : hito.getEntregables();
-        List<EntregableAvanceDTO> entregables = entregablesHito.stream()
+        List<Entregable> entregablesHito = entregablesSeguros(hito).stream()
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(Entregable::getNombre, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+
+        List<EntregableAvanceDTO> entregables = entregablesHito.stream()
                 .map(entregable -> construirEntregable(entregable, corte))
                 .toList();
 
@@ -150,11 +167,9 @@ public class ProjectProgressMetricsService {
         BigDecimal progresoProgramado = vencido ? HUNDRED : ZERO;
         BigDecimal progresoEjecutado = conforme ? HUNDRED : ZERO;
         BigDecimal diferencia = progresoProgramado.subtract(progresoEjecutado).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal eficacia = progresoProgramado.compareTo(ZERO) == 0
-                ? ONE.setScale(2, RoundingMode.HALF_UP)
-                : progresoEjecutado.divide(progresoProgramado, 4, RoundingMode.HALF_UP);
+        BigDecimal eficacia = calcularEficacia(progresoProgramado, progresoEjecutado);
         Long diasAtraso = calcularDiasAtraso(entregable, corte);
-        String estado = construirEstadoEntregable(conforme, diasAtraso);
+        String estado = construirEstadoEntregable(conforme, diasAtraso, entregable.getFechaLimite(), corte);
 
         return new EntregableAvanceDTO(
                 entregable.getId(),
@@ -178,7 +193,8 @@ public class ProjectProgressMetricsService {
         );
     }
 
-    private BigDecimal agregarPorPesoEntregable(List<EntregableAvanceDTO> entregables, java.util.function.Function<EntregableAvanceDTO, BigDecimal> selector) {
+    private BigDecimal agregarPorPesoEntregable(List<EntregableAvanceDTO> entregables,
+                                                java.util.function.Function<EntregableAvanceDTO, BigDecimal> selector) {
         BigDecimal totalPeso = entregables.stream()
                 .map(EntregableAvanceDTO::ponderacion)
                 .reduce(ZERO, BigDecimal::add);
@@ -192,7 +208,8 @@ public class ProjectProgressMetricsService {
                 .reduce(ZERO, BigDecimal::add);
     }
 
-    private BigDecimal agregarPorPesoHito(List<HitoAvanceDTO> hitos, java.util.function.Function<HitoAvanceDTO, BigDecimal> selector) {
+    private BigDecimal agregarPorPesoHito(List<HitoAvanceDTO> hitos,
+                                          java.util.function.Function<HitoAvanceDTO, BigDecimal> selector) {
         BigDecimal totalPeso = hitos.stream()
                 .map(HitoAvanceDTO::ponderacion)
                 .reduce(ZERO, BigDecimal::add);
@@ -206,7 +223,8 @@ public class ProjectProgressMetricsService {
                 .reduce(ZERO, BigDecimal::add);
     }
 
-    private BigDecimal agregarPorPesoFase(List<FaseAvanceDTO> fases, java.util.function.Function<FaseAvanceDTO, BigDecimal> selector) {
+    private BigDecimal agregarPorPesoFase(List<FaseAvanceDTO> fases,
+                                          java.util.function.Function<FaseAvanceDTO, BigDecimal> selector) {
         BigDecimal totalPeso = fases.stream()
                 .map(FaseAvanceDTO::ponderacion)
                 .reduce(ZERO, BigDecimal::add);
@@ -244,15 +262,73 @@ public class ProjectProgressMetricsService {
             return ChronoUnit.DAYS.between(entregable.getFechaEntregaReal(), entregable.getFechaLimite());
         }
 
-        return ChronoUnit.DAYS.between(corte, entregable.getFechaLimite());
+        if (entregable.getFechaLimite().isBefore(corte)) {
+            return ChronoUnit.DAYS.between(corte, entregable.getFechaLimite());
+        }
+
+        return 0L;
     }
 
-    private String construirEstadoEntregable(boolean conforme, Long diasAtraso) {
+    private BigDecimal calcularRatio(long numerador, long denominador) {
+        if (denominador <= 0L) {
+            return ZERO.setScale(4, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.valueOf(numerador)
+                .divide(BigDecimal.valueOf(denominador), 4, RoundingMode.HALF_UP);
+    }
+
+    private long contarEntregablesProgramadosAlCorte(Proyecto proyecto, LocalDate corte) {
+        return fasesSeguras(proyecto).stream()
+                .filter(Objects::nonNull)
+                .flatMap(fase -> hitosSeguros(fase).stream())
+                .filter(Objects::nonNull)
+                .flatMap(hito -> entregablesSeguros(hito).stream())
+                .filter(Objects::nonNull)
+                .filter(entregable -> entregable.getFechaLimite() != null
+                        && !entregable.getFechaLimite().isAfter(corte))
+                .count();
+    }
+
+    private long contarEntregablesEntregadosAlCorte(Proyecto proyecto, LocalDate corte) {
+        return fasesSeguras(proyecto).stream()
+                .filter(Objects::nonNull)
+                .flatMap(fase -> hitosSeguros(fase).stream())
+                .filter(Objects::nonNull)
+                .flatMap(hito -> entregablesSeguros(hito).stream())
+                .filter(Objects::nonNull)
+                .filter(entregable -> entregable.getFechaLimite() != null
+                        && !entregable.getFechaLimite().isAfter(corte))
+                .filter(Entregable::esConforme)
+                .count();
+    }
+
+    private long contarEntregablesEntregadosATiempo(Proyecto proyecto, LocalDate corte) {
+        return fasesSeguras(proyecto).stream()
+                .filter(Objects::nonNull)
+                .flatMap(fase -> hitosSeguros(fase).stream())
+                .filter(Objects::nonNull)
+                .flatMap(hito -> entregablesSeguros(hito).stream())
+                .filter(Objects::nonNull)
+                .filter(entregable -> entregable.getFechaLimite() != null
+                        && !entregable.getFechaLimite().isAfter(corte))
+                .filter(Entregable::esConforme)
+                .filter(entregable -> entregable.getFechaEntregaReal() != null
+                        && !entregable.getFechaEntregaReal().isAfter(entregable.getFechaLimite()))
+                .count();
+    }
+
+    private String construirEstadoEntregable(boolean conforme, Long diasAtraso, LocalDate fechaLimite, LocalDate corte) {
         if (conforme && diasAtraso != null && diasAtraso >= 0) {
             return "EN_TIEMPO";
         }
         if (diasAtraso != null && diasAtraso < 0) {
             return "ATRASO";
+        }
+        if (!conforme && fechaLimite != null) {
+            long diasRestantes = ChronoUnit.DAYS.between(corte, fechaLimite);
+            if (diasRestantes >= 0 && diasRestantes <= 8) {
+                return "ALERTA";
+            }
         }
         return "PENDIENTE";
     }

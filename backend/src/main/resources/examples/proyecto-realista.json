@@ -1,0 +1,283 @@
+{
+  "nombre": "Modernización Integral de la Atención Ciudadana y Gestión TIC",
+  "dependencia": "Secretaría de Transformación Digital",
+  "director": "Fabio Andrés Santos Sanabria",
+  "correoDirector": "fabio.santos@cundinamarca.gov.co",
+  "objetivoGeneral": "Modernizar la atención ciudadana y la operación interna de TIC mediante una plataforma integrada de seguimiento, trazabilidad, automatización y control documental para reducir tiempos de respuesta, mejorar la calidad del servicio y fortalecer la toma de decisiones basada en datos.",
+  "objetivosEspecificos": [
+    "Levantar y estandarizar los procesos de atención, seguimiento y gestión documental de la dependencia.",
+    "Diseñar una solución modular con trazabilidad de proyectos, cronogramas, riesgos, evidencias y control de acceso.",
+    "Implementar integraciones seguras con los servicios institucionales de autenticación, reporte y almacenamiento.",
+    "Desplegar un esquema de capacitación y adopción que garantice la operación continua y la mejora del servicio."
+  ],
+  "fechaInicio": "2027-01-04",
+  "patrocinador": {
+    "nombre": "Diana Marcela Rojas",
+    "cargo": "Secretaria de Transformación Digital",
+    "entidad": "Gobernación de Cundinamarca",
+    "procesoSigc": "Gestión Estratégica de TIC",
+    "procedimientoSigc": "Planeación, Seguimiento y Mejoramiento"
+  },
+  "equipoTrabajo": [
+    {
+      "nombre": "Laura Catalina Gómez",
+      "cargo": "Líder Funcional",
+      "rol": "Responsable de levantamiento de requisitos y validación con usuario final"
+    },
+    {
+      "nombre": "Andrés Felipe Pérez",
+      "cargo": "Arquitecto de Solución",
+      "rol": "Responsable de la arquitectura, integraciones y lineamientos técnicos"
+    },
+    {
+      "nombre": "Paola Andrea Cárdenas",
+      "cargo": "Analista de QA",
+      "rol": "Responsable de pruebas funcionales, evidencias y control de calidad"
+    }
+  ],
+  "fases": [
+    {
+      "nombre": "Descubrimiento y Alcance",
+      "descripcion": "Definir el alcance funcional, mapa de actores, necesidades prioritarias y criterios de éxito del proyecto.",
+      "ponderacion": 20,
+      "hitos": [
+        {
+          "nombre": "Levantamiento de requerimientos",
+          "descripcion": "Validación de necesidades con las áreas usuarias, priorización del backlog inicial y definición de reglas de negocio.",
+          "ponderacion": 34,
+          "entregables": [
+            { "nombre": "Acta de levantamiento de requerimientos", "ponderacion": 17, "fechaLimite": "2027-01-14" },
+            { "nombre": "Mapa de actores y dependencias", "ponderacion": 17, "fechaLimite": "2027-01-18" },
+            { "nombre": "Inventario de necesidades funcionales", "ponderacion": 16, "fechaLimite": "2027-01-22" },
+            { "nombre": "Definición de alcance preliminar", "ponderacion": 17, "fechaLimite": "2027-01-26" },
+            { "nombre": "Criterios de aceptación iniciales", "ponderacion": 16, "fechaLimite": "2027-01-30" },
+            { "nombre": "Backlog priorizado de salida", "ponderacion": 17, "fechaLimite": "2027-02-02" }
+          ]
+        },
+        {
+          "nombre": "Diagnóstico institucional",
+          "descripcion": "Revisión de procesos, puntos de dolor, tiempos de respuesta, canales y riesgos operativos actuales.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Informe de estado actual", "ponderacion": 17, "fechaLimite": "2027-02-05" },
+            { "nombre": "Matriz de hallazgos y brechas", "ponderacion": 17, "fechaLimite": "2027-02-09" },
+            { "nombre": "Levantamiento de riesgos iniciales", "ponderacion": 16, "fechaLimite": "2027-02-13" },
+            { "nombre": "Mapa de procesos AS-IS", "ponderacion": 17, "fechaLimite": "2027-02-17" },
+            { "nombre": "Líneas base de tiempos y cargas", "ponderacion": 16, "fechaLimite": "2027-02-21" },
+            { "nombre": "Recomendaciones de mejora", "ponderacion": 17, "fechaLimite": "2027-02-24" }
+          ]
+        },
+        {
+          "nombre": "Aprobación de alcance",
+          "descripcion": "Formalización del alcance, patrocinio, condiciones de entrega y reglas de control del proyecto.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Documento de alcance aprobado", "ponderacion": 17, "fechaLimite": "2027-02-26" },
+            { "nombre": "Acta de inicio aprobada", "ponderacion": 17, "fechaLimite": "2027-03-02" },
+            { "nombre": "Plan maestro de trabajo", "ponderacion": 16, "fechaLimite": "2027-03-05" },
+            { "nombre": "Cronograma base validado", "ponderacion": 17, "fechaLimite": "2027-03-09" },
+            { "nombre": "Presupuesto estimado consolidado", "ponderacion": 16, "fechaLimite": "2027-03-12" },
+            { "nombre": "Criterios de gobernanza aprobados", "ponderacion": 17, "fechaLimite": "2027-03-15" }
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "Diseño Funcional y Arquitectura",
+      "descripcion": "Traducir el alcance en una solución operable, segura, trazable y alineada con la arquitectura institucional.",
+      "ponderacion": 20,
+      "hitos": [
+        {
+          "nombre": "Diseño de solución funcional",
+          "descripcion": "Construcción de flujos, reglas, pantallas, estados y estructuras de navegación.",
+          "ponderacion": 34,
+          "entregables": [
+            { "nombre": "Wireframes de experiencia", "ponderacion": 17, "fechaLimite": "2027-03-22" },
+            { "nombre": "Modelo de casos de uso", "ponderacion": 17, "fechaLimite": "2027-03-26" },
+            { "nombre": "Matriz de reglas funcionales", "ponderacion": 16, "fechaLimite": "2027-03-30" },
+            { "nombre": "Diseño de flujos de aprobación", "ponderacion": 17, "fechaLimite": "2027-04-03" },
+            { "nombre": "Catálogo de estados del proceso", "ponderacion": 16, "fechaLimite": "2027-04-07" },
+            { "nombre": "Especificación de validaciones", "ponderacion": 17, "fechaLimite": "2027-04-10" }
+          ]
+        },
+        {
+          "nombre": "Arquitectura técnica",
+          "descripcion": "Definición de capas, integración, seguridad, persistencia y criterios de despliegue.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Arquitectura de referencia", "ponderacion": 17, "fechaLimite": "2027-04-14" },
+            { "nombre": "Modelo entidad-relación", "ponderacion": 17, "fechaLimite": "2027-04-18" },
+            { "nombre": "Contratos de API", "ponderacion": 16, "fechaLimite": "2027-04-22" },
+            { "nombre": "Esquema de seguridad ABAC", "ponderacion": 17, "fechaLimite": "2027-04-26" },
+            { "nombre": "Diseño de auditoría y trazabilidad", "ponderacion": 16, "fechaLimite": "2027-04-29" },
+            { "nombre": "Estrategia de observabilidad", "ponderacion": 17, "fechaLimite": "2027-05-03" }
+          ]
+        },
+        {
+          "nombre": "Aprobación de diseño",
+          "descripcion": "Cierre formal del diseño funcional y técnico antes de iniciar el desarrollo.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Acta de diseño aprobada", "ponderacion": 17, "fechaLimite": "2027-05-05" },
+            { "nombre": "Checklist de cumplimiento técnico", "ponderacion": 17, "fechaLimite": "2027-05-08" },
+            { "nombre": "Backlog técnico priorizado", "ponderacion": 16, "fechaLimite": "2027-05-12" },
+            { "nombre": "Plan de iteraciones de desarrollo", "ponderacion": 17, "fechaLimite": "2027-05-15" },
+            { "nombre": "Plan de pruebas de diseño", "ponderacion": 16, "fechaLimite": "2027-05-19" },
+            { "nombre": "Lista de decisiones de arquitectura", "ponderacion": 17, "fechaLimite": "2027-05-22" }
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "Desarrollo e Integraciones",
+      "descripcion": "Construcción del producto, integración con servicios institucionales y validación técnica continua.",
+      "ponderacion": 20,
+      "hitos": [
+        {
+          "nombre": "Construcción del núcleo funcional",
+          "descripcion": "Desarrollo de módulos base, autenticación, navegación y persistencia principal.",
+          "ponderacion": 34,
+          "entregables": [
+            { "nombre": "Módulo de seguridad dinámica", "ponderacion": 17, "fechaLimite": "2027-05-29" },
+            { "nombre": "Módulo de proyectos", "ponderacion": 17, "fechaLimite": "2027-06-02" },
+            { "nombre": "Módulo de cronograma", "ponderacion": 16, "fechaLimite": "2027-06-06" },
+            { "nombre": "Módulo de gestión documental", "ponderacion": 17, "fechaLimite": "2027-06-10" },
+            { "nombre": "Módulo de riesgos", "ponderacion": 16, "fechaLimite": "2027-06-14" },
+            { "nombre": "Módulo de reportes base", "ponderacion": 17, "fechaLimite": "2027-06-18" }
+          ]
+        },
+        {
+          "nombre": "Integraciones y servicios",
+          "descripcion": "Conexión con autenticación, almacenamiento, reportes y APIs institucionales.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Integración con Keycloak", "ponderacion": 17, "fechaLimite": "2027-06-22" },
+            { "nombre": "Integración con repositorio documental", "ponderacion": 17, "fechaLimite": "2027-06-26" },
+            { "nombre": "Integración de métricas de avance", "ponderacion": 16, "fechaLimite": "2027-06-30" },
+            { "nombre": "Integración FURAG", "ponderacion": 17, "fechaLimite": "2027-07-04" },
+            { "nombre": "Integración de notificaciones", "ponderacion": 16, "fechaLimite": "2027-07-08" },
+            { "nombre": "Integración de auditoría", "ponderacion": 17, "fechaLimite": "2027-07-12" }
+          ]
+        },
+        {
+          "nombre": "Ajustes de calidad",
+          "descripcion": "Corrección de incidencias funcionales, optimización de pantallas y estabilización de endpoints.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Correcciones de incidencias críticas", "ponderacion": 17, "fechaLimite": "2027-07-15" },
+            { "nombre": "Optimización de consultas", "ponderacion": 17, "fechaLimite": "2027-07-19" },
+            { "nombre": "Refinamiento de UX", "ponderacion": 16, "fechaLimite": "2027-07-23" },
+            { "nombre": "Normalización de catálogos", "ponderacion": 17, "fechaLimite": "2027-07-27" },
+            { "nombre": "Ajustes de permisos finos", "ponderacion": 16, "fechaLimite": "2027-07-31" },
+            { "nombre": "Versión candidata de desarrollo", "ponderacion": 17, "fechaLimite": "2027-08-04" }
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "Pruebas, Seguridad y UAT",
+      "descripcion": "Verificar funcionalidad, seguridad, trazabilidad, estabilidad y aceptación por parte del usuario.",
+      "ponderacion": 20,
+      "hitos": [
+        {
+          "nombre": "Pruebas funcionales",
+          "descripcion": "Ejecución de pruebas de flujo completo sobre los módulos principales.",
+          "ponderacion": 34,
+          "entregables": [
+            { "nombre": "Plan de pruebas funcionales", "ponderacion": 17, "fechaLimite": "2027-08-09" },
+            { "nombre": "Casos de prueba priorizados", "ponderacion": 17, "fechaLimite": "2027-08-12" },
+            { "nombre": "Ejecución de pruebas unitarias", "ponderacion": 16, "fechaLimite": "2027-08-16" },
+            { "nombre": "Ejecución de pruebas de integración", "ponderacion": 17, "fechaLimite": "2027-08-20" },
+            { "nombre": "Registro de incidencias", "ponderacion": 16, "fechaLimite": "2027-08-24" },
+            { "nombre": "Cierre de pruebas funcionales", "ponderacion": 17, "fechaLimite": "2027-08-28" }
+          ]
+        },
+        {
+          "nombre": "Seguridad y accesos",
+          "descripcion": "Validación de permisos atómicos, asignación por proyecto y protección contra accesos laterales.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Pruebas de roles y permisos", "ponderacion": 17, "fechaLimite": "2027-08-31" },
+            { "nombre": "Pruebas ABAC por proyecto", "ponderacion": 17, "fechaLimite": "2027-09-04" },
+            { "nombre": "Revisión de auditoría de acciones", "ponderacion": 16, "fechaLimite": "2027-09-08" },
+            { "nombre": "Validación de bloqueo FURAG", "ponderacion": 17, "fechaLimite": "2027-09-12" },
+            { "nombre": "Pruebas de sesión y token", "ponderacion": 16, "fechaLimite": "2027-09-16" },
+            { "nombre": "Informe de seguridad aplicado", "ponderacion": 17, "fechaLimite": "2027-09-20" }
+          ]
+        },
+        {
+          "nombre": "UAT y cierre de aceptación",
+          "descripcion": "Acompañamiento al usuario final para validar comportamiento, datos y satisfacción operativa.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Escenarios UAT aprobados", "ponderacion": 17, "fechaLimite": "2027-09-23" },
+            { "nombre": "Acta de observaciones UAT", "ponderacion": 17, "fechaLimite": "2027-09-27" },
+            { "nombre": "Correcciones de aceptación", "ponderacion": 16, "fechaLimite": "2027-10-01" },
+            { "nombre": "Acta de conformidad funcional", "ponderacion": 17, "fechaLimite": "2027-10-05" },
+            { "nombre": "Verificación de datos históricos", "ponderacion": 16, "fechaLimite": "2027-10-09" },
+            { "nombre": "Aprobación para despliegue", "ponderacion": 17, "fechaLimite": "2027-10-13" }
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "Despliegue, Capacitación y Estabilización",
+      "descripcion": "Liberar la solución, capacitar usuarios, monitorear incidencias y dejar el servicio en operación estable.",
+      "ponderacion": 20,
+      "hitos": [
+        {
+          "nombre": "Despliegue productivo",
+          "descripcion": "Publicación controlada en ambiente productivo y verificación de operación inicial.",
+          "ponderacion": 34,
+          "entregables": [
+            { "nombre": "Plan de despliegue", "ponderacion": 17, "fechaLimite": "2027-10-18" },
+            { "nombre": "Checklist de go-live", "ponderacion": 17, "fechaLimite": "2027-10-20" },
+            { "nombre": "Liberación productiva", "ponderacion": 16, "fechaLimite": "2027-10-23" },
+            { "nombre": "Monitoreo inicial", "ponderacion": 17, "fechaLimite": "2027-10-26" },
+            { "nombre": "Validación post-despliegue", "ponderacion": 16, "fechaLimite": "2027-10-30" },
+            { "nombre": "Acta de salida a producción", "ponderacion": 17, "fechaLimite": "2027-11-02" }
+          ]
+        },
+        {
+          "nombre": "Capacitación y adopción",
+          "descripcion": "Formación a usuarios y acompañamiento para asegurar uso correcto y adopción del sistema.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Material de capacitación", "ponderacion": 17, "fechaLimite": "2027-11-06" },
+            { "nombre": "Sesión de formación administrativa", "ponderacion": 17, "fechaLimite": "2027-11-09" },
+            { "nombre": "Sesión de formación operativa", "ponderacion": 16, "fechaLimite": "2027-11-13" },
+            { "nombre": "Guía rápida de uso", "ponderacion": 17, "fechaLimite": "2027-11-16" },
+            { "nombre": "Mesa de soporte inicial", "ponderacion": 16, "fechaLimite": "2027-11-20" },
+            { "nombre": "Encuesta de adopción", "ponderacion": 17, "fechaLimite": "2027-11-23" }
+          ]
+        },
+        {
+          "nombre": "Estabilización y cierre técnico",
+          "descripcion": "Seguimiento posterior a la salida a producción, ajustes finales y documentación de cierre.",
+          "ponderacion": 33,
+          "entregables": [
+            { "nombre": "Informe de estabilización", "ponderacion": 17, "fechaLimite": "2027-11-27" },
+            { "nombre": "Registro de incidencias resueltas", "ponderacion": 17, "fechaLimite": "2027-11-30" },
+            { "nombre": "Cierre de soporte intensivo", "ponderacion": 16, "fechaLimite": "2027-12-04" },
+            { "nombre": "Acta de cierre técnico", "ponderacion": 17, "fechaLimite": "2027-12-07" },
+            { "nombre": "Lecciones aprendidas", "ponderacion": 16, "fechaLimite": "2027-12-11" },
+            { "nombre": "Plan de sostenibilidad", "ponderacion": 17, "fechaLimite": "2027-12-14" }
+          ]
+        }
+      ]
+    }
+  ],
+  "peti": true,
+  "vigenciaPeti": "2027",
+  "estrategiaPeti": "TRANSFORMACION_DIGITAL",
+  "tienePlanComunicaciones": true,
+  "furag": {
+    "infraestructuraDatos": "SI",
+    "interoperabilidad": "SI",
+    "digitalizacionAutomatizacion": "SI",
+    "contratacionPublica": "NO",
+    "serviciosNube": "SI",
+    "sandbox": "NO",
+    "tecnologiasEmergentes": "SI"
+  }
+}

@@ -10,11 +10,15 @@ import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
+import java.util.Locale;
 
 @Service("localUserAuthorization")
 public class LocalUserAuthorizationService {
@@ -22,14 +26,21 @@ public class LocalUserAuthorizationService {
     private final UsuarioRepository usuarioRepository;
     private final RolConfigRepository rolConfigRepository;
     private final KeycloakIdentityExtractor identityExtractor;
+    private final Set<String> bootstrapAdminEmails;
 
     public LocalUserAuthorizationService(
             UsuarioRepository usuarioRepository,
             RolConfigRepository rolConfigRepository,
-            KeycloakIdentityExtractor identityExtractor) {
+            KeycloakIdentityExtractor identityExtractor,
+            @Value("${gob.security.admin-emails:fabio.santos@cundinamarca.gov.co,admin@proyecta.com}") String adminEmails) {
         this.usuarioRepository = usuarioRepository;
         this.rolConfigRepository = rolConfigRepository;
         this.identityExtractor = identityExtractor;
+        this.bootstrapAdminEmails = Arrays.stream(adminEmails.split(","))
+                .map(this::clean)
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 
     public Usuario requireLocalUser(Authentication authentication) {
@@ -116,7 +127,7 @@ public class LocalUserAuthorizationService {
             usuario.setKeycloakSub(keycloakSub);
             usuario.setNombre(firstNonBlank(displayName, username, email, keycloakSub));
             usuario.setCorreo(firstNonBlank(email, username, keycloakSub));
-            applyLocalRole(authentication, usuario);
+            applyLocalRole(authentication, usuario, keycloakSub, email, username);
             usuario.setActivo(true);
             usuario.setUltimoAcceso(LocalDateTime.now());
             usuario = usuarioRepository.save(usuario);
@@ -128,7 +139,7 @@ public class LocalUserAuthorizationService {
             shouldSave = true;
         }
 
-        shouldSave = applyLocalRole(authentication, usuario) || shouldSave;
+        shouldSave = applyLocalRole(authentication, usuario, keycloakSub, email, username) || shouldSave;
 
         if (Boolean.FALSE.equals(usuario.getActivo())) {
             throw new ForbiddenException("El usuario autenticado está inactivo en la base local de Proyecta.");
@@ -146,8 +157,8 @@ public class LocalUserAuthorizationService {
         return usuario;
     }
 
-    private boolean applyLocalRole(Authentication authentication, Usuario usuario) {
-        if (usuario == null || usuario.getRolConfig() != null || authentication == null) {
+    private boolean applyLocalRole(Authentication authentication, Usuario usuario, String keycloakSub, String email, String username) {
+        if (usuario == null || authentication == null) {
             return false;
         }
 
@@ -155,7 +166,14 @@ public class LocalUserAuthorizationService {
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_ADMIN"::equalsIgnoreCase);
 
-        if (!isAdmin) {
+        boolean bootstrapAdmin = isBootstrapAdminIdentity(keycloakSub, email, username);
+        boolean shouldBeAdmin = isAdmin || bootstrapAdmin;
+
+        if (!shouldBeAdmin) {
+            return false;
+        }
+
+        if (usuario.getRolConfig() != null && usuario.getRolConfig().esAdministrador()) {
             return false;
         }
 
@@ -172,6 +190,17 @@ public class LocalUserAuthorizationService {
         usuario.setRolConfig(adminRole);
         usuario.setRol(null);
         return true;
+    }
+
+    private boolean isBootstrapAdminIdentity(String keycloakSub, String email, String username) {
+        return matchesBootstrapAdmin(keycloakSub)
+                || matchesBootstrapAdmin(email)
+                || matchesBootstrapAdmin(username);
+    }
+
+    private boolean matchesBootstrapAdmin(String value) {
+        String normalized = clean(value);
+        return normalized != null && bootstrapAdminEmails.contains(normalized.toLowerCase(Locale.ROOT));
     }
 
     private String firstNonBlank(String... values) {

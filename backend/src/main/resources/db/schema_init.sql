@@ -82,8 +82,10 @@ CREATE TABLE IF NOT EXISTS tipo_documento_config (
     codigo              VARCHAR(30) NOT NULL UNIQUE,
     nombre              VARCHAR(100) NOT NULL,
     descripcion         VARCHAR(300),
-    requiere_evidencia  BOOLEAN     NOT NULL DEFAULT FALSE,
-    activo              BOOLEAN     NOT NULL DEFAULT TRUE
+    require_pdf         BOOLEAN     NOT NULL DEFAULT TRUE,
+    orden               INTEGER     NOT NULL DEFAULT 0,
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE,
+    fecha_creacion      TIMESTAMP   NOT NULL DEFAULT NOW()
 );;
 
 -- 1.29 estrategia_peti_config
@@ -101,6 +103,7 @@ CREATE TABLE IF NOT EXISTS matriz_riesgo (
     probabilidad        VARCHAR(30) NOT NULL,
     impacto             VARCHAR(30) NOT NULL,
     nivel_riesgo        VARCHAR(30) NOT NULL,
+    color               VARCHAR(20)  NOT NULL,
     puntaje             INTEGER     NOT NULL,
     UNIQUE(probabilidad, impacto)
 );;
@@ -235,7 +238,8 @@ CREATE TABLE IF NOT EXISTS objetivos_especificos (
 CREATE TABLE IF NOT EXISTS proyecto_equipo (
     proyecto_id     VARCHAR(30)     NOT NULL REFERENCES proyecto(proyecto_id) ON DELETE CASCADE,
     miembro_nombre  VARCHAR(120),
-    miembro_rol     VARCHAR(100)
+    miembro_rol     VARCHAR(100),
+    miembro_cargo   VARCHAR(100)
 );;
 
 -- 7. actas_cierre
@@ -243,8 +247,15 @@ CREATE TABLE IF NOT EXISTS actas_cierre (
     acta_id             BIGSERIAL       PRIMARY KEY,
     proyecto_id         VARCHAR(30)     NOT NULL UNIQUE,
     resumen_ejecutivo   TEXT            NOT NULL,
-    fecha_cierre        TIMESTAMP       NOT NULL,
+    fecha_cierre        TIMESTAMPTZ     NOT NULL,
     avance_final        NUMERIC(5, 2)   NOT NULL,
+    progreso_programado_final NUMERIC(5, 2),
+    progreso_ejecutado_final NUMERIC(5, 2),
+    diferencia_final    NUMERIC(5, 2),
+    eficacia_final      NUMERIC(6, 4),
+    estado_final        VARCHAR(30),
+    corte_calculo       DATE,
+    snapshot_json       TEXT,
 
     CONSTRAINT fk_actas_cierre_proyecto
         FOREIGN KEY (proyecto_id)

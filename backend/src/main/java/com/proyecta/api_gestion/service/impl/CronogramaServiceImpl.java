@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Comparator;
+import java.util.Locale;
 
 @Service
 public class CronogramaServiceImpl implements CronogramaService {
@@ -52,10 +53,11 @@ public class CronogramaServiceImpl implements CronogramaService {
     @Override
     @Transactional(readOnly = true)
     public CronogramaResponseDTO obtenerCronograma(String projectId) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+        final String normalizedProjectId = normalizeProjectId(projectId);
+        Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
 
-        List<Fase> fases = faseRepository.findByProyectoId(projectId);
+        List<Fase> fases = faseRepository.findByProyectoId(normalizedProjectId);
         List<FaseGanttDTO> vistaGantt = new ArrayList<>();
         
         int totalHitos = 0;
@@ -131,8 +133,9 @@ public class CronogramaServiceImpl implements CronogramaService {
     @Override
     @Transactional
     public CronogramaUploadResponseDTO cargarCronograma(String projectId, MultipartFile file) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+        final String normalizedProjectId = normalizeProjectId(projectId);
+        Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
 
         if (EstadoProyecto.CERRADO.equals(proyecto.getEstado())) {
             throw new ForbiddenException("No se puede subir el cronograma a un proyecto cerrado.");
@@ -146,7 +149,7 @@ public class CronogramaServiceImpl implements CronogramaService {
             throw new BadRequestException("El archivo supera el tamaño permitido de 20MB.");
         }
 
-        String fileName = "cronograma_" + projectId;
+        String fileName = "cronograma_" + normalizedProjectId;
         String storedPath = fileStorageService.storeFile(file, "cronogramas", fileName);
 
         proyecto.setCronogramaPdf(storedPath);
@@ -163,13 +166,18 @@ public class CronogramaServiceImpl implements CronogramaService {
     @Override
     @Transactional(readOnly = true)
     public Resource descargarCronograma(String projectId) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+        final String normalizedProjectId = normalizeProjectId(projectId);
+        Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
 
         if (proyecto.getCronogramaPdf() == null) {
             throw new ResourceNotFoundException("No se ha cargado un cronograma para este proyecto.");
         }
 
         return fileStorageService.loadFileAsResource("cronogramas", proyecto.getCronogramaPdf());
+    }
+
+    private String normalizeProjectId(String projectId) {
+        return projectId == null ? null : projectId.trim().toUpperCase(Locale.ROOT);
     }
 }

@@ -17,5 +17,9 @@ public interface ReporteService {
     // Reportes Binarios
     byte[] generarReporteProyectoPdf(String id);
     byte[] generarReportePortafolioPdf();
+    byte[] generarReporteProyectosConRetrasosPdf();
+    byte[] generarReportePlanComunicacionesPdf(String proyectoId);
+    byte[] generarReporteFuragPdf(String proyectoId);
+    byte[] generarReporteRiesgosPdf(String proyectoId);
     byte[] generarReportePortafolioExcel();
 }

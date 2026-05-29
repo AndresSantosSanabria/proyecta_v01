@@ -12,12 +12,16 @@ public record ProyectoAvanceResponseDTO(
     BigDecimal progresoEjecutado,
     BigDecimal diferencia,
     BigDecimal eficacia,
+    BigDecimal eficiencia,
     String estado,
     BigDecimal avanceTotal,
     Long entregablesConformes,
     Long entregablesTotal,
     Long entregablesAtrasados,
     Long proximosAVencer,
+    Long entregablesProgramadosAlCorte,
+    Long entregablesEntregadosAlCorte,
+    Long entregablesEntregadosATiempo,
     LocalDate corte,
     List<FaseAvanceDTO> fases
 ) {}
