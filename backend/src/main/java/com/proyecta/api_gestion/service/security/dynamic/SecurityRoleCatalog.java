@@ -44,6 +44,9 @@ public final class SecurityRoleCatalog {
         if (lower.startsWith("role_")) {
             lower = lower.substring(5);
         }
+        if (lower.contains("admin")) {
+            return "admin";
+        }
         return ROLE_ALIASES.getOrDefault(lower, lower);
     }
 

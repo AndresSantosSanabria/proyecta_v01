@@ -28,31 +28,67 @@ public class SecurityCatalogSeeder {
     );
 
     private static final List<PermissionSeed> PERMISSIONS = List.of(
+            new PermissionSeed("DASHBOARD:VER", "Ver dashboard", "Permite consultar la portada y resumen principal del sistema"),
             new PermissionSeed("PROYECTO:VER", "Ver proyecto", "Permite consultar el detalle de proyectos"),
             new PermissionSeed("PROYECTO:CREAR", "Crear proyecto", "Permite crear proyectos nuevos"),
             new PermissionSeed("PROYECTO:EDITAR", "Editar proyecto", "Permite editar proyectos existentes"),
             new PermissionSeed("PROYECTO:CERRAR", "Cerrar proyecto", "Permite cerrar proyectos"),
+            new PermissionSeed("REPORTE:VER", "Ver reportes", "Permite acceder al modulo de reportes"),
+            new PermissionSeed("ANALITICA:VER", "Ver analiticas", "Permite acceder al modulo de analiticas"),
+            new PermissionSeed("CONFIGURACION:VER", "Ver configuracion", "Permite mostrar la pantalla de administracion y seguridad"),
+            new PermissionSeed("ENTREGABLE:VER", "Ver entregable", "Permite consultar el detalle de entregables"),
+            new PermissionSeed("ENTREGABLE:CREAR", "Crear entregable", "Permite registrar entregables nuevos"),
+            new PermissionSeed("ENTREGABLE:EDITAR", "Editar entregable", "Permite modificar entregables existentes"),
             new PermissionSeed("ENTREGABLE:APROBAR", "Aprobar entregable", "Permite marcar entregables como conformes"),
+            new PermissionSeed("EVIDENCIA:VER", "Ver evidencia", "Permite consultar evidencias registradas"),
             new PermissionSeed("EVIDENCIA:CARGAR", "Cargar evidencia", "Permite subir evidencias PDF"),
+            new PermissionSeed("EVIDENCIA:EDITAR", "Editar evidencia", "Permite actualizar evidencias existentes"),
+            new PermissionSeed("EVIDENCIA:ELIMINAR", "Eliminar evidencia", "Permite eliminar evidencias registradas"),
+            new PermissionSeed("DOCUMENTO:VER", "Ver documento", "Permite consultar documentos registrados"),
             new PermissionSeed("DOCUMENTO:CARGAR", "Cargar documento", "Permite subir documentos de soporte"),
+            new PermissionSeed("DOCUMENTO:EDITAR", "Editar documento", "Permite actualizar documentos existentes"),
+            new PermissionSeed("DOCUMENTO:ELIMINAR", "Eliminar documento", "Permite eliminar documentos registrados"),
+            new PermissionSeed("CRONOGRAMA:VER", "Ver cronograma", "Permite consultar cronogramas registrados"),
             new PermissionSeed("CRONOGRAMA:CARGAR", "Cargar cronograma", "Permite subir el PDF del cronograma"),
+            new PermissionSeed("CRONOGRAMA:EDITAR", "Editar cronograma", "Permite actualizar cronogramas existentes"),
+            new PermissionSeed("CRONOGRAMA:ELIMINAR", "Eliminar cronograma", "Permite eliminar cronogramas registrados"),
+            new PermissionSeed("SISTEMA:VER", "Ver sistema", "Permite consultar la configuracion general del sistema"),
+            new PermissionSeed("SISTEMA:CREAR", "Crear configuracion del sistema", "Permite registrar configuraciones de sistema"),
+            new PermissionSeed("SISTEMA:EDITAR", "Editar sistema", "Permite actualizar la configuracion general del sistema"),
             new PermissionSeed("SISTEMA:CONFIGURAR", "Configurar sistema", "Permite administrar usuarios, roles y permisos")
     );
 
     private static final Map<String, List<String>> ROLE_PERMISSIONS = Map.of(
             "admin", List.of(
-                    "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "ENTREGABLE:APROBAR", "EVIDENCIA:CARGAR", "DOCUMENTO:CARGAR",
-                    "CRONOGRAMA:CARGAR", "SISTEMA:CONFIGURAR"),
+                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
+                    "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
+                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
+                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
+                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
+                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
+                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR"),
             "gestor_tic", List.of(
-                    "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "ENTREGABLE:APROBAR", "EVIDENCIA:CARGAR", "DOCUMENTO:CARGAR",
-                    "CRONOGRAMA:CARGAR", "SISTEMA:CONFIGURAR"),
+                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
+                    "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
+                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
+                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
+                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
+                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
+                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR"),
             "director_proyecto", List.of(
-                    "PROYECTO:VER", "ENTREGABLE:APROBAR", "EVIDENCIA:CARGAR",
-                    "DOCUMENTO:CARGAR", "CRONOGRAMA:CARGAR"),
-            "auditor", List.of("PROYECTO:VER"),
-            "consulta", List.of("PROYECTO:VER")
+                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:EDITAR", "REPORTE:VER", "ANALITICA:VER",
+                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
+                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR",
+                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR",
+                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR"),
+            "auditor", List.of(
+                    "DASHBOARD:VER", "PROYECTO:VER", "REPORTE:VER", "ANALITICA:VER",
+                    "ENTREGABLE:VER", "EVIDENCIA:VER",
+                    "DOCUMENTO:VER", "CRONOGRAMA:VER", "SISTEMA:VER"),
+            "consulta", List.of(
+                    "DASHBOARD:VER", "PROYECTO:VER", "REPORTE:VER", "ANALITICA:VER",
+                    "ENTREGABLE:VER", "EVIDENCIA:VER",
+                    "DOCUMENTO:VER", "CRONOGRAMA:VER")
     );
 
     private final SeguridadRolRepository rolRepository;

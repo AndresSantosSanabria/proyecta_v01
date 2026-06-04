@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.interfaces;
 
 import com.proyecta.api_gestion.dto.report.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,4 +23,5 @@ public interface ReporteService {
     byte[] generarReporteFuragPdf(String proyectoId);
     byte[] generarReporteRiesgosPdf(String proyectoId);
     byte[] generarReportePortafolioExcel();
+    byte[] generarReportePortafolioExcel(Authentication authentication, String query, String dependency, String status, String peti);
 }

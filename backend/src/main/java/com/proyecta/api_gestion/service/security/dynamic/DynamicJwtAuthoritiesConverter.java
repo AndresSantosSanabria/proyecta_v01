@@ -25,7 +25,7 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
     private final KeycloakIdentityExtractor identityExtractor;
 
     public DynamicJwtAuthoritiesConverter(
-            @Value("${gob.security.resource-client-ids:proyecta-web}") String resourceClientIds,
+            @Value("${gob.security.resource-client-ids}") String resourceClientIds,
             SecurityCatalogCacheService catalogCacheService,
             KeycloakIdentityExtractor identityExtractor) {
         this.resourceClientIds = List.of(resourceClientIds.split(",")).stream()

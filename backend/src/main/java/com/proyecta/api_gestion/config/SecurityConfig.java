@@ -31,7 +31,7 @@ public class SecurityConfig {
     private final List<String> allowedOrigins;
 
     public SecurityConfig(
-            @org.springframework.beans.factory.annotation.Value("${gob.security.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
+            @org.springframework.beans.factory.annotation.Value("${gob.security.cors.allowed-origins}") String allowedOrigins) {
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(value -> !value.isBlank())

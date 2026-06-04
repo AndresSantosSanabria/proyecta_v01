@@ -8,11 +8,13 @@ import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.RespuestaFurag;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +31,16 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     private final ProyectoRepository proyectoRepository;
     private final FuragRespuestaRepository furagRespuestaRepository;
+    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
     private final IProgressCalculator progressCalculator;
 
     public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
                                FuragRespuestaRepository furagRespuestaRepository,
+                               SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
                                IProgressCalculator progressCalculator) {
         this.proyectoRepository = proyectoRepository;
         this.furagRespuestaRepository = furagRespuestaRepository;
+        this.usuarioProyectoRepository = usuarioProyectoRepository;
         this.progressCalculator = progressCalculator;
     }
 
@@ -63,6 +68,29 @@ public class ProyectoServiceImpl implements ProyectoService {
         };
 
         return proyectoRepository.findAll(spec, pageable).map(this::mapToListDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProyectoListDTO> listarProyectosAsignados(String username) {
+        if (username == null || username.isBlank()) {
+            return List.of();
+        }
+
+        List<String> proyectoIds = usuarioProyectoRepository.findProyectoIdsByUsername(username).stream()
+                .map(this::normalizeProjectId)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .toList();
+
+        if (proyectoIds.isEmpty()) {
+            return List.of();
+        }
+
+        Specification<Proyecto> spec = (root, query, cb) -> root.get("id").in(proyectoIds);
+        return proyectoRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "nombre")).stream()
+                .map(this::mapToListDto)
+                .toList();
     }
 
     @Override

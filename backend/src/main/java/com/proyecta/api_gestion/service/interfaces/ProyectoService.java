@@ -4,9 +4,11 @@ import com.proyecta.api_gestion.dto.proyecto.*;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import java.util.List;
 
 public interface ProyectoService {
     Page<ProyectoListDTO> listarProyectos(String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti, Pageable pageable);
+    List<ProyectoListDTO> listarProyectosAsignados(String username);
     ProyectoResponseDTO obtenerPorId(String id);
     ProyectoCreatedDTO crearProyecto(ProyectoCreateDTO dto);
     ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto);

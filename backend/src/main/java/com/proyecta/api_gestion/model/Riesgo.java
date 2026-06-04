@@ -7,6 +7,8 @@ import com.proyecta.api_gestion.model.enums.Impacto;
 import com.proyecta.api_gestion.model.enums.Probabilidad;
 import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "riesgos")
@@ -89,6 +91,9 @@ public class Riesgo {
 
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
+
+    @OneToMany(mappedBy = "riesgo", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RiesgoSolucionAdjunto> soluciones = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "proyecto_id", nullable = false)
@@ -285,6 +290,14 @@ public class Riesgo {
 
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) {
         this.fechaActualizacion = fechaActualizacion;
+    }
+
+    public List<RiesgoSolucionAdjunto> getSoluciones() {
+        return soluciones;
+    }
+
+    public void setSoluciones(List<RiesgoSolucionAdjunto> soluciones) {
+        this.soluciones = soluciones;
     }
 
     public Proyecto getProyecto() {

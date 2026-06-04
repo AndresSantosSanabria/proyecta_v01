@@ -9,7 +9,9 @@ import com.proyecta.api_gestion.dto.common.ApiResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @Tag(name = "Módulo 2 — Proyectos", description = "Endpoints para la gestión de proyectos TIC")
 public interface IProyectoController {
@@ -23,6 +25,10 @@ public interface IProyectoController {
             @RequestParam(required = false) EstadoProyecto estado,
             @RequestParam(required = false) Boolean peti,
             Pageable pageable);
+
+    @Operation(summary = "EP-PROY-01B · Listar mis proyectos", description = "Retorna los proyectos asignados al usuario autenticado.")
+    @GetMapping("/mis-proyectos")
+    ResponseEntity<ApiResponse<List<ProyectoListDTO>>> listarMisProyectos(Authentication authentication);
 
     @Operation(summary = "EP-PROY-02 · Obtener detalle", description = "Obtener detalle completo de un proyecto por ID.")
     @GetMapping("/{id}")

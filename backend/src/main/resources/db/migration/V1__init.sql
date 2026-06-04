@@ -769,10 +769,14 @@ ON CONFLICT (codigo) DO NOTHING;
 
 INSERT INTO proyecta_db.permisos (codigo, nombre, descripcion)
 VALUES
+    ('DASHBOARD:VER', 'Ver dashboard', 'Permite consultar la portada y resumen principal del sistema'),
     ('PROYECTO:VER', 'Ver proyecto', 'Permite consultar el detalle de proyectos'),
     ('PROYECTO:CREAR', 'Crear proyecto', 'Permite crear proyectos nuevos'),
     ('PROYECTO:EDITAR', 'Editar proyecto', 'Permite editar proyectos existentes'),
     ('PROYECTO:CERRAR', 'Cerrar proyecto', 'Permite cerrar proyectos'),
+    ('REPORTE:VER', 'Ver reportes', 'Permite acceder al modulo de reportes'),
+    ('ANALITICA:VER', 'Ver analiticas', 'Permite acceder al modulo de analiticas'),
+    ('CONFIGURACION:VER', 'Ver configuracion', 'Permite mostrar la pantalla de administracion y seguridad'),
     ('ENTREGABLE:APROBAR', 'Aprobar entregable', 'Permite marcar entregables como conformes'),
     ('EVIDENCIA:CARGAR', 'Cargar evidencia', 'Permite subir evidencias PDF'),
     ('DOCUMENTO:CARGAR', 'Cargar documento', 'Permite subir documentos de soporte'),
@@ -785,26 +789,32 @@ SELECT r.id, p.id, TRUE
 FROM proyecta_db.roles r
 CROSS JOIN proyecta_db.permisos p
 WHERE r.codigo IN ('admin', 'gestor_tic')
+  AND p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'PROYECTO:CREAR', 'PROYECTO:EDITAR', 'PROYECTO:CERRAR',
+                   'REPORTE:VER', 'ANALITICA:VER', 'CONFIGURACION:VER',
+                   'ENTREGABLE:APROBAR', 'EVIDENCIA:CARGAR', 'DOCUMENTO:CARGAR',
+                   'CRONOGRAMA:CARGAR', 'SISTEMA:CONFIGURAR')
 ON CONFLICT (rol_id, permiso_id) DO NOTHING;
 
 INSERT INTO proyecta_db.rol_permiso (rol_id, permiso_id, activo)
 SELECT r.id, p.id, TRUE
 FROM proyecta_db.roles r
-JOIN proyecta_db.permisos p ON p.codigo IN ('PROYECTO:VER', 'ENTREGABLE:APROBAR', 'EVIDENCIA:CARGAR', 'DOCUMENTO:CARGAR', 'CRONOGRAMA:CARGAR')
+JOIN proyecta_db.permisos p ON p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'REPORTE:VER', 'ANALITICA:VER',
+                                             'ENTREGABLE:APROBAR', 'EVIDENCIA:CARGAR', 'DOCUMENTO:CARGAR',
+                                             'CRONOGRAMA:CARGAR')
 WHERE r.codigo = 'director_proyecto'
 ON CONFLICT (rol_id, permiso_id) DO NOTHING;
 
 INSERT INTO proyecta_db.rol_permiso (rol_id, permiso_id, activo)
 SELECT r.id, p.id, TRUE
 FROM proyecta_db.roles r
-JOIN proyecta_db.permisos p ON p.codigo IN ('PROYECTO:VER')
+JOIN proyecta_db.permisos p ON p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'REPORTE:VER', 'ANALITICA:VER')
 WHERE r.codigo = 'auditor'
 ON CONFLICT (rol_id, permiso_id) DO NOTHING;
 
 INSERT INTO proyecta_db.rol_permiso (rol_id, permiso_id, activo)
 SELECT r.id, p.id, TRUE
 FROM proyecta_db.roles r
-JOIN proyecta_db.permisos p ON p.codigo IN ('PROYECTO:VER')
+JOIN proyecta_db.permisos p ON p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'REPORTE:VER', 'ANALITICA:VER')
 WHERE r.codigo = 'consulta'
 ON CONFLICT (rol_id, permiso_id) DO NOTHING;
 

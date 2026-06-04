@@ -8,6 +8,7 @@ import com.proyecta.api_gestion.service.interfaces.ReporteService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -163,11 +164,16 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/portafolio/excel")
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
-    public ResponseEntity<byte[]> descargarReportePortafolioExcel() {
-        byte[] content = reporteService.generarReportePortafolioExcel();
+    @PreAuthorize("@proyectoSecurity.canAccessOwnProjects(authentication)")
+    public ResponseEntity<byte[]> descargarReportePortafolioExcel(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String dependency,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String peti,
+            Authentication authentication) {
+        byte[] content = reporteService.generarReportePortafolioExcel(authentication, query, dependency, status, peti);
         return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=analitica-portafolio.xlsx")
+                .header("Content-Disposition", "attachment; filename=Consolidado Seguimiento Proyectos PETI.xlsx")
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(content);
     }

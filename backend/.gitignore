@@ -35,6 +35,9 @@ build/
 ### Application Config ###
 src/main/resources/application.properties
 !src/main/resources/application.properties.template
+.env
+.env.*
+!.env.template
 .aider*
 
 # Ignore common log and temp files generated during development

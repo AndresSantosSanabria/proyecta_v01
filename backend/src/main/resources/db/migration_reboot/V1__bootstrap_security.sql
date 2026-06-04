@@ -31,44 +31,6 @@ SET
 ALTER TABLE IF EXISTS proyecta_db.usuario
     ADD COLUMN IF NOT EXISTS rol_config_id INTEGER REFERENCES proyecta_db.rol_config(rol_id);
 
-DO $$
-BEGIN
-    IF to_regclass('proyecta_db.usuario') IS NOT NULL THEN
-        WITH admin_role AS (
-            SELECT rol_id
-            FROM proyecta_db.rol_config
-            WHERE codigo = 'ADMINISTRADOR'
-            LIMIT 1
-        )
-        INSERT INTO proyecta_db.usuario (
-            keycloak_sub,
-            nombre,
-            correo,
-            contrasena_hash,
-            rol,
-            rol_config_id,
-            activo
-        )
-        SELECT
-            'fabio.santos@cundinamarca.gov.co',
-            'Fabio Santos',
-            'fabio.santos@cundinamarca.gov.co',
-            'hash_simulado',
-            'ADMINISTRADOR',
-            admin_role.rol_id,
-            TRUE
-        FROM admin_role
-        ON CONFLICT (correo) DO UPDATE
-        SET
-            keycloak_sub = EXCLUDED.keycloak_sub,
-            nombre = EXCLUDED.nombre,
-            contrasena_hash = EXCLUDED.contrasena_hash,
-            rol = EXCLUDED.rol,
-            rol_config_id = EXCLUDED.rol_config_id,
-            activo = TRUE;
-    END IF;
-END $$;
-
 COMMENT ON COLUMN proyecta_db.usuario.rol_config_id IS
     'Rol local asociado. El usuario fabio.santos@cundinamarca.gov.co debe quedar como ADMINISTRADOR.';
 
@@ -119,10 +81,14 @@ SET
 
 INSERT INTO proyecta_db.permisos (codigo, nombre, descripcion, activo)
 VALUES
+    ('DASHBOARD:VER', 'Ver dashboard', 'Permite consultar la portada y resumen principal del sistema', TRUE),
     ('PROYECTO:VER', 'Ver proyecto', 'Permite consultar el detalle de proyectos', TRUE),
     ('PROYECTO:CREAR', 'Crear proyecto', 'Permite crear proyectos nuevos', TRUE),
     ('PROYECTO:EDITAR', 'Editar proyecto', 'Permite editar proyectos existentes', TRUE),
     ('PROYECTO:CERRAR', 'Cerrar proyecto', 'Permite cerrar proyectos', TRUE),
+    ('REPORTE:VER', 'Ver reportes', 'Permite acceder al modulo de reportes', TRUE),
+    ('ANALITICA:VER', 'Ver analiticas', 'Permite acceder al modulo de analiticas', TRUE),
+    ('CONFIGURACION:VER', 'Ver configuracion', 'Permite mostrar la pantalla de administracion y seguridad', TRUE),
     ('ENTREGABLE:APROBAR', 'Aprobar entregable', 'Permite marcar entregables como conformes', TRUE),
     ('EVIDENCIA:CARGAR', 'Cargar evidencia', 'Permite subir evidencias PDF', TRUE),
     ('DOCUMENTO:CARGAR', 'Cargar documento', 'Permite subir documentos de soporte', TRUE),
@@ -139,7 +105,8 @@ SELECT r.id, p.id, TRUE
 FROM proyecta_db.roles r
 CROSS JOIN proyecta_db.permisos p
 WHERE r.codigo IN ('admin', 'gestor_tic')
-  AND p.codigo IN ('PROYECTO:VER', 'PROYECTO:CREAR', 'PROYECTO:EDITAR', 'PROYECTO:CERRAR',
+  AND p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'PROYECTO:CREAR', 'PROYECTO:EDITAR', 'PROYECTO:CERRAR',
+                   'REPORTE:VER', 'ANALITICA:VER', 'CONFIGURACION:VER',
                    'ENTREGABLE:APROBAR', 'EVIDENCIA:CARGAR', 'DOCUMENTO:CARGAR',
                    'CRONOGRAMA:CARGAR', 'SISTEMA:CONFIGURAR')
 ON CONFLICT (rol_id, permiso_id) DO UPDATE
@@ -148,7 +115,9 @@ SET activo = TRUE;
 INSERT INTO proyecta_db.rol_permiso (rol_id, permiso_id, activo)
 SELECT r.id, p.id, TRUE
 FROM proyecta_db.roles r
-JOIN proyecta_db.permisos p ON p.codigo IN ('PROYECTO:VER', 'ENTREGABLE:APROBAR', 'EVIDENCIA:CARGAR', 'DOCUMENTO:CARGAR', 'CRONOGRAMA:CARGAR')
+JOIN proyecta_db.permisos p ON p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'REPORTE:VER', 'ANALITICA:VER',
+                                             'ENTREGABLE:APROBAR', 'EVIDENCIA:CARGAR', 'DOCUMENTO:CARGAR',
+                                             'CRONOGRAMA:CARGAR')
 WHERE r.codigo = 'director_proyecto'
 ON CONFLICT (rol_id, permiso_id) DO UPDATE
 SET activo = TRUE;
@@ -156,7 +125,7 @@ SET activo = TRUE;
 INSERT INTO proyecta_db.rol_permiso (rol_id, permiso_id, activo)
 SELECT r.id, p.id, TRUE
 FROM proyecta_db.roles r
-JOIN proyecta_db.permisos p ON p.codigo = 'PROYECTO:VER'
+JOIN proyecta_db.permisos p ON p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'REPORTE:VER', 'ANALITICA:VER')
 WHERE r.codigo IN ('auditor', 'consulta')
 ON CONFLICT (rol_id, permiso_id) DO UPDATE
 SET activo = TRUE;

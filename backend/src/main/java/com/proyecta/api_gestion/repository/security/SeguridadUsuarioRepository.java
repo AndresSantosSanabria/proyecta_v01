@@ -20,7 +20,8 @@ public interface SeguridadUsuarioRepository extends JpaRepository<SeguridadUsuar
             LOWER(u.correo) LIKE LOWER(CONCAT('%', :search, '%')) OR
             LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) OR
             LOWER(COALESCE(u.dependencia, '')) LIKE LOWER(CONCAT('%', :search, '%')))
+          AND (:rol IS NULL OR :rol = '' OR LOWER(COALESCE(u.rolCodigo, '')) = LOWER(:rol))
         ORDER BY u.nombre ASC
     """)
-    Page<SeguridadUsuario> search(@Param("search") String search, Pageable pageable);
+    Page<SeguridadUsuario> search(@Param("search") String search, @Param("rol") String rol, Pageable pageable);
 }

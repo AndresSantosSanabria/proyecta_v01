@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -83,5 +85,10 @@ public interface IReporteController {
 
     @Operation(summary = "Exportar portafolio a Excel", description = "Genera y descarga un Excel con la analitica del portafolio.")
     @GetMapping("/portafolio/excel")
-    ResponseEntity<byte[]> descargarReportePortafolioExcel();
+    ResponseEntity<byte[]> descargarReportePortafolioExcel(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String dependency,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String peti,
+            Authentication authentication);
 }

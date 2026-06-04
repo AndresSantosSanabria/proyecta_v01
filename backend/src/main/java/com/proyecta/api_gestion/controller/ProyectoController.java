@@ -1,11 +1,17 @@
 package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.proyecto.*;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.dto.proyecto.DashboardDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCreatedDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoListDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoResponseDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoResumenDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
 import com.proyecta.api_gestion.model.Furag;
+import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
-import io.swagger.v3.oas.annotations.Operation;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
@@ -15,7 +21,18 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
@@ -24,9 +41,11 @@ import org.springframework.web.bind.annotation.*;
 public class ProyectoController implements com.proyecta.api_gestion.controller.interfaces.IProyectoController {
 
     private final ProyectoService proyectoService;
+    private final KeycloakIdentityExtractor identityExtractor;
 
-    public ProyectoController(ProyectoService proyectoService) {
+    public ProyectoController(ProyectoService proyectoService, KeycloakIdentityExtractor identityExtractor) {
         this.proyectoService = proyectoService;
+        this.identityExtractor = identityExtractor;
     }
 
     @Override
@@ -36,6 +55,15 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
             @ParameterObject @PageableDefault(size = 10, sort = "id") Pageable pageable) {
         Page<ProyectoListDTO> page = proyectoService.listarProyectos(nombre, codigo, dependencia, estado, peti, pageable);
         return ResponseEntity.ok(ApiResponse.success(page, "Proyectos listados con éxito"));
+    }
+
+    @Override
+    @GetMapping("/mis-proyectos")
+    @PreAuthorize("@proyectoSecurity.canAccessOwnProjects(authentication)")
+    public ResponseEntity<ApiResponse<List<ProyectoListDTO>>> listarMisProyectos(Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        List<ProyectoListDTO> proyectos = proyectoService.listarProyectosAsignados(username);
+        return ResponseEntity.ok(ApiResponse.success(proyectos, "Proyectos asignados listados con éxito"));
     }
 
     @Override

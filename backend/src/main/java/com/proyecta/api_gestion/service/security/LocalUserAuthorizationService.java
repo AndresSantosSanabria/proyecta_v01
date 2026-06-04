@@ -32,7 +32,7 @@ public class LocalUserAuthorizationService {
             UsuarioRepository usuarioRepository,
             RolConfigRepository rolConfigRepository,
             KeycloakIdentityExtractor identityExtractor,
-            @Value("${gob.security.admin-emails:fabio.santos@cundinamarca.gov.co,admin@proyecta.com}") String adminEmails) {
+            @Value("${gob.security.admin-emails:}") String adminEmails) {
         this.usuarioRepository = usuarioRepository;
         this.rolConfigRepository = rolConfigRepository;
         this.identityExtractor = identityExtractor;
@@ -57,23 +57,34 @@ public class LocalUserAuthorizationService {
     }
 
     public boolean hasBaseAccess(Authentication authentication) {
+        if (hasAdminAuthority(authentication)) {
+            return true;
+        }
+
         Usuario usuario = requireLocalUser(authentication);
         if (usuario.esAdministrador()) {
             return true;
         }
 
-        boolean hasAppAccess = authentication != null && authentication.getAuthorities().stream()
+        boolean hasFunctionalRole = authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_APP_ACCESS"::equalsIgnoreCase);
+                .map(SecurityRoleCatalog::normalize)
+                .anyMatch(SecurityRoleCatalog::isProtected);
 
-        if (!hasAppAccess) {
-            throw new ForbiddenException("El usuario no tiene el rol base requerido APP_ACCESS.");
+        boolean hasLocalRole = usuario.getRolConfig() != null || usuario.getRol() != null;
+
+        if (!hasFunctionalRole && !hasLocalRole) {
+            throw new ForbiddenException("El usuario no tiene un rol funcional válido en Proyecta.");
         }
 
         return true;
     }
 
     public boolean hasAnyRole(Authentication authentication, String... allowedRoles) {
+        if (hasAdminAuthority(authentication)) {
+            return true;
+        }
+
         Usuario usuario = requireLocalUser(authentication);
         String rolCodigo = SecurityRoleCatalog.normalize(clean(usuario.getRolCodigo()));
         if (rolCodigo == null) {
@@ -162,9 +173,7 @@ public class LocalUserAuthorizationService {
             return false;
         }
 
-        boolean isAdmin = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_ADMIN"::equalsIgnoreCase);
+        boolean isAdmin = hasAdminAuthority(authentication);
 
         boolean bootstrapAdmin = isBootstrapAdminIdentity(keycloakSub, email, username);
         boolean shouldBeAdmin = isAdmin || bootstrapAdmin;
@@ -190,6 +199,17 @@ public class LocalUserAuthorizationService {
         usuario.setRolConfig(adminRole);
         usuario.setRol(null);
         return true;
+    }
+
+    public boolean hasAdminAuthority(Authentication authentication) {
+        if (authentication == null) {
+            return false;
+        }
+
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(SecurityRoleCatalog::normalize)
+                .anyMatch(role -> "admin".equals(role));
     }
 
     private boolean isBootstrapAdminIdentity(String keycloakSub, String email, String username) {

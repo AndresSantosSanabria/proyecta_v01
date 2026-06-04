@@ -92,8 +92,8 @@ public class SecurityAdministrationService {
         this.localUserAuthorizationService = localUserAuthorizationService;
     }
 
-    public Page<SeguridadUsuarioDTO> listarUsuarios(String search, Pageable pageable) {
-        return usuarioRepository.search(search, pageable).map(this::toUsuarioDTO);
+    public Page<SeguridadUsuarioDTO> listarUsuarios(String search, String rol, Pageable pageable) {
+        return usuarioRepository.search(search, rol, pageable).map(this::toUsuarioDTO);
     }
 
     @Transactional
@@ -365,33 +365,45 @@ public class SecurityAdministrationService {
             throw new BadRequestException("username, proyectoId y cargo son obligatorios.");
         }
 
+        String cargoNormalizado = cargo.toUpperCase(Locale.ROOT);
+
         List<String> cargosPermitidos = listarCargosAsignacion();
         if (cargosPermitidos.isEmpty()) {
             throw new BadRequestException("No hay cargos de asignacion configurados en el sistema.");
         }
-        if (cargosPermitidos.stream().noneMatch(cargo::equalsIgnoreCase)) {
+        if (cargosPermitidos.stream().noneMatch(value -> value.equalsIgnoreCase(cargoNormalizado))) {
             throw new BadRequestException("El cargo enviado no esta permitido por la configuracion del sistema.");
         }
 
         SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
-                .orElseGet(() -> {
-                    SeguridadUsuario nuevo = new SeguridadUsuario();
-                    nuevo.setUsername(username);
-                    nuevo.setKeycloakSub(username);
-                    nuevo.setNombre(username);
-                    nuevo.setCorreo(username);
-                    nuevo.setDependencia(null);
-                    nuevo.setActivo(true);
-                    return usuarioRepository.save(nuevo);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + username));
 
-        SeguridadUsuarioProyecto assignment = usuarioProyectoRepository
-                .findByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(username, proyectoId, cargo)
-                .orElseGet(SeguridadUsuarioProyecto::new);
+        if ("DIRECTOR_PROYECTO".equalsIgnoreCase(cargoNormalizado)) {
+            String rolUsuario = normalizeRole(usuario.getRolCodigo());
+            if (!"director_proyecto".equals(rolUsuario)) {
+                throw new BadRequestException("El usuario seleccionado no tiene el rol Director de Proyecto.");
+            }
+        }
+
+        SeguridadUsuarioProyecto assignment;
+        if ("DIRECTOR_PROYECTO".equalsIgnoreCase(cargoNormalizado)) {
+            assignment = usuarioProyectoRepository
+                    .findFirstByProyectoIdIgnoreCaseAndCargoIgnoreCaseAndActivoTrueOrderByFechaAsignacionDesc(
+                            proyectoId,
+                            cargoNormalizado)
+                    .orElseGet(SeguridadUsuarioProyecto::new);
+        } else {
+            assignment = usuarioProyectoRepository
+                    .findByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(
+                            username,
+                            proyectoId,
+                            cargoNormalizado)
+                    .orElseGet(SeguridadUsuarioProyecto::new);
+        }
 
         assignment.setUsuario(usuario);
         assignment.setProyectoId(proyectoId);
-        assignment.setCargo(cargo);
+        assignment.setCargo(cargoNormalizado);
         assignment.setActivo(true);
         assignment.setFechaAsignacion(LocalDateTime.now());
         SeguridadUsuarioProyecto saved = usuarioProyectoRepository.save(assignment);

@@ -6,15 +6,18 @@ import com.proyecta.api_gestion.dto.risk.RiesgoCreatedResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoListResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoRequestDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
+import com.proyecta.api_gestion.dto.risk.RiesgoSolucionAdjuntoDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Módulo 5 — Matriz de Riesgos", description = "Endpoints para la identificación y mitigación de amenazas en proyectos")
 public interface IRiesgoController {
@@ -81,4 +84,27 @@ public interface IRiesgoController {
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
             @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId,
             @RequestBody String verificacion);
+
+    @Operation(summary = "EP-RIESG-06 · Listar soluciones cargadas para un riesgo")
+    @StandardApiResponses
+    @GetMapping("/{proyectoId}/riesgos/{riesgoId}/soluciones")
+    ResponseEntity<ApiResponse<java.util.List<RiesgoSolucionAdjuntoDTO>>> listarSoluciones(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId);
+
+    @Operation(summary = "EP-RIESG-07 · Agregar varias soluciones a un riesgo", description = "Permite cargar uno o varios PDFs como soporte de solución para el riesgo.")
+    @StandardApiResponses
+    @PostMapping(value = "/{proyectoId}/riesgos/{riesgoId}/soluciones", consumes = {"multipart/form-data"})
+    ResponseEntity<ApiResponse<java.util.List<RiesgoSolucionAdjuntoDTO>>> agregarSoluciones(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId,
+            @Parameter(description = "Archivos PDF de solución") @RequestPart("archivos") MultipartFile[] archivos);
+
+    @Operation(summary = "EP-RIESG-08 · Descargar un PDF de solución")
+    @StandardApiResponses
+    @GetMapping("/{proyectoId}/riesgos/{riesgoId}/soluciones/{solucionId}/descargar")
+    ResponseEntity<Resource> descargarSolucion(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId,
+            @Parameter(description = "ID del adjunto") @PathVariable Long solucionId);
 }

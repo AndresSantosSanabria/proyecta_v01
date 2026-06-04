@@ -20,4 +20,25 @@ public interface SeguridadUsuarioProyectoRepository extends JpaRepository<Seguri
     List<SeguridadUsuarioProyecto> findByUsername(@Param("username") String username);
 
     Optional<SeguridadUsuarioProyecto> findByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(String username, String proyectoId, String cargo);
+
+    @Query("""
+        SELECT up FROM SeguridadUsuarioProyecto up
+        JOIN FETCH up.usuario u
+        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
+          AND LOWER(up.cargo) = LOWER(:cargo)
+          AND up.activo = true
+        ORDER BY up.fechaAsignacion DESC
+    """)
+    Optional<SeguridadUsuarioProyecto> findFirstByProyectoIdIgnoreCaseAndCargoIgnoreCaseAndActivoTrueOrderByFechaAsignacionDesc(
+            @Param("proyectoId") String proyectoId,
+            @Param("cargo") String cargo);
+
+    @Query("""
+        SELECT DISTINCT up.proyectoId
+        FROM SeguridadUsuarioProyecto up
+        WHERE LOWER(up.usuario.username) = LOWER(:username)
+          AND up.activo = true
+        ORDER BY up.proyectoId ASC
+    """)
+    List<String> findProyectoIdsByUsername(@Param("username") String username);
 }

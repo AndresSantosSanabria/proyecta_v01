@@ -27,7 +27,7 @@ public class ProyectoSecurity {
     }
 
     public boolean canAccess(String permissionCode, String proyectoId, Authentication authentication) {
-        if (isLocalAdmin(authentication)) {
+        if (isAdmin(authentication)) {
             return true;
         }
 
@@ -66,14 +66,53 @@ public class ProyectoSecurity {
     }
 
     public boolean canAccessGlobal(String permissionCode, Authentication authentication) {
-        if (isLocalAdmin(authentication)) {
+        if (isAdmin(authentication)) {
             return true;
         }
 
-        return canAccess(permissionCode, null, authentication);
+        String normalizedPermission = normalize(permissionCode);
+        if (normalizedPermission == null) {
+            throw new ForbiddenException("No se pudo evaluar el permiso solicitado.");
+        }
+
+        Set<String> roleCodes = resolveRoleCodes(authentication);
+        if (!isTransversal(roleCodes)) {
+            throw new ForbiddenException("El acceso global solo esta permitido para roles transversales.");
+        }
+
+        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+                .map(this::normalize)
+                .anyMatch(normalizedPermission::equals);
+
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: " + normalizedPermission);
+        }
+
+        return true;
     }
 
-    private boolean isLocalAdmin(Authentication authentication) {
+    public boolean canAccessOwnProjects(Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        Set<String> roleCodes = resolveRoleCodes(authentication);
+        if (isTransversal(roleCodes)) {
+            return true;
+        }
+
+        if (roleCodes.contains("director_proyecto")) {
+            return true;
+        }
+
+        throw new ForbiddenException("El usuario no tiene permisos para ver sus proyectos asignados.");
+    }
+
+    private boolean isAdmin(Authentication authentication) {
+        if (localUserAuthorizationService.hasAdminAuthority(authentication)) {
+            return true;
+        }
+
         try {
             Usuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
             return usuario != null && usuario.esAdministrador();

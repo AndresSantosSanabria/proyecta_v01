@@ -45,11 +45,12 @@ public class AdminConfiguracionController {
     @GetMapping("/usuarios")
     public ResponseEntity<ApiResponse<Page<SeguridadUsuarioDTO>>> listarUsuarios(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String rol,
             Authentication authentication,
             Pageable pageable) {
         securityAdministrationService.sincronizarUsuarioAutenticado(authentication);
         return ResponseEntity.ok(ApiResponse.success(
-                securityAdministrationService.listarUsuarios(search, pageable),
+                securityAdministrationService.listarUsuarios(search, rol, pageable),
                 "Usuarios listados correctamente"));
     }
 
