@@ -1,5 +1,6 @@
-﻿import { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useAuthContext } from '../context/AuthContext';
+import { appConfig } from '../config/env';
 
 export function useApiWithAuth() {
   const { accessToken, isAuthenticated } = useAuthContext();
@@ -9,8 +10,7 @@ export function useApiWithAuth() {
       throw new Error('Usuario no autenticado');
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
-    const url = `${baseUrl}${endpoint}`;
+    const url = `${appConfig.apiUrl}${endpoint}`;
 
     const headers = {
       'Content-Type': 'application/json',

@@ -1,65 +1,121 @@
 :root {
   color-scheme: light;
+  
+  /* Brand Primary */
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --primary-glow: rgba(37, 99, 235, 0.14);
   --primary-soft: rgba(37, 99, 235, 0.08);
-  --bg-main: #f9fafb;
-  --bg-card: #ffffff;
-  --bg-muted: #f3f4f6;
-  --text-main: #111827;
-  --text-muted: #6b7280;
-  --border-color: #e5e7eb;
-  --border-soft: #eef2f7;
+  --primary-sleek: #0B0B0F;
+  
+  /* Backgrounds */
+  --bg-main: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-muted: #F1F5F9;
+  
+  /* Text */
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  
+  /* Borders */
+  --border-color: #E2E8F0;
+  --border-soft: #EEF2F7;
+  --border-subtle: rgba(15, 23, 42, 0.06);
+  
+  /* Status Colors */
   --success: #059669;
   --success-soft: rgba(5, 150, 105, 0.12);
-  --warning: #d97706;
+  --success-bg: #ECFDF5;
+  --success-border: #A7F3D0;
+  
+  --warning: #D97706;
   --warning-soft: rgba(217, 119, 6, 0.12);
-  --danger: #dc2626;
+  --warning-bg: #FFFBEB;
+  --warning-border: #FDE68A;
+  
+  --danger: #DC2626;
   --danger-soft: rgba(220, 38, 38, 0.1);
-  --surface-hover: rgba(37, 99, 235, 0.04);
-  --input-bg: #ffffff;
-  --input-bg-muted: #f9fafb;
-  --input-text: #111827;
-  --input-placeholder: #9ca3af;
-  --input-border: #d1d5db;
-  --input-border-focus: #2563eb;
+  --danger-bg: #FEF2F2;
+  --danger-border: #FECACA;
+  
+  /* UI Elements */
+  --surface-hover: rgba(15, 23, 42, 0.04);
+  --input-bg: #FFFFFF;
+  --input-bg-muted: #F8FAFC;
+  --input-text: #0F172A;
+  --input-placeholder: #94A3B8;
+  --input-border: #E2E8F0;
+  --input-border-focus: #0F172A;
+  
+  /* Metrics */
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --radius: 12px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --font-sans: 'Inter', -apple-system, sans-serif;
+  
+  /* Shadows */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-soft: 0 2px 8px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-premium: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-premium: 0 10px 40px -10px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .dark {
   color-scheme: dark;
-  --primary: #60a5fa;
-  --primary-hover: #3b82f6;
-  --primary-glow: rgba(148, 163, 184, 0.16);
-  --primary-soft: rgba(148, 163, 184, 0.08);
-  --bg-main: #0b0f14;
-  --bg-card: #12161d;
-  --bg-muted: #181d25;
-  --text-main: #f8fafc;
-  --text-muted: #a1adba;
-  --border-color: #27313d;
-  --border-soft: #1d2631;
-  --success: #34d399;
-  --success-soft: rgba(52, 211, 153, 0.12);
-  --warning: #fbbf24;
-  --warning-soft: rgba(251, 191, 36, 0.12);
-  --danger: #f87171;
-  --danger-soft: rgba(248, 113, 113, 0.12);
-  --surface-hover: rgba(148, 163, 184, 0.06);
-  --input-bg: #171c23;
-  --input-bg-muted: #11161d;
-  --input-text: #f8fafc;
-  --input-placeholder: #7f8a98;
-  --input-border: #34404d;
-  --input-border-focus: #7c8da1;
+  
+  /* Brand Primary */
+  --primary: #3B82F6;
+  --primary-hover: #60A5FA;
+  --primary-glow: rgba(59, 130, 246, 0.16);
+  --primary-soft: rgba(59, 130, 246, 0.15);
+  --primary-sleek: #FFFFFF;
+  
+  /* Backgrounds */
+  --bg-main: #0B0F14;
+  --bg-card: #12161D;
+  --bg-muted: #1C232D;
+  
+  /* Text */
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  
+  /* Borders */
+  --border-color: #27313D;
+  --border-soft: #1D2631;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  
+  /* Status Colors */
+  --success: #10B981;
+  --success-soft: rgba(16, 185, 129, 0.15);
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-border: rgba(16, 185, 129, 0.2);
+  
+  --warning: #F59E0B;
+  --warning-soft: rgba(245, 158, 11, 0.15);
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --warning-border: rgba(245, 158, 11, 0.2);
+  
+  --danger: #EF4444;
+  --danger-soft: rgba(239, 68, 68, 0.15);
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-border: rgba(239, 68, 68, 0.2);
+  
+  /* UI Elements */
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --input-bg: #12161D;
+  --input-bg-muted: #1C232D;
+  --input-text: #F8FAFC;
+  --input-placeholder: #64748B;
+  --input-border: #27313D;
+  --input-border-focus: #FFFFFF;
+  
+  /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.28);
-  --shadow-premium: 0 20px 25px -5px rgba(0, 0, 0, 0.45), 0 10px 10px -5px rgba(0, 0, 0, 0.25);
+  --shadow-premium: 0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 * {
@@ -106,6 +162,12 @@ textarea:focus {
   outline: none;
   border-color: var(--input-border-focus);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+option,
+optgroup {
+  background: var(--bg-card);
+  color: var(--text-main);
 }
 
 .container {

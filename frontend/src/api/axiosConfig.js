@@ -1,8 +1,9 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import { auth } from '../utils/auth';
+import { appConfig } from '../config/env';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1',
+  baseURL: appConfig.apiUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -10,9 +11,7 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   async (config) => {
-    const isAuthEnabled = import.meta.env.VITE_ENABLE_AUTH === 'true';
-
-    if (isAuthEnabled) {
+    if (appConfig.enableAuth) {
       const user = await auth.getUser();
       const token = user?.access_token;
       if (token) {

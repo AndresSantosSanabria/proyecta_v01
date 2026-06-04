@@ -1,11 +1,8 @@
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts';
+import { appConfig } from '../config/env';
 
-const keycloakBaseUrl = import.meta.env.VITE_KEYCLOAK_BASE_URL?.replace(/\/+$/, '');
-const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM;
-const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
-const authority = `${keycloakBaseUrl}/realms/${keycloakRealm}`;
-const redirectUri = import.meta.env.VITE_KEYCLOAK_REDIRECT_URI;
-const postLogoutRedirectUri = import.meta.env.VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI;
+const clientId = appConfig.keycloak.clientId;
+const authority = appConfig.keycloak.authority;
 
 const metadata = {
   issuer: authority,
@@ -19,10 +16,10 @@ const metadata = {
 export const auth = new UserManager({
   authority,
   client_id: clientId,
-  redirect_uri: redirectUri,
-  post_logout_redirect_uri: postLogoutRedirectUri,
-  response_type: 'code',
-  scope: 'openid profile email',
+  redirect_uri: appConfig.keycloak.redirectUri,
+  post_logout_redirect_uri: appConfig.keycloak.postLogoutRedirectUri,
+  response_type: appConfig.keycloak.responseType,
+  scope: appConfig.keycloak.scope,
   automaticSilentRenew: true,
   monitorSession: false,
   loadUserInfo: false,

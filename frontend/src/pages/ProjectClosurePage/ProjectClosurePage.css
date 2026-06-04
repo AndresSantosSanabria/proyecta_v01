@@ -178,7 +178,7 @@
 
 .status-badge.con_retrasos {
   background-color: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .status-badge.cerrado {
@@ -255,11 +255,11 @@
 }
 
 .char-count.char-warn {
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .char-count.char-ok {
-  color: #10b981;
+  color: var(--success);
   font-weight: 600;
 }
 

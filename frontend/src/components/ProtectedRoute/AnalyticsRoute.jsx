@@ -6,8 +6,7 @@ const AnalyticsRoute = () => {
   const canViewAnalytics = isAdminLocal
     || transversal
     || hasRole('ADMIN')
-    || hasRole('GESTOR_TIC')
-    || hasPermission('PROYECTO:VER');
+    || hasPermission('ANALITICA:VER');
 
   if (!canViewAnalytics) {
     return <Navigate to="/access-denied" replace />;

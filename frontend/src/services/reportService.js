@@ -82,8 +82,9 @@ const reportService = {
     return response.data;
   },
 
-  downloadPortafolioExcel: async () => {
+  downloadPortafolioExcel: async (params = {}) => {
     const response = await apiClient.get('/reportes/portafolio/excel', {
+      params,
       responseType: 'blob',
     });
     return response.data;

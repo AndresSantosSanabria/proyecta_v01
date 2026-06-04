@@ -1,7 +1,20 @@
 .security-admin-page {
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
   display: grid;
   gap: 18px;
-  padding: 12px 0 44px;
+  padding: 32px;
+  background-color: var(--bg-main);
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, sans-serif;
 }
 
 .security-header {
@@ -20,17 +33,19 @@
 
 .security-eyebrow {
   margin: 0;
-  font-size: 0.73rem;
-  letter-spacing: 0.14em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
+  margin-bottom: 8px;
 }
 
 .security-header-copy h1 {
-  margin: 0;
-  font-size: clamp(1.8rem, 2.6vw, 2.35rem);
-  line-height: 1.08;
-  letter-spacing: -0.04em;
+  margin: 0 0 8px 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--text-main);
 }
 
@@ -56,7 +71,7 @@
   border-radius: 16px;
   border: 1px solid var(--border-color);
   background: var(--bg-card);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 10px 24px var(--border-subtle);
 }
 
 .feedback-banner.error {
@@ -87,11 +102,11 @@
 .panel {
   display: grid;
   gap: 18px;
-  padding: 22px;
-  border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, #ffffff), var(--bg-card));
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+  padding: 24px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-premium);
 }
 
 .panel-main {
@@ -140,8 +155,8 @@
   border: 1px solid color-mix(in srgb, var(--border-color) 84%, var(--primary-soft));
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--primary-soft) 52%, transparent) 0, transparent 42%),
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 99%, #ffffff), var(--bg-card));
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.08);
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 99%, var(--bg-card)), var(--bg-card));
+  box-shadow: 0 28px 60px var(--border-subtle);
 }
 
 .create-user-header {
@@ -176,18 +191,18 @@
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, #1f2937 50%, var(--border-color));
   background: linear-gradient(180deg, #24314b, #182133);
-  color: #fff;
+  color: var(--bg-card);
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
-  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 14px 26px var(--border-subtle);
   transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .btn-ghost-dark:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--primary) 26%, var(--border-color));
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 16px 30px var(--border-subtle);
 }
 
 .create-user-form {
@@ -222,7 +237,7 @@
   padding: 13px 16px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
   color: var(--text-main);
   outline: none;
   font-size: 0.95rem;
@@ -285,34 +300,42 @@
   gap: 8px;
   min-height: 42px;
   padding: 0 16px;
-  border-radius: 14px;
-  border: 1px solid transparent;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #fff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+  background: transparent;
   cursor: pointer;
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  transition: all 0.2s ease;
 }
 
 .quick-action:disabled {
-  opacity: 0.8;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.quick-action.audit {
-  background: linear-gradient(180deg, #1f2937, #111827);
-}
-
-.quick-action.roles {
-  background: linear-gradient(180deg, #64748b, #475569);
+.quick-action.audit:hover, .quick-action.roles:hover {
+  background: var(--bg-muted);
+  border-color: var(--border-color);
 }
 
 .quick-action.roles.active {
-  box-shadow: 0 0 0 4px var(--primary-soft);
+  background: var(--bg-muted);
+  border-color: var(--border-color);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .quick-action.create {
-  background: linear-gradient(180deg, #4f46e5, #4338ca);
+  background: var(--primary-sleek);
+  color: var(--bg-card);
+  border: none;
+  box-shadow: 0 4px 12px rgba(11, 11, 15, 0.15);
+}
+
+.quick-action.create:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(11, 11, 15, 0.25);
 }
 
 .inline-search {
@@ -321,10 +344,16 @@
   gap: 8px;
   min-height: 42px;
   padding: 0 14px;
-  border-radius: 14px;
-  border: 1px solid var(--border-color);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 82%, #ffffff), var(--bg-card));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--bg-main);
+  transition: all 0.2s ease;
+}
+
+.inline-search:focus-within {
+  border-color: var(--border-color);
+  box-shadow: 0 0 0 2px var(--border-subtle);
+  background: var(--bg-card);
 }
 
 .inline-search svg {
@@ -355,16 +384,18 @@
 .data-table {
   width: 100%;
   min-width: 1100px;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .data-table thead th {
   padding: 16px 18px;
-  border-bottom: 1px solid var(--border-color);
-  background: color-mix(in srgb, var(--bg-card) 76%, var(--bg-main));
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
   color: var(--text-muted);
-  font-size: 0.73rem;
-  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   text-align: left;
   white-space: nowrap;
@@ -372,18 +403,19 @@
 
 .data-table tbody td {
   padding: 16px 18px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
   color: var(--text-main);
+  font-size: 0.875rem;
 }
 
 .data-table tbody tr {
-  transition: background-color 0.14s ease;
+  transition: background 0.2s ease;
   cursor: pointer;
 }
 
 .data-table tbody tr:hover td {
-  background: color-mix(in srgb, var(--primary) 4%, transparent);
+  background: var(--bg-main);
 }
 
 .selected-row td {
@@ -423,13 +455,14 @@
 .user-avatar {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.88rem;
+  color: var(--bg-card);
+  font-weight: 600;
+  font-size: 0.8rem;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
 }
 
 .row-actions {
@@ -461,7 +494,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--bg-card);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   transition: transform 0.16s ease, background 0.16s ease;
 }
@@ -498,6 +531,76 @@
   color: var(--primary);
   border-color: color-mix(in srgb, var(--primary) 34%, var(--border-color));
   background: var(--primary-soft);
+}
+
+.user-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: var(--border-subtle);
+  backdrop-filter: blur(10px);
+}
+
+.user-modal {
+  width: min(980px, calc(100vw - 36px));
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, var(--primary-soft));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-soft) 48%, transparent) 0, transparent 42%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 99%, var(--bg-card)), var(--bg-card));
+  box-shadow: 0 30px 70px var(--border-subtle);
+  animation: modal-pop 0.18s ease-out;
+}
+
+.assignments-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: var(--border-subtle);
+  backdrop-filter: blur(10px);
+}
+
+.assignments-modal {
+  width: min(1180px, calc(100vw - 36px));
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, var(--primary-soft));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-soft) 48%, transparent) 0, transparent 42%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 99%, var(--bg-card)), var(--bg-card));
+  box-shadow: 0 30px 70px var(--border-subtle);
+  animation: modal-pop 0.18s ease-out;
+}
+
+.assignments-modal-description {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.assignments-modal-close {
+  margin-left: auto;
+}
+
+.assignments-modal .assignment-grid {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+}
+
+.assignments-modal .assignment-list-panel {
+  min-width: 0;
+}
+
+.assignments-modal .assignment-table-shell {
+  max-height: min(48vh, 540px);
+  overflow: auto;
 }
 
 .user-editor-sheet {
@@ -539,6 +642,26 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
+}
+
+.modal-close-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 96%, var(--bg-card));
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: 0 8px 16px var(--border-subtle);
+}
+
+.modal-close-btn:hover {
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  background: var(--primary-soft);
 }
 
 .soft-pill,
@@ -546,27 +669,31 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
+  padding: 4px 10px;
+  border-radius: 6px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
 .soft-pill {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 84%, #ffffff), var(--bg-card));
-  border: 1px solid color-mix(in srgb, var(--border-color) 90%, var(--primary-soft));
-  color: color-mix(in srgb, var(--text-muted) 82%, var(--text-main));
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  font-weight: 500;
 }
 
 .status-chip.active {
-  background: color-mix(in srgb, var(--success-soft) 88%, var(--bg-card));
+  background: var(--success-bg);
   color: var(--success);
+  border: 1px solid var(--success-border);
 }
 
 .status-chip.inactive {
   background: color-mix(in srgb, var(--danger-soft) 88%, var(--bg-card));
   color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
 }
 
 .form-grid {
@@ -597,7 +724,7 @@
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
   color: var(--text-main);
   outline: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
@@ -625,8 +752,8 @@
 
 .switch {
   position: relative;
-  width: 46px;
-  height: 26px;
+  width: 40px;
+  height: 22px;
   display: inline-block;
 }
 
@@ -641,29 +768,30 @@
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--border-color) 88%, #ffffff);
+  background: var(--border-color);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
   transition: background-color 0.18s ease;
 }
 
 .switch span::before {
   content: '';
   position: absolute;
-  width: 20px;
-  height: 20px;
-  top: 3px;
-  left: 3px;
+  width: 18px;
+  height: 18px;
+  top: 2px;
+  left: 2px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+  background: var(--bg-card);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   transition: transform 0.18s ease;
 }
 
 .switch input:checked + span {
-  background: var(--success);
+  background: var(--primary-sleek);
 }
 
 .switch input:checked + span::before {
-  transform: translateX(20px);
+  transform: translateX(18px);
 }
 
 .form-actions {
@@ -703,7 +831,7 @@
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid var(--border-color);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
   color: var(--text-main);
 }
 
@@ -768,7 +896,7 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--primary-soft) 52%, #fff);
+  background: color-mix(in srgb, var(--primary-soft) 52%, var(--bg-card));
   color: var(--primary);
   flex: 0 0 auto;
 }
@@ -803,13 +931,13 @@
 }
 
 .profile-chip.system {
-  background: color-mix(in srgb, var(--bg-main) 82%, #fff);
+  background: color-mix(in srgb, var(--bg-main) 82%, var(--bg-card));
   border-color: color-mix(in srgb, var(--border-color) 86%, var(--primary-soft));
   color: var(--text-muted);
 }
 
 .profile-chip.custom {
-  background: color-mix(in srgb, var(--success-soft) 84%, #fff);
+  background: color-mix(in srgb, var(--success-soft) 84%, var(--bg-card));
   border-color: color-mix(in srgb, var(--success) 22%, var(--border-color));
   color: color-mix(in srgb, var(--success) 80%, #14532d);
 }
@@ -835,7 +963,7 @@
   width: 38px;
   height: 38px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--primary-soft) 60%, #fff);
+  background: color-mix(in srgb, var(--primary-soft) 60%, var(--bg-card));
   color: var(--primary);
   flex: 0 0 auto;
 }
@@ -878,7 +1006,7 @@
   padding: 13px 16px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
   color: var(--text-main);
   outline: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
@@ -901,7 +1029,281 @@
   padding: 22px;
   border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-card)), var(--bg-card));
+}
+
+.assignment-panel {
+  display: grid;
+  gap: 18px;
+  min-height: 72vh;
+  padding-top: 28px;
+  padding-bottom: 28px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-soft) 30%, transparent) 0, transparent 35%),
+    var(--bg-card);
+}
+
+.assignments-workspace {
+  grid-template-columns: 1fr;
+}
+
+.assignment-header {
+  padding-bottom: 16px;
+}
+
+.assignment-header-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.assignment-config {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
+  background: color-mix(in srgb, var(--bg-main) 62%, var(--bg-card));
+}
+
+.assignment-config-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.assignment-config-copy strong {
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.assignment-config-copy span {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.assignment-config-copy code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-card) 90%, var(--bg-card));
+  color: var(--primary);
+  font-size: 0.8rem;
+}
+
+.assignment-config-controls {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.assignment-config textarea {
+  flex: 1 1 340px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
+  color: var(--text-main);
+  outline: none;
+  resize: vertical;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.assignment-config textarea:focus {
+  border-color: color-mix(in srgb, var(--primary) 64%, var(--border-color));
+  box-shadow: 0 0 0 4px var(--primary-soft), 0 12px 22px rgba(59, 130, 246, 0.08);
+}
+
+.assignment-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.assignment-form {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 82%, var(--bg-card)), var(--bg-card));
+}
+
+.assignment-form-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.assignment-form-grid label {
+  display: grid;
+  gap: 8px;
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.assignment-form-grid label span {
+  color: color-mix(in srgb, var(--text-main) 88%, var(--text-muted));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.77rem;
+  font-weight: 800;
+}
+
+.assignment-form-grid input,
+.assignment-form-grid select {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
+  color: var(--text-main);
+  outline: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.assignment-form-grid input:focus,
+.assignment-form-grid select:focus {
+  border-color: color-mix(in srgb, var(--primary) 64%, var(--border-color));
+  box-shadow: 0 0 0 4px var(--primary-soft), 0 12px 22px rgba(59, 130, 246, 0.08);
+}
+
+.assignment-helper {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--border-color) 84%, var(--primary-soft));
+  background: color-mix(in srgb, var(--bg-main) 52%, var(--bg-card));
+}
+
+.assignment-helper strong {
+  color: var(--text-main);
+  font-size: 0.92rem;
+}
+
+.assignment-helper span {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.assignment-actions {
+  justify-content: flex-end;
+}
+
+.assignment-list-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-card)), var(--bg-card));
+}
+
+.assignment-list-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.assignment-list-head h5 {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+  color: var(--text-main);
+}
+
+.assignment-list-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.assignment-table-shell {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.assignment-table {
+  min-width: 760px;
+}
+
+.assignment-project-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.assignment-project-cell strong {
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.assignment-project-cell span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.parameters-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.parameters-topbar {
+  padding-bottom: 16px;
+}
+
+.parameters-actions {
+  align-items: center;
+}
+
+.parameters-table-shell {
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.parameters-table {
+  min-width: 980px;
+}
+
+.parameter-key-cell strong {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--text-main);
+}
+
+.parameter-value-cell,
+.parameter-description-cell {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.parameter-core-grid {
+  grid-template-columns: 1fr;
+}
+
+.parameter-core-grid textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 13px 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
+  color: var(--text-main);
+  outline: none;
+  resize: vertical;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.parameter-core-grid textarea:focus {
+  border-color: color-mix(in srgb, var(--primary) 64%, var(--border-color));
+  box-shadow: 0 0 0 4px var(--primary-soft), 0 12px 22px rgba(59, 130, 246, 0.08);
 }
 
 .role-section-header h4 {
@@ -926,7 +1328,7 @@
 .constraint-card {
   padding: 18px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--bg-main) 55%, #ffffff);
+  background: color-mix(in srgb, var(--bg-main) 55%, var(--bg-card));
   border: 1px solid color-mix(in srgb, var(--border-color) 86%, transparent);
 }
 
@@ -970,8 +1372,8 @@
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, #ffffff), var(--bg-card));
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.04);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
+  box-shadow: 0 8px 16px var(--border-subtle);
 }
 
 .workflow-block input,
@@ -983,7 +1385,7 @@
 .workflow-block.checked,
 .responsibility-card.checked {
   border-color: color-mix(in srgb, var(--primary) 32%, var(--border-color));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 68%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 68%, var(--bg-card)), var(--bg-card));
 }
 
 .workflow-block-copy,
@@ -1039,7 +1441,7 @@
   height: 30px;
   border-radius: 999px;
   color: var(--primary);
-  background: color-mix(in srgb, var(--primary-soft) 50%, #fff);
+  background: color-mix(in srgb, var(--primary-soft) 50%, var(--bg-card));
 }
 
 .matrix-module-cell strong {
@@ -1097,22 +1499,22 @@
   padding: 18px;
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
   color: var(--text-main);
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 18px var(--border-subtle);
   transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .role-item:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--primary) 34%, var(--border-color));
-  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 24px var(--border-subtle);
 }
 
 .role-item.active {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 72%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 72%, var(--bg-card)), var(--bg-card));
   border-color: color-mix(in srgb, var(--primary) 36%, var(--border-color));
   box-shadow: 0 14px 28px rgba(59, 130, 246, 0.12);
 }
@@ -1173,9 +1575,9 @@
 .matrix-group {
   border: 1px solid color-mix(in srgb, var(--border-color) 90%, var(--primary-soft));
   border-radius: 18px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
   overflow: hidden;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 10px 24px var(--border-subtle);
 }
 
 .matrix-group-summary {
@@ -1226,21 +1628,21 @@
   padding: 13px 14px;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-card)), var(--bg-card));
   color: var(--text-main);
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 6px 16px var(--border-subtle);
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .permission-chip:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
-  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12px 22px var(--border-subtle);
 }
 
 .permission-chip.checked {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 66%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 66%, var(--bg-card)), var(--bg-card));
   border-color: color-mix(in srgb, var(--primary) 32%, var(--border-color));
   box-shadow: 0 12px 24px rgba(59, 130, 246, 0.08);
 }
@@ -1257,7 +1659,7 @@
   height: 18px;
   border-radius: 5px;
   border: 1.5px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
-  background: linear-gradient(180deg, var(--bg-card), color-mix(in srgb, var(--bg-main) 82%, #ffffff));
+  background: linear-gradient(180deg, var(--bg-card), color-mix(in srgb, var(--bg-main) 82%, var(--bg-card)));
   transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   position: relative;
 }
@@ -1275,7 +1677,7 @@
   top: 1px;
   width: 5px;
   height: 10px;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-card);
   border-top: none;
   border-left: none;
   transform: rotate(45deg);
@@ -1312,8 +1714,8 @@
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, #ffffff), var(--primary));
-  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, var(--bg-card)), var(--primary));
+  color: var(--bg-card);
   box-shadow: 0 14px 26px rgba(79, 70, 229, 0.18);
 }
 
@@ -1323,10 +1725,10 @@
 }
 
 .btn-secondary {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-card)), var(--bg-card));
   border-color: color-mix(in srgb, var(--border-color) 94%, var(--primary-soft));
   color: var(--text-main);
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 10px 20px var(--border-subtle);
 }
 
 .btn-secondary:hover {
@@ -1335,7 +1737,7 @@
 }
 
 .btn-ghost-danger {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--danger-soft) 78%, #ffffff), var(--bg-card));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger-soft) 78%, var(--bg-card)), var(--bg-card));
   border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
   color: var(--danger);
 }
@@ -1367,6 +1769,17 @@
 .muted-text {
   color: var(--text-muted);
   font-size: 0.84rem;
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 1180px) {
@@ -1414,6 +1827,15 @@
     grid-template-columns: 1fr;
   }
 
+  .assignment-grid,
+  .assignment-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .assignment-config-controls {
+    align-items: stretch;
+  }
+
   .create-user-header,
   .panel-topbar,
   .security-header {
@@ -1422,5 +1844,51 @@
 
   .data-table {
     min-width: 920px;
+  }
+
+  .user-modal {
+    width: min(860px, calc(100vw - 24px));
+  }
+
+  .assignments-modal {
+    width: min(980px, calc(100vw - 24px));
+  }
+
+  .assignment-table {
+    min-width: 680px;
+  }
+
+  .parameters-table {
+    min-width: 680px;
+  }
+}
+
+@media (max-width: 720px) {
+  .user-modal-backdrop {
+    padding: 12px;
+  }
+
+  .user-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 18px 16px;
+  }
+
+  .assignments-modal-backdrop {
+    padding: 12px;
+  }
+
+  .assignments-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 18px 16px;
+  }
+
+  .editor-head {
+    gap: 10px;
+  }
+
+  .editor-badges {
+    justify-content: flex-start;
   }
 }

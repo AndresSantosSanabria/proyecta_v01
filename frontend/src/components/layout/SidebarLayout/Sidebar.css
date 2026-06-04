@@ -2,7 +2,7 @@
   width: 248px;
   height: 100vh;
   background-color: #1a4331; /* Verde oscuro principal */
-  color: #ffffff;
+  color: var(--bg-card);
   display: flex;
   flex-direction: column;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -71,7 +71,7 @@
 }
 
 .toggle-btn:hover {
-  color: #fff;
+  color: var(--bg-card);
   background-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -108,12 +108,12 @@
 }
 
 .nav-item:hover {
-  color: #fff;
+  color: var(--bg-card);
   background-color: rgba(255, 255, 255, 0.05);
 }
 
 .nav-item.active {
-  color: #fff;
+  color: var(--bg-card);
   background-color: rgba(45, 90, 68, 0.6);
 }
 
@@ -226,7 +226,7 @@
 }
 
 .logout-btn:hover {
-  color: #fff;
+  color: var(--bg-card);
   background-color: #e53e3e;
 }
 
@@ -250,7 +250,7 @@
 }
 
 .theme-toggle-btn:hover {
-  color: #fff;
+  color: var(--bg-card);
   background-color: rgba(255, 255, 255, 0.15);
 }
 

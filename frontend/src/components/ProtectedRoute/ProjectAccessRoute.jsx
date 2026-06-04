@@ -3,16 +3,21 @@ import { useAuthContext } from '../../context/AuthContext';
 
 const ProjectAccessRoute = () => {
   const { id, codigoProyecto } = useParams();
-  const { transversal, assignedProjects, hasPermission, isAdminLocal } = useAuthContext();
+  const { transversal, assignedProjects, hasPermission, isAdminLocal, hasRole } = useAuthContext();
   const projectId = (id || codigoProyecto || '').toLowerCase();
-  const isAdminLike = isAdminLocal || transversal || hasPermission('SISTEMA:CONFIGURAR');
+  const isAdminLike = isAdminLocal
+    || transversal
+    || hasRole('ADMIN')
+    || hasPermission('SISTEMA:CONFIGURAR');
 
   if (!projectId) {
     return <Navigate to="/access-denied" replace />;
   }
 
   const isAssigned = assignedProjects.some((item) => {
-    const code = typeof item === 'object' && item !== null ? item.codigo || item.id : item;
+    const code = typeof item === 'object' && item !== null
+      ? item.codigo || item.id || item.proyectoId || item.proyecto_id
+      : item;
     return (code || '').toString().trim().toLowerCase() === projectId;
   });
 

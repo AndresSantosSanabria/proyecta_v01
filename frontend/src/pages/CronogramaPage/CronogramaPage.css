@@ -51,7 +51,7 @@
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--success) 10%, transparent), transparent 30%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--bg-main)), var(--bg-card));
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 18px 42px var(--border-subtle);
 }
 
 .project-info-card {
@@ -317,7 +317,7 @@
     radial-gradient(circle at top right, color-mix(in srgb, var(--success) 8%, transparent), transparent 30%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-main)), var(--bg-card));
   border-radius: 22px;
-  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 20px 48px var(--border-subtle);
   border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
   overflow: hidden;
 }
@@ -514,7 +514,7 @@
 .bar-container:hover {
   transform: translateY(-1px);
   z-index: 10;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 22px var(--border-subtle);
 }
 
 .progress-fill {
@@ -528,11 +528,11 @@
 }
 
 .phase-bar .progress-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--success) 80%, #0f172a), var(--success));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--success) 80%, var(--text-main)), var(--success));
 }
 
 .milestone-bar .progress-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 82%, #0f172a), var(--primary));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 82%, var(--text-main)), var(--primary));
 }
 
 .phase-bar {
@@ -544,19 +544,19 @@
 }
 
 .fill-complete .progress-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--success) 84%, #0f172a), color-mix(in srgb, var(--success) 60%, var(--primary)));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--success) 84%, var(--text-main)), color-mix(in srgb, var(--success) 60%, var(--primary)));
 }
 
 .fill-warning .progress-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 80%, #0f172a), color-mix(in srgb, var(--warning) 60%, #fb923c));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 80%, var(--text-main)), color-mix(in srgb, var(--warning) 60%, #fb923c));
 }
 
 .fill-delayed .progress-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--danger) 85%, #0f172a), color-mix(in srgb, var(--danger) 70%, #f97316));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--danger) 85%, var(--text-main)), color-mix(in srgb, var(--danger) 70%, #f97316));
 }
 
 .fill-progress .progress-fill {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 82%, #0f172a), var(--primary));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 82%, var(--text-main)), var(--primary));
 }
 
 .gantt-track {
@@ -607,7 +607,7 @@
 }
 
 .bar-label {
-  color: #fff;
+  color: var(--bg-card);
   text-shadow: 0 1px 2px rgba(0,0,0,0.4);
   font-size: 0.68rem;
   font-weight: 900;
@@ -617,7 +617,7 @@
 }
 
 .bar-meta {
-  color: color-mix(in srgb, #fff 82%, var(--bg-card));
+  color: color-mix(in srgb, var(--bg-card) 82%, var(--bg-card));
   font-size: 0.65rem;
   font-weight: 800;
   white-space: nowrap;
@@ -659,12 +659,12 @@
 
 .gantt-phase-row.status-delayed .phase-name,
 .gantt-hito-row.status-delayed .milestone-name {
-  color: color-mix(in srgb, var(--danger) 80%, #fff);
+  color: color-mix(in srgb, var(--danger) 80%, var(--bg-card));
 }
 
 .gantt-phase-row.status-warning .phase-name,
 .gantt-hito-row.status-warning .milestone-name {
-  color: color-mix(in srgb, var(--warning) 85%, #fff);
+  color: color-mix(in srgb, var(--warning) 85%, var(--bg-card));
 }
 
 /* Loading & Error */
@@ -692,7 +692,7 @@
   align-items: center;
   gap: 0.6rem;
   border: 1px solid color-mix(in srgb, var(--danger) 20%, var(--border-color));
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 28px var(--border-subtle);
 }
 
 .error-container.success-msg {

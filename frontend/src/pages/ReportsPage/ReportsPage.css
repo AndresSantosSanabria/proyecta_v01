@@ -5,7 +5,7 @@
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 10%, transparent), transparent 28%),
     radial-gradient(circle at top right, color-mix(in srgb, var(--success) 9%, transparent), transparent 24%),
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 96%, #ffffff), var(--bg-main));
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 96%, var(--bg-card)), var(--bg-main));
 }
 
 .reports-page__header {
@@ -126,8 +126,8 @@
 .reports-page__primary-button,
 .reports-page__download-button {
   padding: 12px 18px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 82%, #0f172a) 100%);
+  color: var(--bg-card);
+  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 82%, var(--text-main)) 100%);
   box-shadow: 0 14px 24px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
@@ -656,7 +656,7 @@
   flex: 1;
   border: 1px solid var(--border-color);
   border-radius: 18px;
-  background: color-mix(in srgb, var(--bg-card) 98%, #fff);
+  background: color-mix(in srgb, var(--bg-card) 98%, var(--bg-card));
 }
 
 .reports-page__loading,

@@ -24,31 +24,50 @@ import './Sidebar.css';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeCount, setActiveCount] = useState(0);
+  const [visibleProjectCount, setVisibleProjectCount] = useState(0);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
-  const { user, roles, logout, isAdminLocal, transversal, hasRole } = useAuthContext();
-  const canConfigureByPermission = usePermission('SISTEMA:CONFIGURAR');
-  const canConfigure = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || canConfigureByPermission;
+  const { user, roles, logout, isAdminLocal, transversal, hasRole, assignedProjects } = useAuthContext();
+  const canViewDashboard = usePermission('DASHBOARD:VER');
+  const isDirectorProjectRole = hasRole('DIRECTOR_PROYECTO');
+  const canViewProjects = usePermission('PROYECTO:VER')
+    || isDirectorProjectRole
+    || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
+  const canCloseProject = usePermission('PROYECTO:CERRAR');
+  const canViewReports = usePermission('REPORTE:VER');
+  const canViewAnalytics = usePermission('ANALITICA:VER');
+  const canConfigureByConfigPermission = usePermission('CONFIGURACION:VER');
+  const canConfigureBySystemPermission = usePermission('SISTEMA:CONFIGURAR');
+  const canConfigureByPermission = canConfigureByConfigPermission || canConfigureBySystemPermission;
+  const canConfigure = isAdminLocal || transversal || hasRole('ADMIN') || canConfigureByPermission;
+  const isAdminLike = isAdminLocal
+    || transversal
+    || hasRole('ADMIN')
+    || canConfigureByPermission;
 
   const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
 
   useEffect(() => {
-    const fetchActiveCount = async () => {
+    const fetchVisibleProjectCount = async () => {
+      if (isDirectorProjectRole && !isAdminLike) {
+        setVisibleProjectCount(Array.isArray(assignedProjects) ? assignedProjects.length : 0);
+        return;
+      }
+
       try {
         const response = await dashboardService.getKPIs();
         if (response.success && response.data) {
-          setActiveCount(response.data.activos || 0);
+          setVisibleProjectCount(response.data.total_proyectos || 0);
         }
       } catch (error) {
-        console.error('Error fetching active projects count for sidebar:', error);
+        console.error('Error fetching visible projects count for sidebar:', error);
       }
     };
 
-    fetchActiveCount();
-  }, []);
+    fetchVisibleProjectCount();
+  }, [assignedProjects, isAdminLike, isDirectorProjectRole]);
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -81,24 +100,24 @@ const Sidebar = () => {
     {
       category: 'PRINCIPAL',
       items: [
-        { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> },
-        { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: activeCount },
+        canViewDashboard ? { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> } : null,
+        canViewProjects ? { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: visibleProjectCount } : null,
       ]
     },
     {
       category: 'MODULOS',
       items: currentProjectId ? [
-        { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> },
-        { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> },
-        { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> },
-        { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> },
-      ] : []
+        canViewProjects ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
+        canViewProjects ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
+        canViewProjects ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
+        canCloseProject ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
+      ].filter(Boolean) : []
     },
     {
       category: 'CONSULTAS',
       items: [
-        { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> },
-        { name: 'Analíticas', path: '/analytics', icon: <BarChart3 size={22} /> },
+        canViewReports ? { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> } : null,
+        canViewAnalytics ? { name: 'Analíticas', path: '/analytics', icon: <BarChart3 size={22} /> } : null,
       ]
     },
     ...(canConfigure ? [{
@@ -107,7 +126,7 @@ const Sidebar = () => {
         { name: 'Configuracion Seguridad', path: '/admin/configuracion', icon: <ShieldCheck size={22} /> },
       ]
     }] : [])
-  ];
+  ].filter((group) => group.items.length > 0);
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
@@ -142,10 +161,10 @@ const Sidebar = () => {
                 {!isCollapsed && (
                   <>
                     <span className="nav-text">{item.name}</span>
-                    {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
+                    {item.badge !== null && item.badge !== undefined ? <span className="nav-badge">{item.badge}</span> : null}
                   </>
                 )}
-                {isCollapsed && item.badge ? <span className="nav-badge-dot"></span> : null}
+                {isCollapsed && item.badge !== null && item.badge !== undefined ? <span className="nav-badge-dot"></span> : null}
               </NavLink>
             ))}
           </div>

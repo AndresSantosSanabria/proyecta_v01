@@ -1,24 +1,29 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BadgeCheck,
   Ban,
   CircleAlert,
   Clock3,
+  Briefcase,
   Pencil,
   Plus,
   RefreshCw,
   Save,
   Search,
   ShieldCheck,
+  X,
   Users,
 } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
+import projectService from '../../services/projectService';
 import securityService from '../../services/securityService';
 import './SecurityConfigPage.css';
 
 const SECURITY_TABS = {
   USERS: 'usuarios',
   ROLES: 'roles',
+  PARAMETERS: 'parametros',
+  ASSIGNMENTS: 'asignaciones',
 };
 
 const emptyUserForm = {
@@ -38,14 +43,40 @@ const emptyRoleForm = {
   activo: true,
 };
 
-const ACTION_ORDER = ['VER', 'LISTAR', 'CONSULTAR', 'DESCARGAR', 'CREAR', 'REGISTRAR', 'CARGAR', 'SUBIR', 'EDITAR', 'ACTUALIZAR', 'MODIFICAR'];
+const emptyParameterForm = {
+  key: '',
+  value: '',
+  descripcion: '',
+};
+
+const ACTION_ORDER = [
+  'VER',
+  'LISTAR',
+  'CONSULTAR',
+  'DESCARGAR',
+  'CREAR',
+  'REGISTRAR',
+  'CARGAR',
+  'SUBIR',
+  'EDITAR',
+  'ACTUALIZAR',
+  'MODIFICAR',
+  'APROBAR',
+  'CERRAR',
+  'ELIMINAR',
+  'CONFIGURAR',
+];
 
 const roleLabels = {
+  DASHBOARD: 'Dashboard',
   PROYECTO: 'Gestion de Proyectos',
+  REPORTE: 'Reportes',
+  ANALITICA: 'Analiticas',
   ENTREGABLE: 'Entregables',
   EVIDENCIA: 'Evidencias',
   DOCUMENTO: 'Documentos',
   CRONOGRAMA: 'Cronograma',
+  CONFIGURACION: 'Configuracion',
   SISTEMA: 'Administracion del Sistema',
   OTROS: 'Otros permisos',
 };
@@ -155,6 +186,33 @@ const extractApiDetail = (error) => {
     || '';
 };
 
+const unwrapPayload = (value) => value?.data?.data ?? value?.data ?? value;
+
+const extractCollection = (value) => {
+  const payload = unwrapPayload(value);
+
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+
+  return [];
+};
+
+const normalizeAssignmentCargos = (value) => {
+  const payload = unwrapPayload(value);
+  const cargos = Array.isArray(payload) ? payload : String(payload || '').split(',');
+
+  return [...new Set(
+    cargos
+      .map((cargo) => String(cargo || '').trim())
+      .filter(Boolean)
+  )];
+};
+
+const getProjectId = (project) => project?.codigo || project?.id || project?.proyectoId || project?.proyecto_id || '';
+const getProjectName = (project) => project?.nombre || project?.nombreProyecto || project?.name || getProjectId(project);
+
 const SecurityConfigPage = () => {
   const { permissions: authPermissions, isAdminLocal, transversal, hasRole } = useAuthContext();
 
@@ -162,12 +220,26 @@ const SecurityConfigPage = () => {
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [users, setUsers] = useState([]);
+  const [systemParameters, setSystemParameters] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [assignmentCargos, setAssignmentCargos] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentCargoDraft, setAssignmentCargoDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [usersLoadError, setUsersLoadError] = useState('');
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [savingAssignment, setSavingAssignment] = useState(false);
+  const [savingAssignmentConfig, setSavingAssignmentConfig] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [roleSearch, setRoleSearch] = useState('');
+  const [parameterSearch, setParameterSearch] = useState('');
+  const [assignmentForm, setAssignmentForm] = useState({
+    username: '',
+    proyectoId: '',
+    cargo: '',
+  });
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [creatingUser, setCreatingUser] = useState(false);
@@ -182,15 +254,56 @@ const SecurityConfigPage = () => {
   const [roleDraftPermissions, setRoleDraftPermissions] = useState(new Set());
   const [savingRole, setSavingRole] = useState(false);
   const [savingPermissions, setSavingPermissions] = useState(false);
+  const [selectedParameterKey, setSelectedParameterKey] = useState('');
+  const [creatingParameter, setCreatingParameter] = useState(false);
+  const [parameterEditorOpen, setParameterEditorOpen] = useState(false);
+  const [parameterForm, setParameterForm] = useState(emptyParameterForm);
+  const [savingParameter, setSavingParameter] = useState(false);
+  const assignmentsSectionRef = useRef(null);
 
-  const canConfigure = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || authPermissions.includes('SISTEMA:CONFIGURAR');
+  const canConfigure = isAdminLocal
+    || transversal
+    || hasRole('ADMIN')
+    || authPermissions.includes('CONFIGURACION:VER')
+    || authPermissions.includes('SISTEMA:CONFIGURAR');
 
   const selectedRole = useMemo(
     () => roles.find((role) => role.codigo === selectedRoleCode) || null,
     [roles, selectedRoleCode]
   );
+  const canManageSystemParameters = isAdminLocal || hasRole('ADMIN');
+  const selectedParameter = useMemo(
+    () => systemParameters.find((parameter) => parameter.key === selectedParameterKey) || null,
+    [systemParameters, selectedParameterKey]
+  );
 
   const permissionGroups = useMemo(() => groupPermissions(permissions), [permissions]);
+  const isUserEditorOpen = Boolean(selectedUser) && !creatingUser;
+  const isParameterEditorOpen = parameterEditorOpen;
+  const selectedAssignmentUser = useMemo(
+    () => users.find((user) => user.username === assignmentForm.username) || null,
+    [assignmentForm.username, users]
+  );
+  const selectedAssignmentUserRole = getUserRoleCode(selectedAssignmentUser);
+  const shouldRestrictToDirectors = assignmentForm.cargo?.toUpperCase() === 'DIRECTOR_PROYECTO';
+  const selectedAssignmentUserRoleKey = selectedAssignmentUserRole.toUpperCase();
+  const isAssignmentsModalOpen = canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS;
+  const isFullscreenModalOpen = isUserEditorOpen || isAssignmentsModalOpen;
+  const assignableUsers = useMemo(() => {
+    if (!shouldRestrictToDirectors) {
+      return users;
+    }
+
+    return users.filter((user) => getUserRoleCode(user).toUpperCase() === 'DIRECTOR_PROYECTO');
+  }, [shouldRestrictToDirectors, users]);
+  const projectOptions = useMemo(
+    () => [...projects].sort((left, right) => {
+      const leftName = getProjectName(left);
+      const rightName = getProjectName(right);
+      return leftName.localeCompare(rightName, 'es');
+    }),
+    [projects]
+  );
 
   const filteredUsers = useMemo(() => {
     const query = userSearch.trim().toLowerCase();
@@ -213,26 +326,37 @@ const SecurityConfigPage = () => {
     });
   }, [roles, roleSearch]);
 
+  const filteredParameters = useMemo(() => {
+    const query = parameterSearch.trim().toLowerCase();
+    if (!query) return systemParameters;
+    return systemParameters.filter((parameter) => {
+      const haystack = [parameter.key, parameter.value, parameter.descripcion].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [parameterSearch, systemParameters]);
+
   const loadData = async (search = '') => {
     try {
       setLoading(true);
       setError('');
 
-      const [rolesResult, permissionsResult, usersResult] = await Promise.allSettled([
+      const [rolesResult, permissionsResult, usersResult, projectsResult, cargosResult, parametersResult] = await Promise.allSettled([
         securityService.listRoles({ includeInactive: true }),
         securityService.listPermissions(),
         securityService.listUsers({ search, size: 100 }),
+        projectService.getAllUnpaged(),
+        securityService.listAssignmentCargos(),
+        securityService.listSystemParameters(),
       ]);
 
-      const rolesData = rolesResult.status === 'fulfilled' && Array.isArray(rolesResult.value?.data)
-        ? rolesResult.value.data
+      const rolesData = rolesResult.status === 'fulfilled' ? extractCollection(rolesResult.value) : [];
+      const permissionsData = permissionsResult.status === 'fulfilled' ? extractCollection(permissionsResult.value) : [];
+      const usersData = usersResult.status === 'fulfilled' ? extractCollection(usersResult.value) : [];
+      const projectsData = projectsResult.status === 'fulfilled' && Array.isArray(projectsResult.value)
+        ? projectsResult.value
         : [];
-      const permissionsData = permissionsResult.status === 'fulfilled' && Array.isArray(permissionsResult.value?.data)
-        ? permissionsResult.value.data
-        : [];
-      const usersData = usersResult.status === 'fulfilled' && Array.isArray(usersResult.value?.data?.content)
-        ? usersResult.value.data.content
-        : [];
+      const cargosData = cargosResult.status === 'fulfilled' ? normalizeAssignmentCargos(cargosResult.value) : [];
+      const parametersData = parametersResult.status === 'fulfilled' ? extractCollection(parametersResult.value) : [];
 
       const usersFetchFailed = usersResult.status === 'rejected';
       setUsersLoadError(
@@ -244,6 +368,12 @@ const SecurityConfigPage = () => {
       setRoles(rolesData);
       setPermissions(permissionsData);
       setUsers(usersData);
+      setSystemParameters(parametersData);
+      setProjects(projectsData);
+      setAssignmentCargos(cargosData);
+      setAssignmentCargoDraft(
+        parametersData.find((parameter) => parameter.key === 'SEGURIDAD_CARGOS_ASIGNACION')?.value || ''
+      );
 
       if (!creatingRole) {
         const nextRole = (selectedRoleCode && rolesData.find((role) => role.codigo === selectedRoleCode))
@@ -277,6 +407,33 @@ const SecurityConfigPage = () => {
           setUserForm(emptyUserForm);
         }
       }
+
+      if (!creatingParameter) {
+        const nextParameter = (selectedParameterKey && parametersData.find((parameter) => parameter.key === selectedParameterKey))
+          || parametersData[0]
+          || null;
+
+        if (nextParameter) {
+          setSelectedParameterKey(nextParameter.key);
+          setParameterForm({
+            key: nextParameter.key || '',
+            value: nextParameter.value || '',
+            descripcion: nextParameter.descripcion || '',
+          });
+        } else {
+          setSelectedParameterKey('');
+          setParameterForm(emptyParameterForm);
+        }
+      } else if (parameterForm.key) {
+        const draftParameter = parametersData.find((parameter) => parameter.key === parameterForm.key);
+        if (draftParameter) {
+          setParameterForm({
+            key: draftParameter.key || parameterForm.key,
+            value: draftParameter.value || parameterForm.value,
+            descripcion: draftParameter.descripcion || parameterForm.descripcion,
+          });
+        }
+      }
     } catch (fetchError) {
       console.error('Error cargando configuracion de seguridad:', fetchError);
       setError('No fue posible cargar la configuracion de seguridad.');
@@ -285,11 +442,87 @@ const SecurityConfigPage = () => {
     }
   };
 
+  const loadAssignments = async (username) => {
+    if (!username) {
+      setAssignments([]);
+      return;
+    }
+
+    try {
+      setAssignmentLoading(true);
+      const response = await securityService.listAssignments(username);
+      setAssignments(extractCollection(response));
+    } catch (assignmentFetchError) {
+      console.error('Error cargando asignaciones:', assignmentFetchError);
+      setAssignments([]);
+      setError('No fue posible cargar las asignaciones del usuario seleccionado.');
+    } finally {
+      setAssignmentLoading(false);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData().catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!assignmentForm.username) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAssignments([]);
+      return undefined;
+    }
+
+    loadAssignments(assignmentForm.username).catch(console.error);
+    return undefined;
+  }, [assignmentForm.username]);
+
+  useEffect(() => {
+    if (!assignmentForm.username) {
+      return;
+    }
+
+    const isStillAssignable = assignableUsers.some((user) => user.username === assignmentForm.username);
+    if (!isStillAssignable) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAssignmentForm((current) => ({
+        ...current,
+        username: '',
+      }));
+    }
+  }, [assignableUsers, assignmentForm.username]);
+
+  useEffect(() => {
+    if (!isFullscreenModalOpen) {
+      document.body.classList.remove('modal-open');
+      return undefined;
+    }
+
+    document.body.classList.add('modal-open');
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (isAssignmentsModalOpen) {
+        setActiveSection(SECURITY_TABS.USERS);
+        return;
+      }
+
+      if (isUserEditorOpen) {
+        setCreatingUser(false);
+        setSelectedUser(null);
+        setUserForm(emptyUserForm);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.classList.remove('modal-open');
+    };
+  }, [isAssignmentsModalOpen, isFullscreenModalOpen, isUserEditorOpen]);
 
   const handleReload = () => {
     loadData(userSearch).catch(console.error);
@@ -308,6 +541,16 @@ const SecurityConfigPage = () => {
   const handleRoleFieldChange = (field) => (event) => {
     const value = field === 'transversal' || field === 'activo' ? event.target.checked : event.target.value;
     setRoleForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleParameterFieldChange = (field) => (event) => {
+    const value = event.target.value;
+    setParameterForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleAssignmentFieldChange = (field) => (event) => {
+    const value = event.target.value;
+    setAssignmentForm((current) => ({ ...current, [field]: value }));
   };
 
   const handleSelectUser = (user) => {
@@ -372,7 +615,75 @@ const SecurityConfigPage = () => {
   };
 
   const handleDeactivateUser = async () => {
-    await handleSaveUser({ preventDefault: () => {} }, { activo: false });
+    await handleSaveUser({ preventDefault: () => { } }, { activo: false });
+  };
+
+  const handleSaveAssignment = async (event) => {
+    event.preventDefault();
+
+    if (!canConfigure) {
+      setError('No tienes permisos para asignar proyectos.');
+      return;
+    }
+
+    if (!assignmentForm.username || !assignmentForm.proyectoId || !assignmentForm.cargo) {
+      setError('Selecciona usuario, proyecto y cargo para continuar.');
+      return;
+    }
+
+    if (shouldRestrictToDirectors && selectedAssignmentUserRoleKey !== 'DIRECTOR_PROYECTO') {
+      setError('El usuario seleccionado no tiene el rol Director de Proyecto.');
+      return;
+    }
+
+    try {
+      setSavingAssignment(true);
+      setError('');
+      await securityService.assignUserToProject({
+        username: assignmentForm.username.trim(),
+        proyectoId: assignmentForm.proyectoId.trim(),
+        cargo: assignmentForm.cargo.trim(),
+      });
+      setNotice('La asignacion de proyecto se guardo correctamente.');
+      await loadAssignments(assignmentForm.username.trim());
+      await loadData(userSearch);
+    } catch (assignmentSaveError) {
+      console.error('Error guardando asignacion:', assignmentSaveError);
+      setError('No fue posible guardar la asignacion de proyecto.');
+    } finally {
+      setSavingAssignment(false);
+    }
+  };
+
+  const handleSaveAssignmentConfig = async (event) => {
+    event.preventDefault();
+
+    if (!canManageSystemParameters) {
+      setError('No tienes permisos para modificar la configuracion de asignacion.');
+      return;
+    }
+
+    if (!assignmentCargoDraft.trim()) {
+      setError('Debes definir al menos un cargo para la asignacion.');
+      return;
+    }
+
+    try {
+      setSavingAssignmentConfig(true);
+      setError('');
+      await securityService.saveSystemParameter({
+        key: 'SEGURIDAD_CARGOS_ASIGNACION',
+        value: assignmentCargoDraft.trim(),
+        descripcion: 'Cargos habilitados para asignar usuarios a proyectos desde la interfaz',
+      });
+      setNotice('La configuracion de cargos de asignacion se actualizo correctamente.');
+      await loadData(userSearch);
+    } catch (configSaveError) {
+      console.error('Error guardando configuracion de asignacion:', configSaveError);
+      setError('No fue posible guardar la configuracion de cargos de asignacion.');
+    } finally {
+      setSavingAssignmentConfig(false);
+    }
   };
 
   const buildMatrixPayload = (extraRoleCode = '', extraPermissions = []) => {
@@ -524,6 +835,103 @@ const SecurityConfigPage = () => {
     setRoleDraftPermissions(new Set());
   };
 
+  const handleSelectParameter = (parameter) => {
+    setCreatingParameter(false);
+    setParameterEditorOpen(true);
+    setSelectedParameterKey(parameter.key);
+    setParameterForm({
+      key: parameter.key || '',
+      value: parameter.value || '',
+      descripcion: parameter.descripcion || '',
+    });
+    setActiveSection(SECURITY_TABS.PARAMETERS);
+  };
+
+  const handleNewParameter = () => {
+    setCreatingParameter(true);
+    setParameterEditorOpen(true);
+    setSelectedParameterKey('');
+    setParameterForm(emptyParameterForm);
+    setActiveSection(SECURITY_TABS.PARAMETERS);
+  };
+
+  const handleCancelParameterEdit = () => {
+    setCreatingParameter(false);
+    setParameterEditorOpen(false);
+
+    if (selectedParameter) {
+      setParameterForm({
+        key: selectedParameter.key || '',
+        value: selectedParameter.value || '',
+        descripcion: selectedParameter.descripcion || '',
+      });
+      return;
+    }
+
+    setParameterForm(emptyParameterForm);
+  };
+
+  const handleSaveParameter = async (event) => {
+    event.preventDefault();
+
+    if (!canManageSystemParameters) {
+      setError('No tienes permisos para modificar parametros.');
+      return;
+    }
+
+    if (!parameterForm.key.trim() || !parameterForm.value.trim()) {
+      setError('La clave y el valor del parametro son obligatorios.');
+      return;
+    }
+
+    try {
+      setSavingParameter(true);
+      setError('');
+      await securityService.saveSystemParameter({
+        key: parameterForm.key.trim(),
+        value: parameterForm.value.trim(),
+        descripcion: parameterForm.descripcion.trim(),
+      });
+
+      setNotice(creatingParameter ? 'El parametro se creo correctamente.' : 'El parametro se actualizo correctamente.');
+      setCreatingParameter(false);
+      setParameterEditorOpen(false);
+      setSelectedParameterKey(parameterForm.key.trim());
+      await loadData(userSearch);
+    } catch (parameterSaveError) {
+      console.error('Error guardando parametro:', parameterSaveError);
+      setError('No fue posible guardar el parametro.');
+    } finally {
+      setSavingParameter(false);
+    }
+  };
+
+  const handleDeleteParameter = async () => {
+    if (!selectedParameterKey || creatingParameter) return;
+
+    if (!canManageSystemParameters) {
+      setError('No tienes permisos para eliminar parametros.');
+      return;
+    }
+
+    try {
+      setSavingParameter(true);
+      setError('');
+      await securityService.deleteSystemParameter(selectedParameterKey);
+      setNotice('El parametro se elimino correctamente.');
+      setCreatingParameter(false);
+      setParameterEditorOpen(false);
+      setSelectedParameterKey('');
+      setParameterForm(emptyParameterForm);
+      await loadData(userSearch);
+    } catch (parameterDeleteError) {
+      console.error('Error eliminando parametro:', parameterDeleteError);
+      setError('No fue posible eliminar el parametro.');
+    } finally {
+      setSavingParameter(false);
+    }
+  };
+
   const hasRoleEditorOpen = roleEditorOpen;
 
   const roleTypeLabel = (role) => (role?.transversal ? 'SISTEMA' : 'PERSONALIZADO');
@@ -620,11 +1028,7 @@ const SecurityConfigPage = () => {
         </div>
 
         <div className="security-header-actions">
-          <div className="quick-actions" aria-label="Acciones rÃ¡pidas">
-            <button type="button" className="quick-action audit" disabled title="PrÃ³ximamente">
-              <ShieldCheck size={14} />
-              AuditorÃ­a
-            </button>
+          <div className="quick-actions" aria-label="Acciones rápidas">
             <button
               type="button"
               className={`quick-action roles ${activeSection === SECURITY_TABS.ROLES ? 'active' : ''}`}
@@ -633,10 +1037,34 @@ const SecurityConfigPage = () => {
               <Users size={14} />
               Roles
             </button>
-            <button type="button" className="quick-action create" onClick={handleNewUser} disabled={!canConfigure}>
-              <Plus size={14} />
-              Crear Usuario
-            </button>
+            {canManageSystemParameters && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.PARAMETERS ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.PARAMETERS)}
+              >
+                <ShieldCheck size={14} />
+                Parámetros
+              </button>
+            )}
+            {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.ASSIGNMENTS ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveSection(SECURITY_TABS.ASSIGNMENTS);
+                }}
+              >
+                <Briefcase size={14} />
+                Asignaciones
+              </button>
+            )}
+            {canConfigure && (
+              <button type="button" className="quick-action create" onClick={handleNewUser}>
+                <Plus size={14} />
+                Crear Usuario
+              </button>
+            )}
           </div>
           <button type="button" className="btn-secondary" onClick={handleReload} disabled={loading}>
             <RefreshCw size={16} />
@@ -666,12 +1094,13 @@ const SecurityConfigPage = () => {
         </div>
       )}
 
-      {activeSection === SECURITY_TABS.USERS && (
+      {[SECURITY_TABS.USERS, SECURITY_TABS.PARAMETERS, SECURITY_TABS.ASSIGNMENTS].includes(activeSection) && (
         <section className="security-workspace users-workspace">
+          {activeSection === SECURITY_TABS.USERS && (
           <article className="panel panel-main users-panel">
             <div className="panel-topbar">
               <div>
-                <h2>GestiÃ³n de Usuarios</h2>
+                <h2>Gestión de Usuarios</h2>
                 <p>Control de acceso, roles y estados del personal del sistema.</p>
               </div>
 
@@ -697,13 +1126,13 @@ const SecurityConfigPage = () => {
               <div className="create-user-panel">
                 <div className="create-user-header">
                   <div>
-                    <p className="security-eyebrow">Configuracion Seguridad</p>
+                    <p className="security-eyebrow">Configuración Seguridad</p>
                     <h2>Crear Usuario</h2>
-                    <p>Configure los datos basicos y privilegios de acceso al sistema.</p>
+                    <p>Configure los datos básicos y privilegios de acceso al sistema.</p>
                   </div>
 
                   <button type="button" className="btn-ghost-dark" onClick={handleCancelUserEdit}>
-                    <span aria-hidden="true">â†</span>
+                    <span aria-hidden="true">← </span>
                     Volver al listado
                   </button>
                 </div>
@@ -765,10 +1194,12 @@ const SecurityConfigPage = () => {
                     <button type="button" className="btn-secondary" onClick={handleCancelUserEdit} disabled={savingUser}>
                       Cancelar
                     </button>
-                    <button type="submit" className="btn-primary" disabled={savingUser || !canConfigure}>
-                      <BadgeCheck size={16} />
-                      {savingUser ? 'Guardando...' : 'Crear Usuario'}
-                    </button>
+                    {canConfigure && (
+                      <button type="submit" className="btn-primary" disabled={savingUser}>
+                        <BadgeCheck size={16} />
+                        {savingUser ? 'Guardando...' : 'Crear Usuario'}
+                      </button>
+                    )}
                   </div>
                 </form>
               </div>
@@ -776,208 +1207,681 @@ const SecurityConfigPage = () => {
 
             {!creatingUser && (
               <div className="table-shell user-table-shell">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Usuario</th>
-                    <th>Nombre Completo</th>
-                    <th>Rol</th>
-                    <th>Estado</th>
-                    <th>Ãšltimo acceso</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <td colSpan={7} className="table-empty-cell">
-                        Cargando usuarios...
-                      </td>
+                      <th>ID</th>
+                      <th>Usuario</th>
+                      <th>Nombre Completo</th>
+                      <th>Rol</th>
+                      <th>Estado</th>
+                      <th>Último acceso</th>
+                      <th>Acciones</th>
                     </tr>
-                  ) : usersLoadError ? (
-                    <tr>
-                      <td colSpan={7} className="table-empty-cell">
-                        <div className="empty-state">
-                          <strong>Usuarios no disponibles</strong>
-                          <span>El backend devolviÃ³ un error al consultar la relaciÃ³n proyecta_db.usuarios. Revisa la base de datos o la migraciÃ³n de ese esquema.</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="table-empty-cell">
-                        No hay usuarios disponibles.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((user, index) => {
-                      const isSelected = selectedUser?.username === user.username;
-                      const initial = (user.nombre || user.username || '?')[0].toUpperCase();
-                      const avatarColor = getAvatarColor(user.nombre || user.username);
-                      const roleValue = getUserRoleLabel(user);
-                      const lastAccess = formatDateTime(getUserLastAccess(user));
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={7} className="table-empty-cell">
+                          Cargando usuarios...
+                        </td>
+                      </tr>
+                    ) : usersLoadError ? (
+                      <tr>
+                        <td colSpan={7} className="table-empty-cell">
+                          <div className="empty-state">
+                            <strong>Usuarios no disponibles</strong>
+                            <span>El backend devolvió un error al consultar la relación proyecta_db.usuarios. Revisa la base de datos o la migración de ese esquema.</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="table-empty-cell">
+                          No hay usuarios disponibles.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user, index) => {
+                        const isSelected = selectedUser?.username === user.username;
+                        const initial = (user.nombre || user.username || '?')[0].toUpperCase();
+                        const avatarColor = getAvatarColor(user.nombre || user.username);
+                        const roleValue = getUserRoleLabel(user);
+                        const lastAccess = formatDateTime(getUserLastAccess(user));
 
-                      return (
-                        <tr
-                          key={user.id || user.username || index}
-                          className={isSelected ? 'selected-row' : ''}
-                          onClick={() => handleSelectUser(user)}
-                        >
-                          <td className="id-cell">#{user.id || index + 1}</td>
-                          <td>
-                            <div className="user-chip">
-                              <span className="user-avatar" style={{ background: avatarColor }}>
-                                {initial}
-                              </span>
-                              <div>
-                                <strong>{user.username}</strong>
-                                <span>@{user.username}</span>
+                        return (
+                          <tr
+                            key={user.id || user.username || index}
+                            className={isSelected ? 'selected-row' : ''}
+                            onClick={() => handleSelectUser(user)}
+                          >
+                            <td className="id-cell">#{user.id || index + 1}</td>
+                            <td>
+                              <div className="user-chip">
+                                <span className="user-avatar" style={{ background: avatarColor }}>
+                                  {initial}
+                                </span>
+                                <div>
+                                  <strong>{user.username}</strong>
+                                  <span>@{user.username}</span>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td>{user.nombre || 'Sin nombre'}</td>
-                          <td>
-                            {roleValue ? (
-                              <span className="soft-pill">{roleValue}</span>
-                            ) : (
-                              <span className="muted-text">Sin rol</span>
-                            )}
-                          </td>
-                          <td>
-                            <span className={`status-chip ${user.activo ? 'active' : 'inactive'}`}>
-                              {user.activo ? 'Activo' : 'Inactivo'}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="last-access">
-                              <Clock3 size={14} />
-                              {lastAccess}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="row-actions">
-                              <button
-                                type="button"
-                                className="icon-button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleSelectUser(user);
-                                }}
-                                title="Editar usuario"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
-                                <input type="checkbox" checked={Boolean(user.activo)} readOnly />
-                                <span />
-                              </label>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                            </td>
+                            <td>{user.nombre || 'Sin nombre'}</td>
+                            <td>
+                              {roleValue ? (
+                                <span className="soft-pill">{roleValue}</span>
+                              ) : (
+                                <span className="muted-text">Sin rol</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`status-chip ${user.activo ? 'active' : 'inactive'}`}>
+                                {user.activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="last-access">
+                                <Clock3 size={14} />
+                                {lastAccess}
+                              </span>
+                            </td>
+                            <td>
+                              {canConfigure ? (
+                                <div className="row-actions">
+                                  <button
+                                    type="button"
+                                    className="icon-button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleSelectUser(user);
+                                    }}
+                                    title="Editar usuario"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
+                                    <input type="checkbox" checked={Boolean(user.activo)} readOnly />
+                                    <span />
+                                  </label>
+                                </div>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
           </article>
+          )}
 
-          {selectedUser && !creatingUser && (
-            <aside className="panel panel-aside user-editor-sheet">
-              <form className="editor-form" onSubmit={handleSaveUser}>
-              <div className="editor-head">
-                <div>
-                    <h3>{creatingUser ? 'Crear Usuario' : selectedUser ? 'Editar Usuario' : 'Selecciona un usuario'}</h3>
+          {canManageSystemParameters && activeSection === SECURITY_TABS.PARAMETERS && !isParameterEditorOpen && (
+            <section className="security-workspace parameters-workspace">
+              <article className="panel panel-main parameters-panel">
+                <div className="panel-topbar parameters-topbar">
+                  <div className="roles-header-copy">
+                    <p className="security-eyebrow">PARAMETROS DEL SISTEMA</p>
+                    <h2>Gestión de Parámetros</h2>
+                    <p>Administra valores configurables desde la interfaz sin tocar el backend en cada ajuste operativo.</p>
+                  </div>
+
+                  <div className="panel-actions parameters-actions">
+                    <button type="button" className="btn-secondary" onClick={() => setActiveSection(SECURITY_TABS.USERS)}>
+                      <Users size={16} />
+                      Usuarios
+                    </button>
+                    <div className="inline-search">
+                      <Search size={15} />
+                      <input
+                        type="text"
+                        value={parameterSearch}
+                        onChange={(event) => setParameterSearch(event.target.value)}
+                        placeholder="Buscar parámetro"
+                      />
+                    </div>
+                    {canConfigure && (
+                      <button type="button" className="btn-primary" onClick={handleNewParameter} disabled={loading}>
+                        <Plus size={16} />
+                        Nuevo Parámetro
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="table-shell parameters-table-shell">
+                  <table className="data-table parameters-table">
+                    <thead>
+                      <tr>
+                        <th>Clave</th>
+                        <th>Valor</th>
+                        <th>Descripción</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr>
+                          <td colSpan={4} className="table-empty-cell">Cargando parámetros...</td>
+                        </tr>
+                      ) : filteredParameters.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="table-empty-cell">
+                            {emptyMessage('No hay parámetros', 'Crea un parámetro para empezar a parametrizar el sistema.')}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredParameters.map((parameter) => {
+                          const selected = parameter.key === selectedParameterKey;
+                          return (
+                            <tr key={parameter.key} className={selected ? 'selected-row' : ''} onClick={() => handleSelectParameter(parameter)}>
+                              <td>
+                                <div className="parameter-key-cell">
+                                  <strong>{parameter.key}</strong>
+                                </div>
+                              </td>
+                              <td className="parameter-value-cell">{parameter.value || 'Sin valor'}</td>
+                              <td className="parameter-description-cell">{parameter.descripcion || 'Sin descripción'}</td>
+                              <td>
+                                {canConfigure ? (
+                                  <div className="row-actions">
+                                    <button
+                                      type="button"
+                                      className="icon-button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleSelectParameter(parameter);
+                                      }}
+                                      title="Editar parámetro"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </section>
+          )}
+
+          {canManageSystemParameters && activeSection === SECURITY_TABS.PARAMETERS && isParameterEditorOpen && (
+            <section className="security-workspace parameters-workspace">
+              <article className="panel panel-aside parameter-editor premium-role-editor">
+                <form className="editor-form role-editor-form" onSubmit={handleSaveParameter}>
+                  <div className="editor-head role-editor-head">
+                    <div>
+                      <div className="role-editor-title-row">
+                        <span className="role-editor-icon">
+                          <ShieldCheck size={18} />
+                        </span>
+                        <div>
+                          <h3>{creatingParameter ? 'Nuevo Parámetro' : 'Editar Parámetro'}</h3>
+                          <p>
+                            {creatingParameter
+                              ? 'Defina la clave y el valor que el sistema utilizará como configuración.'
+                              : `Modificando: ${selectedParameter?.key || 'Parámetro seleccionado'}`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button type="button" className="btn-ghost-dark" onClick={handleCancelParameterEdit}>
+                      <span aria-hidden="true">←</span>
+                      Volver al Listado
+                    </button>
+                  </div>
+
+                  <div className="role-core-grid parameter-core-grid">
+                    <label className="span-full">
+                      <span>Clave del parámetro *</span>
+                      <input
+                        value={parameterForm.key}
+                        onChange={handleParameterFieldChange('key')}
+                        disabled={!canConfigure || (!creatingParameter && Boolean(selectedParameterKey))}
+                        placeholder="SEGURIDAD_CARGOS_ASIGNACION"
+                      />
+                    </label>
+
+                    <label className="span-full">
+                      <span>Valor *</span>
+                      <textarea
+                        value={parameterForm.value}
+                        onChange={handleParameterFieldChange('value')}
+                        disabled={!canConfigure}
+                        placeholder="DIRECTOR_PROYECTO, ANALISTA, LIDER_TECNICO"
+                        rows={3}
+                      />
+                    </label>
+
+                    <label className="span-full">
+                      <span>Descripción</span>
+                      <textarea
+                        value={parameterForm.descripcion}
+                        onChange={handleParameterFieldChange('descripcion')}
+                        disabled={!canConfigure}
+                        placeholder="Explica para qué se usa este parámetro"
+                        rows={2}
+                      />
+                    </label>
+                  </div>
+
+                  <section className="role-section-card">
+                    <div className="role-section-header">
+                      <div>
+                        <h4>Uso operativo</h4>
+                        <p>Este valor queda disponible para cualquier flujo que consulte los parámetros del sistema.</p>
+                      </div>
+                    </div>
+
+                    <div className="empty-state">
+                      <strong>Clave activa</strong>
+                      <span>{parameterForm.key || 'Sin definir'}</span>
+                    </div>
+                  </section>
+
+                  <div className="form-actions sticky-actions">
+                    <button type="button" className="btn-secondary" onClick={handleCancelParameterEdit} disabled={savingParameter}>
+                      Cancelar
+                    </button>
+                    {canConfigure && selectedParameter && !creatingParameter && (
+                      <button type="button" className="btn-ghost-danger" onClick={handleDeleteParameter} disabled={savingParameter}>
+                        <Ban size={16} />
+                        Eliminar
+                      </button>
+                    )}
+                    {canConfigure && (
+                      <button type="submit" className="btn-primary" disabled={savingParameter}>
+                        <Save size={16} />
+                        {savingParameter ? 'Guardando...' : creatingParameter ? 'Crear parámetro' : 'Guardar parámetro'}
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </article>
+            </section>
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS && (
+            <div
+              className="assignments-modal-backdrop"
+              role="presentation"
+              onMouseDown={() => setActiveSection(SECURITY_TABS.USERS)}
+            >
+              <article
+                ref={assignmentsSectionRef}
+                className="panel panel-main assignment-panel assignments-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="assignments-modal-title"
+                aria-describedby="assignments-modal-description"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <div className="panel-topbar assignments-topbar">
+                  <div className="roles-header-copy">
+                    <p className="security-eyebrow">ASIGNACIONES DEL SISTEMA</p>
+                    <h2 id="assignments-modal-title">Asignación de Proyecto y Cargo</h2>
                     <p>
-                      {creatingUser
-                        ? 'Crea una cuenta y asigna su rol de forma directa.'
-                        : selectedUser
-                        ? `Editando ${selectedUser.nombre || selectedUser.username}`
-                        : 'Selecciona una fila para ver el detalle.'}
-                  </p>
+                      Administra aquí las asignaciones entre usuarios, proyectos y cargos. Este módulo va separado de la gestión
+                      de usuarios para mantener el flujo m?s claro.
+                    </p>
+                    <p id="assignments-modal-description" className="assignments-modal-description">
+                      El formulario y el listado quedan encapsulados en un modal para evitar que el panel crezca sobre la vista principal.
+                    </p>
+                  </div>
+
+                  <div className="panel-actions assignments-actions">
+                    <button type="button" className="modal-close-btn assignments-modal-close" onClick={() => setActiveSection(SECURITY_TABS.USERS)} aria-label="Cerrar modal">
+                      <X size={16} />
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={() => setActiveSection(SECURITY_TABS.USERS)}>
+                      <Users size={16} />
+                      Volver a Usuarios
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={handleReload} disabled={loading}>
+                      <RefreshCw size={16} />
+                      Actualizar
+                    </button>
+                  </div>
                 </div>
 
-                <div className="editor-badges">
-                  <span className="soft-pill">{roles.length} roles</span>
-                  {selectedUser && (
-                    <span className={`status-chip ${selectedUser.activo ? 'active' : 'inactive'}`}>
-                      {selectedUser.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  )}
+                <div className="assignment-header-badges">
+                  <span className="soft-pill">{assignmentCargos.length} cargos</span>
+                  <span className="soft-pill">{projectOptions.length} proyectos</span>
                 </div>
-              </div>
 
-              <div className="form-grid">
-                <label>
-                  <span>Username</span>
-                  <input
-                    value={userForm.username}
-                    onChange={handleUserFieldChange('username')}
-                    disabled={Boolean(selectedUser) && !creatingUser}
-                    placeholder="usuario.sistema"
-                  />
-                </label>
-
-                <label>
-                  <span>Nombre</span>
-                  <input value={userForm.nombre} onChange={handleUserFieldChange('nombre')} disabled={!canConfigure} placeholder="Nombre completo" />
-                </label>
-
-                <label>
-                  <span>Correo</span>
-                  <input type="email" value={userForm.correo} onChange={handleUserFieldChange('correo')} disabled={!canConfigure} placeholder="correo@dominio.com" />
-                </label>
-
-                <label>
-                  <span>Dependencia</span>
-                  <input value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
-                </label>
-
-                <label className="span-full">
-                  <span>Rol</span>
-                  <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || roles.length === 0}>
-                    <option value="">{roles.length === 0 ? 'Sin roles disponibles' : 'Selecciona un rol'}</option>
-                    {roles.map((role) => (
-                      <option key={role.codigo} value={role.codigo}>
-                        {role.nombre} - {role.codigo}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="toggle-field">
-                  <span>Activo</span>
-                  <label className="switch">
-                    <input type="checkbox" checked={Boolean(userForm.activo)} onChange={handleUserFieldChange('activo')} disabled={!canConfigure} />
-                    <span />
-                  </label>
-                </label>
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn-secondary" onClick={handleCancelUserEdit} disabled={savingUser}>
-                  Cancelar
-                </button>
-                {selectedUser && selectedUser.activo && (
-                  <button type="button" className="btn-ghost-danger" onClick={handleDeactivateUser} disabled={savingUser || !canConfigure}>
-                    <Ban size={16} />
-                    Desactivar
-                  </button>
+                {canManageSystemParameters && (
+                  <form className="assignment-config" onSubmit={handleSaveAssignmentConfig}>
+                    <div className="assignment-config-copy">
+                      <strong>Par?metro editable desde la interfaz</strong>
+                      <span>
+                        Clave: <code>SEGURIDAD_CARGOS_ASIGNACION</code>. Edita los cargos separados por coma para cambiar el
+                        selector sin tocar c?digo.
+                      </span>
+                    </div>
+                    <div className="assignment-config-controls">
+                      <textarea
+                        value={assignmentCargoDraft}
+                        onChange={(event) => setAssignmentCargoDraft(event.target.value)}
+                        placeholder="DIRECTOR_PROYECTO, ANALISTA, LIDER_TECNICO"
+                        rows={2}
+                        disabled={!canConfigure}
+                      />
+                      <button type="submit" className="btn-primary" disabled={savingAssignmentConfig || loading}>
+                        <Save size={16} />
+                        {savingAssignmentConfig ? 'Guardando...' : 'Guardar cargos'}
+                      </button>
+                    </div>
+                  </form>
                 )}
-                <button type="submit" className="btn-primary" disabled={savingUser || !canConfigure}>
-                  <Save size={16} />
-                  {savingUser ? 'Guardando...' : creatingUser ? 'Crear usuario' : 'Guardar usuario'}
-                </button>
-              </div>
-              </form>
-            </aside>
+
+                <div className="assignment-grid">
+                  <form className="assignment-form" onSubmit={handleSaveAssignment}>
+                    <div className="assignment-form-grid">
+                      <label>
+                        <span>Usuario *</span>
+                        <select
+                          value={assignmentForm.username}
+                          onChange={handleAssignmentFieldChange('username')}
+                          disabled={!canConfigure || loading || assignableUsers.length === 0}
+                        >
+                          <option value="">
+                            {assignableUsers.length === 0
+                              ? 'No hay usuarios disponibles'
+                              : 'Selecciona un usuario'}
+                          </option>
+                          {assignableUsers.map((user) => (
+                            <option key={user.username} value={user.username}>
+                              {user.nombre || user.username} - {user.username}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label>
+                        <span>Proyecto *</span>
+                        <select
+                          value={assignmentForm.proyectoId}
+                          onChange={handleAssignmentFieldChange('proyectoId')}
+                          disabled={!canConfigure || loading || projectOptions.length === 0}
+                        >
+                          <option value="">
+                            {projectOptions.length === 0 ? 'No hay proyectos disponibles' : 'Selecciona un proyecto'}
+                          </option>
+                          {projectOptions.map((project) => {
+                            const projectId = getProjectId(project);
+                            const projectName = getProjectName(project);
+
+                            return (
+                            <option key={projectId} value={projectId}>
+                              {projectId} - {projectName}
+                            </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+
+                      <label className="span-full">
+                        <span>Cargo *</span>
+                        <select
+                          value={assignmentForm.cargo}
+                          onChange={handleAssignmentFieldChange('cargo')}
+                          disabled={!canConfigure || loading || assignmentCargos.length === 0}
+                        >
+                          <option value="">
+                            {assignmentCargos.length === 0 ? 'Sin cargos configurados' : 'Selecciona un cargo'}
+                          </option>
+                          {assignmentCargos.map((cargo) => (
+                            <option key={cargo} value={cargo}>
+                              {cargo}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className="assignment-helper span-full">
+                        {selectedAssignmentUser ? (
+                          <>
+                            <strong>{selectedAssignmentUser.nombre || selectedAssignmentUser.username}</strong>
+                            <span>
+                              Rol actual: {selectedAssignmentUserRole || 'Sin rol'}.
+                              {shouldRestrictToDirectors
+                                ? ' El cargo Director de Proyecto solo se permite para usuarios con ese rol.'
+                                : ' Los cargos se validan contra la parametrizaci?n del sistema.'}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <strong>Selecciona un usuario para comenzar</strong>
+                            <span>
+                              Si eliges el cargo Director de Proyecto, el selector limitar? los usuarios disponibles a ese rol.
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-actions assignment-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => {
+                          setAssignmentForm({
+                            username: '',
+                            proyectoId: '',
+                            cargo: '',
+                          });
+                          setAssignments([]);
+                        }}
+                        disabled={savingAssignment}
+                      >
+                        Limpiar
+                      </button>
+                      <button type="submit" className="btn-primary" disabled={savingAssignment || loading}>
+                        <Save size={16} />
+                        {savingAssignment ? 'Guardando...' : 'Asignar proyecto'}
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="assignment-list-panel">
+                    <div className="assignment-list-head">
+                      <div>
+                        <h5>Asignaciones actuales</h5>
+                        <p>
+                          {assignmentForm.username
+                            ? `Mostrando asignaciones de ${selectedAssignmentUser?.nombre || assignmentForm.username}`
+                            : 'Selecciona un usuario para ver sus proyectos asignados.'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => loadAssignments(assignmentForm.username).catch(console.error)}
+                        disabled={!assignmentForm.username || assignmentLoading}
+                      >
+                        <RefreshCw size={16} />
+                        Actualizar
+                      </button>
+                    </div>
+
+                    <div className="table-shell assignment-table-shell">
+                      <table className="data-table assignment-table">
+                        <thead>
+                          <tr>
+                            <th>Proyecto</th>
+                            <th>Cargo</th>
+                            <th>Estado</th>
+                            <th>Asignado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {assignmentLoading ? (
+                            <tr>
+                              <td colSpan={4} className="table-empty-cell">
+                                Cargando asignaciones...
+                              </td>
+                            </tr>
+                          ) : !assignmentForm.username ? (
+                            <tr>
+                              <td colSpan={4} className="table-empty-cell">
+                                Selecciona un usuario para consultar sus asignaciones.
+                              </td>
+                            </tr>
+                          ) : assignments.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="table-empty-cell">
+                                <div className="empty-state">
+                                  <strong>Sin asignaciones</strong>
+                                  <span>Este usuario todav?a no tiene proyectos vinculados.</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            assignments.map((assignment) => (
+                              <tr key={assignment.id || `${assignment.username}-${assignment.proyectoId}-${assignment.cargo}`}>
+                                <td>
+                                  <div className="assignment-project-cell">
+                                    <strong>{assignment.proyectoNombre || assignment.proyectoId}</strong>
+                                    <span>{assignment.proyectoId}</span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className="soft-pill">{assignment.cargo}</span>
+                                </td>
+                                <td>
+                                  <span className={`status-chip ${assignment.activo ? 'active' : 'inactive'}`}>
+                                    {assignment.activo ? 'Activo' : 'Inactivo'}
+                                  </span>
+                                </td>
+                                <td>{formatDateTime(assignment.fechaAsignacion)}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          )}
+
+          {isUserEditorOpen && (
+
+            <div
+              className="user-modal-backdrop"
+              role="presentation"
+              onMouseDown={handleCancelUserEdit}
+            >
+              <article
+                className="panel user-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="user-modal-title"
+                aria-describedby="user-modal-description"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <form className="editor-form" onSubmit={handleSaveUser}>
+                  <div className="editor-head">
+                    <div>
+                      <h3 id="user-modal-title">Editar Usuario</h3>
+                      <p id="user-modal-description">
+                        Actualiza la información del usuario y guarda los cambios sin salir de la lista.
+                      </p>
+                    </div>
+
+                    <div className="editor-badges">
+                      <span className="soft-pill">{roles.length} roles</span>
+                      {selectedUser && (
+                        <span className={`status-chip ${selectedUser.activo ? 'active' : 'inactive'}`}>
+                          {selectedUser.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      )}
+                      <button type="button" className="modal-close-btn" onClick={handleCancelUserEdit} aria-label="Cerrar modal">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-grid">
+                    <label>
+                      <span>Username</span>
+                      <input
+                        value={userForm.username}
+                        onChange={handleUserFieldChange('username')}
+                        disabled={Boolean(selectedUser) && !creatingUser}
+                        placeholder="usuario.sistema"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Nombre</span>
+                      <input value={userForm.nombre} onChange={handleUserFieldChange('nombre')} disabled={!canConfigure} placeholder="Nombre completo" />
+                    </label>
+
+                    <label>
+                      <span>Correo</span>
+                      <input type="email" value={userForm.correo} onChange={handleUserFieldChange('correo')} disabled={!canConfigure} placeholder="correo@dominio.com" />
+                    </label>
+
+                    <label>
+                      <span>Dependencia</span>
+                      <input value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
+                    </label>
+
+                    <label className="span-full">
+                      <span>Rol</span>
+                      <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || roles.length === 0}>
+                        <option value="">{roles.length === 0 ? 'Sin roles disponibles' : 'Selecciona un rol'}</option>
+                        {roles.map((role) => (
+                          <option key={role.codigo} value={role.codigo}>
+                            {role.nombre} - {role.codigo}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="toggle-field">
+                      <span>Activo</span>
+                      <label className="switch">
+                        <input type="checkbox" checked={Boolean(userForm.activo)} onChange={handleUserFieldChange('activo')} disabled={!canConfigure} />
+                        <span />
+                      </label>
+                    </label>
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="button" className="btn-secondary" onClick={handleCancelUserEdit} disabled={savingUser}>
+                      Cancelar
+                    </button>
+                    {canConfigure && selectedUser && selectedUser.activo && (
+                      <button type="button" className="btn-ghost-danger" onClick={handleDeactivateUser} disabled={savingUser}>
+                        <Ban size={16} />
+                        Desactivar
+                      </button>
+                    )}
+                    {canConfigure && (
+                      <button type="submit" className="btn-primary" disabled={savingUser}>
+                        <Save size={16} />
+                        {savingUser ? 'Guardando...' : 'Guardar usuario'}
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </article>
+            </div>
           )}
         </section>
       )}
 
-            {activeSection === SECURITY_TABS.ROLES && !hasRoleEditorOpen && (
+      {activeSection === SECURITY_TABS.ROLES && !hasRoleEditorOpen && (
         <section className="security-workspace roles-workspace">
           <article className="panel panel-main roles-panel">
             <div className="panel-topbar roles-topbar">
@@ -1001,10 +1905,12 @@ const SecurityConfigPage = () => {
                     placeholder="Buscar rol"
                   />
                 </div>
-                <button type="button" className="btn-primary" onClick={handleNewRole} disabled={!canConfigure || loading}>
-                  <Plus size={16} />
-                  Nuevo Rol Personalizado
-                </button>
+                {canConfigure && (
+                  <button type="button" className="btn-primary" onClick={handleNewRole} disabled={loading}>
+                    <Plus size={16} />
+                    Nuevo Rol Personalizado
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1056,23 +1962,25 @@ const SecurityConfigPage = () => {
                             </span>
                           </td>
                           <td>
-                            <div className="row-actions">
-                              <button
-                                type="button"
-                                className="icon-button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleSelectRole(role);
-                                }}
-                                title="Editar rol"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
-                                <input type="checkbox" checked={Boolean(role.activo)} readOnly />
-                                <span />
-                              </label>
-                            </div>
+                            {canConfigure ? (
+                              <div className="row-actions">
+                                <button
+                                  type="button"
+                                  className="icon-button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleSelectRole(role);
+                                  }}
+                                  title="Editar rol"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
+                                  <input type="checkbox" checked={Boolean(role.activo)} readOnly />
+                                  <span />
+                                </label>
+                              </div>
+                            ) : null}
                           </td>
                         </tr>
                       );
@@ -1085,7 +1993,7 @@ const SecurityConfigPage = () => {
         </section>
       )}
 
-            {activeSection === SECURITY_TABS.ROLES && hasRoleEditorOpen && (
+      {activeSection === SECURITY_TABS.ROLES && hasRoleEditorOpen && (
         <section className="security-workspace roles-workspace">
           <article className="panel panel-aside role-editor premium-role-editor">
             <form className="editor-form role-editor-form" onSubmit={handleSaveRole}>
@@ -1193,10 +2101,10 @@ const SecurityConfigPage = () => {
                     )}
 
                     <div className="workflow-block-grid">
-                        {permissionGroups.slice(0, 5).map((group) => {
-                          const codes = getBucketCodes(group, 'visualizar');
-                          const checked = isBucketChecked(codes);
-                          return (
+                      {permissionGroups.map((group) => {
+                        const codes = getBucketCodes(group, 'visualizar');
+                        const checked = isBucketChecked(codes);
+                        return (
                           <label
                             key={group.key}
                             className={`workflow-block ${checked ? 'checked' : ''}`}
@@ -1326,16 +2234,18 @@ const SecurityConfigPage = () => {
                   <button type="button" className="btn-secondary" onClick={handleCancelRoleEdit} disabled={savingRole || savingPermissions}>
                     Cancelar
                   </button>
-                  {selectedRole && !creatingRole && (
-                    <button type="button" className="btn-ghost-danger" onClick={handleDeleteRole} disabled={savingRole || savingPermissions || !canConfigure}>
+                  {canConfigure && selectedRole && !creatingRole && (
+                    <button type="button" className="btn-ghost-danger" onClick={handleDeleteRole} disabled={savingRole || savingPermissions}>
                       <Ban size={16} />
                       Desactivar
                     </button>
                   )}
-                  <button type="submit" className="btn-primary" disabled={savingRole || savingPermissions || !canConfigure}>
-                    <Save size={16} />
-                    {savingRole || savingPermissions ? 'Guardando...' : creatingRole ? 'Crear rol' : 'Guardar rol'}
-                  </button>
+                  {canConfigure && (
+                    <button type="submit" className="btn-primary" disabled={savingRole || savingPermissions}>
+                      <Save size={16} />
+                      {savingRole || savingPermissions ? 'Guardando...' : creatingRole ? 'Crear rol' : 'Guardar rol'}
+                    </button>
+                  )}
                 </div>
               </section>
             </form>

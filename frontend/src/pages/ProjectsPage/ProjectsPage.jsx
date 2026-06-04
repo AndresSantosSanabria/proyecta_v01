@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Filter, Plus, RefreshCw, Search, X } from 'lucide-react';
+import { Download, Filter, Plus, RefreshCw, Search, X } from 'lucide-react';
 import ProjectListTable from '../../components/features/projects/ProjectListTable';
+import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
+import reportService from '../../services/reportService';
 import { usePermission } from '../../hooks/usePermission';
 import './ProjectsPage.css';
 
@@ -20,43 +22,62 @@ const normalizeText = (value) =>
     .toLowerCase()
     .trim();
 
+const extractProjects = (value) => {
+  const payload = value?.data?.data ?? value?.data ?? value;
+
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.proyectos)) return payload.proyectos;
+
+  return [];
+};
+
 const ProjectsPage = () => {
+  const { hasRole, hasPermission, isAdminLocal, transversal, assignedProjects } = useAuthContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const canCreateProject = usePermission('PROYECTO:CREAR');
+  const canEditProject = usePermission('PROYECTO:EDITAR');
   const navigate = useNavigate();
+  const isDirectorProjectRole = hasRole('DIRECTOR_PROYECTO');
+  const hasAssignedProjects = Array.isArray(assignedProjects) && assignedProjects.length > 0;
+  const isAdminLike = isAdminLocal
+    || transversal
+    || hasRole('ADMIN')
+    || hasRole('GESTOR_TIC')
+    || hasPermission('SISTEMA:CONFIGURAR');
+  const shouldUseAssignedProjects = (isDirectorProjectRole || hasAssignedProjects) && !isAdminLike;
 
-  const fetchProjects = async () => {
+  const loadProjects = async () => {
     try {
       setLoading(true);
       setError(null);
-      const projectsData = await projectService.getAllUnpaged();
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
+      const projectsData = shouldUseAssignedProjects
+        ? await projectService.getMyProjects()
+        : await projectService.getAllUnpaged();
+      setProjects(extractProjects(projectsData));
     } catch (err) {
       console.error('Error fetching projects:', err);
-      setError('No se pudo establecer conexion con el servidor');
+      setProjects([]);
+      setError(
+        shouldUseAssignedProjects
+          ? 'No fue posible cargar tus proyectos asignados. Revisa que el usuario tenga asignaciones activas.'
+          : 'No se pudo establecer conexion con el servidor'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const projectsData = await projectService.getAllUnpaged();
-        setProjects(Array.isArray(projectsData) ? projectsData : []);
-      } catch (err) {
-        console.error('Error fetching projects:', err);
-        setError('No se pudo establecer conexion con el servidor');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldUseAssignedProjects]);
 
   const projectList = useMemo(() => (Array.isArray(projects) ? projects : []), [projects]);
 
@@ -111,15 +132,50 @@ const ProjectsPage = () => {
     setFilters((current) => ({ ...current, [field]: value }));
   };
 
+  const triggerBlobDownload = (blob, fileName) => {
+    if (!(blob instanceof Blob)) return;
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      const blob = await reportService.downloadPortafolioExcel({
+        query: filters.query?.trim() || undefined,
+        dependency: filters.dependency !== 'all' ? filters.dependency : undefined,
+        status: filters.status !== 'all' ? filters.status : undefined,
+        peti: filters.peti !== 'all' ? filters.peti : undefined,
+      });
+      triggerBlobDownload(blob, 'Consolidado Seguimiento Proyectos PETI.xlsx');
+    } catch (err) {
+      console.error('Error exporting projects Excel:', err);
+      window.alert('No fue posible descargar el Excel de proyectos.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="projects-container">
       <header className="projects-header">
         <div className="projects-header__topbar">
           <div className="header-actions-group">
-            <button className="btn-toolbar" onClick={fetchProjects} disabled={loading}>
-              <RefreshCw size={18} />
-              <span>{loading ? 'Actualizando' : 'Actualizar'}</span>
-            </button>
+              <button className="btn-toolbar" onClick={loadProjects} disabled={loading}>
+                <RefreshCw size={18} />
+                <span>{loading ? 'Actualizando' : 'Actualizar'}</span>
+              </button>
+              <button className="btn-toolbar" onClick={handleExportExcel} disabled={loading || exporting}>
+                <Download size={18} />
+                <span>{exporting ? 'Exportando' : 'Exportar Excel'}</span>
+              </button>
             {canCreateProject && (
               <button className="btn-new-project" onClick={() => navigate('/proyectos/nuevo')}>
                 <Plus size={18} />
@@ -136,8 +192,12 @@ const ProjectsPage = () => {
         </div>
 
         <div className="header-title-group">
-          <h1>Proyectos TIC</h1>
-          <p className="subtitle">Gestion y seguimiento de todos los proyectos</p>
+          <h1>{shouldUseAssignedProjects ? 'Mis Proyectos' : 'Proyectos TIC'}</h1>
+          <p className="subtitle">
+            {shouldUseAssignedProjects
+              ? 'Solo se muestran los proyectos asignados a tu usuario.'
+              : 'Gestion y seguimiento de todos los proyectos'}
+          </p>
         </div>
       </header>
 
@@ -216,13 +276,17 @@ const ProjectsPage = () => {
       {error ? (
         <div className="error-banner">
           {error}
-          <button onClick={fetchProjects} className="btn-retry">
+          <button onClick={loadProjects} className="btn-retry">
             Reintentar
           </button>
         </div>
       ) : null}
 
-      <ProjectListTable projects={filteredProjects} loading={loading} />
+      <ProjectListTable
+        projects={filteredProjects}
+        loading={loading}
+        canEditProject={canEditProject && !shouldUseAssignedProjects}
+      />
     </div>
   );
 };

@@ -92,7 +92,13 @@ const DashboardPage = () => {
     );
   }
 
-  if (!kpis) return null;
+  if (!kpis) {
+    return (
+      <div className="dashboard-container">
+        <div className="error-state">No se pudieron cargar las métricas del dashboard.</div>
+      </div>
+    );
+  }
 
   const kpiData = [
     {

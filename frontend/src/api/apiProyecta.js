@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { auth, startLoginRedirect } from '../utils/auth';
+import { appConfig } from '../config/env';
 
 const apiProyecta = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: appConfig.apiUrl,
   headers: {
     'Content-Type': 'application/json',
   },

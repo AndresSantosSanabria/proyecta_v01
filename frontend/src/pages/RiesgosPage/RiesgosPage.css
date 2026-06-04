@@ -42,7 +42,7 @@
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 6%, transparent), transparent 28%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--bg-main)), var(--bg-card));
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 18px 45px var(--border-subtle);
 }
 
 .hero-copy {
@@ -59,7 +59,7 @@
   padding: 0.42rem 0.75rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: color-mix(in srgb, var(--primary) 82%, #0f172a);
+  color: color-mix(in srgb, var(--primary) 82%, var(--text-main));
   border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border-color));
   font-size: 0.8rem;
   font-weight: 800;
@@ -95,11 +95,11 @@
   border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
   border-radius: 18px;
   background: color-mix(in srgb, var(--bg-muted) 74%, var(--bg-card));
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 20px var(--border-subtle);
 }
 
 .hero-metrics article svg {
-  color: color-mix(in srgb, var(--success) 70%, #0f172a);
+  color: color-mix(in srgb, var(--success) 70%, var(--text-main));
 }
 
 .hero-metrics article span {
@@ -155,7 +155,7 @@
   border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border-color));
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, var(--bg-card)), color-mix(in srgb, var(--bg-card) 94%, var(--bg-muted)));
-  color: color-mix(in srgb, var(--primary) 78%, #e2e8f0);
+  color: color-mix(in srgb, var(--primary) 78%, var(--border-color));
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
@@ -168,8 +168,8 @@
 }
 
 .btn-primary {
-  color: #fff;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 88%, #0f172a), color-mix(in srgb, var(--success) 70%, var(--primary)));
+  color: var(--bg-card);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 88%, var(--text-main)), color-mix(in srgb, var(--success) 70%, var(--primary)));
   box-shadow: 0 12px 28px rgba(14, 165, 233, 0.18);
 }
 
@@ -194,6 +194,16 @@
   width: 36px;
   padding: 0.45rem;
   border-radius: 10px;
+}
+
+.btn-solution.compact {
+  min-height: 34px;
+  width: 36px;
+  padding: 0.45rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border-color));
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
+  color: color-mix(in srgb, var(--primary) 82%, var(--text-main));
 }
 
 .btn-add-risk {
@@ -227,7 +237,7 @@
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
   background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-muted));
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 10px 30px var(--border-subtle);
 }
 
 .risk-stat span {
@@ -267,7 +277,7 @@
   border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
   background: color-mix(in srgb, var(--bg-card) 96%, var(--bg-main));
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 16px 40px var(--border-subtle);
 }
 
 .matrix-quick-tip {
@@ -280,11 +290,11 @@
   border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border-color));
   background: color-mix(in srgb, var(--bg-card) 94%, var(--primary) 4%);
   color: var(--text-muted);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 12px 28px var(--border-subtle);
 }
 
 .matrix-quick-tip svg {
-  color: color-mix(in srgb, var(--primary) 72%, #0f172a);
+  color: color-mix(in srgb, var(--primary) 72%, var(--text-main));
 }
 
 .matrix-legend {
@@ -319,7 +329,7 @@
   padding: 0.45rem 0.78rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: color-mix(in srgb, var(--primary) 82%, #0f172a);
+  color: color-mix(in srgb, var(--primary) 82%, var(--text-main));
   font-size: 0.84rem;
   font-weight: 800;
   white-space: nowrap;
@@ -438,7 +448,7 @@
 
 .code-pill.strong {
   background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
-  color: color-mix(in srgb, var(--primary) 82%, #0f172a);
+  color: color-mix(in srgb, var(--primary) 82%, var(--text-main));
 }
 
 .risk-badge {
@@ -480,7 +490,7 @@
 
 .risk-badge.tratado {
   background: #dbeafe;
-  color: #1d4ed8;
+  color: var(--primary-hover);
 }
 
 .empty-box {
@@ -525,7 +535,7 @@
 
 .matrix-grid-header.row {
   background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
-  color: color-mix(in srgb, var(--primary) 84%, #e2e8f0);
+  color: color-mix(in srgb, var(--primary) 84%, var(--border-color));
 }
 
 .matrix-grid-cell strong {
@@ -557,8 +567,8 @@
 }
 
 .matrix-grid-cell.moderado {
-  background: linear-gradient(180deg, color-mix(in srgb, #f59e0b 12%, var(--bg-card)), color-mix(in srgb, var(--bg-card) 92%, var(--bg-muted)));
-  border-color: color-mix(in srgb, #f59e0b 36%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--warning) 12%, var(--bg-card)), color-mix(in srgb, var(--bg-card) 92%, var(--bg-muted)));
+  border-color: color-mix(in srgb, var(--warning) 36%, var(--border-color));
 }
 
 .matrix-grid-cell.moderado strong {
@@ -570,8 +580,8 @@
 }
 
 .matrix-grid-cell.alto {
-  background: linear-gradient(180deg, color-mix(in srgb, #ef4444 12%, var(--bg-card)), color-mix(in srgb, var(--bg-card) 92%, var(--bg-muted)));
-  border-color: color-mix(in srgb, #ef4444 36%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 12%, var(--bg-card)), color-mix(in srgb, var(--bg-card) 92%, var(--bg-muted)));
+  border-color: color-mix(in srgb, var(--danger) 36%, var(--border-color));
 }
 
 .matrix-grid-cell.alto strong {
@@ -675,9 +685,9 @@
 }
 
 .summary-pill.warning {
-  background: color-mix(in srgb, #f59e0b 12%, var(--bg-card));
+  background: color-mix(in srgb, var(--warning) 12%, var(--bg-card));
   color: #fbbf24;
-  border-color: color-mix(in srgb, #f59e0b 32%, var(--border-color));
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--border-color));
 }
 
 .matrix-help-content {
@@ -748,6 +758,105 @@
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-main)), var(--bg-card));
   box-shadow: 0 30px 90px rgba(2, 6, 23, 0.42);
   padding: 1.35rem;
+}
+
+.solution-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 82;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(12px);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.solution-modal {
+  width: min(1180px, 100%);
+  max-height: min(90vh, 1000px);
+  overflow: auto;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 8%, transparent), transparent 30%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-main)), var(--bg-card));
+  box-shadow: 0 30px 90px rgba(2, 6, 23, 0.42);
+  padding: 1.35rem;
+}
+
+.solution-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.solution-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.solution-list,
+.pending-files {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.solution-item,
+.pending-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 72%, var(--bg-card));
+}
+
+.solution-item-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.solution-item-copy strong {
+  color: var(--text-main);
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+.solution-item-copy span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.file-picker {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.file-picker span {
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.file-picker input[type='file'] {
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 78%, var(--bg-card));
+  color: var(--text-muted);
+}
+
+.solution-form {
+  gap: 0.9rem;
+}
+
+.solution-alert {
+  margin-bottom: 1rem;
 }
 
 .risk-modal-header {
@@ -908,7 +1017,7 @@
 
 .custom-select-option.active {
   background: color-mix(in srgb, var(--primary) 12%, var(--bg-card));
-  color: color-mix(in srgb, var(--primary) 82%, #0f172a);
+  color: color-mix(in srgb, var(--primary) 82%, var(--text-main));
   font-weight: 800;
 }
 
@@ -971,6 +1080,10 @@
     flex-direction: column;
   }
 
+  .solution-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
   .modal-close-btn {
     align-self: flex-end;
   }
@@ -992,5 +1105,11 @@
 
   .btn-add-risk {
     width: 100%;
+  }
+
+  .solution-item,
+  .pending-file {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

@@ -82,9 +82,9 @@
   transition: width 1s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-.kpi-progress-bar.success { background-color: #10b981; }
-.kpi-progress-bar.danger { background-color: #ef4444; }
-.kpi-progress-bar.warning { background-color: #f59e0b; }
+.kpi-progress-bar.success { background-color: var(--success); }
+.kpi-progress-bar.danger { background-color: var(--danger); }
+.kpi-progress-bar.warning { background-color: var(--warning); }
 .kpi-progress-bar.info { background-color: #3b82f6; }
 
 /* Dark mode adjustments */

@@ -34,13 +34,13 @@
 
 .stepper-step.active .stepper-circle {
   background: var(--primary);
-  color: #fff;
+  color: var(--bg-card);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
 .stepper-step.completed .stepper-circle {
   background: var(--success);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 .stepper-label {

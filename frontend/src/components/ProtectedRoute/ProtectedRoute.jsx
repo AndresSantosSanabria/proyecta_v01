@@ -20,7 +20,7 @@ const LoadingState = ({ title, subtitle }) => (
 );
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, loading, error, hasRole, logout, isAdminLocal, transversal } = useAuthContext();
+  const { assignedProjects, isAuthenticated, loading, error, hasRole, permissions, logout, isAdminLocal, transversal } = useAuthContext();
   const location = useLocation();
   const loginTriggeredRef = useRef(false);
 
@@ -82,7 +82,13 @@ const ProtectedRoute = () => {
     return <LoadingState title="Redirigiendo a Keycloak..." subtitle={`Ruta solicitada: ${location.pathname}`} />;
   }
 
-  const hasBaseAccess = isAdminLocal || transversal || hasRole('APP_ACCESS');
+  const hasBaseAccess = isAdminLocal
+    || transversal
+    || hasRole('ADMIN')
+    || hasRole('APP_ACCESS')
+    || hasRole('DIRECTOR_PROYECTO')
+    || (Array.isArray(assignedProjects) && assignedProjects.length > 0)
+    || (Array.isArray(permissions) && permissions.length > 0);
 
   if (!hasBaseAccess) {
     return (
@@ -97,7 +103,7 @@ const ProtectedRoute = () => {
         padding: '24px',
       }}>
         <h2>Acceso denegado</h2>
-        <p>Tu usuario no tiene el rol base requerido <strong>APP_ACCESS</strong> o no está marcado como administrador local.</p>
+        <p>Tu usuario no tiene acceso base al sistema o no está marcado como administrador local.</p>
         <button
           onClick={() => {
             loginTriggeredRef.current = false;

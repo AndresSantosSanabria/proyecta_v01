@@ -54,6 +54,20 @@ const projectService = {
   },
 
   /**
+   * Obtiene solo los proyectos asignados al usuario autenticado.
+   * @returns {Promise<Array>}
+   */
+  getMyProjects: async () => {
+    const { data } = await apiClient.get('/proyectos/mis-proyectos');
+    const payload = data?.data ?? data;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.content)) return payload.content;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.proyectos)) return payload.proyectos;
+    return [];
+  },
+
+  /**
    * Obtiene un proyecto por su ID.
    * @param {string|number} id 
    * @returns {Promise<Object>}

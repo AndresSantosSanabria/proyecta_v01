@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import SidebarLayout from './components/layout/SidebarLayout/SidebarLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import PermissionRoute from './components/ProtectedRoute/PermissionRoute';
 import AdminRoute from './components/ProtectedRoute/AdminRoute';
 import AnalyticsRoute from './components/ProtectedRoute/AnalyticsRoute';
 import ProjectAccessRoute from './components/ProtectedRoute/ProjectAccessRoute';
+import { useAuthContext } from './context/AuthContext';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage/ProjectsPage';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
@@ -19,6 +21,56 @@ import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
 import AccessDeniedPage from './pages/AccessDeniedPage/AccessDeniedPage';
 import './App.css';
 
+const DefaultEntryRoute = () => {
+  const { assignedProjects, hasPermission, hasRole, isAdminLocal, transversal, backendLoading } = useAuthContext();
+
+  // Esperar a que el backend termine de cargar permisos y proyectos asignados.
+  // Sin esto, el rol DIRECTOR_PROYECTO ve pantalla en blanco porque se evalúan
+  // los permisos antes de que llegue la respuesta de /authz/me y /usuarios/me.
+  if (backendLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '60vh',
+        flexDirection: 'column',
+        gap: '12px',
+        color: '#64748b',
+      }}>
+        <span style={{ fontSize: '1rem' }}>Cargando perfil de usuario...</span>
+      </div>
+    );
+  }
+
+  const canViewDashboard = isAdminLocal
+    || transversal
+    || hasRole('ADMIN')
+    || hasPermission('DASHBOARD:VER');
+  const canViewProjects = hasRole('DIRECTOR_PROYECTO')
+    || hasPermission('PROYECTO:VER')
+    || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
+
+  if (canViewDashboard) {
+    return <DashboardPage />;
+  }
+
+  if (canViewProjects) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  if (hasPermission('REPORTE:VER')) {
+    return <Navigate to="/reports" replace />;
+  }
+
+  if (hasPermission('ANALITICA:VER')) {
+    return <Navigate to="/analytics" replace />;
+  }
+
+  return <Navigate to="/access-denied" replace />;
+};
+
+
 /**
  * App Component
  * Define el sistema de rutas de la aplicación utilizando SidebarLayout como base.
@@ -32,9 +84,15 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<SidebarLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="projects" element={<ProjectsPage />} />
-          <Route path="proyectos/nuevo" element={<NewProjectPage />} />
+          <Route index element={<DefaultEntryRoute />} />
+
+          <Route element={<PermissionRoute permissions={['PROYECTO:VER']} />}>
+            <Route path="projects" element={<ProjectsPage />} />
+          </Route>
+
+          <Route element={<PermissionRoute permissions={['PROYECTO:CREAR']} />}>
+            <Route path="proyectos/nuevo" element={<NewProjectPage />} />
+          </Route>
 
           {/* Módulos de Proyecto */}
           <Route element={<ProjectAccessRoute />}>
@@ -50,7 +108,9 @@ function App() {
             </Route>
           </Route>
 
-          <Route path="reports" element={<ReportsPage />} />
+          <Route element={<PermissionRoute permissions={['REPORTE:VER']} />}>
+            <Route path="reports" element={<ReportsPage />} />
+          </Route>
           <Route element={<AnalyticsRoute />}>
             <Route path="analytics" element={<AnalyticsPage />} />
           </Route>

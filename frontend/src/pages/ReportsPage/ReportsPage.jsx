@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookText,
   ChevronRight,
@@ -21,6 +21,17 @@ import ReportDocumentPreview from '../../components/ReportDocumentPreview/Report
 import projectService from '../../services/projectService';
 import reportService from '../../services/reportService';
 import './ReportsPage.css';
+
+/* ─── PDF helper ──────────────────────────────────────────────────────────── */
+const buildPdfOptions = (filename) => ({
+  margin:      [8, 8, 8, 8],
+  filename,
+  image:       { type: 'jpeg', quality: 0.98 },
+  html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+  jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+});
+
+const loadHtml2Pdf = () => import('html2pdf.js').then((m) => m.default ?? m);
 
 const REPORT_BEHAVIORS = {
   ESTADO_PROYECTO: {
@@ -161,6 +172,7 @@ const ReportsPage = () => {
   const [previewModal, setPreviewModal] = useState({ open: false, title: '', url: '' });
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [reportActionBusy, setReportActionBusy] = useState(false);
+  const previewRef = useRef(null);
 
   const availableReports = reportConfigs.length > 0 ? reportConfigs : FALLBACK_REPORTS;
 
@@ -425,37 +437,42 @@ const ReportsPage = () => {
   };
 
   const openPdfPreview = async () => {
-    if (!selectedBehaviorDownload) {
-      return;
-    }
-
+    if (!reportData || !previewRef.current) return;
     setReportActionBusy(true);
+    setReportError('');
     try {
-      const blob = await selectedBehavior.download(effectiveProjectId);
+      const html2pdf = await loadHtml2Pdf();
+      const filename = selectedBehavior?.filename(effectiveProjectId) || 'reporte.pdf';
+      const blob = await html2pdf()
+        .set(buildPdfOptions(filename))
+        .from(previewRef.current)
+        .outputPdf('blob');
       const previewUrl = window.URL.createObjectURL(blob);
       setPreviewModal({
         open: true,
-        title: selectedReport?.nombre || selectedBehavior.title,
+        title: selectedReport?.nombre || selectedBehavior?.title || 'Reporte',
         url: previewUrl,
       });
-    } catch (error) {
-      setReportError(error?.response?.data?.detail || 'No fue posible abrir la vista previa del PDF.');
+    } catch {
+      setReportError('No fue posible generar la vista previa del PDF.');
     } finally {
       setReportActionBusy(false);
     }
   };
 
   const handleDownload = async () => {
-    if (!selectedBehaviorDownload) {
-      return;
-    }
-
+    if (!reportData || !previewRef.current) return;
     setDownloadBusy(true);
+    setReportError('');
     try {
-      const blob = await selectedBehavior.download(effectiveProjectId);
-      triggerBlobDownload(blob, selectedBehavior.filename(effectiveProjectId));
-    } catch (error) {
-      setReportError(error?.response?.data?.detail || 'No fue posible descargar el reporte.');
+      const html2pdf = await loadHtml2Pdf();
+      const filename = selectedBehavior?.filename(effectiveProjectId) || 'reporte.pdf';
+      await html2pdf()
+        .set(buildPdfOptions(filename))
+        .from(previewRef.current)
+        .save();
+    } catch {
+      setReportError('No fue posible descargar el reporte.');
     } finally {
       setDownloadBusy(false);
     }
@@ -607,19 +624,19 @@ const ReportsPage = () => {
                 type="button"
                 className="reports-page__primary-button"
                 onClick={openPdfPreview}
-                disabled={reportActionBusy || downloadBusy || !selectedBehaviorDownload || loadingReport}
+                disabled={reportActionBusy || downloadBusy || !reportData || loadingReport}
               >
                 <Eye size={16} />
-                Vista previa PDF
+                {reportActionBusy ? 'Generando...' : 'Vista previa PDF'}
               </button>
               <button
                 type="button"
                 className="reports-page__download-button"
                 onClick={handleDownload}
-                disabled={reportActionBusy || downloadBusy || !selectedBehaviorDownload || loadingReport}
+                disabled={reportActionBusy || downloadBusy || !reportData || loadingReport}
               >
                 <Download size={16} />
-                {downloadBusy ? 'Descargando...' : selectedBehavior?.downloadLabel || 'Descargar PDF'}
+                {downloadBusy ? 'Generando PDF...' : selectedBehavior?.downloadLabel || 'Descargar PDF'}
               </button>
               {selectedReportId === 'TODOS_LOS_PROYECTOS' && (
                 <button
@@ -673,11 +690,13 @@ const ReportsPage = () => {
             )}
 
             {!loadingReport && reportData && (
-              <ReportDocumentPreview
-                reportId={selectedReportId}
-                reportData={reportData}
-                selectedProject={selectedProject}
-              />
+              <div ref={previewRef}>
+                <ReportDocumentPreview
+                  reportId={selectedReportId}
+                  reportData={reportData}
+                  selectedProject={selectedProject}
+                />
+              </div>
             )}
           </section>
         </main>

@@ -7,7 +7,11 @@ const statusMap = {
   CERRADO: { label: 'Cerrado', class: 'default' },
 };
 
-const ProjectListTable = ({ projects = [], loading = false }) => {
+const getProjectId = (project) => project?.codigo || project?.id || project?.proyectoId || project?.proyecto_id || '';
+const getProjectName = (project) => project?.nombre || project?.nombreProyecto || project?.name || 'Sin nombre';
+const getProjectDependency = (project) => project?.dependencia || project?.nombreDependencia || 'Sin dependencia';
+
+const ProjectListTable = ({ projects = [], loading = false, canEditProject = false }) => {
   const navigate = useNavigate();
 
   if (loading) {
@@ -33,24 +37,26 @@ const ProjectListTable = ({ projects = [], loading = false }) => {
           <tbody>
             {projects.length > 0 ? (
               projects.map((project, index) => {
+                const projectId = getProjectId(project);
                 const currentStatus = statusMap[project.estado] || { label: project.estado, class: 'default' };
 
                 return (
-                  <tr key={project.id || index}>
+                  <tr key={projectId || index}>
                     <td>
                       <div className="action-buttons">
                         <button
                           className="btn-action-open"
-                          onClick={() => navigate(`/projects/${project.codigo || project.id}/progress`)}
+                          onClick={() => navigate(`/projects/${projectId}/progress`)}
+                          disabled={!projectId}
                         >
                           Abrir
                         </button>
-                        <button className="btn-action-edit">Editar</button>
+                        {canEditProject ? <button className="btn-action-edit">Editar</button> : null}
                       </div>
                     </td>
-                    <td className="col-code">{project.codigo}</td>
-                    <td className="col-name">{project.nombre}</td>
-                    <td className="col-dept">{project.dependencia}</td>
+                    <td className="col-code">{projectId || 'Sin codigo'}</td>
+                    <td className="col-name">{getProjectName(project)}</td>
+                    <td className="col-dept">{getProjectDependency(project)}</td>
                     <td className="col-director">{project.director || 'No asignado'}</td>
                     <td>
                       {project.peti ? (

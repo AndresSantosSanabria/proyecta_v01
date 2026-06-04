@@ -207,7 +207,7 @@
 }
 
 .btn-view-project:hover {
-  background-color: #f8fafc;
+  background-color: var(--bg-main);
   border-color: var(--text-muted);
 }
 

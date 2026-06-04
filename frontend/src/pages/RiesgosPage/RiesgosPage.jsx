@@ -2,6 +2,8 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   AlertTriangle,
+  Download,
+  FileUp,
   Info,
   Plus,
   RefreshCw,
@@ -95,6 +97,11 @@ const RiesgosPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [modalOpen, setModalOpen] = useState(false);
+  const [solutionModalOpen, setSolutionModalOpen] = useState(false);
+  const [solutionRisk, setSolutionRisk] = useState(null);
+  const [solutionFiles, setSolutionFiles] = useState([]);
+  const [solutionSaving, setSolutionSaving] = useState(false);
+  const [solutionError, setSolutionError] = useState(null);
   const [matrixHelpOpen, setMatrixHelpOpen] = useState(false);
   const [openSelect, setOpenSelect] = useState(null);
 
@@ -105,13 +112,25 @@ const RiesgosPage = () => {
     setOpenSelect(null);
   };
 
+  const closeSolutionModal = () => {
+    setSolutionModalOpen(false);
+    setSolutionRisk(null);
+    setSolutionFiles([]);
+    setSolutionSaving(false);
+    setSolutionError(null);
+  };
+
   useEffect(() => {
-    if (!modalOpen && !matrixHelpOpen) return undefined;
+    if (!modalOpen && !matrixHelpOpen && !solutionModalOpen) return undefined;
 
     const handleKeyDown = (event) => {
       if (event.key !== 'Escape') return;
       if (modalOpen) {
         closeModal();
+        return;
+      }
+      if (solutionModalOpen) {
+        closeSolutionModal();
         return;
       }
       setMatrixHelpOpen(false);
@@ -124,7 +143,7 @@ const RiesgosPage = () => {
       document.body.classList.remove('modal-open');
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [matrixHelpOpen, modalOpen]);
+  }, [matrixHelpOpen, modalOpen, solutionModalOpen]);
 
   const toggleSelect = (name) => {
     setOpenSelect((current) => (current === name ? null : name));
@@ -223,6 +242,96 @@ const RiesgosPage = () => {
 
   const openMatrixHelp = () => {
     setMatrixHelpOpen(true);
+  };
+
+  const openSolutionModal = (risk) => {
+    if (!canEdit || !risk) return;
+    setSolutionRisk(risk);
+    setSolutionFiles([]);
+    setSolutionError(null);
+    setSolutionModalOpen(true);
+  };
+
+  const handleSolutionFiles = (event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const pdfFiles = selectedFiles.filter((file) => {
+      const type = String(file.type || '').toLowerCase();
+      const name = String(file.name || '').toLowerCase();
+      return type === 'application/pdf' || name.endsWith('.pdf');
+    });
+
+    const rejected = selectedFiles.length - pdfFiles.length;
+    if (rejected > 0) {
+      setSolutionError('Solo se permiten archivos PDF.');
+    } else {
+      setSolutionError(null);
+    }
+
+    setSolutionFiles((current) => {
+      const existingKeys = new Set(current.map((file) => `${file.name}_${file.size}_${file.lastModified}`));
+      const nextFiles = [...current];
+      pdfFiles.forEach((file) => {
+        const key = `${file.name}_${file.size}_${file.lastModified}`;
+        if (!existingKeys.has(key)) {
+          existingKeys.add(key);
+          nextFiles.push(file);
+        }
+      });
+      return nextFiles;
+    });
+
+    event.target.value = '';
+  };
+
+  const removePendingSolutionFile = (index) => {
+    setSolutionFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const downloadSolutionFile = async (solution) => {
+    if (!solution?.id || !solutionRisk?.id) return;
+    try {
+      const blob = await riskService.downloadRiskSolution(proyectoId, solutionRisk.id, solution.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', solution.nombreOriginal || `solucion-riesgo-${solution.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setSolutionError('No fue posible descargar el PDF de la solución.');
+    }
+  };
+
+  const handleSolutionSubmit = async (event) => {
+    event.preventDefault();
+    if (!canEdit || !solutionRisk) return;
+
+    try {
+      setSolutionSaving(true);
+      setSolutionError(null);
+      await riskService.uploadRiskSolutions(proyectoId, solutionRisk.id, solutionFiles);
+      closeSolutionModal();
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      setSolutionError(err?.response?.data?.detail || 'No fue posible cargar las soluciones.');
+    } finally {
+      setSolutionSaving(false);
+    }
+  };
+
+  const formatBytes = (bytes) => {
+    if (!bytes && bytes !== 0) return 'N/A';
+    const size = Number(bytes);
+    if (Number.isNaN(size)) return 'N/A';
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const startEdit = (risk) => {
@@ -447,6 +556,15 @@ const RiesgosPage = () => {
                       </td>
                       <td>
                         <div className="row-actions">
+                          <button
+                            type="button"
+                            className="btn-solution compact"
+                            onClick={() => openSolutionModal(risk)}
+                            disabled={!canEdit}
+                            title="Dar solución"
+                          >
+                            <FileUp size={14} />
+                          </button>
                           <button
                             type="button"
                             className="btn-secondary compact"
@@ -822,6 +940,130 @@ const RiesgosPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {solutionModalOpen && (
+        <div className="solution-modal-overlay" role="presentation" onClick={closeSolutionModal}>
+          <div
+            className="solution-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="solution-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="risk-modal-header">
+              <div>
+                <span className="panel-chip">Dar solución</span>
+                <h2 id="solution-modal-title">{solutionRisk?.categoriaRiesgo || 'Riesgo seleccionado'}</h2>
+                <p>
+                  Adjunta uno o varios PDF para este riesgo. Los archivos nuevos se suman a los ya cargados sin
+                  borrar los anteriores.
+                </p>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={closeSolutionModal} aria-label="Cerrar">
+                <X size={18} />
+              </button>
+            </div>
+
+            {solutionError && (
+              <div className="riesgos-alert solution-alert">
+                <AlertTriangle size={16} />
+                {solutionError}
+              </div>
+            )}
+
+            <div className="solution-modal-grid">
+              <section className="solution-panel">
+                <div className="panel-title compact">
+                  <div>
+                    <h3>Soluciones cargadas</h3>
+                    <span className="panel-subtitle">
+                      {solutionRisk?.soluciones?.length || 0} archivo{(solutionRisk?.soluciones?.length || 0) === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="solution-list">
+                  {(solutionRisk?.soluciones || []).length === 0 ? (
+                    <div className="empty-box">Todavía no hay PDFs asociados a este riesgo.</div>
+                  ) : (
+                    solutionRisk.soluciones.map((solution) => (
+                      <article className="solution-item" key={solution.id}>
+                        <div className="solution-item-copy">
+                          <strong>{solution.nombreOriginal}</strong>
+                          <span>
+                            {formatBytes(solution.tamanoBytes)} · {solution.fechaCarga ? new Date(solution.fechaCarga).toLocaleString() : 'Sin fecha'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-secondary compact"
+                          onClick={() => downloadSolutionFile(solution)}
+                          title="Descargar PDF"
+                        >
+                          <Download size={14} />
+                        </button>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <section className="solution-panel">
+                <div className="panel-title compact">
+                  <div>
+                    <h3>Agregar PDFs</h3>
+                    <span className="panel-subtitle">Selecciona uno o varios archivos</span>
+                  </div>
+                </div>
+
+                <form className="risk-form solution-form" onSubmit={handleSolutionSubmit}>
+                  <label className="file-picker">
+                    <span>Archivos PDF</span>
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      multiple
+                      onChange={handleSolutionFiles}
+                    />
+                  </label>
+
+                  <div className="pending-files">
+                    {solutionFiles.length === 0 ? (
+                      <div className="empty-box">Aún no has seleccionado archivos.</div>
+                    ) : (
+                      solutionFiles.map((file, index) => (
+                        <article className="pending-file" key={`${file.name}_${file.size}_${file.lastModified}`}>
+                          <div className="solution-item-copy">
+                            <strong>{file.name}</strong>
+                            <span>{formatBytes(file.size)}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-danger compact"
+                            onClick={() => removePendingSolutionFile(index)}
+                            title="Quitar archivo"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </article>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="button" className="btn-secondary" onClick={closeSolutionModal}>
+                      Cancelar
+                    </button>
+                    <button className="btn-primary" disabled={!canEdit || solutionSaving || solutionFiles.length === 0} type="submit">
+                      <Save size={16} /> {solutionSaving ? 'Guardando...' : 'Guardar soluciones'}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            </div>
           </div>
         </div>
       )}
