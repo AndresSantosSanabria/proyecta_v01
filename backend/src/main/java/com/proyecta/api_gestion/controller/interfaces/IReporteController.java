@@ -44,20 +44,15 @@ public interface IReporteController {
     @GetMapping("/proyectos-con-retrasos")
     ResponseEntity<ApiResponse<List<ProyectoReporteResumenDTO>>> getProyectosConRetrasos();
 
-    @Operation(summary = "Obtener reporte de plan de comunicaciones", description = "Detalles del plan de comunicaciones de un proyecto.")
-    @StandardApiResponses
-    @GetMapping("/plan-comunicaciones/{proyectoId}")
-    ResponseEntity<ApiResponse<PlanComunicacionesDTO>> getPlanComunicaciones(@PathVariable String proyectoId);
-
     @Operation(summary = "Obtener reporte FURAG", description = "Preguntas y respuestas FURAG asociadas al proyecto.")
     @StandardApiResponses
     @GetMapping("/furag/{proyectoId}")
     ResponseEntity<ApiResponse<FuragReporteDTO>> getFurag(@PathVariable String proyectoId);
 
-    @Operation(summary = "Obtener reporte de riesgos", description = "Listado de riesgos y su estado de tratamiento.")
+    @Operation(summary = "Obtener verificacion de tratamiento a riesgos", description = "Consolidado institucional de proyectos con cierre y su verificacion de tratamiento.")
     @StandardApiResponses
-    @GetMapping("/riesgos/{proyectoId}")
-    ResponseEntity<ApiResponse<List<RiesgoReporteDTO>>> getRiesgos(@PathVariable String proyectoId);
+    @GetMapping("/riesgos")
+    ResponseEntity<ApiResponse<List<RiesgoVerificacionReporteDTO>>> getRiesgos();
 
     @Operation(summary = "Descargar reporte PDF de proyecto", description = "Genera y descarga un PDF con el estado del proyecto.")
     @GetMapping("/proyecto/{id}/descargar")
@@ -71,17 +66,17 @@ public interface IReporteController {
     @GetMapping("/proyectos-con-retrasos/descargar")
     ResponseEntity<byte[]> descargarReporteProyectosConRetrasosPdf();
 
-    @Operation(summary = "Descargar reporte PDF de plan de comunicaciones", description = "Genera y descarga un PDF con el plan de comunicaciones de un proyecto.")
-    @GetMapping("/plan-comunicaciones/{proyectoId}/descargar")
-    ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf(@PathVariable String proyectoId);
+    @Operation(summary = "Descargar reporte PDF de plan de comunicaciones", description = "Genera y descarga un PDF consolidado de proyectos No PETI con plan de comunicaciones.")
+    @GetMapping("/plan-comunicaciones/descargar")
+    ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf();
 
     @Operation(summary = "Descargar reporte PDF FURAG", description = "Genera y descarga un PDF con el reporte FURAG de un proyecto.")
     @GetMapping("/furag/{proyectoId}/descargar")
     ResponseEntity<byte[]> descargarReporteFuragPdf(@PathVariable String proyectoId);
 
-    @Operation(summary = "Descargar reporte PDF de riesgos", description = "Genera y descarga un PDF con el estado de los riesgos de un proyecto.")
-    @GetMapping("/riesgos/{proyectoId}/descargar")
-    ResponseEntity<byte[]> descargarReporteRiesgosPdf(@PathVariable String proyectoId);
+    @Operation(summary = "Descargar reporte PDF de riesgos", description = "Genera y descarga un PDF institucional de verificacion de tratamiento a riesgos.")
+    @GetMapping("/riesgos/descargar")
+    ResponseEntity<byte[]> descargarReporteRiesgosPdf();
 
     @Operation(summary = "Exportar portafolio a Excel", description = "Genera y descarga un Excel con la analitica del portafolio.")
     @GetMapping("/portafolio/excel")

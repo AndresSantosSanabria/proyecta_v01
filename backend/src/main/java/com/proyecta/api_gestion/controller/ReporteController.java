@@ -59,15 +59,6 @@ public class ReporteController implements IReporteController {
     }
 
     @Override
-    @GetMapping("/plan-comunicaciones/{proyectoId}")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<PlanComunicacionesDTO>> getPlanComunicaciones(@PathVariable String proyectoId) {
-        PlanComunicacionesDTO dto = reporteService.obtenerPlanComunicaciones(proyectoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
-        return ResponseEntity.ok(ApiResponse.success(dto, "Reporte de plan de comunicaciones obtenido con exito"));
-    }
-
-    @Override
     @GetMapping("/furag/{proyectoId}")
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<FuragReporteDTO>> getFurag(@PathVariable String proyectoId) {
@@ -77,11 +68,11 @@ public class ReporteController implements IReporteController {
     }
 
     @Override
-    @GetMapping("/riesgos/{proyectoId}")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<List<RiesgoReporteDTO>>> getRiesgos(@PathVariable String proyectoId) {
-        List<RiesgoReporteDTO> riesgos = reporteService.obtenerRiesgos(proyectoId);
-        return ResponseEntity.ok(ApiResponse.success(riesgos, "Reporte de riesgos obtenido con exito"));
+    @GetMapping("/riesgos")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
+    public ResponseEntity<ApiResponse<List<RiesgoVerificacionReporteDTO>>> getRiesgos() {
+        List<RiesgoVerificacionReporteDTO> riesgos = reporteService.obtenerVerificacionRiesgos();
+        return ResponseEntity.ok(ApiResponse.success(riesgos, "Reporte de verificacion de tratamiento a riesgos obtenido con exito"));
     }
 
     @Override
@@ -124,14 +115,14 @@ public class ReporteController implements IReporteController {
     }
 
     @Override
-    @GetMapping("/plan-comunicaciones/{proyectoId}/descargar")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf(@PathVariable String proyectoId) {
-        byte[] content = reporteService.generarReportePlanComunicacionesPdf(proyectoId);
+    @GetMapping("/plan-comunicaciones/descargar")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
+    public ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf() {
+        byte[] content = reporteService.generarReportePlanComunicacionesPdf();
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-plan-comunicaciones-" + proyectoId + ".pdf")
+                .header("Content-Disposition", "attachment; filename=reporte-plan-comunicaciones.pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }
@@ -150,14 +141,14 @@ public class ReporteController implements IReporteController {
     }
 
     @Override
-    @GetMapping("/riesgos/{proyectoId}/descargar")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<byte[]> descargarReporteRiesgosPdf(@PathVariable String proyectoId) {
-        byte[] content = reporteService.generarReporteRiesgosPdf(proyectoId);
+    @GetMapping("/riesgos/descargar")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
+    public ResponseEntity<byte[]> descargarReporteRiesgosPdf() {
+        byte[] content = reporteService.generarReporteRiesgosPdf();
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-verificacion-tratamiento-a-riesgos-" + proyectoId + ".pdf")
+                .header("Content-Disposition", "attachment; filename=reporte-verificacion-tratamiento-a-riesgos.pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }

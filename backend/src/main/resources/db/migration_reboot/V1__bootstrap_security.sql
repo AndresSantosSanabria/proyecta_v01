@@ -28,6 +28,52 @@ SET
     nivel_acceso = EXCLUDED.nivel_acceso,
     activo = TRUE;
 
+CREATE TABLE IF NOT EXISTS proyecta_db.usuario (
+    usuario_id      SERIAL          PRIMARY KEY,
+    keycloak_sub    VARCHAR(120)    UNIQUE,
+    nombre          VARCHAR(120)    NOT NULL,
+    correo          VARCHAR(200)    NOT NULL UNIQUE,
+    contrasena_hash TEXT,
+    rol             VARCHAR(30),
+    rol_config_id   INTEGER REFERENCES proyecta_db.rol_config(rol_id),
+    activo          BOOLEAN         NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP       NOT NULL DEFAULT NOW(),
+    ultimo_acceso   TIMESTAMP
+);
+
+WITH admin_role AS (
+    SELECT rol_id
+    FROM proyecta_db.rol_config
+    WHERE codigo = 'ADMINISTRADOR'
+    LIMIT 1
+)
+INSERT INTO proyecta_db.usuario (
+    keycloak_sub,
+    nombre,
+    correo,
+    contrasena_hash,
+    rol,
+    rol_config_id,
+    activo
+)
+SELECT
+    'fabio.santos@cundinamarca.gov.co',
+    'Fabio Santos',
+    'fabio.santos@cundinamarca.gov.co',
+    'hash_simulado',
+    'ADMINISTRADOR',
+    admin_role.rol_id,
+    TRUE
+FROM admin_role
+ON CONFLICT (correo) DO UPDATE
+SET
+    keycloak_sub = EXCLUDED.keycloak_sub,
+    nombre = EXCLUDED.nombre,
+    contrasena_hash = EXCLUDED.contrasena_hash,
+    rol = EXCLUDED.rol,
+    rol_config_id = EXCLUDED.rol_config_id,
+    activo = TRUE;
+
 ALTER TABLE IF EXISTS proyecta_db.usuario
     ADD COLUMN IF NOT EXISTS rol_config_id INTEGER REFERENCES proyecta_db.rol_config(rol_id);
 

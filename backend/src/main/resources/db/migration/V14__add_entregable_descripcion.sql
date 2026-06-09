@@ -1,0 +1,3 @@
+ALTER TABLE IF EXISTS entregable
+    ADD COLUMN IF NOT EXISTS descripcion VARCHAR(300);
+

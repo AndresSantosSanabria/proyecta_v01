@@ -1,4 +1,265 @@
 
+CREATE SCHEMA IF NOT EXISTS proyecta_db;
+SET search_path TO proyecta_db;
+
+CREATE TABLE IF NOT EXISTS patrocinador (
+    patrocinador_id SERIAL          PRIMARY KEY,
+    nombre          VARCHAR(120)    NOT NULL,
+    cargo           VARCHAR(100),
+    dependencia     VARCHAR(100),
+    entidad         VARCHAR(150),
+    proceso_sigc    VARCHAR(100),
+    procedimiento   VARCHAR(150)
+);
+
+CREATE TABLE IF NOT EXISTS rol_config (
+    rol_id          SERIAL          PRIMARY KEY,
+    codigo          VARCHAR(30)     NOT NULL UNIQUE,
+    nombre          VARCHAR(100)    NOT NULL,
+    descripcion     VARCHAR(300),
+    nivel_acceso    INTEGER         NOT NULL DEFAULT 0,
+    activo          BOOLEAN         NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS usuario (
+    usuario_id      SERIAL          PRIMARY KEY,
+    keycloak_sub    VARCHAR(120)    UNIQUE,
+    nombre          VARCHAR(120)    NOT NULL,
+    correo          VARCHAR(200)    NOT NULL UNIQUE,
+    contrasena_hash TEXT,
+    rol             VARCHAR(30),
+    rol_config_id   INTEGER         REFERENCES rol_config(rol_id),
+    activo          BOOLEAN         NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP       NOT NULL DEFAULT NOW(),
+    ultimo_acceso   TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS estado_proyecto_config (
+    estado_proyecto_id  SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(30) NOT NULL UNIQUE,
+    nombre              VARCHAR(100) NOT NULL,
+    descripcion         VARCHAR(300),
+    color_hex           VARCHAR(7),
+    es_terminal         BOOLEAN     NOT NULL DEFAULT FALSE,
+    orden               INTEGER     NOT NULL DEFAULT 0,
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS estado_entregable_config (
+    estado_entregable_id    SERIAL  PRIMARY KEY,
+    codigo                  VARCHAR(30) NOT NULL UNIQUE,
+    nombre                  VARCHAR(100) NOT NULL,
+    descripcion             VARCHAR(300),
+    color_hex               VARCHAR(7),
+    es_conforme             BOOLEAN     NOT NULL DEFAULT FALSE,
+    es_terminal             BOOLEAN     NOT NULL DEFAULT FALSE,
+    cuenta_avance           NUMERIC(5,2) NOT NULL DEFAULT 0,
+    orden                   INTEGER     NOT NULL DEFAULT 0,
+    activo                  BOOLEAN     NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS tipo_documento_config (
+    tipo_documento_id   SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(30) NOT NULL UNIQUE,
+    nombre              VARCHAR(100) NOT NULL,
+    descripcion         VARCHAR(300),
+    require_pdf         BOOLEAN     NOT NULL DEFAULT TRUE,
+    orden               INTEGER     NOT NULL DEFAULT 0,
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE,
+    fecha_creacion      TIMESTAMP   NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS estrategia_peti_config (
+    estrategia_peti_id  SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(80) NOT NULL UNIQUE,
+    nombre              VARCHAR(150) NOT NULL,
+    descripcion         VARCHAR(300),
+    orden               INTEGER     NOT NULL DEFAULT 0,
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS matriz_riesgo (
+    matriz_riesgo_id    SERIAL      PRIMARY KEY,
+    probabilidad        VARCHAR(30) NOT NULL,
+    impacto             VARCHAR(30) NOT NULL,
+    nivel_riesgo        VARCHAR(30) NOT NULL,
+    nivel_resultante    VARCHAR(30),
+    color               VARCHAR(20)  NOT NULL,
+    puntaje             INTEGER     NOT NULL,
+    UNIQUE(probabilidad, impacto)
+);
+
+CREATE TABLE IF NOT EXISTS estado_riesgo_config (
+    estado_riesgo_id    SERIAL      PRIMARY KEY,
+    codigo              VARCHAR(30) NOT NULL UNIQUE,
+    nombre              VARCHAR(100) NOT NULL,
+    descripcion         VARCHAR(300),
+    activo              BOOLEAN     NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS system_parameters (
+    param_key       VARCHAR(50)     PRIMARY KEY,
+    param_value     VARCHAR(255)    NOT NULL,
+    descripcion     VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS reporte_config (
+    id              VARCHAR(50)     PRIMARY KEY,
+    nombre          VARCHAR(100)    NOT NULL,
+    descripcion     VARCHAR(300),
+    orden           INTEGER         NOT NULL,
+    activo          BOOLEAN         NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS proyecto (
+    proyecto_id              VARCHAR(30)     PRIMARY KEY,
+    nombre                   VARCHAR(300)    NOT NULL,
+    dependencia              VARCHAR(200),
+    director_nombre          VARCHAR(120),
+    director_correo          VARCHAR(200),
+    objetivo_general         TEXT,
+    es_peti                  BOOLEAN         NOT NULL DEFAULT FALSE,
+    estrategia_peti          VARCHAR(80),
+    estrategia_peti_config_id INTEGER       REFERENCES estrategia_peti_config(estrategia_peti_id),
+    vigencia_peti            VARCHAR(20),
+    fecha_inicio             DATE,
+    fecha_cierre             DATE,
+    tiene_plan_comunicaciones BOOLEAN       NOT NULL DEFAULT FALSE,
+    plan_comunicaciones_pdf  VARCHAR(300),
+    acta_constitucion_pdf    VARCHAR(300),
+    cronograma_pdf           VARCHAR(300),
+    viabilizacion_pdf        VARCHAR(300),
+    estado                   VARCHAR(30),
+    estado_config_id         INTEGER         REFERENCES estado_proyecto_config(estado_proyecto_id),
+    avance_total             NUMERIC(5, 2)   NOT NULL DEFAULT 0.00,
+    fecha_registro           TIMESTAMP       NOT NULL DEFAULT NOW(),
+    patrocinador_id          INTEGER         REFERENCES patrocinador(patrocinador_id) ON DELETE SET NULL,
+    furag_infraestructura_datos         VARCHAR(5),
+    furag_interoperabilidad             VARCHAR(5),
+    furag_digitalizacion_automatizacion VARCHAR(5),
+    furag_contratacion_publica           VARCHAR(5),
+    furag_servicios_nube                VARCHAR(5),
+    furag_sandbox                       VARCHAR(5),
+    furag_tecnologias_emergentes        VARCHAR(5)
+);
+
+CREATE TABLE IF NOT EXISTS fase (
+    fase_id             SERIAL          PRIMARY KEY,
+    nombre              VARCHAR(150),
+    descripcion         VARCHAR(300),
+    ponderacion         NUMERIC(5, 2)   NOT NULL,
+    avance_calculado    NUMERIC(5, 2)   NOT NULL DEFAULT 0.00,
+    fecha_creacion      TIMESTAMP       NOT NULL DEFAULT NOW(),
+    proyecto_id         VARCHAR(30)     NOT NULL REFERENCES proyecto(proyecto_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS hito (
+    hito_id             SERIAL          PRIMARY KEY,
+    nombre              VARCHAR(150),
+    descripcion         VARCHAR(300),
+    ponderacion         NUMERIC(5, 2)   NOT NULL,
+    avance_calculado    NUMERIC(5, 2)   NOT NULL DEFAULT 0.00,
+    estado_revision     VARCHAR(30)     DEFAULT 'PENDIENTE'
+                        CHECK (estado_revision IN ('PENDIENTE', 'APROBADO', 'RECHAZADO')),
+    fecha_creacion      TIMESTAMP       NOT NULL DEFAULT NOW(),
+    fase_id             INTEGER         NOT NULL REFERENCES fase(fase_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS entregable (
+    entregable_id       SERIAL          PRIMARY KEY,
+    nombre              VARCHAR(300)    NOT NULL,
+    descripcion         VARCHAR(300),
+    ponderacion         NUMERIC(5, 2)   NOT NULL,
+    estado              VARCHAR(30),
+    estado_config_id    INTEGER         REFERENCES estado_entregable_config(estado_entregable_id),
+    conforme            BOOLEAN         NOT NULL DEFAULT FALSE,
+    archivo_pdf         VARCHAR(300),
+    fecha_limite        DATE,
+    fecha_entrega_real  DATE,
+    fecha_creacion      TIMESTAMP       NOT NULL DEFAULT NOW(),
+    hito_id             INTEGER         NOT NULL REFERENCES hito(hito_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS riesgos (
+    riesgo_id           SERIAL          PRIMARY KEY,
+    codigo              VARCHAR(10),
+    descripcion         TEXT            NOT NULL,
+    probabilidad        VARCHAR(30),
+    impacto             VARCHAR(30),
+    nivel               VARCHAR(30),
+    puntaje             INTEGER,
+    tratamiento         TEXT,
+    estado              VARCHAR(30),
+    estado_config_id    INTEGER         REFERENCES estado_riesgo_config(estado_riesgo_id),
+    fecha_actualizacion TIMESTAMP,
+    proyecto_id         VARCHAR(30)     NOT NULL REFERENCES proyecto(proyecto_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS objetivos_especificos (
+    obj_id      SERIAL      PRIMARY KEY,
+    descripcion TEXT        NOT NULL,
+    orden       SMALLINT,
+    proyecto_id VARCHAR(30) REFERENCES proyecto(proyecto_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS proyecto_equipo (
+    proyecto_id     VARCHAR(30)     NOT NULL REFERENCES proyecto(proyecto_id) ON DELETE CASCADE,
+    miembro_nombre  VARCHAR(120),
+    miembro_rol     VARCHAR(100),
+    miembro_cargo   VARCHAR(100)
+);
+
+CREATE TABLE IF NOT EXISTS actas_cierre (
+    acta_id             BIGSERIAL       PRIMARY KEY,
+    proyecto_id         VARCHAR(30)     NOT NULL UNIQUE,
+    resumen_ejecutivo   TEXT            NOT NULL,
+    fecha_cierre        TIMESTAMPTZ     NOT NULL,
+    avance_final        NUMERIC(5, 2)   NOT NULL,
+    progreso_programado_final NUMERIC(5, 2),
+    progreso_ejecutado_final NUMERIC(5, 2),
+    diferencia_final    NUMERIC(5, 2),
+    eficacia_final      NUMERIC(6, 4),
+    estado_final        VARCHAR(30),
+    corte_calculo       DATE,
+    snapshot_json       TEXT,
+    CONSTRAINT fk_actas_cierre_proyecto
+        FOREIGN KEY (proyecto_id)
+        REFERENCES proyecto(proyecto_id)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS respuestas_furag (
+    respuesta_furag_id BIGSERIAL PRIMARY KEY,
+    proyecto_id VARCHAR(30) NOT NULL,
+    codigo_pregunta VARCHAR(80) NOT NULL,
+    pregunta TEXT NOT NULL,
+    respuesta VARCHAR(5),
+    obligatoria BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_respuestas_furag_proyecto
+        FOREIGN KEY (proyecto_id) REFERENCES proyecto(proyecto_id) ON DELETE CASCADE,
+    CONSTRAINT uk_respuestas_furag UNIQUE (proyecto_id, codigo_pregunta)
+);
+
+CREATE INDEX IF NOT EXISTS idx_respuestas_furag_proyecto
+    ON respuestas_furag(proyecto_id);
+
+CREATE TABLE IF NOT EXISTS riesgo_solucion_adjunto (
+    riesgo_solucion_adjunto_id BIGSERIAL PRIMARY KEY,
+    riesgo_id INTEGER NOT NULL,
+    nombre_original VARCHAR(300) NOT NULL,
+    nombre_almacenado VARCHAR(300) NOT NULL,
+    ruta_almacenamiento VARCHAR(120) NOT NULL DEFAULT 'riesgos-soluciones',
+    mime_type VARCHAR(120) NOT NULL,
+    tamano_bytes BIGINT NOT NULL,
+    fecha_carga TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_riesgo_solucion_adjunto_riesgo
+        FOREIGN KEY (riesgo_id) REFERENCES riesgos(riesgo_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_riesgo_solucion_adjunto_riesgo
+    ON riesgo_solucion_adjunto(riesgo_id);
+
 -- MIGRATION: V1__create_documento_table.sql --
 
 -- Migration: Create documento table
@@ -276,16 +537,16 @@ CREATE TABLE IF NOT EXISTS proyecta_db.matriz_riesgo (
     UNIQUE(probabilidad, impacto)
 );
 
-INSERT INTO proyecta_db.matriz_riesgo (probabilidad, impacto, nivel_resultante, puntaje) VALUES
-('BAJA',  'BAJO',  'BAJO', 1),
-('BAJA',  'MEDIO', 'BAJO', 2),
-('BAJA',  'ALTO',  'MODERADO', 3),
-('MEDIA', 'BAJO',  'BAJO', 2),
-('MEDIA', 'MEDIO', 'MODERADO', 4),
-('MEDIA', 'ALTO',  'ALTO', 6),
-('ALTA',  'BAJO',  'MODERADO', 3),
-('ALTA',  'MEDIO', 'ALTO', 6),
-('ALTA',  'ALTO',  'CRITICO', 9);
+INSERT INTO proyecta_db.matriz_riesgo (probabilidad, impacto, nivel_riesgo, nivel_resultante, color, puntaje) VALUES
+('BAJA',  'BAJO',  'BAJO',      'BAJO',      '#22c55e', 1),
+('BAJA',  'MEDIO', 'BAJO',      'BAJO',      '#22c55e', 2),
+('BAJA',  'ALTO',  'MODERADO',  'MODERADO',  '#f59e0b', 3),
+('MEDIA', 'BAJO',  'BAJO',      'BAJO',      '#22c55e', 2),
+('MEDIA', 'MEDIO', 'MODERADO',  'MODERADO',  '#f59e0b', 4),
+('MEDIA', 'ALTO',  'ALTO',      'ALTO',      '#ef4444', 6),
+('ALTA',  'BAJO',  'MODERADO',  'MODERADO',  '#f59e0b', 3),
+('ALTA',  'MEDIO', 'ALTO',      'ALTO',      '#ef4444', 6),
+('ALTA',  'ALTO',  'CRITICO',   'CRITICO',   '#dc2626', 9);
 
 -- 6b. Estado Riesgo Config
 CREATE TABLE IF NOT EXISTS proyecta_db.estado_riesgo_config (
@@ -349,26 +610,26 @@ ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS probabilidad_config VAR
 ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS impacto_config VARCHAR(30);
 ALTER TABLE proyecta_db.riesgos ADD COLUMN IF NOT EXISTS puntaje INTEGER;
 
--- Backfill probabilidad and impacto from numeric values
-UPDATE proyecta_db.riesgos SET probabilidad_config = CASE 
-    WHEN probabilidad = 1 THEN 'BAJA'
-    WHEN probabilidad = 2 THEN 'BAJA'
-    WHEN probabilidad = 3 THEN 'MEDIA'
-    WHEN probabilidad = 4 THEN 'ALTA'
-    WHEN probabilidad = 5 THEN 'ALTA'
-    ELSE 'MEDIA'
-END;
+-- Backfill probabilidad and impacto from the current textual schema
+UPDATE proyecta_db.riesgos
+SET probabilidad_config = UPPER(COALESCE(probabilidad, 'MEDIA'));
 
-UPDATE proyecta_db.riesgos SET impacto_config = CASE 
-    WHEN impacto = 1 THEN 'BAJO'
-    WHEN impacto = 2 THEN 'BAJO'
-    WHEN impacto = 3 THEN 'MEDIO'
-    WHEN impacto = 4 THEN 'ALTO'
-    WHEN impacto = 5 THEN 'ALTO'
-    ELSE 'MEDIO'
-END;
+UPDATE proyecta_db.riesgos
+SET impacto_config = UPPER(COALESCE(impacto, 'MEDIO'));
 
-UPDATE proyecta_db.riesgos SET puntaje = probabilidad * impacto;
+UPDATE proyecta_db.riesgos
+SET puntaje = CASE
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'BAJA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'BAJO' THEN 1
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'BAJA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'MEDIO' THEN 2
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'BAJA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'ALTO' THEN 3
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'MEDIA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'BAJO' THEN 2
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'MEDIA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'MEDIO' THEN 4
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'MEDIA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'ALTO' THEN 6
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'ALTA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'BAJO' THEN 3
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'ALTA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'MEDIO' THEN 6
+    WHEN UPPER(COALESCE(probabilidad, 'MEDIA')) = 'ALTA' AND UPPER(COALESCE(impacto, 'MEDIO')) = 'ALTO' THEN 9
+    ELSE 0
+END;
 
 
 
@@ -508,8 +769,8 @@ BEGIN
         
         -- Aplicar normalización
         FOR v_resultado IN SELECT * FROM normalizar_ponderaciones_fases(v_proyecto.proyecto_id) LOOP
-            RAISE NOTICE '  Fase % (%) - Anterior: %% → Nueva: %%', 
-                v_resultado.fase_id, 
+            RAISE NOTICE '  Fase % (%) - Anterior: % -> Nueva: %',
+                v_resultado.fase_id,
                 v_resultado.nombre,
                 v_resultado.ponderacion_antigua,
                 v_resultado.ponderacion_nueva;
@@ -553,8 +814,9 @@ BEGIN
 
     -- Lanzar advertencia si supera 100
     IF v_suma > 100 THEN
-        RAISE WARNING 'Ponderaciones del proyecto % sumarán %.2f%% (límite: 100%%)', 
-            NEW.proyecto_id, v_suma;
+        RAISE WARNING 'Ponderaciones del proyecto % sumaran % %% (limite: 100 %%)',
+            NEW.proyecto_id,
+            to_char(v_suma, 'FM999990.00');
     END IF;
 
     RETURN NEW;
@@ -586,8 +848,9 @@ BEGIN
 
     -- Lanzar advertencia si supera 100
     IF v_suma > 100 THEN
-        RAISE WARNING 'Ponderaciones del proyecto % sumarán %.2f%% (límite: 100%%)', 
-            NEW.proyecto_id, v_suma;
+        RAISE WARNING 'Ponderaciones del proyecto % sumaran % %% (limite: 100 %%)',
+            NEW.proyecto_id,
+            to_char(v_suma, 'FM999990.00');
     END IF;
 
     RETURN NEW;
@@ -818,7 +1081,6 @@ JOIN proyecta_db.permisos p ON p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'RE
 WHERE r.codigo = 'consulta'
 ON CONFLICT (rol_id, permiso_id) DO NOTHING;
 
-COMMENT ON TABLE proyecta_db.usuarios IS 'Usuarios sincronizados desde Keycloak para control de acceso y asignaciones por proyecto';
 COMMENT ON TABLE proyecta_db.roles IS 'Catalogo dinamico de roles de negocio';
 COMMENT ON TABLE proyecta_db.permisos IS 'Catalogo dinamico de permisos atomicos';
 COMMENT ON TABLE proyecta_db.rol_permiso IS 'Matriz dinamica de asignacion de permisos a roles';

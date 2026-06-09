@@ -56,7 +56,7 @@ public class ReporteConfigSeeder {
         deseados.put("FURAG", new ReporteConfig(
                 "FURAG",
                 "Preguntas FURAG",
-                "Consolidado institucional de respuestas FURAG por proyecto",
+                "Consolidado institucional de respuestas FURAG por dependencia",
                 5
         ));
         deseados.put("VERIFICACION_RIESGOS", new ReporteConfig(

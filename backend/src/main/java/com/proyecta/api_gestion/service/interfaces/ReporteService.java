@@ -11,17 +11,16 @@ public interface ReporteService {
     Optional<ReporteVistaPreviaDTO> obtenerVistaPrevia(String proyectoId);
     List<ProyectoReporteResumenDTO> obtenerTodosLosProyectos();
     List<ProyectoReporteResumenDTO> obtenerProyectosConRetrasos();
-    Optional<PlanComunicacionesDTO> obtenerPlanComunicaciones(String proyectoId);
     Optional<FuragReporteDTO> obtenerFurag(String proyectoId);
-    List<RiesgoReporteDTO> obtenerRiesgos(String proyectoId);
+    List<RiesgoVerificacionReporteDTO> obtenerVerificacionRiesgos();
     
     // Reportes Binarios
     byte[] generarReporteProyectoPdf(String id);
     byte[] generarReportePortafolioPdf();
     byte[] generarReporteProyectosConRetrasosPdf();
-    byte[] generarReportePlanComunicacionesPdf(String proyectoId);
+    byte[] generarReportePlanComunicacionesPdf();
     byte[] generarReporteFuragPdf(String proyectoId);
-    byte[] generarReporteRiesgosPdf(String proyectoId);
+    byte[] generarReporteRiesgosPdf();
     byte[] generarReportePortafolioExcel();
     byte[] generarReportePortafolioExcel(Authentication authentication, String query, String dependency, String status, String peti);
 }
