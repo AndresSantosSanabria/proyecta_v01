@@ -25,18 +25,13 @@ const reportService = {
     return unwrap(response);
   },
 
-  getPlanComunicaciones: async (projectId) => {
-    const response = await apiClient.get(`/reportes/plan-comunicaciones/${normalizeProjectId(projectId)}`);
-    return unwrap(response);
-  },
-
   getFurag: async (projectId) => {
     const response = await apiClient.get(`/reportes/furag/${normalizeProjectId(projectId)}`);
     return unwrap(response);
   },
 
-  getRiesgos: async (projectId) => {
-    const response = await apiClient.get(`/reportes/riesgos/${normalizeProjectId(projectId)}`);
+  getRiesgosVerificacion: async () => {
+    const response = await apiClient.get('/reportes/riesgos');
     return unwrap(response);
   },
 
@@ -61,8 +56,8 @@ const reportService = {
     return response.data;
   },
 
-  downloadPlanComunicacionesPdf: async (projectId) => {
-    const response = await apiClient.get(`/reportes/plan-comunicaciones/${normalizeProjectId(projectId)}/descargar`, {
+  downloadPlanComunicacionesPdf: async () => {
+    const response = await apiClient.get('/reportes/plan-comunicaciones/descargar', {
       responseType: 'blob',
     });
     return response.data;
@@ -75,8 +70,8 @@ const reportService = {
     return response.data;
   },
 
-  downloadRiesgosPdf: async (projectId) => {
-    const response = await apiClient.get(`/reportes/riesgos/${normalizeProjectId(projectId)}/descargar`, {
+  downloadRiesgosPdf: async () => {
+    const response = await apiClient.get('/reportes/riesgos/descargar', {
       responseType: 'blob',
     });
     return response.data;

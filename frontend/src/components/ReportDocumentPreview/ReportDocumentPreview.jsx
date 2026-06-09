@@ -25,6 +25,32 @@ const todayStr = () =>
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
+const FURAG_KEYS = [
+  'infraestructuraDatos',
+  'interoperabilidad',
+  'digitalizacionAutomatizacion',
+  'contratacionPublica',
+  'serviciosNube',
+  'sandbox',
+  'tecnologiasEmergentes',
+];
+
+const normalizeText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+
+const sameText = (left, right) => normalizeText(left) === normalizeText(right);
+
+const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+
+const furagCompleto = (project) => {
+  const furag = project?.furag || {};
+  return FURAG_KEYS.every((key) => hasText(furag[key]));
+};
+
 /* ─── section header ──────────────────────────────────────────────────────── */
 const SectionHead = ({ number, title }) => (
   <div className="rdoc__section-head">
@@ -93,7 +119,7 @@ const StatusBadge = ({ value }) => {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* 1. ESTADO DE PROYECTO ESPECÍFICO */
-const BodyEstadoProyecto = ({ reportData }) => {
+const BodyEstadoProyecto = ({ reportData, selectedProject }) => {
   const entregables = Array.isArray(reportData?.entregablesVencidos)
     ? reportData.entregablesVencidos : [];
 
@@ -106,9 +132,9 @@ const BodyEstadoProyecto = ({ reportData }) => {
         { label: 'Director del proyecto', value: fmt(reportData?.directorNombre) },
         { label: 'Dependencia',           value: fmt(reportData?.dependencia) },
         { label: 'Avance total',          value: toPercent(reportData?.avanceTotal), emphasis: true },
-        { label: 'Estado',                value: fmt(reportData?.estado) },
-        { label: 'Vigencia',              value: fmt(reportData?.vigenciaPeti) },
-        { label: 'Fecha de inicio',       value: fmtDate(reportData?.fechaInicio) },
+        { label: 'Estado',                value: fmt(selectedProject?.estado ?? reportData?.estado) },
+        { label: 'Vigencia',              value: fmt(selectedProject?.vigenciaPeti ?? reportData?.vigenciaPeti) },
+        { label: 'Patrocinador',          value: fmt(reportData?.patrocinadorNombre) },
       ]} />
 
       <SectionHead number="2" title="Entregables vencidos" />
@@ -123,12 +149,6 @@ const BodyEstadoProyecto = ({ reportData }) => {
         emptyMsg="No hay entregables vencidos registrados para este proyecto."
       />
 
-      {reportData?.observaciones && (
-        <>
-          <SectionHead number="3" title="Observaciones" />
-          <div className="rdoc__obs-box">{reportData.observaciones}</div>
-        </>
-      )}
     </>
   );
 };
@@ -136,33 +156,29 @@ const BodyEstadoProyecto = ({ reportData }) => {
 /* 2. TODOS LOS PROYECTOS */
 const BodyTodosProyectos = ({ reportData }) => {
   const rows = Array.isArray(reportData) ? reportData : [];
-  const promedio = rows.length
-    ? rows.reduce((s, r) => s + Number(r.avance || 0), 0) / rows.length
-    : 0;
-  const atrasados = rows.reduce((s, r) => s + Number(r.entregablesAtrasados || 0), 0);
 
   return (
     <>
-      <SectionHead number="1" title="Resumen ejecutivo del portafolio" />
-      <FieldGrid fields={[
-        { label: 'Total de proyectos',        value: rows.length },
-        { label: 'Avance promedio',            value: toPercent(promedio), emphasis: true },
-        { label: 'Entregables atrasados',      value: atrasados },
-        { label: 'Dependencias involucradas',  value: new Set(rows.map((r) => r.dependencia)).size },
-      ]} />
-
-      <SectionHead number="2" title="Listado de proyectos" />
-      <DocTable
-        columns={[
-          { key: 'id',        label: 'Código' },
-          { key: 'nombre',    label: 'Nombre del proyecto', wide: true },
-          { key: 'dependencia', label: 'Dependencia' },
-          { key: 'avance',    label: 'Avance (%)',  render: (r) => toPercent(r.avance), className: 'rdoc__td-emphasis' },
-          { key: 'estado',    label: 'Estado' },
-        ]}
-        rows={rows}
-        emptyMsg="No hay proyectos disponibles en el portafolio."
-      />
+      <table className="rdoc__table">
+        <thead>
+          <tr>
+            <th>Código del proyecto</th>
+            <th>Nombre del proyecto</th>
+            <th>Avance total del proyecto (%)</th>
+            <th>Estado del proyecto (En desarrollo - cerrado)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.id || i}>
+              <td>{fmt(row.id)}</td>
+              <td>{fmt(row.nombre)}</td>
+              <td className="rdoc__td-emphasis">{toPercent(row.avance)}</td>
+              <td>{fmt(row.estado)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </>
   );
 };
@@ -170,184 +186,197 @@ const BodyTodosProyectos = ({ reportData }) => {
 /* 3. RETRASOS EN FECHA DE ENTREGA */
 const BodyRetrasos = ({ reportData }) => {
   const rows = Array.isArray(reportData) ? reportData : [];
-
-  if (!rows.length) {
-    return (
-      <>
-        <SectionHead number="1" title="Proyectos con retrasos" />
-        <div className="rdoc__obs-box rdoc__obs-box--ok">
-          ✓ No se registran proyectos con retrasos en la fecha de entrega.
-        </div>
-      </>
-    );
-  }
+  const deliverables = [
+    { numero: '1', nombre: '', fechaEntrega: '[DD/MM/AAAA]' },
+    { numero: '2', nombre: '', fechaEntrega: '[DD/MM/AAAA]' },
+    { numero: '3', nombre: '', fechaEntrega: '[DD/MM/AAAA]' },
+  ];
 
   return (
-    <>
-      <SectionHead number="1" title="Resumen de retrasos" />
-      <FieldGrid fields={[
-        { label: 'Proyectos con retrasos',    value: rows.length },
-        { label: 'Entregables atrasados totales', value: rows.reduce((s, r) => s + Number(r.entregablesAtrasados || 0), 0) },
-      ]} />
+    <div className="rdoc__furag">
+      <div className="rdoc__furag-meta">
+        <p><strong>FILTRO:</strong> [Todos los proyectos]</p>
+        <p><strong>Fecha del reporte:</strong> {todayStr()}</p>
+        <p><strong>Vigencia:</strong> [2024-2027]</p>
+      </div>
 
-      {rows.map((project, idx) => {
-        const deliverables = Array.isArray(project.entregablesVencidos)
-          ? project.entregablesVencidos : [];
-        return (
-          <div key={project.id || idx} className="rdoc__delay-block">
-            <SectionHead number={idx + 2} title={`Proyecto: ${fmt(project.nombre)}`} />
-            <FieldGrid fields={[
-              { label: 'Código',     value: fmt(project.id) },
-              { label: 'Avance',     value: toPercent(project.avance), emphasis: true },
-              { label: 'Dependencia', value: fmt(project.dependencia) },
-              { label: 'Entregables atrasados', value: fmt(project.entregablesAtrasados) },
-            ]} />
-            {deliverables.length > 0 && (
-              <DocTable
-                columns={[
-                  { key: 'nombre',       label: 'Entregable' },
-                  { key: 'fechaEntrega', label: 'Fecha vencida', render: (r) => fmtDate(r.fechaEntrega ?? r.fecha) },
-                ]}
-                rows={deliverables}
-              />
-            )}
-          </div>
-        );
-      })}
-    </>
+      <table className="rdoc__table">
+        <thead>
+          <tr>
+            <th>C?digo del proyecto</th>
+            <th>Nombre del proyecto</th>
+            <th>Avance total del proyecto (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.id || i}>
+              <td>{fmt(row.id)}</td>
+              <td>{fmt(row.nombre)}</td>
+              <td className="rdoc__td-emphasis">{toPercent(row.avance)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="rdoc__spacer" />
+      <SectionHead number="2" title="Nombre de los entregables que tienen fecha vencida" />
+      <DocTable
+        columns={[
+          { key: 'numero', label: '', width: '56px' },
+          { key: 'nombre', label: 'Nombre de los entregables que tienen fecha vencida', width: '55%' },
+          { key: 'fechaEntrega', label: 'Fecha de entrega programada', width: '45%' },
+        ]}
+        rows={deliverables}
+      />
+    </div>
   );
 };
 
 /* 4. PLAN DE COMUNICACIONES */
-const BodyPlanComunicaciones = ({ reportData, selectedProject }) => {
-  const tienePlan = reportData?.planPdfUrl ? 'SI' : 'NO';
-  return (
-    <>
-      <SectionHead number="1" title="Información del proyecto" />
-      <FieldGrid fields={[
-        { label: 'Código del proyecto',  value: fmt(selectedProject?.id) },
-        { label: 'Nombre del proyecto',  value: fmt(reportData?.nombre ?? selectedProject?.nombre), wide: true },
-        { label: 'Director del proyecto', value: fmt(selectedProject?.director ?? selectedProject?.directorNombre) },
-        { label: 'Dependencia',           value: fmt(reportData?.dependencia ?? selectedProject?.dependencia) },
-      ]} />
+const BodyPlanComunicaciones = ({ reportData, projects }) => {
+  const sourceProjects = Array.isArray(projects) ? projects : [];
+  const rows = sourceProjects
+    .filter((project) => !project?.peti)
+    .sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || ''), 'es', { sensitivity: 'base' }))
+    .map((project) => ({
+      id: project?.id,
+      nombre: project?.nombre,
+      director: project?.director ?? project?.directorNombre,
+      dependencia: project?.dependencia,
+      tienePlan: Boolean(project?.planComunicacionesPdf),
+    }));
 
-      <SectionHead number="2" title="Estado del plan de comunicaciones" />
-      <div className="rdoc__field-grid">
-        <div className="rdoc__field rdoc__field--wide">
-          <span className="rdoc__field-label">Plan de comunicaciones cargado</span>
-          <StatusBadge value={tienePlan} />
-        </div>
-        {reportData?.planPdfUrl && (
-          <div className="rdoc__field rdoc__field--wide">
-            <span className="rdoc__field-label">URL del documento</span>
-            <span className="rdoc__field-value">{reportData.planPdfUrl}</span>
-          </div>
-        )}
+  const totalConPlan = rows.filter((row) => row.tienePlan).length;
+  const totalSinPlan = rows.length - totalConPlan;
+
+  return (
+    <div className="rdoc__furag">
+      <div className="rdoc__furag-meta">
+        <p><strong>FILTRO:</strong> [Proyectos No PETI]</p>
+        <p><strong>Fecha del reporte:</strong> {todayStr()}</p>
+        <p><strong>Vigencia:</strong> [2024-2027]</p>
       </div>
-    </>
-  );
-};
 
-/* 5. FURAG */
-const BodyFurag = ({ reportData, selectedProject }) => {
-  const responde = reportData?.objetivoGeneral || reportData?.esPeti ? 'SI' : 'NO';
-  const respuestas = Array.isArray(reportData?.respuestas) ? reportData.respuestas : [];
+      <div className="rdoc__furag-counts">
+        <p><strong>Conteo de proyectos con plan de comunicaciones:</strong> {totalConPlan}</p>
+        <p><strong>Conteo de proyectos sin plan de comunicaciones:</strong> {totalSinPlan}</p>
+      </div>
 
-  return (
-    <>
-      <SectionHead number="1" title="Información del proyecto" />
-      <FieldGrid fields={[
-        { label: 'Código del proyecto',  value: fmt(selectedProject?.id) },
-        { label: 'Nombre del proyecto',  value: fmt(reportData?.nombre ?? selectedProject?.nombre), wide: true },
-        { label: 'Director del proyecto', value: fmt(selectedProject?.director ?? selectedProject?.directorNombre) },
-        { label: 'Dependencia',           value: fmt(selectedProject?.dependencia) },
-      ]} />
-
-      <SectionHead number="2" title="Datos PETI y FURAG" />
-      <FieldGrid fields={[
-        { label: 'Es proyecto PETI',        value: reportData?.esPeti ? 'SI' : 'NO' },
-        { label: 'Responde FURAG',          value: responde },
-        { label: 'Estrategia PETI',         value: fmt(reportData?.estrategiaPeti), wide: true },
-        { label: 'Vigencia PETI',           value: fmt(reportData?.vigenciaPeti) },
-        { label: 'Objetivo general',        value: fmt(reportData?.objetivoGeneral), wide: true },
-      ]} />
-
-      {respuestas.length > 0 && (
-        <>
-          <SectionHead number="3" title="Respuestas FURAG" />
-          <DocTable
-            columns={[
-              { key: '_n',       label: '#', width: '48px', render: (r, i) => i + 1 },
-              { key: 'pregunta', label: 'Pregunta', wide: true },
-              { key: 'respuesta', label: 'Respuesta' },
-            ]}
-            rows={respuestas}
-          />
-        </>
-      )}
-    </>
+      <DocTable
+        columns={[
+          { key: 'id', label: 'C?digo del proyecto', width: '18%' },
+          { key: 'nombre', label: 'Nombre del proyecto', width: '22%' },
+          { key: 'director', label: 'Director del proyecto', width: '20%' },
+          { key: 'dependencia', label: 'Dependencia', width: '20%' },
+          {
+            key: 'tienePlan',
+            label: 'Plan de comunicaciones',
+            width: '20%',
+            render: (row) => <StatusBadge value={row.tienePlan ? 'SI' : 'NO'} />,
+          },
+        ]}
+        rows={rows}
+        emptyMsg="No hay proyectos No PETI registrados."
+      />
+    </div>
   );
 };
 
 /* 6. VERIFICACIÓN DE RIESGOS */
-const BodyRiesgos = ({ reportData, selectedProject }) => {
-  const risks = Array.isArray(reportData) ? reportData : [];
-  const hasTratamiento = risks.some(
-    (r) => r.tratamiento && r.tratamiento.trim() !== '' && r.estado !== 'PENDIENTE',
-  );
-
-  const nivelCls = (nivel) => {
-    const n = String(nivel || '').toUpperCase();
-    if (n === 'BAJO') return 'rdoc__nivel-bajo';
-    if (n === 'MODERADO') return 'rdoc__nivel-moderado';
-    if (n === 'ALTO') return 'rdoc__nivel-alto';
-    if (n === 'EXTREMO' || n === 'CRITICO') return 'rdoc__nivel-extremo';
-    return '';
-  };
+const BodyRiesgos = ({ reportData }) => {
+  const rows = Array.isArray(reportData) ? reportData : [];
+  const totalYes = rows.filter((row) => row.diligencioTratamiento).length;
+  const totalNo = Math.max(rows.length - totalYes, 0);
 
   return (
-    <>
-      <SectionHead number="1" title="Información del proyecto" />
-      <FieldGrid fields={[
-        { label: 'Código del proyecto',           value: fmt(selectedProject?.id) },
-        { label: 'Nombre del proyecto',           value: fmt(selectedProject?.nombre), wide: true },
-        { label: 'Director del proyecto',          value: fmt(selectedProject?.director ?? selectedProject?.directorNombre) },
-        { label: 'Dependencia',                    value: fmt(selectedProject?.dependencia) },
-        { label: 'Diligenció tratamiento de riesgos', value: hasTratamiento ? 'SI' : 'NO', emphasis: !hasTratamiento },
-      ]} />
+    <div className="rdoc__furag">
+      <div className="rdoc__furag-meta">
+        <p><strong>FILTRO:</strong> [Proyectos con cierre]</p>
+        <p><strong>Fecha del reporte:</strong> {todayStr()}</p>
+        <p><strong>Vigencia:</strong> [2024-2027]</p>
+      </div>
 
-      <SectionHead number="2" title="Resumen de riesgos" />
-      <FieldGrid fields={[
-        { label: 'Riesgos totales',    value: risks.length },
-        { label: 'Con tratamiento',    value: risks.filter((r) => r.tratamiento?.trim()).length },
-        { label: 'Sin tratamiento',    value: risks.filter((r) => !r.tratamiento?.trim()).length },
-        { label: 'Riesgos extremos',   value: risks.filter((r) => ['EXTREMO','CRITICO'].includes(String(r.nivel||'').toUpperCase())).length },
-      ]} />
+      <div className="rdoc__furag-counts">
+        <p><strong>Conteo de proyectos que diligenciaron tratamiento de riesgos:</strong> {totalYes}</p>
+        <p><strong>Conteo de proyectos que NO diligenciaron tratamiento de riesgos:</strong> {totalNo}</p>
+      </div>
 
-      {risks.length > 0 && (
-        <>
-          <SectionHead number="3" title="Detalle de riesgos" />
-          <DocTable
-            columns={[
-              { key: '_n',          label: '#',       width: '40px',  render: (r, i) => i + 1 },
-              { key: 'nombre',      label: 'Riesgo' },
-              { key: 'nivel',       label: 'Nivel',   width: '90px',
-                render: (r) => <span className={nivelCls(r.nivel)}>{fmt(r.nivel)}</span> },
-              { key: 'tratamiento', label: 'Tratamiento' },
-              { key: 'estado',      label: 'Estado',  width: '100px' },
-            ]}
-            rows={risks}
-            emptyMsg="No se registran riesgos para este proyecto."
-          />
-        </>
-      )}
-    </>
+      <DocTable
+        columns={[
+          { key: 'proyectoId', label: 'Código del proyecto', width: '18%' },
+          { key: 'nombreProyecto', label: 'Nombre del proyecto', width: '27%' },
+          { key: 'directorProyecto', label: 'Director del proyecto', width: '19%' },
+          { key: 'dependencia', label: 'Dependencia', width: '21%' },
+          {
+            key: 'diligencioTratamiento',
+            label: 'Diligenció tratamiento de riesgos',
+            width: '15%',
+            render: (row) => <StatusBadge value={row.diligencioTratamiento ? 'SI' : 'NO'} />,
+          },
+        ]}
+        rows={rows}
+        emptyMsg="No hay proyectos con cierre registrados."
+      />
+    </div>
   );
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 5. FURAG */
+const BodyFuragV2 = ({ reportData, selectedProject, projects }) => {
+  const dependency = selectedProject?.dependencia || reportData?.dependencia || '';
+  const sourceProjects = Array.isArray(projects) ? projects : [];
+  const rows = sourceProjects
+    .filter((project) => sameText(project?.dependencia, dependency))
+    .sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || ''), 'es', { sensitivity: 'base' }))
+    .map((project) => ({
+      id: project?.id,
+      nombre: project?.nombre,
+      director: project?.director ?? project?.directorNombre,
+      dependencia: project?.dependencia,
+      responde: furagCompleto(project),
+    }));
+
+  const totalResponden = rows.filter((row) => row.responde).length;
+  const totalNoResponden = rows.length - totalResponden;
+  const vigencia = selectedProject?.vigenciaPeti || reportData?.vigenciaPeti || '2024-2027';
+
+  return (
+    <div className="rdoc__furag">
+      <div className="rdoc__furag-meta">
+        <p><strong>FILTRO:</strong> [Proyectos por dependencia]</p>
+        <p><strong>Fecha del reporte:</strong> {todayStr()}</p>
+        <p><strong>Vigencia:</strong> {vigencia}</p>
+      </div>
+
+      <div className="rdoc__furag-counts">
+        <p><strong>Conteo de proyectos que responden preguntas FURAG:</strong> {totalResponden}</p>
+        <p><strong>Conteo de proyectos que NO responden preguntas FURAG:</strong> {totalNoResponden}</p>
+      </div>
+
+      <DocTable
+        columns={[
+          { key: 'id', label: 'Código del proyecto', width: '18%' },
+          { key: 'nombre', label: 'Nombre del proyecto', width: '22%' },
+          { key: 'director', label: 'Director del proyecto', width: '20%' },
+          { key: 'dependencia', label: 'Dependencia', width: '20%' },
+          {
+            key: 'responde',
+            label: 'Responde todas las preguntas FURAG',
+            width: '20%',
+            render: (row) => <StatusBadge value={row.responde ? 'SI' : 'NO'} />,
+          },
+        ]}
+        rows={rows}
+        emptyMsg="No hay proyectos registrados para la dependencia seleccionada."
+      />
+    </div>
+  );
+};
 
 const REPORT_META = {
   ESTADO_PROYECTO: {
@@ -376,7 +405,7 @@ const REPORT_META = {
   },
 };
 
-const ReportDocumentPreview = ({ reportId, reportData, selectedProject }) => {
+const ReportDocumentPreview = ({ reportId, reportData, selectedProject, projects }) => {
   const meta = REPORT_META[reportId];
   if (!meta) return null;
 
@@ -387,17 +416,17 @@ const ReportDocumentPreview = ({ reportId, reportData, selectedProject }) => {
   const renderBody = () => {
     switch (reportId) {
       case 'ESTADO_PROYECTO':
-        return <BodyEstadoProyecto reportData={reportData} />;
+        return <BodyEstadoProyecto reportData={reportData} selectedProject={selectedProject} />;
       case 'TODOS_LOS_PROYECTOS':
         return <BodyTodosProyectos reportData={reportData} />;
       case 'RETRASOS_ENTREGA':
         return <BodyRetrasos reportData={reportData} />;
       case 'PLAN_COMUNICACIONES':
-        return <BodyPlanComunicaciones reportData={reportData} selectedProject={selectedProject} />;
+        return <BodyPlanComunicaciones reportData={reportData} projects={projects} />;
       case 'FURAG':
-        return <BodyFurag reportData={reportData} selectedProject={selectedProject} />;
+        return <BodyFuragV2 reportData={reportData} selectedProject={selectedProject} projects={projects} />;
       case 'VERIFICACION_RIESGOS':
-        return <BodyRiesgos reportData={reportData} selectedProject={selectedProject} />;
+        return <BodyRiesgos reportData={reportData} />;
       default:
         return null;
     }

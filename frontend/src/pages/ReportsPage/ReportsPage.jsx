@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import {
   BookText,
   ChevronRight,
@@ -17,21 +17,10 @@ import {
   TimerReset,
   X,
 } from 'lucide-react';
-import ReportDocumentPreview from '../../components/ReportDocumentPreview/ReportDocumentPreview';
 import projectService from '../../services/projectService';
 import reportService from '../../services/reportService';
 import './ReportsPage.css';
 
-/* ─── PDF helper ──────────────────────────────────────────────────────────── */
-const buildPdfOptions = (filename) => ({
-  margin:      [8, 8, 8, 8],
-  filename,
-  image:       { type: 'jpeg', quality: 0.98 },
-  html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
-  jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-});
-
-const loadHtml2Pdf = () => import('html2pdf.js').then((m) => m.default ?? m);
 
 const REPORT_BEHAVIORS = {
   ESTADO_PROYECTO: {
@@ -67,13 +56,13 @@ const REPORT_BEHAVIORS = {
   },
   PLAN_COMUNICACIONES: {
     title: 'Reporte 4 - Plan de Comunicaciones',
-    requiresProject: true,
+    requiresProject: false,
     downloadLabel: 'Descargar PDF',
     previewIcon: BookText,
     kind: 'plan',
-    filename: (projectId) => `reporte-plan-comunicaciones-${projectId}.pdf`,
-    download: (projectId) => reportService.downloadPlanComunicacionesPdf(projectId),
-    fetchData: (projectId) => reportService.getPlanComunicaciones(projectId),
+    filename: () => 'reporte-plan-comunicaciones.pdf',
+    download: () => reportService.downloadPlanComunicacionesPdf(),
+    fetchData: async () => ({}),
   },
   FURAG: {
     title: 'Reporte 5 - Preguntas FURAG',
@@ -87,21 +76,24 @@ const REPORT_BEHAVIORS = {
   },
   VERIFICACION_RIESGOS: {
     title: 'Reporte 6 - Verificación de Tratamiento a Riesgos',
-    requiresProject: true,
+    requiresProject: false,
     downloadLabel: 'Descargar PDF',
     previewIcon: Radar,
     kind: 'risks',
-    filename: (projectId) => `reporte-verificacion-tratamiento-a-riesgos-${projectId}.pdf`,
-    download: (projectId) => reportService.downloadRiesgosPdf(projectId),
-    fetchData: (projectId) => reportService.getRiesgos(projectId),
+    filename: () => 'reporte-verificacion-tratamiento-a-riesgos.pdf',
+    download: () => reportService.downloadRiesgosPdf(),
+    fetchData: () => reportService.getRiesgosVerificacion(),
   },
 };
 
-const normalizeRiskLevel = (value) => {
-  const normalized = String(value || '').trim().toUpperCase();
-  if (normalized === 'CRITICO') return 'EXTREMO';
-  return normalized;
-};
+const normalizeText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+
+const sameText = (left, right) => normalizeText(left) === normalizeText(right);
 
 const FALLBACK_REPORTS = [
   {
@@ -127,7 +119,7 @@ const FALLBACK_REPORTS = [
   {
     id: 'FURAG',
     nombre: 'Preguntas FURAG',
-    descripcion: 'Consolidado institucional de respuestas FURAG por proyecto',
+    descripcion: 'Consolidado institucional de respuestas FURAG por dependencia',
   },
   {
     id: 'VERIFICACION_RIESGOS',
@@ -145,20 +137,6 @@ const toPercent = (value) => {
   return `${Number(value).toFixed(2)}%`;
 };
 
-const countBy = (items, selector) =>
-  items.reduce((acc, item) => {
-    const key = selector(item) || 'SIN_DATO';
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
-
-const blankMetricCards = [
-  { label: 'Proyecto', value: '—', tone: 'primary' },
-  { label: 'Avance', value: '—', tone: 'neutral' },
-  { label: 'Estado', value: '—', tone: 'neutral' },
-  { label: 'Detalle', value: '—', tone: 'neutral' },
-];
-
 const ReportsPage = () => {
   const [reportConfigs, setReportConfigs] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -172,8 +150,7 @@ const ReportsPage = () => {
   const [previewModal, setPreviewModal] = useState({ open: false, title: '', url: '' });
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [reportActionBusy, setReportActionBusy] = useState(false);
-  const previewRef = useRef(null);
-
+  
   const availableReports = reportConfigs.length > 0 ? reportConfigs : FALLBACK_REPORTS;
 
   const selectedReport = useMemo(
@@ -336,8 +313,55 @@ const ReportsPage = () => {
     if (selectedBehavior.requiresProject && !effectiveProjectId) {
       return null;
     }
-    return selectedBehavior.download;
+    return () =>
+      selectedBehavior.requiresProject
+        ? selectedBehavior.download(effectiveProjectId)
+        : selectedBehavior.download();
   }, [selectedBehavior, effectiveProjectId]);
+
+  const reportContext = useMemo(() => {
+    if (!selectedReport || !selectedBehavior) {
+      return null;
+    }
+
+    const isProjectReport = Boolean(selectedBehavior.requiresProject);
+    const statusLabel = loadingReport
+      ? 'Actualizando'
+      : reportError
+        ? 'Con incidencia'
+        : reportData
+          ? 'Listo'
+          : isProjectReport
+            ? 'Seleccione un proyecto'
+            : 'Pendiente';
+
+    const filterLabelByKind = {
+      project: 'Proyecto seleccionado',
+      portfolio: 'Portafolio activo',
+      delays: 'Proyectos con retrasos',
+      plan: 'Proyectos No PETI',
+      furag: 'Proyectos por dependencia',
+      risks: 'Proyectos con cierre',
+    };
+
+    return {
+      scopeLabel: isProjectReport ? 'Requiere proyecto' : 'Portafolio',
+      statusLabel,
+      filterLabel: filterLabelByKind[selectedBehavior.kind] || 'Filtro institucional',
+      projectLabel: isProjectReport
+        ? selectedProject
+          ? `${selectedProject.id} · ${selectedProject.nombre}`
+          : 'Sin proyecto seleccionado'
+        : 'No aplica',
+      detailLabel: isProjectReport
+        ? selectedProject?.dependencia || 'Sin dependencia'
+        : selectedBehavior.kind === 'risks'
+          ? 'Tratamiento de riesgos'
+          : selectedBehavior.kind === 'furag'
+            ? 'Respuesta por dependencia'
+            : 'Consulta institucional',
+    };
+  }, [loadingReport, reportData, reportError, selectedBehavior, selectedProject, selectedReport]);
 
   const reportCards = useMemo(() => {
     if (!selectedBehavior || !reportData) {
@@ -345,12 +369,7 @@ const ReportsPage = () => {
     }
 
     if (selectedBehavior.kind === 'project') {
-      return [
-        { label: 'Proyecto', value: reportData.nombre, tone: 'primary' },
-        { label: 'Avance total', value: toPercent(reportData.avanceTotal), tone: 'success' },
-        { label: 'Director', value: reportData.directorNombre, tone: 'neutral' },
-        { label: 'Entregables vencidos', value: reportData.entregablesVencidos?.length ?? 0, tone: 'warning' },
-      ];
+      return [];
     }
 
     if (selectedBehavior.kind === 'portfolio') {
@@ -381,36 +400,54 @@ const ReportsPage = () => {
     }
 
     if (selectedBehavior.kind === 'plan') {
+      const noPetiProjects = projects.filter((project) => !project?.peti);
+      const withPlan = noPetiProjects.filter((project) => project?.planComunicacionesPdf).length;
       return [
-        { label: 'Proyecto', value: reportData.nombre, tone: 'primary' },
-        { label: 'Dependencia', value: reportData.dependencia, tone: 'neutral' },
-        { label: 'Plan PDF', value: reportData.planPdfUrl ? 'Disponible' : 'No cargado', tone: reportData.planPdfUrl ? 'success' : 'warning' },
-        { label: 'Estado', value: reportData.planPdfUrl ? 'Listo para descargar' : 'Pendiente', tone: 'primary' },
+        { label: 'Proyectos No PETI', value: noPetiProjects.length, tone: 'primary' },
+        { label: 'Con plan', value: withPlan, tone: 'success' },
+        { label: 'Sin plan', value: Math.max(noPetiProjects.length - withPlan, 0), tone: 'warning' },
+        { label: 'Filtro', value: 'Proyectos No PETI', tone: 'neutral' },
       ];
     }
 
     if (selectedBehavior.kind === 'furag') {
+      const dependency = selectedProject?.dependencia || reportData?.dependencia || '';
+      const furagProjects = projects.filter((project) => sameText(project?.dependencia, dependency));
+      const responder = furagProjects.filter((project) => {
+        const furag = project?.furag || {};
+        const keys = [
+          'infraestructuraDatos',
+          'interoperabilidad',
+          'digitalizacionAutomatizacion',
+          'contratacionPublica',
+          'serviciosNube',
+          'sandbox',
+          'tecnologiasEmergentes',
+        ];
+        return keys.every((key) => String(furag[key] || '').trim() !== '');
+      }).length;
       return [
-        { label: 'Es PETI', value: reportData.esPeti ? 'SI' : 'NO', tone: reportData.esPeti ? 'success' : 'warning' },
-        { label: 'Estrategia PETI', value: reportData.estrategiaPeti || 'No disponible', tone: 'neutral' },
-        { label: 'Vigencia', value: reportData.vigenciaPeti || 'No disponible', tone: 'primary' },
-        { label: 'Objetivo general', value: reportData.objetivoGeneral ? 'Definido' : 'No disponible', tone: 'primary' },
+        { label: 'Dependencia', value: dependency || 'No disponible', tone: 'neutral' },
+        { label: 'Proyectos', value: furagProjects.length, tone: 'primary' },
+        { label: 'Responden FURAG', value: responder, tone: 'success' },
+        { label: 'No responden', value: Math.max(furagProjects.length - responder, 0), tone: 'warning' },
       ];
     }
 
     if (selectedBehavior.kind === 'risks') {
       const riskRows = Array.isArray(reportData) ? reportData : [];
-      const porNivel = countBy(riskRows, (item) => normalizeRiskLevel(item.nivel));
+      const conTratamiento = riskRows.filter((item) => Boolean(item.diligencioTratamiento)).length;
+      const sinTratamiento = Math.max(riskRows.length - conTratamiento, 0);
       return [
-        { label: 'Riesgos totales', value: riskRows.length, tone: 'danger' },
-        { label: 'Bajo', value: porNivel.BAJO || 0, tone: 'success' },
-        { label: 'Moderado', value: porNivel.MODERADO || 0, tone: 'warning' },
-        { label: 'Alto / Extremo', value: `${porNivel.ALTO || 0} / ${porNivel.EXTREMO || 0}`, tone: 'danger' },
+        { label: 'Proyectos con cierre', value: riskRows.length, tone: 'danger' },
+        { label: 'Diligenciaron tratamiento', value: conTratamiento, tone: 'success' },
+        { label: 'No diligenciaron', value: sinTratamiento, tone: 'warning' },
+        { label: 'Filtro', value: 'Proyectos con cierre', tone: 'neutral' },
       ];
     }
 
     return [];
-  }, [selectedBehavior, reportData, projects.length]);
+  }, [selectedBehavior, reportData, projects, selectedProject]);
 
   const handleProjectChange = (projectId) => {
     setSelectedProjectId(projectId);
@@ -437,21 +474,21 @@ const ReportsPage = () => {
   };
 
   const openPdfPreview = async () => {
-    if (!reportData || !previewRef.current) return;
+    if (!selectedBehaviorDownload) return;
     setReportActionBusy(true);
     setReportError('');
     try {
-      const html2pdf = await loadHtml2Pdf();
-      const filename = selectedBehavior?.filename(effectiveProjectId) || 'reporte.pdf';
-      const blob = await html2pdf()
-        .set(buildPdfOptions(filename))
-        .from(previewRef.current)
-        .outputPdf('blob');
+      const blob = await selectedBehaviorDownload();
       const previewUrl = window.URL.createObjectURL(blob);
-      setPreviewModal({
-        open: true,
-        title: selectedReport?.nombre || selectedBehavior?.title || 'Reporte',
-        url: previewUrl,
+      setPreviewModal((current) => {
+        if (current.url) {
+          window.URL.revokeObjectURL(current.url);
+        }
+        return {
+          open: true,
+          title: selectedReport?.nombre || selectedBehavior?.title || 'Reporte',
+          url: previewUrl,
+        };
       });
     } catch {
       setReportError('No fue posible generar la vista previa del PDF.');
@@ -461,16 +498,13 @@ const ReportsPage = () => {
   };
 
   const handleDownload = async () => {
-    if (!reportData || !previewRef.current) return;
+    if (!selectedBehaviorDownload) return;
     setDownloadBusy(true);
     setReportError('');
     try {
-      const html2pdf = await loadHtml2Pdf();
       const filename = selectedBehavior?.filename(effectiveProjectId) || 'reporte.pdf';
-      await html2pdf()
-        .set(buildPdfOptions(filename))
-        .from(previewRef.current)
-        .save();
+      const blob = await selectedBehaviorDownload();
+      triggerBlobDownload(blob, filename);
     } catch {
       setReportError('No fue posible descargar el reporte.');
     } finally {
@@ -558,147 +592,151 @@ const ReportsPage = () => {
         </aside>
 
         <main className="reports-page__content">
-          <section className="reports-page__panel">
-            <div className="reports-page__panel-header">
-              <div>
-                <p className="reports-page__panel-kicker">Plantilla seleccionada</p>
-                <h2>{selectedReport ? selectedReport.nombre : 'Reporte'}</h2>
-                <p>{selectedReport?.descripcion || 'Seleccione una plantilla para ver su configuración y salida.'}</p>
-              </div>
-              <div className="reports-page__panel-pills">
+          <section className="reports-page__hero-panel">
+            <div className="reports-page__hero-copy">
+              <p className="reports-page__panel-kicker">Plantilla seleccionada</p>
+              <h2>{selectedReport ? selectedReport.nombre : 'Reporte'}</h2>
+              <p className="reports-page__hero-description">
+                {selectedReport?.descripcion || 'Seleccione una plantilla para ver su configuración y salida.'}
+              </p>
+
+              <div className="reports-page__panel-pills reports-page__panel-pills--tight">
                 <span className="reports-page__pill">
                   {selectedBehavior?.requiresProject ? 'Requiere proyecto' : 'Portafolio'}
                 </span>
                 <span className="reports-page__pill reports-page__pill--outline">
                   {selectedReportId}
                 </span>
+                {reportContext?.statusLabel && (
+                  <span className="reports-page__pill reports-page__pill--muted">
+                    {reportContext.statusLabel}
+                  </span>
+                )}
               </div>
-            </div>
 
-            {selectedBehavior?.requiresProject && (
-              <div className="reports-page__project-picker">
-                <div className="reports-page__project-picker-header">
-                  <div>
-                    <span className="reports-page__project-picker-label">Proyecto</span>
-                    <strong>{selectedProject?.nombre || 'Seleccione un proyecto'}</strong>
-                  </div>
-                  <button
-                    type="button"
-                    className="reports-page__secondary-button"
-                    onClick={() => setSelectedProjectId(selectedProject?.id || '')}
-                    disabled={!selectedProject}
-                  >
-                    <FolderSearch size={16} />
-                    Usar seleccionado
-                  </button>
-                </div>
-                <div className="reports-page__project-results">
-                  {loadingProjects ? (
-                    <div className="reports-page__project-empty">Cargando proyectos...</div>
-                  ) : filteredProjects.length > 0 ? (
-                    filteredProjects.map((project) => {
-                      const isActive = project.id === effectiveProjectId;
-                      return (
-                        <button
-                          key={project.id}
-                          type="button"
-                          className={`reports-page__project-chip ${isActive ? 'is-active' : ''}`}
-                          onClick={() => handleProjectChange(project.id)}
-                        >
-                          <span className="reports-page__project-chip-main">{project.id}</span>
-                          <span className="reports-page__project-chip-sub">
-                            {project.nombre} · {project.dependencia}
-                          </span>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="reports-page__project-empty">No hay proyectos que coincidan con la búsqueda.</div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="reports-page__actions-row">
-              <button
-                type="button"
-                className="reports-page__primary-button"
-                onClick={openPdfPreview}
-                disabled={reportActionBusy || downloadBusy || !reportData || loadingReport}
-              >
-                <Eye size={16} />
-                {reportActionBusy ? 'Generando...' : 'Vista previa PDF'}
-              </button>
-              <button
-                type="button"
-                className="reports-page__download-button"
-                onClick={handleDownload}
-                disabled={reportActionBusy || downloadBusy || !reportData || loadingReport}
-              >
-                <Download size={16} />
-                {downloadBusy ? 'Generando PDF...' : selectedBehavior?.downloadLabel || 'Descargar PDF'}
-              </button>
-              {selectedReportId === 'TODOS_LOS_PROYECTOS' && (
+              <div className="reports-page__actions-row">
                 <button
                   type="button"
-                  className="reports-page__ghost-button reports-page__ghost-button--accent"
-                  onClick={handleSecondaryDownload}
-                  disabled={downloadBusy || loadingReport}
+                  className="reports-page__primary-button"
+                  onClick={openPdfPreview}
+                  disabled={reportActionBusy || downloadBusy || !reportData || loadingReport}
                 >
-                  <FileSpreadsheet size={16} />
-                  Exportar Excel
+                  <Eye size={16} />
+                  {reportActionBusy ? 'Generando...' : 'Vista previa PDF'}
                 </button>
-              )}
+                <button
+                  type="button"
+                  className="reports-page__download-button"
+                  onClick={handleDownload}
+                  disabled={reportActionBusy || downloadBusy || !reportData || loadingReport}
+                >
+                  <Download size={16} />
+                  {downloadBusy ? 'Generando PDF...' : selectedBehavior?.downloadLabel || 'Descargar PDF'}
+                </button>
+                {selectedReportId === 'TODOS_LOS_PROYECTOS' && (
+                  <button
+                    type="button"
+                    className="reports-page__ghost-button reports-page__ghost-button--accent"
+                    onClick={handleSecondaryDownload}
+                    disabled={downloadBusy || loadingReport}
+                  >
+                    <FileSpreadsheet size={16} />
+                    Exportar Excel
+                  </button>
+                )}
+              </div>
             </div>
 
-            {reportError && (
-              <div className="reports-page__alert">
-                <ShieldAlert size={18} />
-                <span>{reportError}</span>
+            <div className="reports-page__hero-context">
+              <div className="reports-page__hero-context-item">
+                <span>Estado</span>
+                <strong>{reportContext?.statusLabel || 'Sin datos'}</strong>
               </div>
-            )}
-          </section>
-
-          <section className="reports-page__metrics">
-            {(reportCards.length > 0 ? reportCards : blankMetricCards).map((card) => (
-              <article key={card.label} className={`reports-page__metric-card tone-${card.tone}`}>
-                <span>{card.label}</span>
-                <strong>{card.value}</strong>
-              </article>
-            ))}
-          </section>
-
-          <section className="reports-page__panel reports-page__panel--body">
-            <div className="reports-page__panel-header reports-page__panel-header--compact">
-              <div>
-                <p className="reports-page__panel-kicker">Vista previa del documento</p>
-                <h2>{selectedBehavior?.title || 'Reporte'}</h2>
+              <div className="reports-page__hero-context-item">
+                <span>Alcance</span>
+                <strong>{reportContext?.scopeLabel || 'Portafolio'}</strong>
               </div>
-              <span className={`reports-page__pill ${loadingReport ? '' : 'reports-page__pill--outline'}`}>
-                {loadingReport ? 'Actualizando...' : 'Listo'}
-              </span>
+              <div className="reports-page__hero-context-item">
+                <span>Filtro</span>
+                <strong>{reportContext?.filterLabel || 'Consulta institucional'}</strong>
+              </div>
+              <div className="reports-page__hero-context-item">
+                <span>Proyecto</span>
+                <strong>{reportContext?.projectLabel || 'No aplica'}</strong>
+              </div>
+              <div className="reports-page__hero-context-item reports-page__hero-context-item--wide">
+                <span>Detalle</span>
+                <strong>{reportContext?.detailLabel || 'Disponible en el backend'}</strong>
+              </div>
             </div>
-
-            {loadingReport && (
-              <div className="reports-page__loading">Cargando información del reporte...</div>
-            )}
-
-            {!loadingReport && !reportData && (
-              <div className="reports-page__empty">
-                Seleccione una plantilla y, si aplica, un proyecto para ver la vista previa del documento.
-              </div>
-            )}
-
-            {!loadingReport && reportData && (
-              <div ref={previewRef}>
-                <ReportDocumentPreview
-                  reportId={selectedReportId}
-                  reportData={reportData}
-                  selectedProject={selectedProject}
-                />
-              </div>
-            )}
           </section>
+
+          {selectedBehavior?.requiresProject && (
+            <section className="reports-page__panel reports-page__project-panel">
+              <div className="reports-page__project-panel-header">
+                <div>
+                  <p className="reports-page__panel-kicker">Proyecto asociado</p>
+                  <h2>{selectedProject?.nombre || 'Seleccione un proyecto'}</h2>
+                  <p>
+                    {selectedProject
+                      ? `${selectedProject.id} · ${selectedProject.dependencia || 'Sin dependencia'}`
+                      : 'El reporte requiere seleccionar un proyecto para generar la vista previa y la descarga.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="reports-page__secondary-button"
+                  onClick={() => setSelectedProjectId(selectedProject?.id || '')}
+                  disabled={!selectedProject}
+                >
+                  <FolderSearch size={16} />
+                  Usar seleccionado
+                </button>
+              </div>
+              <div className="reports-page__project-results">
+                {loadingProjects ? (
+                  <div className="reports-page__project-empty">Cargando proyectos...</div>
+                ) : filteredProjects.length > 0 ? (
+                  filteredProjects.map((project) => {
+                    const isActive = project.id === effectiveProjectId;
+                    return (
+                      <button
+                        key={project.id}
+                        type="button"
+                        className={`reports-page__project-chip ${isActive ? 'is-active' : ''}`}
+                        onClick={() => handleProjectChange(project.id)}
+                      >
+                        <span className="reports-page__project-chip-main">{project.id}</span>
+                        <span className="reports-page__project-chip-sub">
+                          {project.nombre} · {project.dependencia}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="reports-page__project-empty">No hay proyectos que coincidan con la búsqueda.</div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {reportError && (
+            <section className="reports-page__alert">
+              <ShieldAlert size={18} />
+              <span>{reportError}</span>
+            </section>
+          )}
+
+          {reportCards.length > 0 && (
+            <section className="reports-page__metrics">
+              {reportCards.map((card) => (
+                <article key={card.label} className={`reports-page__metric-card tone-${card.tone}`}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                </article>
+              ))}
+            </section>
+          )}
         </main>
       </div>
 
@@ -738,3 +776,4 @@ const ReportsPage = () => {
 };
 
 export default ReportsPage;
+

@@ -41,6 +41,8 @@ Editar `.env` y configurar los valores según tu entorno:
 ```env
 VITE_API_URL=http://localhost:8080/api/v1
 VITE_ENABLE_AUTH=false
+VITE_KEYCLOAK_RESPONSE_TYPE=code
+VITE_KEYCLOAK_SCOPE=openid profile email
 ```
 
 ##  Scripts Disponibles
