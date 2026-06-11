@@ -1,5 +1,3 @@
-import React from 'react';
-
 const ROLES_EQUIPO = [
   'Analista de Sistemas',
   'Desarrollador Senior',

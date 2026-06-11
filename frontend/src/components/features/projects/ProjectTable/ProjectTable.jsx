@@ -1,7 +1,6 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ProjectTable.css';
-import { Plus, ChevronRight } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 const ProjectTable = ({ projects = [], loading = false }) => {
   const navigate = useNavigate();

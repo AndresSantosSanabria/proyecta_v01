@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { AuthProvider as AppAuthProvider } from './context/AuthContext.jsx'
-import { auth, decodeJwtPayload } from './utils/auth'
+import { auth, extractRolesFromToken } from './utils/auth'
 import './index.css'
 import App from './App.jsx'
 
@@ -19,18 +19,8 @@ const queryClient = new QueryClient({
 
 auth.getUser()
   .then((user) => {
-    const payload = decodeJwtPayload(user?.access_token)
-    console.log('[AUTH START] user =', user)
-    console.log('[AUTH START] access_token exists =', Boolean(user?.access_token))
-    console.log('[AUTH START] access_token length =', user?.access_token?.length ?? 0)
-    console.log('[AUTH START] token summary =', {
-      iss: payload?.iss,
-      azp: payload?.azp,
-      exp: payload?.exp,
-      preferred_username: payload?.preferred_username,
-      realm_roles: payload?.realm_access?.roles ?? [],
-      resource_roles: payload?.resource_access,
-    })
+    const tokenRoles = extractRolesFromToken(user?.access_token)
+    console.info('[AUTH START] roles token =', tokenRoles)
   })
   .catch((error) => {
     console.error('[AUTH START] error reading user =', error)

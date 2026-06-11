@@ -1,26 +1,30 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Verificar localStorage o preferencia del sistema
-    const savedTheme = localStorage.getItem('theme');
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const savedTheme = window.localStorage.getItem('theme');
     if (savedTheme) {
       return savedTheme === 'dark';
     }
+
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
   useEffect(() => {
-    // Aplicar clase al elemento root (html o body)
     const root = window.document.documentElement;
     if (isDarkMode) {
       root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      window.localStorage.setItem('theme', 'dark');
     } else {
       root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      window.localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 

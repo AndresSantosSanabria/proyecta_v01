@@ -13,7 +13,19 @@ const DEPENDENCIAS = [
   'Talento Humano',
 ];
 
-const Paso1DatosGenerales = ({ data, onChange, errors }) => {
+const getDirectorId = (director) => director?.id ?? director?.usuarioId ?? director?.userId ?? '';
+const getDirectorName = (director) => director?.nombre || director?.name || director?.username || '';
+const getDirectorEmail = (director) => director?.correo || director?.email || '';
+const getDirectorRole = (director) => director?.rolNombre || director?.rolCodigo || director?.rol || '';
+
+const Paso1DatosGenerales = ({
+  data,
+  onChange,
+  errors,
+  directorOptions = [],
+  directorsLoading = false,
+  directorsError = '',
+}) => {
   const [dependenciaOpen, setDependenciaOpen] = useState(false);
   const dependenciaRef = useRef(null);
 
@@ -57,6 +69,15 @@ const Paso1DatosGenerales = ({ data, onChange, errors }) => {
   const handleObjetivoRemove = (index) => {
     const nuevos = (data.objetivosEspecificos || []).filter((_, i) => i !== index);
     onChange({ objetivosEspecificos: nuevos });
+  };
+
+  const handleDirectorSelect = (value) => {
+    const selectedDirector = directorOptions.find((director) => String(getDirectorId(director)) === String(value));
+    onChange({
+      directorUsuarioId: value,
+      director: selectedDirector ? getDirectorName(selectedDirector) : '',
+      correoDirector: selectedDirector ? getDirectorEmail(selectedDirector) : '',
+    });
   };
 
   return (
@@ -139,25 +160,45 @@ const Paso1DatosGenerales = ({ data, onChange, errors }) => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Director TIC - Nombre *</label>
-          <input
-            className={`form-input ${errors.director ? 'input-error' : ''}`}
-            value={data.director || ''}
-            onChange={(e) => handleChange('director', e.target.value)}
-            placeholder="Nombre del director TIC"
-          />
-          {errors.director && <span className="error-text">{errors.director}</span>}
+          <label className="form-label">Director TIC *</label>
+          <select
+            className={`form-input ${errors.directorUsuarioId || errors.director ? 'input-error' : ''}`}
+            value={data.directorUsuarioId || ''}
+            onChange={(e) => handleDirectorSelect(e.target.value)}
+            disabled={directorsLoading || directorOptions.length === 0}
+          >
+            <option value="">
+              {directorsLoading ? 'Cargando directores...' : 'Seleccione un usuario director'}
+            </option>
+            {directorOptions.map((director) => {
+              const id = getDirectorId(director);
+              const role = getDirectorRole(director);
+              return (
+                <option key={id || getDirectorEmail(director)} value={id}>
+                  {getDirectorName(director)}{role ? ` - ${role}` : ''}
+                </option>
+              );
+            })}
+          </select>
+          {directorsError && <span className="error-text">{directorsError}</span>}
+          {!directorsLoading && !directorsError && directorOptions.length === 0 && (
+            <span className="help-text">No hay usuarios con rol directivo disponibles para asignar.</span>
+          )}
+          {(errors.directorUsuarioId || errors.director) && (
+            <span className="error-text">{errors.directorUsuarioId || errors.director}</span>
+          )}
         </div>
 
         <div className="form-group">
           <label className="form-label">Director TIC - Correo Electrónico *</label>
           <input
             type="email"
-            className={`form-input ${errors.correoDirector ? 'input-error' : ''}`}
+            className={`form-input form-input-muted ${errors.correoDirector ? 'input-error' : ''}`}
             value={data.correoDirector || ''}
-            onChange={(e) => handleChange('correoDirector', e.target.value)}
+            readOnly
             placeholder="correo@cundinamarca.gov.co"
           />
+          <span className="help-text">El correo se toma del usuario seleccionado.</span>
           {errors.correoDirector && <span className="error-text">{errors.correoDirector}</span>}
         </div>
       </div>

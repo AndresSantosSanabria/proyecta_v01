@@ -14,7 +14,9 @@ import {
   Calendar,
   AlertTriangle,
   CheckSquare,
-  BarChart3
+  BarChart3,
+  BellRing,
+  UserCircle2
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import dashboardService from '../../../services/dashboardService';
@@ -22,13 +24,13 @@ import { useAuthContext } from '../../../context/AuthContext';
 import { usePermission } from '../../../hooks/usePermission';
 import './Sidebar.css';
 
-const Sidebar = () => {
+const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [visibleProjectCount, setVisibleProjectCount] = useState(0);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
-  const { user, roles, logout, isAdminLocal, transversal, hasRole, assignedProjects } = useAuthContext();
+  const { user, roles, primaryRole, logout, isAdminLocal, transversal, hasRole, assignedProjects } = useAuthContext();
   const canViewDashboard = usePermission('DASHBOARD:VER');
   const isDirectorProjectRole = hasRole('DIRECTOR_PROYECTO');
   const canViewProjects = usePermission('PROYECTO:VER')
@@ -45,6 +47,7 @@ const Sidebar = () => {
     || transversal
     || hasRole('ADMIN')
     || canConfigureByPermission;
+  const isDirectorLimited = isDirectorProjectRole && !isAdminLike;
 
   const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
@@ -88,7 +91,7 @@ const Sidebar = () => {
   };
 
   const displayName = user?.profile?.name || user?.profile?.preferred_username || 'Usuario';
-  const displayRole = roles.length ? roles.join(', ') : 'Sin rol detectado';
+  const displayRole = primaryRole || (roles.length ? roles.join(', ') : '');
   const initials = displayName
     .split(' ')
     .filter(Boolean)
@@ -96,40 +99,56 @@ const Sidebar = () => {
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'PR';
 
+  const compactItems = (items) => items.filter(Boolean);
+
   const menuItems = [
     {
       category: 'PRINCIPAL',
-      items: [
+      items: compactItems([
         canViewDashboard ? { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> } : null,
         canViewProjects ? { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: visibleProjectCount } : null,
-      ]
+      ])
+    },
+    {
+      category: 'MÓVIL',
+      items: compactItems([
+        { name: 'Notificaciones', path: '/notifications', icon: <BellRing size={22} /> },
+        { name: 'Perfil', path: '/profile', icon: <UserCircle2 size={22} /> },
+      ])
     },
     {
       category: 'MODULOS',
       items: currentProjectId ? [
         canViewProjects ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
-        canViewProjects ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
-        canViewProjects ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
-        canCloseProject ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
+        !isDirectorLimited && canViewProjects ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
+        !isDirectorLimited && canViewProjects ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
+        !isDirectorLimited && canCloseProject ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
       ].filter(Boolean) : []
     },
     {
       category: 'CONSULTAS',
-      items: [
+      items: compactItems([
         canViewReports ? { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> } : null,
         canViewAnalytics ? { name: 'Analíticas', path: '/analytics', icon: <BarChart3 size={22} /> } : null,
-      ]
+      ])
     },
     ...(canConfigure ? [{
       category: 'ADMINISTRACION',
-      items: [
+      items: compactItems([
         { name: 'Configuracion Seguridad', path: '/admin/configuracion', icon: <ShieldCheck size={22} /> },
-      ]
+      ])
     }] : [])
   ].filter((group) => group.items.length > 0);
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <>
+      <button
+        type="button"
+        className={`sidebar-backdrop mobile-only ${mobileOpen ? 'open' : ''}`}
+        onClick={onMobileClose}
+        aria-label="Cerrar menú"
+      />
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-header">
         <div className="brand-container">
           <div className="brand-logo">
@@ -156,6 +175,11 @@ const Sidebar = () => {
                 key={item.name}
                 to={item.path}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  if (mobileOpen && onMobileClose) {
+                    onMobileClose();
+                  }
+                }}
               >
                 <span className="nav-icon">{item.icon}</span>
                 {!isCollapsed && (
@@ -177,7 +201,7 @@ const Sidebar = () => {
           {!isCollapsed && (
             <div className="user-info">
               <span className="user-name">{displayName}</span>
-              <span className="user-role">{displayRole}</span>
+              {displayRole ? <span className="user-role">{displayRole}</span> : null}
             </div>
           )}
         </div>
@@ -202,6 +226,7 @@ const Sidebar = () => {
         </div>
       </div>
     </aside>
+    </>
   );
 };
 

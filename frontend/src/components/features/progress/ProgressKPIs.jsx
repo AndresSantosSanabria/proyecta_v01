@@ -1,4 +1,4 @@
-import { Lock, TrendingUp, TrendingDown, Percent, CircleDot } from 'lucide-react';
+import { Lock, TrendingUp, TrendingDown, Percent } from 'lucide-react';
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -22,9 +22,6 @@ const ProgressKPIs = ({ progressData }) => {
   const eficiencia = toNumber(progressData.eficiencia ?? 0);
 
   const completionRatio = programado > 0 ? Math.min(100, (ejecutado / programado) * 100) : 100;
-  const atrasoRatio = progressData.entregablesTotal
-    ? (toNumber(progressData.entregablesAtrasados) / toNumber(progressData.entregablesTotal)) * 100
-    : 0;
   const eficienciaRatio = Math.min(100, toDisplayPercent(eficiencia));
 
   return (
@@ -88,20 +85,6 @@ const ProgressKPIs = ({ progressData }) => {
           <div
             className={`progress-bar-fill ${eficiencia >= 0.8 ? 'success-bg' : eficiencia >= 0.5 ? 'warning-bg' : 'danger-bg'}`}
             style={{ width: `${eficienciaRatio}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="kpi-card progress-card meta-card">
-        <div className="kpi-content">
-          <h3 className="kpi-title">ESTADO</h3>
-          <div className={`kpi-value ${progressData.estado === 'ATRASO' ? 'danger' : 'success'}`}>{progressData.estado || 'EN_TIEMPO'}</div>
-          <p className="kpi-detail lock-detail"><CircleDot size={12} /> {toNumber(progressData.entregablesAtrasados)} entregables atrasados</p>
-        </div>
-        <div className="kpi-progress-container">
-          <div
-            className={`progress-bar-fill ${progressData.estado === 'ATRASO' ? 'danger-bg' : 'success-bg'}`}
-            style={{ width: `${progressData.estado === 'ATRASO' ? Math.min(100, atrasoRatio) : 100}%` }}
           />
         </div>
       </div>

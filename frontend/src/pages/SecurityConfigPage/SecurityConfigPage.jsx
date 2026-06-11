@@ -17,6 +17,7 @@ import {
 import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
 import securityService from '../../services/securityService';
+import { decodeJwtPayload } from '../../utils/auth';
 import './SecurityConfigPage.css';
 
 const SECURITY_TABS = {
@@ -81,10 +82,81 @@ const roleLabels = {
   OTROS: 'Otros permisos',
 };
 
+const roleDisplayLabels = {
+  ADMIN: 'Administrador',
+  DIRECTOR_PROYECTO: 'Director de Proyecto',
+  DIRECTOR_TECNICO: 'Director Técnico',
+  LIDER_TECNICO: 'Líder Técnico',
+  GESTOR_TIC: 'Gestor TIC',
+  CONSULTA: 'Consulta',
+};
+
 const normalizeRoleValue = (value) => {
   if (!value) return '';
   if (Array.isArray(value)) return value[0] || '';
   return value.toString().split(',')[0].trim();
+};
+
+const normalizeComparableRole = (value) => String(value || '')
+  .trim()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toUpperCase()
+  .replace(/^ROLE[\s_-]+/, '')
+  .replace(/[^A-Z0-9]+/g, '_')
+  .replace(/^_+|_+$/g, '');
+
+const formatRoleLabel = (value) => {
+  const normalized = normalizeRoleValue(value);
+  if (!normalized) return '';
+  return roleDisplayLabels[normalized] || normalized
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const formatAssignmentCargoLabel = (value) => formatRoleLabel(value);
+
+const isDirectorEquivalentRole = (value) => ['DIRECTOR_PROYECTO', 'LIDER_TECNICO', 'DIRECTOR_TECNICO']
+  .includes(normalizeComparableRole(value));
+
+const roleTokensMatch = (sourceValue, roleValue) => {
+  const source = normalizeComparableRole(sourceValue);
+  const candidate = normalizeComparableRole(roleValue);
+  if (!source || !candidate) return false;
+
+  if (source === candidate) {
+    return true;
+  }
+
+  const sourceTokens = source.split('_').filter(Boolean);
+  const candidateTokens = candidate.split('_').filter(Boolean);
+  if (sourceTokens.length === 0 || candidateTokens.length === 0) {
+    return false;
+  }
+
+  return sourceTokens.every((token) => candidateTokens.includes(token))
+    || candidateTokens.every((token) => sourceTokens.includes(token));
+};
+
+const resolveClosestExistingRole = (sources, availableRoles) => {
+  const sourceList = Array.isArray(sources) ? sources : [sources];
+  const rolesList = Array.isArray(availableRoles) ? availableRoles : [];
+
+  if (rolesList.length === 0) {
+    return null;
+  }
+
+  for (const sourceValue of sourceList) {
+    const foundRole = rolesList.find((role) => roleTokensMatch(sourceValue, role?.codigo) || roleTokensMatch(sourceValue, role?.nombre));
+    if (foundRole) {
+      return foundRole;
+    }
+  }
+
+  return null;
 };
 
 const formatDateTime = (value) => {
@@ -105,9 +177,46 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
-const getUserRoleCode = (user) => normalizeRoleValue(user?.rolCodigo || user?.rol || user?.role || user?.roles || '');
+const getUserRoleCode = (user, fallbackRole = '') => normalizeRoleValue(user?.rolCodigo || user?.rol || user?.role || user?.roles || '') || fallbackRole;
 
-const getUserRoleLabel = (user) => user?.rolNombre || user?.rolLabel || user?.rolCodigo || user?.rol || user?.role || user?.roles || '';
+const getUserRoleLabel = (user, fallbackRole = '') => user?.rolNombre || user?.rolLabel || formatRoleLabel(user?.rolCodigo || user?.rol || user?.role || user?.roles || '') || formatRoleLabel(fallbackRole);
+
+const getExplicitUserRoleSources = (user) => [
+  user?.rolCodigo,
+  user?.rol,
+  user?.role,
+  user?.roles,
+  user?.rolNombre,
+  user?.rolLabel,
+]
+  .flatMap((value) => {
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => (typeof item === 'object' && item !== null ? [item.codigo, item.nombre] : item));
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      return [value.codigo, value.nombre];
+    }
+
+    return [value];
+  })
+  .map((value) => String(value || '').trim())
+  .filter(Boolean);
+
+const getUserRoleSearchSources = (user) => [
+  ...getExplicitUserRoleSources(user),
+  user?.username,
+  user?.correo,
+  user?.nombre,
+  user?.email,
+]
+  .map((value) => String(value || '').trim())
+  .filter(Boolean);
+
+const isSameUsername = (left, right) => {
+  if (!left || !right) return false;
+  return left.toString().trim().toLowerCase() === right.toString().trim().toLowerCase();
+};
 
 const getUserLastAccess = (user) => (
   user?.ultimoAcceso
@@ -214,7 +323,7 @@ const getProjectId = (project) => project?.codigo || project?.id || project?.pro
 const getProjectName = (project) => project?.nombre || project?.nombreProyecto || project?.name || getProjectId(project);
 
 const SecurityConfigPage = () => {
-  const { permissions: authPermissions, isAdminLocal, transversal, hasRole } = useAuthContext();
+  const { permissions: authPermissions, isAdminLocal, transversal, hasRole, user: authUser, accessToken, businessTokenRoles, primaryRole } = useAuthContext();
 
   const [activeSection, setActiveSection] = useState(SECURITY_TABS.USERS);
   const [roles, setRoles] = useState([]);
@@ -266,6 +375,20 @@ const SecurityConfigPage = () => {
     || hasRole('ADMIN')
     || authPermissions.includes('CONFIGURACION:VER')
     || authPermissions.includes('SISTEMA:CONFIGURAR');
+  const tokenPayload = useMemo(() => decodeJwtPayload(accessToken), [accessToken]);
+  const tokenUsername = [
+    tokenPayload?.preferred_username,
+    tokenPayload?.username,
+    tokenPayload?.email,
+    tokenPayload?.sub,
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .find(Boolean) || '';
+  const authenticatedUsername = tokenUsername
+    || authUser?.profile?.preferred_username
+    || authUser?.profile?.username
+    || authUser?.profile?.email
+    || '';
 
   const selectedRole = useMemo(
     () => roles.find((role) => role.codigo === selectedRoleCode) || null,
@@ -280,22 +403,40 @@ const SecurityConfigPage = () => {
   const permissionGroups = useMemo(() => groupPermissions(permissions), [permissions]);
   const isUserEditorOpen = Boolean(selectedUser) && !creatingUser;
   const isParameterEditorOpen = parameterEditorOpen;
+  const authenticatedTokenRoleCode = businessTokenRoles[0] || primaryRole || '';
+  const authenticatedTokenRoleObject = authenticatedTokenRoleCode
+    ? {
+        codigo: authenticatedTokenRoleCode,
+        nombre: formatRoleLabel(authenticatedTokenRoleCode),
+      }
+    : null;
+  const resolveUserRoleObject = (user) => {
+    if (isSameUsername(user?.username, authenticatedUsername) || isSameUsername(user?.username, tokenUsername)) {
+      if (authenticatedTokenRoleObject) {
+        return authenticatedTokenRoleObject;
+      }
+    }
+
+    return resolveClosestExistingRole(getUserRoleSearchSources(user), roles);
+  };
+  const resolveUserRoleCode = (user) => resolveUserRoleObject(user)?.codigo || '';
+  const resolveUserRoleLabel = (user) => resolveUserRoleObject(user)?.nombre || '';
   const selectedAssignmentUser = useMemo(
     () => users.find((user) => user.username === assignmentForm.username) || null,
     [assignmentForm.username, users]
   );
-  const selectedAssignmentUserRole = getUserRoleCode(selectedAssignmentUser);
-  const shouldRestrictToDirectors = assignmentForm.cargo?.toUpperCase() === 'DIRECTOR_PROYECTO';
+  const selectedAssignmentUserRole = resolveUserRoleCode(selectedAssignmentUser);
+  const shouldRestrictToDirectors = isDirectorEquivalentRole(assignmentForm.cargo);
   const selectedAssignmentUserRoleKey = selectedAssignmentUserRole.toUpperCase();
   const isAssignmentsModalOpen = canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS;
   const isFullscreenModalOpen = isUserEditorOpen || isAssignmentsModalOpen;
-  const assignableUsers = useMemo(() => {
+  const assignableUsers = (() => {
     if (!shouldRestrictToDirectors) {
       return users;
     }
 
-    return users.filter((user) => getUserRoleCode(user).toUpperCase() === 'DIRECTOR_PROYECTO');
-  }, [shouldRestrictToDirectors, users]);
+    return users.filter((user) => isDirectorEquivalentRole(resolveUserRoleCode(user)));
+  })();
   const projectOptions = useMemo(
     () => [...projects].sort((left, right) => {
       const leftName = getProjectName(left);
@@ -357,6 +498,43 @@ const SecurityConfigPage = () => {
         : [];
       const cargosData = cargosResult.status === 'fulfilled' ? normalizeAssignmentCargos(cargosResult.value) : [];
       const parametersData = parametersResult.status === 'fulfilled' ? extractCollection(parametersResult.value) : [];
+      const authenticatedUsernames = [
+        authUser?.profile?.preferred_username,
+        authUser?.profile?.username,
+        authUser?.profile?.email,
+        authUser?.profile?.sub,
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+      const resolvedUsersData = usersData.map((item) => {
+        const username = String(item?.username || '').trim().toLowerCase();
+        const isAuthenticatedUser = authenticatedUsernames.includes(username);
+        const tokenRoleObject = isAuthenticatedUser && authenticatedTokenRoleCode
+          ? {
+              codigo: authenticatedTokenRoleCode,
+              nombre: formatRoleLabel(authenticatedTokenRoleCode),
+            }
+          : null;
+        const explicitRoleObject = resolveClosestExistingRole(getUserRoleSearchSources(item), rolesData);
+        const resolvedRoleObject = tokenRoleObject || explicitRoleObject;
+        const resolvedRoleCode = resolvedRoleObject?.codigo || '';
+
+        if (!resolvedRoleCode) {
+          return item;
+        }
+
+        const resolvedRoleLabel = resolvedRoleObject?.nombre || formatRoleLabel(resolvedRoleCode);
+
+        return {
+          ...item,
+          rolCodigo: item?.rolCodigo || resolvedRoleCode,
+          rol: item?.rol || resolvedRoleCode,
+          role: item?.role || resolvedRoleCode,
+          roles: item?.roles || [resolvedRoleCode],
+          rolNombre: item?.rolNombre || resolvedRoleLabel,
+          rolLabel: item?.rolLabel || resolvedRoleLabel,
+        };
+      });
 
       const usersFetchFailed = usersResult.status === 'rejected';
       setUsersLoadError(
@@ -367,7 +545,7 @@ const SecurityConfigPage = () => {
 
       setRoles(rolesData);
       setPermissions(permissionsData);
-      setUsers(usersData);
+      setUsers(resolvedUsersData);
       setSystemParameters(parametersData);
       setProjects(projectsData);
       setAssignmentCargos(cargosData);
@@ -398,10 +576,13 @@ const SecurityConfigPage = () => {
       }
 
       if (selectedUser?.username) {
-        const freshUser = usersData.find((item) => item.username === selectedUser.username) || null;
+        const freshUser = resolvedUsersData.find((item) => item.username === selectedUser.username) || null;
         if (freshUser) {
           setSelectedUser(freshUser);
-          setUserForm(mapUserToForm(freshUser));
+          setUserForm({
+            ...mapUserToForm(freshUser),
+            rol: resolveUserRoleCode(freshUser),
+          });
         } else {
           setSelectedUser(null);
           setUserForm(emptyUserForm);
@@ -432,6 +613,33 @@ const SecurityConfigPage = () => {
             value: draftParameter.value || parameterForm.value,
             descripcion: draftParameter.descripcion || parameterForm.descripcion,
           });
+        }
+      }
+
+      if (canConfigure) {
+        const backfillCandidates = usersData
+          .map((item) => {
+            const resolvedRoleObject = resolveClosestExistingRole(getUserRoleSearchSources(item), rolesData);
+
+            if (getUserRoleCode(item) || !resolvedRoleObject) {
+              return null;
+            }
+
+            return {
+              username: item?.username || '',
+              nombre: item?.nombre || '',
+              correo: item?.correo || '',
+              dependencia: item?.dependencia || '',
+              rol: resolvedRoleObject.codigo || '',
+              activo: Boolean(item?.activo),
+            };
+          })
+          .filter(Boolean);
+
+        if (backfillCandidates.length > 0) {
+          await Promise.allSettled(
+            backfillCandidates.map((payload) => securityService.updateUser(payload))
+          );
         }
       }
     } catch (fetchError) {
@@ -556,7 +764,10 @@ const SecurityConfigPage = () => {
   const handleSelectUser = (user) => {
     setCreatingUser(false);
     setSelectedUser(user);
-    setUserForm(mapUserToForm(user));
+    setUserForm({
+      ...mapUserToForm(user),
+      rol: resolveUserRoleCode(user),
+    });
     setActiveSection(SECURITY_TABS.USERS);
   };
 
@@ -631,8 +842,8 @@ const SecurityConfigPage = () => {
       return;
     }
 
-    if (shouldRestrictToDirectors && selectedAssignmentUserRoleKey !== 'DIRECTOR_PROYECTO') {
-      setError('El usuario seleccionado no tiene el rol Director de Proyecto.');
+    if (shouldRestrictToDirectors && !isDirectorEquivalentRole(selectedAssignmentUserRoleKey)) {
+      setError('El usuario seleccionado no tiene un rol directivo equivalente.');
       return;
     }
 
@@ -1246,7 +1457,7 @@ const SecurityConfigPage = () => {
                         const isSelected = selectedUser?.username === user.username;
                         const initial = (user.nombre || user.username || '?')[0].toUpperCase();
                         const avatarColor = getAvatarColor(user.nombre || user.username);
-                        const roleValue = getUserRoleLabel(user);
+                        const roleValue = resolveUserRoleLabel(user) || formatRoleLabel(resolveUserRoleCode(user)) || 'No verificado';
                         const lastAccess = formatDateTime(getUserLastAccess(user));
 
                         return (
@@ -1269,11 +1480,7 @@ const SecurityConfigPage = () => {
                             </td>
                             <td>{user.nombre || 'Sin nombre'}</td>
                             <td>
-                              {roleValue ? (
-                                <span className="soft-pill">{roleValue}</span>
-                              ) : (
-                                <span className="muted-text">Sin rol</span>
-                              )}
+                              <span className="soft-pill">{roleValue}</span>
                             </td>
                             <td>
                               <span className={`status-chip ${user.activo ? 'active' : 'inactive'}`}>
@@ -1639,7 +1846,7 @@ const SecurityConfigPage = () => {
                           </option>
                           {assignmentCargos.map((cargo) => (
                             <option key={cargo} value={cargo}>
-                              {cargo}
+                              {formatAssignmentCargoLabel(cargo)}
                             </option>
                           ))}
                         </select>
@@ -1650,9 +1857,9 @@ const SecurityConfigPage = () => {
                           <>
                             <strong>{selectedAssignmentUser.nombre || selectedAssignmentUser.username}</strong>
                             <span>
-                              Rol actual: {selectedAssignmentUserRole || 'Sin rol'}.
+                              {`Rol actual: ${resolveUserRoleLabel(selectedAssignmentUser) || formatRoleLabel(selectedAssignmentUserRole) || 'No verificado'}.`}
                               {shouldRestrictToDirectors
-                                ? ' El cargo Director de Proyecto solo se permite para usuarios con ese rol.'
+                                ? ' El cargo de dirección solo se permite para usuarios con un rol directivo equivalente.'
                                 : ' Los cargos se validan contra la parametrizaci?n del sistema.'}
                             </span>
                           </>
@@ -1660,7 +1867,7 @@ const SecurityConfigPage = () => {
                           <>
                             <strong>Selecciona un usuario para comenzar</strong>
                             <span>
-                              Si eliges el cargo Director de Proyecto, el selector limitar? los usuarios disponibles a ese rol.
+                              Si eliges un cargo directivo, el selector limitará los usuarios disponibles a roles equivalentes.
                             </span>
                           </>
                         )}
@@ -1753,7 +1960,7 @@ const SecurityConfigPage = () => {
                                   </div>
                                 </td>
                                 <td>
-                                  <span className="soft-pill">{assignment.cargo}</span>
+                                  <span className="soft-pill">{formatAssignmentCargoLabel(assignment.cargo)}</span>
                                 </td>
                                 <td>
                                   <span className={`status-chip ${assignment.activo ? 'active' : 'inactive'}`}>

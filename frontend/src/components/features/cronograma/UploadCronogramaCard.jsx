@@ -1,4 +1,3 @@
-import React from 'react';
 import { Upload, Download, Loader2 } from 'lucide-react';
 import { usePermission } from '../../../hooks/usePermission';
 

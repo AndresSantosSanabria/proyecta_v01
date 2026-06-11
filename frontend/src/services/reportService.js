@@ -35,8 +35,9 @@ const reportService = {
     return unwrap(response);
   },
 
-  downloadProjectPdf: async (projectId) => {
+  downloadProjectPdf: async (projectId, detailMode = 'resumido') => {
     const response = await apiClient.get(`/reportes/proyecto/${normalizeProjectId(projectId)}/descargar`, {
+      params: { detailMode },
       responseType: 'blob',
     });
     return response.data;

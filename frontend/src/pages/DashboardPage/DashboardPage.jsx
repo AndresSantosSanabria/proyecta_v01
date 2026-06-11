@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import KPICard from '../../components/common/KPICard';
 import ProjectTable from '../../components/features/projects/ProjectTable';
 import dashboardService from '../../services/dashboardService';
@@ -21,7 +21,7 @@ const DashboardPage = () => {
         } else {
           setError(response.message || 'Error al obtener las métricas');
         }
-      } catch (err) {
+      } catch {
         setError('No se pudo conectar con el servidor');
       } finally {
         setLoading(false);

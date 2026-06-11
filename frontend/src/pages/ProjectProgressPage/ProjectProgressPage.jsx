@@ -256,36 +256,12 @@ const ProjectProgressPage = () => {
             <strong className="summary-clamp-two">{resumenExcel.dependencia}</strong>
           </article>
           <article>
-            <span>Programado</span>
-            <strong>{resumenExcel.programado.toFixed(0)}%</strong>
+            <span>Corte</span>
+            <strong>{progressData.corte ? new Date(progressData.corte).toLocaleDateString('es-CO') : 'Sin corte'}</strong>
           </article>
           <article>
-            <span>Avance</span>
-            <strong>{resumenExcel.avance.toFixed(0)}%</strong>
-          </article>
-          <article>
-            <span>Diferencia</span>
-            <strong>{resumenExcel.diferencia.toFixed(0)}%</strong>
-          </article>
-          <article>
-            <span>Total entregables</span>
-            <strong>{resumenExcel.totalEntregables}</strong>
-          </article>
-          <article>
-            <span>Programados al corte</span>
-            <strong>{resumenExcel.programadosAlCorte}</strong>
-          </article>
-          <article>
-            <span>Entregados al corte</span>
-            <strong>{resumenExcel.entregadosAlCorte}</strong>
-          </article>
-          <article>
-            <span>Eficacia</span>
-            <strong>{resumenExcel.eficacia.toFixed(1)}%</strong>
-          </article>
-          <article>
-            <span>Eficiencia</span>
-            <strong>{resumenExcel.eficiencia.toFixed(1)}%</strong>
+            <span>Estado</span>
+            <strong>{resumenExcel.estado}</strong>
           </article>
         </div>
       </section>
@@ -384,6 +360,7 @@ const ProjectProgressPage = () => {
 
       <ProgressTreeTable
         progressData={progressData}
+        projectInfo={projectInfo}
         excelSummary={resumenExcel}
         isExpanded={isExpanded}
         toggleNode={toggleNode}

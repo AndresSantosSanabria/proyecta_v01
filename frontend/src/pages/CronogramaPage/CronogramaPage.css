@@ -431,6 +431,7 @@
   line-height: 1.5;
 }
 
+.gantt-year-row th,
 .gantt-header-row th {
   padding: 0.7rem 0.45rem;
   font-size: 0.72rem;
@@ -442,13 +443,30 @@
   width: 7%;
 }
 
-.gantt-header-row th:first-child {
+.gantt-year-row th {
+  color: color-mix(in srgb, var(--primary) 82%, var(--text-main));
+  background: color-mix(in srgb, var(--bg-muted) 76%, var(--bg-card));
+  border-right: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+}
+
+.gantt-header-row th {
+  min-width: 62px;
+}
+
+.gantt-activity-header {
   text-align: left;
   width: 24%;
+  min-width: 220px;
+  vertical-align: middle;
 }
 
 .gantt-row {
   height: 52px;
+}
+
+.gantt-entregable-row {
+  height: 46px;
+  background: color-mix(in srgb, var(--bg-main) 28%, transparent);
 }
 
 .gantt-row td {
@@ -482,7 +500,6 @@
 .milestone-name {
   color: var(--text-muted);
   font-size: 0.84rem;
-  padding-left: 1.35rem;
   display: flex;
   align-items: flex-start;
   min-width: 0;
@@ -491,11 +508,94 @@
   line-height: 1.35;
 }
 
+.milestone-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.3rem 0.35rem 1.15rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.milestone-toggle:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.milestone-toggle:not(:disabled):hover {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.milestone-caret {
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border-color));
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.milestone-count {
+  min-width: 1.25rem;
+  height: 1.25rem;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border-color));
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
 .milestone-name::before {
   content: '└';
   margin-right: 0.5rem;
   color: color-mix(in srgb, var(--text-muted) 50%, transparent);
   flex-shrink: 0;
+}
+
+.deliverable-name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-left: 2.65rem;
+  color: color-mix(in srgb, var(--text-muted) 88%, var(--text-main));
+  font-size: 0.79rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.deliverable-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 78%, var(--primary));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.deliverable-weight {
+  flex-shrink: 0;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--warning) 20%, var(--border-color));
+  font-size: 0.66rem;
+  font-weight: 900;
 }
 
 .bar-container {
@@ -543,6 +643,16 @@
   border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
+.deliverable-bar {
+  top: 8px;
+  bottom: 8px;
+  border-color: color-mix(in srgb, var(--warning) 34%, transparent);
+}
+
+.deliverable-bar .progress-fill {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 82%, var(--text-main)), color-mix(in srgb, var(--warning) 62%, var(--primary)));
+}
+
 .fill-complete .progress-fill {
   background: linear-gradient(90deg, color-mix(in srgb, var(--success) 84%, var(--text-main)), color-mix(in srgb, var(--success) 60%, var(--primary)));
 }
@@ -570,7 +680,7 @@
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--gantt-month-count, 12), minmax(0, 1fr));
   pointer-events: none;
   opacity: 0.4;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { X, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import projectService from '../../../services/projectService';
 import { usePermission } from '../../../hooks/usePermission';
@@ -14,7 +14,7 @@ const STATE = {
 const MAX_SIZE_MB = 20;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
-const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
+const EvidenceUpload = ({ proyectoId, entregableId, mode = 'cargar', onClose, onSuccess }) => {
   const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
   const [state, setState] = useState(STATE.IDLE);
   const [progress, setProgress] = useState(0);
@@ -25,6 +25,15 @@ const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
   if (!canUploadEvidence) {
     return null;
   }
+
+  const isCorrectionMode = mode === 'subsanar';
+  const title = isCorrectionMode
+    ? `Subsanar Evidencia - Entregable #${entregableId}`
+    : `Subir Evidencia - Entregable #${entregableId}`;
+  const submitLabel = isCorrectionMode ? 'Cargar Subsanacion' : 'Subir Evidencia';
+  const successMessage = isCorrectionMode
+    ? 'Subsanacion cargada exitosamente. Queda nuevamente en revision del gestor.'
+    : 'Evidencia cargada exitosamente. Queda pendiente de aprobacion del gestor.';
 
   const validateFile = (file) => {
     if (!file) return 'No se seleccionó ningún archivo.';
@@ -61,11 +70,16 @@ const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
     setProgress(0);
 
     try {
+      const now = new Date();
+      const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+        .toISOString()
+        .split('T')[0];
+
       await projectService.uploadEvidencia(
         proyectoId,
         entregableId,
         selectedFile,
-        new Date().toISOString().split('T')[0],
+        localDate,
         (percent) => setProgress(percent)
       );
 
@@ -88,8 +102,9 @@ const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
     <div className="evidence-upload-overlay" onClick={onClose}>
       <div className="evidence-upload-modal" onClick={(e) => e.stopPropagation()}>
         <div className="evidence-upload-header">
+          <h3>{title}</h3>
           <h3>Subir Evidencia — Entregable #{entregableId}</h3>
-          <button className="evidence-close-btn" onClick={onClose}>
+          <button type="button" className="evidence-close-btn" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
@@ -123,11 +138,12 @@ const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
               )}
 
               <button
+                type="button"
                 className="evidence-submit-btn"
                 onClick={handleUpload}
                 disabled={!selectedFile}
               >
-                <Upload size={16} /> Subir Evidencia
+                <Upload size={16} /> {submitLabel}
               </button>
             </>
           )}
@@ -148,7 +164,7 @@ const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
           {state === STATE.SUCCESS && (
             <div className="evidence-success">
               <CheckCircle2 size={48} className="evidence-success-icon" />
-              <p>Evidencia cargada exitosamente</p>
+              <p>{successMessage}</p>
             </div>
           )}
 
@@ -156,7 +172,7 @@ const EvidenceUpload = ({ proyectoId, entregableId, onClose, onSuccess }) => {
             <div className="evidence-error">
               <AlertCircle size={24} />
               <p>{errorMessage}</p>
-              <button className="evidence-retry-btn" onClick={() => { setState(STATE.IDLE); setErrorMessage(''); }}>
+              <button type="button" className="evidence-retry-btn" onClick={() => { setState(STATE.IDLE); setErrorMessage(''); }}>
                 Reintentar
               </button>
             </div>

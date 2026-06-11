@@ -11,6 +11,15 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   async (config) => {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (typeof config.headers?.delete === 'function') {
+        config.headers.delete('Content-Type');
+      } else if (config.headers) {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
+
     if (appConfig.enableAuth) {
       const user = await auth.getUser();
       const token = user?.access_token;

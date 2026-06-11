@@ -234,7 +234,7 @@ const BodyRetrasos = ({ reportData }) => {
 };
 
 /* 4. PLAN DE COMUNICACIONES */
-const BodyPlanComunicaciones = ({ reportData, projects }) => {
+const BodyPlanComunicaciones = ({ projects }) => {
   const sourceProjects = Array.isArray(projects) ? projects : [];
   const rows = sourceProjects
     .filter((project) => !project?.peti)

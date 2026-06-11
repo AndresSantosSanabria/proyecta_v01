@@ -11,20 +11,6 @@ const optionalEnv = (key, fallback = '') => {
   return value === undefined || value === null ? fallback : value.toString().trim();
 };
 
-const parseRoleAliases = (value) => {
-  if (!value) {
-    return {};
-  }
-
-  return value.split(',').reduce((aliases, pair) => {
-    const [source, target] = pair.split(':').map((item) => item?.trim().toUpperCase());
-    if (source && target) {
-      aliases[source] = target;
-    }
-    return aliases;
-  }, {});
-};
-
 const keycloakBaseUrl = requiredEnv('VITE_KEYCLOAK_BASE_URL').replace(/\/+$/, '');
 const keycloakRealm = requiredEnv('VITE_KEYCLOAK_REALM');
 
@@ -41,5 +27,4 @@ export const appConfig = {
     responseType: optionalEnv('VITE_KEYCLOAK_RESPONSE_TYPE', 'code'),
     scope: requiredEnv('VITE_KEYCLOAK_SCOPE'),
   },
-  roleAliases: parseRoleAliases(optionalEnv('VITE_ROLE_ALIASES')),
 };

@@ -1,16 +1,16 @@
 .evidence-upload-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--bg-main);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: none;
 }
 
 .evidence-upload-modal {
-  background: var(--bg-card);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   width: 100%;
@@ -32,6 +32,10 @@
   font-weight: 600;
   color: var(--text-main);
   margin: 0;
+}
+
+.evidence-upload-header h3 + h3 {
+  display: none;
 }
 
 .evidence-close-btn {
@@ -64,13 +68,13 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.25s ease;
-  background: rgba(79, 70, 229, 0.02);
+  background: var(--bg-panel);
   margin-bottom: 1rem;
 }
 
 .evidence-dropzone:hover {
   border-color: var(--primary);
-  background: var(--primary-glow);
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-panel));
 }
 
 .evidence-dropzone-icon {
@@ -98,7 +102,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 0.75rem;
-  background: rgba(239, 68, 68, 0.05);
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg-surface));
   border-radius: 6px;
   margin-bottom: 0.75rem;
   font-size: 0.8rem;
@@ -137,9 +141,9 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: rgba(79, 70, 229, 0.04);
+  background: var(--bg-panel);
   border-radius: 10px;
-  border: 1px solid var(--primary-glow);
+  border: 1px solid var(--border-color);
 }
 
 .evidence-progress-info {

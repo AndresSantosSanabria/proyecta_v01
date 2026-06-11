@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
 
 const Paso6GestionDocumental = ({ data, onChange, errors }) => {

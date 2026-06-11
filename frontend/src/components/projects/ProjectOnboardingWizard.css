@@ -1,0 +1,1097 @@
+.project-onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--modal-backdrop);
+  backdrop-filter: blur(10px);
+}
+
+.project-onboarding__shell {
+  width: 100%;
+  max-width: 1200px;
+  height: calc(100dvh - 32px);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  min-height: 0;
+}
+
+.project-onboarding__panel {
+  display: grid;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  padding: 16px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-surface) 98%, var(--bg-panel)), var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
+  box-shadow: var(--shadow-lg);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.project-onboarding__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-onboarding__hero {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 78%, var(--bg-surface)), var(--bg-surface));
+}
+
+.project-onboarding__hero-copy {
+  display: grid;
+  gap: 6px;
+  max-width: 700px;
+}
+
+.project-onboarding__hero-copy .page-title,
+.project-onboarding__hero-copy .page-subtitle {
+  margin: 0;
+}
+
+.project-onboarding__status-card {
+  width: min(280px, 100%);
+  display: grid;
+  gap: 5px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--warning-soft) 72%, var(--bg-surface));
+}
+
+.project-onboarding__status-card span {
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.project-onboarding__status-card strong {
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.project-onboarding__status-card small {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.project-onboarding__summary {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  text-align: right;
+}
+
+.project-onboarding__summary strong {
+  font-size: 11px;
+}
+
+.project-onboarding__summary span,
+.project-onboarding__summary small {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.project-onboarding__locked {
+  margin-top: 2px;
+}
+
+.project-onboarding__locked strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.project-onboarding__locked p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.project-onboarding__locked-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.project-onboarding__locked-card {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 60%, var(--bg-surface));
+}
+
+.project-onboarding__locked-card--wide {
+  grid-column: 1 / -1;
+}
+
+.project-onboarding__locked-card span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.project-onboarding__locked-card strong {
+  min-width: 0;
+  color: var(--text-main);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.project-onboarding__locked-card p {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.project-onboarding__stepbar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-onboarding__stepbar-heading span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.project-onboarding__stepbar-heading strong {
+  color: var(--text-main);
+  font-size: 11px;
+}
+
+.project-onboarding__steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.project-onboarding__step {
+  min-height: 30px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-elevated) 78%, var(--bg-surface));
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+}
+
+.project-onboarding__step.active {
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-soft) 46%, var(--bg-surface));
+}
+
+.project-onboarding__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.project-onboarding__objective {
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 58%, var(--bg-surface));
+  border-radius: 12px;
+  padding: 10px 11px;
+}
+
+.project-onboarding__objective span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.project-onboarding__objective p {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.compact-field textarea {
+  min-height: 108px;
+}
+
+.project-onboarding__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.project-onboarding__footer > span {
+  width: 1px;
+  height: 1px;
+}
+
+.project-onboarding .step-form,
+.project-onboarding .wizard-content,
+.project-onboarding .wizard-content-modal {
+  gap: 10px;
+}
+
+.project-onboarding .step-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.project-onboarding .info-alert {
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary-soft) 42%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--primary) 16%, var(--border-color));
+}
+
+.project-onboarding .info-alert p {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.project-onboarding .form-grid {
+  gap: 8px;
+}
+
+.project-onboarding .form-group {
+  gap: 5px;
+}
+
+.project-onboarding .form-label {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.project-onboarding .form-input,
+.project-onboarding .custom-select-trigger {
+  min-height: 40px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-elevated));
+  font-size: 12px;
+  border-color: color-mix(in srgb, var(--border-color) 88%, transparent);
+}
+
+.project-onboarding .form-input:focus,
+.project-onboarding .custom-select-trigger.open {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.project-onboarding .form-textarea {
+  min-height: 96px;
+}
+
+.project-onboarding .help-text,
+.project-onboarding .error-text {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.project-onboarding .custom-select-menu {
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+  background: var(--bg-surface);
+  box-shadow: 0 12px 24px rgba(2, 8, 20, 0.14);
+}
+
+.project-onboarding .custom-select-option {
+  padding: 9px 10px;
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.project-onboarding .custom-select-option:hover,
+.project-onboarding .custom-select-option.selected {
+  background: color-mix(in srgb, var(--primary-soft) 40%, var(--bg-surface));
+}
+
+.project-onboarding .array-card {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 54%, var(--bg-surface));
+}
+
+.project-onboarding .array-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.project-onboarding .array-card-header strong {
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.project-onboarding .array-card-body {
+  gap: 8px;
+}
+
+.project-onboarding .array-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-onboarding .array-field-row .form-input {
+  flex: 1;
+}
+
+.project-onboarding .btn-add,
+.project-onboarding .btn-icon-danger {
+  min-height: 34px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 66%, var(--bg-surface));
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.project-onboarding .btn-add {
+  width: fit-content;
+  padding: 7px 10px;
+}
+
+.project-onboarding .btn-add-sm {
+  min-height: 30px;
+  padding: 6px 9px;
+}
+
+.project-onboarding .btn-icon-danger {
+  width: 34px;
+  padding: 0;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger-soft) 26%, var(--bg-surface));
+}
+
+.project-onboarding .btn-icon-danger:hover,
+.project-onboarding .btn-add:hover {
+  transform: translateY(-1px);
+}
+
+.project-onboarding__panel {
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 28%),
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--success) 12%, transparent), transparent 24%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-surface) 94%, var(--bg-panel)), var(--bg-surface));
+}
+
+.project-onboarding__hero {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 22%, transparent), transparent 38%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary-soft) 52%, var(--bg-elevated)), var(--bg-surface));
+}
+
+.project-onboarding__status-card {
+  border-color: color-mix(in srgb, var(--warning) 48%, var(--border-color));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--warning) 24%, transparent), transparent 46%),
+    color-mix(in srgb, var(--warning-soft) 82%, var(--bg-surface));
+}
+
+.project-onboarding__locked.info-banner {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border-color));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--primary-soft) 76%, var(--bg-panel)), color-mix(in srgb, var(--success-soft) 44%, var(--bg-surface)));
+}
+
+.project-onboarding__locked.info-banner svg {
+  color: var(--primary);
+}
+
+.project-onboarding__locked-card {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+}
+
+.project-onboarding__locked-card:nth-child(1) {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-soft) 44%, var(--bg-surface));
+}
+
+.project-onboarding__locked-card:nth-child(2) {
+  border-color: color-mix(in srgb, var(--success) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--success-soft) 48%, var(--bg-surface));
+}
+
+.project-onboarding__locked-card:nth-child(3) {
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--border-color));
+  background: color-mix(in srgb, var(--warning-soft) 54%, var(--bg-surface));
+}
+
+.project-onboarding__locked-card--wide {
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 68%, var(--primary-soft)), color-mix(in srgb, var(--bg-surface) 76%, var(--success-soft)));
+}
+
+.project-onboarding__steps {
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border-color));
+  background: color-mix(in srgb, var(--bg-panel) 72%, transparent);
+}
+
+.project-onboarding__step {
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.project-onboarding__step.active {
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-color));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 20%, var(--bg-elevated)), color-mix(in srgb, var(--primary-soft) 72%, var(--bg-surface)));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 14%, transparent);
+  transform: translateY(-1px);
+}
+
+.project-onboarding .step-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border-color));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--primary-soft) 44%, transparent), color-mix(in srgb, var(--bg-surface) 88%, transparent));
+}
+
+.project-onboarding .step-header-row .step-title {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.project-onboarding .hierarchy-rule-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 15px;
+  border: 1px solid color-mix(in srgb, var(--warning) 44%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--warning) 18%, transparent), transparent 44%),
+    color-mix(in srgb, var(--warning-soft) 82%, var(--bg-surface));
+  color: var(--text-main);
+}
+
+.project-onboarding .hierarchy-rule-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--warning);
+}
+
+.project-onboarding .hierarchy-rule-banner span {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.project-onboarding .hierarchy-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-onboarding .hierarchy-summary-card {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-height: 118px;
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+}
+
+.project-onboarding .hierarchy-summary-card svg {
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  border-radius: 12px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.project-onboarding .hierarchy-summary-card strong {
+  display: block;
+  color: currentColor;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.project-onboarding .hierarchy-summary-card span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.project-onboarding .hierarchy-summary-card.fases {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border-color));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--success-soft) 82%, var(--bg-surface)), color-mix(in srgb, var(--bg-panel) 82%, var(--success-soft)));
+}
+
+.project-onboarding .hierarchy-summary-card.hitos {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 44%, var(--border-color));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--warning-soft) 88%, var(--bg-surface)), color-mix(in srgb, var(--bg-panel) 84%, var(--warning-soft)));
+}
+
+.project-onboarding .hierarchy-summary-card.entregables {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border-color));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--primary-soft) 86%, var(--bg-surface)), color-mix(in srgb, var(--bg-panel) 82%, var(--primary-soft)));
+}
+
+.project-onboarding .hierarchy-empty-state {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 52%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 14%, transparent), transparent 40%),
+    color-mix(in srgb, var(--bg-panel) 72%, var(--primary-soft));
+}
+
+.project-onboarding .hierarchy-empty-state strong {
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.project-onboarding .hierarchy-empty-state span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.project-onboarding .jerarquia-card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  margin-top: 8px;
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.project-onboarding .jerarquia-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--primary);
+}
+
+.project-onboarding .jerarquia-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.project-onboarding .jerarquia-card-header strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.project-onboarding .jerarquia-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.project-onboarding .fase-card {
+  border-color: color-mix(in srgb, var(--success) 36%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--success) 11%, transparent), transparent 42%),
+    color-mix(in srgb, var(--bg-surface) 82%, var(--success-soft));
+}
+
+.project-onboarding .fase-card::before {
+  background: var(--success);
+}
+
+.project-onboarding .fase-card > .jerarquia-card-header strong {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success-soft) 92%, var(--bg-surface));
+}
+
+.project-onboarding .hito-card {
+  margin-left: 18px;
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--warning) 13%, transparent), transparent 42%),
+    color-mix(in srgb, var(--bg-surface) 80%, var(--warning-soft));
+}
+
+.project-onboarding .hito-card::before {
+  background: var(--warning);
+}
+
+.project-onboarding .hito-card > .jerarquia-card-header strong {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning-soft) 96%, var(--bg-surface));
+}
+
+.project-onboarding .entregable-card {
+  margin-left: 28px;
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 13%, transparent), transparent 42%),
+    color-mix(in srgb, var(--bg-surface) 80%, var(--primary-soft));
+}
+
+.project-onboarding .entregable-card::before {
+  background: var(--primary);
+}
+
+.project-onboarding .entregable-card > .jerarquia-card-header strong {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 96%, var(--bg-surface));
+}
+
+.project-onboarding .peso-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.project-onboarding .peso-ok {
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 32%, transparent);
+  background: color-mix(in srgb, var(--success-soft) 88%, var(--bg-surface));
+}
+
+.project-onboarding .peso-error {
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent);
+  background: color-mix(in srgb, var(--danger-soft) 88%, var(--bg-surface));
+}
+
+.project-onboarding .btn-add {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-color));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 70%, var(--bg-surface)), color-mix(in srgb, var(--bg-surface) 84%, var(--primary-soft)));
+  color: var(--primary);
+}
+
+.project-onboarding .step-form {
+  position: relative;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border-color));
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 34%),
+    radial-gradient(circle at 100% 10%, color-mix(in srgb, var(--success) 8%, transparent), transparent 26%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-panel) 76%, var(--bg-surface)), color-mix(in srgb, var(--bg-surface) 90%, var(--bg-panel)));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 7%, transparent);
+}
+
+.project-onboarding .step-form > .step-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: var(--text-main);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 76%, var(--bg-surface)), color-mix(in srgb, var(--bg-panel) 80%, var(--primary-soft)));
+}
+
+.project-onboarding .step-form > .step-title::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.project-onboarding .step-form > .help-text {
+  max-width: 860px;
+  padding: 10px 12px;
+  border-radius: 13px;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-soft) 32%, transparent);
+}
+
+.project-onboarding .step-form > .form-grid,
+.project-onboarding .step-form > .form-group {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, var(--primary));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-surface) 88%, var(--bg-panel)), color-mix(in srgb, var(--bg-panel) 74%, var(--bg-surface)));
+  box-shadow: 0 10px 26px color-mix(in srgb, #020617 8%, transparent);
+}
+
+.project-onboarding .step-form > .form-grid:nth-of-type(1),
+.project-onboarding .step-form > .form-group:nth-of-type(1) {
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--success) 10%, transparent), transparent 34%),
+    color-mix(in srgb, var(--bg-surface) 86%, var(--success-soft));
+}
+
+.project-onboarding .step-form > .form-grid:nth-of-type(2),
+.project-onboarding .step-form > .form-group:nth-of-type(2) {
+  border-color: color-mix(in srgb, var(--warning) 24%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--warning) 10%, transparent), transparent 34%),
+    color-mix(in srgb, var(--bg-surface) 86%, var(--warning-soft));
+}
+
+.project-onboarding .form-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--text-muted) 82%, var(--primary));
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.project-onboarding .form-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 76%, var(--text-muted));
+}
+
+.project-onboarding .form-input,
+.project-onboarding .custom-select-trigger {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 7%, transparent);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.project-onboarding .form-input:hover,
+.project-onboarding .custom-select-trigger:hover {
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--border-color));
+  background: color-mix(in srgb, var(--bg-surface) 82%, var(--primary-soft));
+}
+
+.project-onboarding .form-input:focus,
+.project-onboarding .custom-select-trigger.open {
+  transform: translateY(-1px);
+}
+
+.project-onboarding .array-field-row {
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+  background: color-mix(in srgb, var(--bg-panel) 72%, transparent);
+}
+
+.project-onboarding .array-card {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--success) 12%, transparent), transparent 38%),
+    color-mix(in srgb, var(--bg-surface) 82%, var(--success-soft));
+}
+
+.project-onboarding .array-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--success);
+}
+
+.project-onboarding .array-card-header strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success-soft) 88%, var(--bg-surface));
+}
+
+.project-onboarding .array-card-header strong::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--success);
+}
+
+.project-onboarding .radio-group,
+.project-onboarding .furag-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.project-onboarding .radio-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  min-width: 96px;
+  padding: 9px 13px;
+  border-radius: 13px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 84%, var(--bg-panel));
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.project-onboarding .radio-label:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
+}
+
+.project-onboarding .radio-label input {
+  accent-color: var(--primary);
+}
+
+.project-onboarding .radio-label:has(input:checked) {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 56%, var(--border-color));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary-soft) 82%, var(--bg-surface)), color-mix(in srgb, var(--bg-panel) 76%, var(--primary-soft)));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.project-onboarding .furag-item {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 14px 14px 14px 50px;
+  border-radius: 17px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 10%, transparent), transparent 38%),
+    color-mix(in srgb, var(--bg-surface) 84%, var(--primary-soft));
+  counter-increment: furag-question;
+}
+
+.project-onboarding .step-form:has(.furag-item) {
+  counter-reset: furag-question;
+}
+
+.project-onboarding .furag-item::before {
+  content: counter(furag-question);
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 9px;
+  color: #04131f;
+  background: linear-gradient(180deg, #9ed0ff, var(--primary));
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.project-onboarding .furag-pregunta {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.project-onboarding .furag-item:nth-of-type(3n + 1) {
+  border-color: color-mix(in srgb, var(--success) 26%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--success) 11%, transparent), transparent 38%),
+    color-mix(in srgb, var(--bg-surface) 84%, var(--success-soft));
+}
+
+.project-onboarding .furag-item:nth-of-type(3n + 1)::before {
+  background: linear-gradient(180deg, #8be8b5, var(--success));
+}
+
+.project-onboarding .furag-item:nth-of-type(3n + 2) {
+  border-color: color-mix(in srgb, var(--warning) 28%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--warning) 11%, transparent), transparent 38%),
+    color-mix(in srgb, var(--bg-surface) 84%, var(--warning-soft));
+}
+
+.project-onboarding .furag-item:nth-of-type(3n + 2)::before {
+  background: linear-gradient(180deg, #ffd27a, var(--warning));
+}
+
+.project-onboarding .btn-primary {
+  border: 1px solid color-mix(in srgb, var(--primary) 64%, transparent);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.project-onboarding .btn-ghost {
+  border-color: color-mix(in srgb, var(--border-color) 82%, var(--primary));
+  background: color-mix(in srgb, var(--bg-elevated) 72%, var(--bg-surface));
+}
+
+@media (max-width: 768px) {
+  .project-onboarding {
+    padding: 0;
+    backdrop-filter: none;
+  }
+
+  .project-onboarding__shell {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .project-onboarding__panel {
+    min-height: 0;
+    max-height: 100%;
+    border-radius: 0;
+    border: 0;
+    padding: 12px;
+  }
+
+  .project-onboarding__header {
+    flex-direction: column;
+  }
+
+  .project-onboarding__status-card {
+    width: 100%;
+  }
+
+  .project-onboarding__summary {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .project-onboarding__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-onboarding__locked-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-onboarding__steps {
+    grid-template-columns: 1fr;
+  }
+
+  .project-onboarding__stepbar-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-onboarding__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .project-onboarding__footer .compact-toolbar,
+  .project-onboarding__footer .btn-primary,
+  .project-onboarding__footer .btn-ghost {
+    width: 100%;
+  }
+
+  .project-onboarding__hero {
+    padding: 12px;
+  }
+
+  .project-onboarding__locked-grid,
+  .project-onboarding__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-onboarding .form-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .project-onboarding .step-form {
+    gap: 10px;
+  }
+
+  .project-onboarding .step-title {
+    font-size: 13px;
+  }
+
+  .project-onboarding .form-label,
+  .project-onboarding .help-text,
+  .project-onboarding .error-text {
+    font-size: 10px;
+  }
+
+  .project-onboarding .form-input,
+  .project-onboarding .custom-select-trigger {
+    min-height: 40px;
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+
+  .project-onboarding .form-textarea {
+    min-height: 96px;
+  }
+
+  .project-onboarding .array-card,
+  .project-onboarding .custom-select-menu {
+    border-radius: 10px;
+  }
+}

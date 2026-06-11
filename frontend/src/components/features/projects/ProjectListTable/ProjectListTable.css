@@ -1,190 +1,292 @@
 .project-list-table-container {
-  background-color: var(--bg-card);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-premium);
   border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
   overflow: hidden;
 }
 
 .table-responsive {
-  overflow-x: auto;
+  overflow: auto;
 }
 
 .project-list-table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
+}
+
+.project-list-table th,
+.project-list-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px;
+  vertical-align: middle;
 }
 
 .project-list-table th {
-  padding: 1.25rem;
-  font-size: 0.7rem;
+  color: var(--text-soft);
+  font-size: 10px;
   font-weight: 700;
-  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  border-bottom: 1px solid var(--border-color);
-  background-color: rgba(0, 0, 0, 0.02);
-}
-
-.dark .project-list-table th {
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-.project-list-table td {
-  padding: 1.25rem;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.875rem;
-  vertical-align: middle;
-  transition: background-color 0.2s ease;
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .project-list-table tr:hover td {
-  background-color: rgba(0, 0, 0, 0.01);
-}
-
-.dark .project-list-table tr:hover td {
-  background-color: rgba(255, 255, 255, 0.01);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .col-code {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   color: var(--text-muted);
-  font-weight: 600;
   white-space: nowrap;
 }
 
 .col-name {
   font-weight: 700;
-  color: var(--text-main);
-  max-width: 350px;
 }
 
-.col-director {
-  color: var(--text-main);
-  font-weight: 500;
+.director-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.director-cell strong {
+  font-size: 12px;
+}
+
+.director-cell span {
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
 .peti-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
   font-weight: 700;
-  background-color: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  white-space: nowrap; /* Evita que el texto se rompa */
-  display: inline-block;
-  min-width: 65px;
-  text-align: center;
+  color: var(--primary);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  background: rgba(88, 166, 255, 0.08);
 }
 
 .peti-badge.no-peti {
-  background-color: transparent;
   color: var(--text-muted);
+  background: rgba(149, 163, 184, 0.08);
+  border-color: rgba(149, 163, 184, 0.18);
+}
+
+.status-badge--tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.status-badge--tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(4px);
+  min-width: 180px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid var(--border-color);
-  opacity: 0.6;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-main));
+  color: var(--text-main);
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: var(--shadow-lg);
+  z-index: 20;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.status-badge--tooltip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%) translateY(4px);
+  border-width: 6px;
+  border-style: solid;
+  border-color: transparent transparent var(--border-color) transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  z-index: 21;
+}
+
+.status-badge--tooltip:hover::after,
+.status-badge--tooltip:focus-visible::after,
+.status-badge--tooltip:hover::before,
+.status-badge--tooltip:focus-visible::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .progress-cell {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  min-width: 140px;
+  gap: 8px;
+  min-width: 120px;
 }
 
 .progress-bar-bg {
   flex: 1;
   height: 6px;
-  background-color: rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
-}
-
-.dark .progress-bar-bg {
-  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--warning), #fbbf24);
-  border-radius: 10px;
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), #7ec6ff);
 }
 
 .progress-text {
-  font-size: 0.85rem;
-  font-weight: 600;
+  min-width: 28px;
+  font-size: 11px;
   color: var(--text-main);
-  min-width: 30px;
-}
-
-.status-badge {
-  padding: 0.35rem 0.85rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.status-badge.warning {
-  background-color: rgba(245, 158, 11, 0.1);
-  color: #fbbf24;
-}
-
-.status-badge.success {
-  background-color: rgba(16, 185, 129, 0.1);
-  color: #34d399;
-}
-
-.status-badge.default {
-  background-color: rgba(161, 161, 170, 0.1);
-  color: #a1a1aa;
+  font-weight: 700;
 }
 
 .action-buttons {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-action-open,
+.btn-action-edit {
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .btn-action-open {
-  background-color: #246345;
-  color: white;
-  border: none;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-action-open:hover {
-  background-color: #1a4d35;
+  color: #04131f;
+  background: linear-gradient(180deg, #8ec4ff, var(--primary));
 }
 
 .btn-action-edit {
-  background-color: transparent;
   color: var(--text-main);
+  background: transparent;
   border: 1px solid var(--border-color);
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
-.btn-action-edit:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.dark .btn-action-edit:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.table-loading, .empty-row {
-  padding: 3rem;
+.table-loading,
+.empty-row {
+  padding: 18px;
   text-align: center;
   color: var(--text-muted);
+}
+
+.project-list-cards {
+  display: none;
+}
+
+.project-list-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-surface) 94%, var(--bg-panel)), var(--bg-surface));
+  box-shadow: var(--shadow-sm);
+}
+
+.project-list-card__top,
+.project-list-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-list-card__code {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.project-list-card__title {
+  display: grid;
+  gap: 2px;
+}
+
+.project-list-card__title strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.project-list-card__title span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.project-list-card__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.project-list-card__meta div {
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.project-list-card__meta span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.project-list-card__meta strong {
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .table-responsive.desktop-only {
+    display: none;
+  }
+
+  .project-list-cards {
+    display: grid;
+    gap: 10px;
+  }
+
+  .project-list-card__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-list-card .btn-action-open,
+  .project-list-card .btn-action-edit {
+    width: 100%;
+  }
+
+  .status-badge--tooltip::after,
+  .status-badge--tooltip::before {
+    display: none;
+  }
 }

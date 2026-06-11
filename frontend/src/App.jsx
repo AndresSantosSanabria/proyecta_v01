@@ -5,6 +5,7 @@ import PermissionRoute from './components/ProtectedRoute/PermissionRoute';
 import AdminRoute from './components/ProtectedRoute/AdminRoute';
 import AnalyticsRoute from './components/ProtectedRoute/AnalyticsRoute';
 import ProjectAccessRoute from './components/ProtectedRoute/ProjectAccessRoute';
+import ProjectLifecycleGuard from './components/projects/ProjectLifecycleGuard';
 import { useAuthContext } from './context/AuthContext';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage/ProjectsPage';
@@ -15,6 +16,8 @@ import ProjectProgressPage from './pages/ProjectProgressPage/ProjectProgressPage
 import CronogramaPage from './pages/CronogramaPage/CronogramaPage';
 import ProjectClosurePage from './pages/ProjectClosurePage/ProjectClosurePage';
 import RiesgosPage from './pages/RiesgosPage/RiesgosPage';
+import NotificationsPage from './pages/NotificationsPage/NotificationsPage';
+import ProfilePage from './pages/ProfilePage/ProfilePage';
 import CallbackPage from './pages/CallbackPage/CallbackPage';
 import LoggedOutPage from './pages/LoggedOutPage/LoggedOutPage';
 import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
@@ -96,21 +99,25 @@ function App() {
 
           {/* Módulos de Proyecto */}
           <Route element={<ProjectAccessRoute />}>
-            <Route path="projects/:id" element={<Outlet />}>
+            <Route element={<ProjectLifecycleGuard />}>
+              <Route path="projects/:id" element={<Outlet />}>
               <Route path="progress" element={<ProjectProgressPage />} />
               <Route path="schedule" element={<CronogramaPage />} />
               <Route path="risks" element={<RiesgosPage />} />
               <Route path="closure" element={<ProjectClosurePage />} />
-            </Route>
-            <Route path="proyectos/:codigoProyecto" element={<Outlet />}>
+              </Route>
+              <Route path="proyectos/:codigoProyecto" element={<Outlet />}>
               <Route path="avance" element={<ProjectProgressPage />} />
               <Route path="riesgos" element={<RiesgosPage />} />
+              </Route>
             </Route>
           </Route>
 
           <Route element={<PermissionRoute permissions={['REPORTE:VER']} />}>
             <Route path="reports" element={<ReportsPage />} />
           </Route>
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route element={<AnalyticsRoute />}>
             <Route path="analytics" element={<AnalyticsPage />} />
           </Route>

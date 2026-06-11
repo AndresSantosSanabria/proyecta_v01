@@ -192,6 +192,7 @@ const ProjectsPage = () => {
         </div>
 
         <div className="header-title-group">
+          <span className="header-kicker">Vista operativa</span>
           <h1>{shouldUseAssignedProjects ? 'Mis Proyectos' : 'Proyectos TIC'}</h1>
           <p className="subtitle">
             {shouldUseAssignedProjects
@@ -202,54 +203,78 @@ const ProjectsPage = () => {
       </header>
 
       <section className="filters-section">
+        <div className="filters-title">
+          <span>Filtros activos</span>
+          <strong>{activeFilters.length} aplicados</strong>
+        </div>
+
         <div className="search-box">
-          <Search size={18} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, codigo, director o dependencia..."
-            value={filters.query}
-            onChange={(event) => updateFilter('query', event.target.value)}
-          />
+          <label className="filter-label" htmlFor="project-search">Buscar</label>
+          <div className="search-box__input">
+            <Search size={16} className="search-icon" />
+            <input
+              id="project-search"
+              type="text"
+              placeholder="Buscar por nombre, codigo..."
+              value={filters.query}
+              onChange={(event) => updateFilter('query', event.target.value)}
+            />
+          </div>
         </div>
 
         <div className="select-filters">
-          <select
-            className="filter-select"
-            value={filters.dependency}
-            onChange={(event) => updateFilter('dependency', event.target.value)}
-          >
-            <option value="all">Todas las dependencias</option>
-            {dependencyOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="filter-field">
+            <label className="filter-label" htmlFor="project-dependency">Dependencia</label>
+            <select
+              id="project-dependency"
+              className="filter-select"
+              value={filters.dependency}
+              onChange={(event) => updateFilter('dependency', event.target.value)}
+            >
+              <option value="all">Todas las dependencias</option>
+              {dependencyOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            className="filter-select"
-            value={filters.peti}
-            onChange={(event) => updateFilter('peti', event.target.value)}
-          >
-            <option value="all">PETI y No PETI</option>
-            <option value="peti">Solo PETI</option>
-            <option value="no_peti">Solo No PETI</option>
-          </select>
+          <div className="filter-field">
+            <label className="filter-label" htmlFor="project-peti">PETI</label>
+            <select
+              id="project-peti"
+              className="filter-select"
+              value={filters.peti}
+              onChange={(event) => updateFilter('peti', event.target.value)}
+            >
+              <option value="all">PETI y No PETI</option>
+              <option value="peti">Solo PETI</option>
+              <option value="no_peti">Solo No PETI</option>
+            </select>
+          </div>
 
-          <select
-            className="filter-select"
-            value={filters.status}
-            onChange={(event) => updateFilter('status', event.target.value)}
-          >
-            <option value="all">Todos los estados</option>
-            <option value="ACTIVO">Activo</option>
-            <option value="CON_RETRASOS">Con retrasos</option>
-            <option value="CERRADO">Cerrado</option>
-          </select>
+          <div className="filter-field">
+            <label className="filter-label" htmlFor="project-status">Estado</label>
+            <select
+              id="project-status"
+              className="filter-select"
+              value={filters.status}
+              onChange={(event) => updateFilter('status', event.target.value)}
+            >
+              <option value="all">Todos los estados</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="CON_RETRASOS">Con retrasos</option>
+              <option value="CERRADO">Cerrado</option>
+            </select>
+          </div>
         </div>
 
         {activeFilters.length > 0 ? (
-          <div className="active-filters">
+          <div className="active-filters-group">
+            <div className="active-filters-label">Filtros aplicados</div>
+            <div className="active-filters">
             {activeFilters.map((chip) => (
               <button
                 key={chip.key}
@@ -269,6 +294,7 @@ const ProjectsPage = () => {
             <button type="button" className="filter-chip filter-chip--clear" onClick={clearFilters}>
               Limpiar filtros
             </button>
+            </div>
           </div>
         ) : null}
       </section>
@@ -282,11 +308,17 @@ const ProjectsPage = () => {
         </div>
       ) : null}
 
-      <ProjectListTable
-        projects={filteredProjects}
-        loading={loading}
-        canEditProject={canEditProject && !shouldUseAssignedProjects}
-      />
+      <section className="projects-list-section">
+        <div className="projects-list-heading">
+          <span>Proyectos TIC</span>
+          <strong>{filteredProjects.length} de {projectList.length}</strong>
+        </div>
+        <ProjectListTable
+          projects={filteredProjects}
+          loading={loading}
+          canEditProject={canEditProject && !shouldUseAssignedProjects}
+        />
+      </section>
     </div>
   );
 };

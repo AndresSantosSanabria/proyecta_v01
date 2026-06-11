@@ -458,13 +458,13 @@
 /* KPI Grid */
 .progress-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .compact-grid .progress-card {
-  min-height: 145px;
+  min-height: 118px;
 }
 
 .metric-pill {
@@ -486,40 +486,42 @@
 
 .progress-card {
   min-height: auto;
-  padding: 1.35rem;
-  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 95%, var(--bg-main)), var(--bg-card));
-  box-shadow: 0 16px 34px var(--border-subtle);
+  box-shadow: 0 10px 24px var(--border-subtle);
 }
 
 .progress-card .kpi-title {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.7rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
 }
 
 .progress-card .kpi-value {
-  font-size: 2.45rem;
+  font-size: 1.85rem;
   font-weight: 900;
-  margin-bottom: 0.45rem;
-  letter-spacing: -0.05em;
+  margin-bottom: 0.3rem;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .progress-card .kpi-total {
-  font-size: 1.25rem;
+  font-size: 0.95rem;
   color: var(--text-muted);
   font-weight: 600;
 }
 
 .progress-card .kpi-detail {
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
+  line-height: 1.2;
 }
 
 .lock-detail {
@@ -527,8 +529,8 @@
 }
 
 .progress-card .kpi-progress-container {
-  margin-top: 0.9rem;
-  height: 6px;
+  margin-top: 0.55rem;
+  height: 4px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--border-color) 58%, transparent);
   overflow: hidden;
@@ -630,6 +632,28 @@
   border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
 }
 
+.btn-hierarchy-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 42px;
+  padding: 0.62rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--success) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 12%, var(--bg-card));
+  color: var(--success);
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-hierarchy-add:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--success) 18%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--success) 34%, var(--border-color));
+}
+
 /* Tree Table */
 .tree-table-wrapper {
   overflow-x: auto;
@@ -721,6 +745,35 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.node-manage-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.node-manage-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 86%, var(--bg-main));
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.node-manage-btn:hover {
+  transform: translateY(-1px);
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 26%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-card));
 }
 
 .node-badge {
@@ -810,7 +863,803 @@
 }
 
 .action-col {
-  min-width: 170px;
+  min-width: 124px;
+  text-align: center;
+}
+
+.action-icon-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.action-placeholder {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.btn-action-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 86%, var(--bg-main));
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 8px 18px var(--border-subtle);
+}
+
+.btn-action-icon:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-soft) 40%, var(--bg-card));
+}
+
+.btn-action-icon.success {
+  color: var(--success);
+}
+
+.btn-action-icon.success:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--success) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
+}
+
+.btn-action-icon.danger {
+  color: var(--danger);
+}
+
+.btn-action-icon.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+}
+
+.btn-action-icon.info {
+  color: var(--primary);
+}
+
+.btn-action-icon.info:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+}
+
+.btn-action-icon:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-action-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 34px;
+  padding: 0 0.7rem;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 86%, var(--bg-main));
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 8px 18px var(--border-subtle);
+}
+
+.btn-action-text:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-soft) 40%, var(--bg-card));
+}
+
+.btn-action-text.warning {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-card));
+}
+
+.review-observation {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-card));
+  color: var(--text-main);
+  text-align: left;
+}
+
+.review-observation strong {
+  color: var(--danger);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.review-observation span {
+  color: var(--text-muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.date-stack {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 7.4rem;
+  color: var(--text-main);
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.review-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, #000 68%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.review-modal {
+  width: min(620px, 100%);
+  display: grid;
+  gap: 1rem;
+  padding: 1.15rem;
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--bg-main)), var(--bg-card));
+  box-shadow: 0 30px 80px color-mix(in srgb, #000 55%, transparent);
+}
+
+.review-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.review-modal-kicker {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 24%, var(--border-color));
+  color: var(--warning);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.review-modal-header h3 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1.2rem;
+}
+
+.review-modal-header p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.review-field {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.review-field span {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.review-field textarea {
+  width: 100%;
+  min-height: 132px;
+  resize: vertical;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-main) 88%, var(--bg-card));
+  color: var(--text-main);
+  outline: none;
+  line-height: 1.45;
+}
+
+.review-field textarea:focus {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border-color));
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+
+.review-modal-count {
+  justify-self: end;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.review-modal-error {
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-card));
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.review-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.review-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 42px;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 88%, var(--bg-card)), var(--danger));
+  color: var(--bg-card);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.review-submit:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.review-modal.approval-modal {
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border-color));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--success) 12%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--bg-main)), var(--bg-card));
+}
+
+.review-modal-kicker.approval {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
+  color: var(--success);
+}
+
+.review-modal.hierarchy-modal {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 12%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--bg-main)), var(--bg-card));
+}
+
+.review-modal.hierarchy-structure-modal {
+  width: min(96vw, 1060px);
+  max-height: 90vh;
+  gap: 1rem;
+}
+
+.hierarchy-editor-scroll {
+  max-height: min(62vh, 620px);
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.hierarchy-structure-modal .step-form {
+  animation: fadeIn 0.25s ease;
+}
+
+.hierarchy-structure-modal .step-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.hierarchy-structure-modal .step-title {
+  color: var(--text-main);
+  font-size: 1.05rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.hierarchy-structure-modal .help-text {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0 0 1rem;
+}
+
+.hierarchy-structure-modal .field-help {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.hierarchy-structure-modal .hierarchy-rule-banner {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border-color));
+  background: color-mix(in srgb, var(--warning) 11%, var(--bg-card));
+  color: var(--text-main);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.hierarchy-structure-modal .hierarchy-rule-banner svg {
+  color: var(--warning);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.hierarchy-structure-modal .hierarchy-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.hierarchy-structure-modal .hierarchy-summary-card {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  min-height: 108px;
+  padding: 0.85rem;
+  border-radius: 14px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-card) 82%, var(--bg-muted));
+}
+
+.hierarchy-structure-modal .hierarchy-summary-card strong {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.hierarchy-structure-modal .hierarchy-summary-card span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.hierarchy-structure-modal .hierarchy-summary-card.fases {
+  border-color: color-mix(in srgb, var(--success) 34%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 9%, var(--bg-card));
+  color: var(--success);
+}
+
+.hierarchy-structure-modal .hierarchy-summary-card.hitos {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border-color));
+  background: color-mix(in srgb, var(--warning) 9%, var(--bg-card));
+  color: var(--warning);
+}
+
+.hierarchy-structure-modal .hierarchy-summary-card.entregables {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border-color));
+  background: color-mix(in srgb, var(--primary) 9%, var(--bg-card));
+  color: var(--primary);
+}
+
+.hierarchy-structure-modal .hierarchy-empty-state {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--border-color) 84%, var(--primary));
+  background: color-mix(in srgb, var(--bg-muted) 62%, var(--bg-card));
+  color: var(--text-main);
+}
+
+.hierarchy-structure-modal .hierarchy-empty-state span {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.hierarchy-structure-modal .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.hierarchy-structure-modal .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.hierarchy-structure-modal .form-label {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hierarchy-structure-modal .form-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.68rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-main) 84%, var(--bg-card));
+  color: var(--text-main);
+  outline: none;
+}
+
+.hierarchy-structure-modal .form-input:focus {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border-color));
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+
+.hierarchy-structure-modal .form-input-muted,
+.hierarchy-structure-modal .form-input:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--bg-muted) 74%, var(--bg-card));
+}
+
+.hierarchy-structure-modal .input-error {
+  border-color: var(--danger);
+}
+
+.hierarchy-structure-modal .jerarquia-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  margin-bottom: 0.9rem;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-card) 86%, var(--bg-main));
+}
+
+.hierarchy-structure-modal .jerarquia-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.hierarchy-structure-modal .jerarquia-card-header strong {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0.24rem 0.64rem;
+  border-radius: 999px;
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--bg-muted) 72%, var(--bg-card));
+}
+
+.hierarchy-structure-modal .jerarquia-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.hierarchy-structure-modal .fase-card {
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
+}
+
+.hierarchy-structure-modal .hito-card {
+  margin-left: 1rem;
+  border-color: color-mix(in srgb, var(--warning) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--warning) 5%, var(--bg-card));
+}
+
+.hierarchy-structure-modal .entregable-card {
+  margin-left: 2rem;
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--primary) 5%, var(--bg-card));
+}
+
+.hierarchy-structure-modal .peso-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.24rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.hierarchy-structure-modal .peso-ok {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+}
+
+.hierarchy-structure-modal .peso-error {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.hierarchy-structure-modal .btn-icon-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border-color));
+  background: color-mix(in srgb, var(--danger) 9%, var(--bg-card));
+  color: var(--danger);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.hierarchy-structure-modal .btn-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: fit-content;
+  min-height: 36px;
+  padding: 0.48rem 0.8rem;
+  border-radius: 11px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 58%, var(--border-color));
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.hierarchy-structure-modal .btn-add-sm {
+  margin-left: 0.25rem;
+}
+
+.review-modal-kicker.hierarchy {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+  color: var(--primary);
+}
+
+.review-modal.history-modal,
+.review-modal.revert-modal {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 12%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--bg-main)), var(--bg-card));
+}
+
+.review-modal-kicker.history {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+  color: var(--primary);
+}
+
+.document-history-list {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(58vh, 520px);
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.document-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-main) 72%, var(--bg-card));
+}
+
+.document-history-item.current {
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 7%, var(--bg-card));
+}
+
+.document-history-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.document-history-title strong {
+  color: var(--text-main);
+}
+
+.document-history-item p {
+  margin: 0.25rem 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.document-history-meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.document-history-state {
+  display: inline-flex;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.document-history-state.current {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.document-history-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.history-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 96px;
+  border-radius: 16px;
+  border: 1px dashed var(--border-color);
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.history-revert-btn,
+.history-revert-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-card));
+  color: var(--warning);
+  font-weight: 850;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.history-revert-submit {
+  min-height: 42px;
+  color: var(--bg-card);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--warning) 88%, var(--bg-card)), var(--warning));
+}
+
+.history-revert-btn:hover:not(:disabled),
+.history-revert-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--warning) 44%, var(--border-color));
+}
+
+.history-revert-submit:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.hierarchy-field {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.hierarchy-field span {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hierarchy-field input,
+.hierarchy-field textarea {
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-main) 88%, var(--bg-card));
+  color: var(--text-main);
+  outline: none;
+  line-height: 1.45;
+}
+
+.hierarchy-field textarea {
+  resize: vertical;
+}
+
+.hierarchy-field input:focus,
+.hierarchy-field textarea:focus {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border-color));
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+
+.hierarchy-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 42px;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, var(--bg-card)), var(--primary));
+  color: var(--bg-card);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hierarchy-submit:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.approval-warning {
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--border-color));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--warning) 12%, var(--bg-card)), color-mix(in srgb, var(--warning) 7%, var(--bg-card)));
+  color: var(--text-main);
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.approval-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 42px;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--success) 88%, var(--bg-card)), var(--success));
+  color: var(--bg-card);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.approval-submit:disabled,
+.evidence-preview-secondary:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 /* Utilities */
@@ -873,8 +1722,8 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  background: color-mix(in srgb, #000 68%, transparent);
-  backdrop-filter: blur(8px);
+  background: rgba(4, 9, 16, 0.92);
+  backdrop-filter: none;
 }
 
 .evidence-preview-modal {
@@ -885,9 +1734,9 @@
   gap: 1rem;
   padding: 1rem;
   border-radius: 22px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 94%, var(--bg-card) 6%), var(--bg-card));
-  border: 1px solid var(--border-color);
-  box-shadow: 0 30px 80px color-mix(in srgb, #000 55%, transparent);
+  background: var(--bg-surface);
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
 }
 
 .evidence-preview-header {
@@ -935,8 +1784,8 @@
   min-height: 62vh;
   border-radius: 18px;
   overflow: hidden;
-  border: 1px solid var(--border-color);
-  background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-card) 8%);
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
+  background: var(--bg-surface);
 }
 
 .evidence-preview-frame {
@@ -945,7 +1794,7 @@
   min-height: 62vh;
   border: 0;
   display: block;
-  background: var(--bg-card);
+  background: #ffffff;
 }
 
 .evidence-preview-loading,
@@ -1034,6 +1883,10 @@
   .project-summary-modal-body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .hierarchy-structure-modal .hierarchy-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 800px) {
@@ -1069,6 +1922,31 @@
     max-height: 88vh;
   }
 
+  .review-modal.hierarchy-structure-modal {
+    width: 96vw;
+    max-height: 92vh;
+    padding: 1rem;
+  }
+
+  .hierarchy-editor-scroll {
+    max-height: 62vh;
+  }
+
+  .hierarchy-structure-modal .step-header-row,
+  .hierarchy-structure-modal .jerarquia-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hierarchy-structure-modal .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hierarchy-structure-modal .hito-card,
+  .hierarchy-structure-modal .entregable-card {
+    margin-left: 0;
+  }
+
   .project-summary-modal-header {
     flex-direction: column;
   }
@@ -1094,5 +1972,90 @@
     transform: none;
     right: auto;
     top: auto;
+  }
+
+  .tree-table-wrapper {
+    overflow: visible;
+  }
+
+  .tree-table {
+    min-width: 0;
+    width: 100%;
+    border: 0;
+  }
+
+  .tree-table thead {
+    display: none;
+  }
+
+  .tree-table,
+  .tree-table tbody,
+  .tree-table tr,
+  .tree-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .tree-table tr {
+    margin-bottom: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tree-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .tree-table td::before {
+    flex: 0 0 108px;
+    color: var(--text-soft);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1.3;
+  }
+
+  .tree-table td:nth-child(1)::before { content: 'Meta / Proyecto'; }
+  .tree-table td:nth-child(2)::before { content: 'Ponderación'; }
+  .tree-table td:nth-child(3)::before { content: 'Programado'; }
+  .tree-table td:nth-child(4)::before { content: 'Avance'; }
+  .tree-table td:nth-child(5)::before { content: 'Diferencia'; }
+  .tree-table td:nth-child(6)::before { content: 'Estado'; }
+  .tree-table td:nth-child(7)::before { content: 'Total entregables'; }
+  .tree-table td:nth-child(8)::before { content: 'Programados al corte'; }
+  .tree-table td:nth-child(9)::before { content: 'Entregados al corte'; }
+  .tree-table td:nth-child(10)::before { content: 'Eficacia'; }
+  .tree-table td:nth-child(11)::before { content: 'Eficiencia'; }
+  .tree-table td:nth-child(12)::before { content: 'Dependencia'; }
+  .tree-table td.action-col::before { content: 'Acciones'; }
+
+  .tree-table td.col-node .node-title {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .tree-table td .action-icon-group {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .tree-table td .progress-cell,
+  .tree-table td .date-stack {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .tree-table td .status-badge {
+    white-space: normal;
   }
 }

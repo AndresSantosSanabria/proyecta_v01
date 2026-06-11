@@ -1,15 +1,19 @@
 .sidebar-layout {
-  display: flex;
-  height: 100vh;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   width: 100%;
-  overflow: hidden; /* Evita el scroll global */
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-main);
 }
 
 .content-area {
-  flex: 1;
-  background-color: var(--bg-main);
-  overflow-y: auto; /* El scroll sucede aquí */
-  height: 100%;
-  transition: all 0.3s ease;
-  position: relative;
+  min-width: 0;
+  background: var(--bg-main);
+}
+
+@media (max-width: 768px) {
+  .sidebar-layout {
+    grid-template-columns: 1fr;
+  }
 }

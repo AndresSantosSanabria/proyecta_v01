@@ -1,5 +1,3 @@
-import React from 'react';
-
 const PREGUNTAS_FURAG = [
   { key: 'infraestructuraDatos', label: '¿El proyecto incluye uso de infraestructura de datos (datos abiertos, big data, analytics)?' },
   { key: 'interoperabilidad', label: '¿El proyecto requiere interoperabilidad con otros sistemas de la entidad o del Estado?' },

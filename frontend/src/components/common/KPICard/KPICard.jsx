@@ -1,4 +1,3 @@
-import React from 'react';
 import './KPICard.css';
 
 const KPICard = ({ title, value, detail, color = 'success', progress = 100 }) => {
