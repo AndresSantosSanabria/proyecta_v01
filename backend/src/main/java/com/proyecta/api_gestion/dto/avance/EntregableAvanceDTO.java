@@ -7,6 +7,7 @@ public record EntregableAvanceDTO(
     Integer id,
     String nombre,
     BigDecimal ponderacion,
+    LocalDate fechaInicio,
     LocalDate fechaLimite,
     BigDecimal progresoProgramado,
     BigDecimal progresoEjecutado,
@@ -19,5 +20,6 @@ public record EntregableAvanceDTO(
     String evidenciaUrl,
     BigDecimal avance,
     Long atraso,
-    String estadoCodigo
+    String estadoCodigo,
+    String observacionRevision
 ) {}

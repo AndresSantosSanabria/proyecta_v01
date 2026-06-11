@@ -22,6 +22,7 @@ public class SecurityCatalogSeeder {
     private static final List<RoleSeed> ROLES = List.of(
             new RoleSeed("admin", "Administrador", "Control total de la plataforma", true),
             new RoleSeed("gestor_tic", "Gestor TIC", "Administracion tecnica y transversal", true),
+            new RoleSeed("gestor_proyectos", "Gestor de Proyectos", "Gestion funcional y revision de evidencias", true),
             new RoleSeed("director_proyecto", "Director de Proyecto", "Operacion sobre sus proyectos asignados", false),
             new RoleSeed("auditor", "Auditor", "Consulta y revision sin edicion", false),
             new RoleSeed("consulta", "Consulta", "Solo lectura", false)
@@ -48,6 +49,8 @@ public class SecurityCatalogSeeder {
             new PermissionSeed("DOCUMENTO:CARGAR", "Cargar documento", "Permite subir documentos de soporte"),
             new PermissionSeed("DOCUMENTO:EDITAR", "Editar documento", "Permite actualizar documentos existentes"),
             new PermissionSeed("DOCUMENTO:ELIMINAR", "Eliminar documento", "Permite eliminar documentos registrados"),
+            new PermissionSeed("DOCUMENTO:HISTORIAL", "Ver historico documental", "Permite consultar versiones anteriores de evidencias"),
+            new PermissionSeed("DOCUMENTO:REVERTIR", "Revertir documento", "Permite restaurar una version anterior de una evidencia"),
             new PermissionSeed("CRONOGRAMA:VER", "Ver cronograma", "Permite consultar cronogramas registrados"),
             new PermissionSeed("CRONOGRAMA:CARGAR", "Cargar cronograma", "Permite subir el PDF del cronograma"),
             new PermissionSeed("CRONOGRAMA:EDITAR", "Editar cronograma", "Permite actualizar cronogramas existentes"),
@@ -64,7 +67,7 @@ public class SecurityCatalogSeeder {
                     "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
                     "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
                     "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
-                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
+                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR", "DOCUMENTO:HISTORIAL", "DOCUMENTO:REVERTIR",
                     "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
                     "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR"),
             "gestor_tic", List.of(
@@ -75,12 +78,17 @@ public class SecurityCatalogSeeder {
                     "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
                     "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
                     "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR"),
-            "director_proyecto", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:EDITAR", "REPORTE:VER", "ANALITICA:VER",
+            "gestor_proyectos", List.of(
+                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
+                    "REPORTE:VER", "ANALITICA:VER",
                     "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
-                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR",
-                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR",
-                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR"),
+                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
+                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR", "DOCUMENTO:HISTORIAL", "DOCUMENTO:REVERTIR",
+                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR"),
+            "director_proyecto", List.of(
+                    "DASHBOARD:VER", "PROYECTO:VER",
+                    "ENTREGABLE:VER", "EVIDENCIA:VER", "EVIDENCIA:CARGAR",
+                    "DOCUMENTO:VER"),
             "auditor", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "REPORTE:VER", "ANALITICA:VER",
                     "ENTREGABLE:VER", "EVIDENCIA:VER",

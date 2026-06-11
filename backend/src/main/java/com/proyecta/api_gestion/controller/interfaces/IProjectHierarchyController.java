@@ -74,7 +74,7 @@ public interface IProjectHierarchyController {
 
     @Operation(summary = "EP-ENTR-02 · Agregar entregable")
     @PostMapping("/{id}/fases/{faseId}/hitos/{hitoId}/entregables")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(@PathVariable String id, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto);
 
     @Operation(summary = "EP-ENTR-03 · Editar entregable")
     @PutMapping("/{id}/entregables/{entregableId}")

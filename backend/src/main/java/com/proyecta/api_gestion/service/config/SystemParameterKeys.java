@@ -8,6 +8,9 @@ public final class SystemParameterKeys {
     public static final String DASHBOARD_AVANCE_CRITICO_PORCENTAJE = "avance_critico_porcentaje";
     public static final String FURAG_RESPUESTAS_OBLIGATORIAS = "furag_respuestas_obligatorias";
     public static final String SEGURIDAD_CARGOS_ASIGNACION = "seguridad_cargos_asignacion";
+    public static final String SEGURIDAD_ROLE_ALIASES = "seguridad_role_aliases";
+    public static final String PETI_VIGENCIAS = "peti_vigencias";
+    public static final String PETI_ESTRATEGIAS = "peti_estrategias";
     public static final String RIESGO_PROBABILIDADES = "riesgo_probabilidades";
     public static final String RIESGO_IMPACTOS = "riesgo_impactos";
     public static final String RIESGO_NIVELES = "riesgo_niveles";

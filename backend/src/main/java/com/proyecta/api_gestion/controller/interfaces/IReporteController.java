@@ -56,7 +56,9 @@ public interface IReporteController {
 
     @Operation(summary = "Descargar reporte PDF de proyecto", description = "Genera y descarga un PDF con el estado del proyecto.")
     @GetMapping("/proyecto/{id}/descargar")
-    ResponseEntity<byte[]> descargarReporteProyectoPdf(@PathVariable String id);
+    ResponseEntity<byte[]> descargarReporteProyectoPdf(
+            @PathVariable String id,
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode);
 
     @Operation(summary = "Descargar reporte PDF de portafolio", description = "Genera y descarga un PDF con el estado de todo el portafolio.")
     @GetMapping("/portafolio/descargar")

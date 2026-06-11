@@ -55,6 +55,24 @@ public class FileStorageServiceImpl implements IStorageProvider {
     }
 
     @Override
+    public String storeBytes(byte[] content, String subDirectory, String fileName) {
+        String targetFileName = sanitizeFileName(Objects.requireNonNull(fileName));
+
+        if (targetFileName.contains("..")) {
+            throw new BadRequestException("Nombre de archivo inválido: contiene secuencia de ruta prohibida.");
+        }
+
+        try {
+            Path targetDirectory = resolveSubDirectory(subDirectory);
+            Path targetLocation = targetDirectory.resolve(targetFileName);
+            Files.write(targetLocation, content);
+            return targetFileName;
+        } catch (IOException ex) {
+            throw new InternalErrorException("Error al almacenar el archivo: " + targetFileName, ex);
+        }
+    }
+
+    @Override
     public Resource loadFileAsResource(String subDirectory, String fileName) {
         try {
             Path filePath = resolveSubDirectory(subDirectory).resolve(fileName).normalize();

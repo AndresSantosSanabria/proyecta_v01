@@ -93,6 +93,7 @@ public class SecurityAdministrationService {
     }
 
     public Page<SeguridadUsuarioDTO> listarUsuarios(String search, String rol, Pageable pageable) {
+        backfillUsuariosSinRol();
         return usuarioRepository.search(search, rol, pageable).map(this::toUsuarioDTO);
     }
 
@@ -144,22 +145,21 @@ public class SecurityAdministrationService {
             shouldSave = true;
         }
 
-        try {
-            Usuario localUser = localUserAuthorizationService.requireLocalUser(authentication);
-            RolConfig rolConfig = localUser != null ? localUser.getRolConfig() : null;
-            String rolCodigo = localUser != null ? normalizeText(localUser.getRolCodigo()) : null;
-            String rolNombre = rolConfig != null ? normalizeText(rolConfig.getNombre()) : null;
+        Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(
+                usuario,
+                authentication,
+                true);
 
-            if (rolCodigo != null && !rolCodigo.equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
-                usuario.setRolCodigo(rolCodigo);
+        if (resolvedRole.isPresent()) {
+            SeguridadRol rol = resolvedRole.get();
+            if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
+                usuario.setRolCodigo(rol.getCodigo());
                 shouldSave = true;
             }
-            if (rolNombre != null && !rolNombre.equalsIgnoreCase(normalizeText(usuario.getRolNombre()))) {
-                usuario.setRolNombre(rolNombre);
+            if (!rol.getNombre().equalsIgnoreCase(normalizeText(usuario.getRolNombre()))) {
+                usuario.setRolNombre(rol.getNombre());
                 shouldSave = true;
             }
-        } catch (RuntimeException ignored) {
-            // Si el usuario local no existe aun, se conserva la sincronizacion basica.
         }
 
         if (shouldSave || usuario.getId() == null) {
@@ -378,19 +378,19 @@ public class SecurityAdministrationService {
         SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + username));
 
-        if ("DIRECTOR_PROYECTO".equalsIgnoreCase(cargoNormalizado)) {
+        if (isDirectorCargo(cargoNormalizado)) {
             String rolUsuario = normalizeRole(usuario.getRolCodigo());
-            if (!"director_proyecto".equals(rolUsuario)) {
+            if (!isDirectorRole(rolUsuario)) {
                 throw new BadRequestException("El usuario seleccionado no tiene el rol Director de Proyecto.");
             }
         }
 
         SeguridadUsuarioProyecto assignment;
-        if ("DIRECTOR_PROYECTO".equalsIgnoreCase(cargoNormalizado)) {
+        if (isDirectorCargo(cargoNormalizado)) {
             assignment = usuarioProyectoRepository
-                    .findFirstByProyectoIdIgnoreCaseAndCargoIgnoreCaseAndActivoTrueOrderByFechaAsignacionDesc(
-                            proyectoId,
-                            cargoNormalizado)
+                    .findActiveDirectorAssignmentsByProyectoId(proyectoId)
+                    .stream()
+                    .findFirst()
                     .orElseGet(SeguridadUsuarioProyecto::new);
         } else {
             assignment = usuarioProyectoRepository
@@ -407,6 +407,15 @@ public class SecurityAdministrationService {
         assignment.setActivo(true);
         assignment.setFechaAsignacion(LocalDateTime.now());
         SeguridadUsuarioProyecto saved = usuarioProyectoRepository.save(assignment);
+
+        if (isDirectorCargo(cargoNormalizado)) {
+            proyectoRepository.findById(proyectoId).ifPresent(proyecto -> {
+                proyecto.setDirector(usuario.getNombre());
+                proyecto.setCorreoDirector(usuario.getCorreo());
+                proyectoRepository.save(proyecto);
+            });
+        }
+
         catalogCacheService.evictAll();
         return toUsuarioProyectoDTO(saved);
     }
@@ -570,6 +579,173 @@ public class SecurityAdministrationService {
 
     private String normalizePermission(String value) {
         return normalizeText(value) != null ? normalizeText(value).toUpperCase(Locale.ROOT) : null;
+    }
+
+    private boolean isDirectorCargo(String cargo) {
+        String normalized = normalizeText(cargo);
+        if (normalized == null) {
+            return false;
+        }
+
+        return "DIRECTOR_PROYECTO".equalsIgnoreCase(normalized)
+                || "LIDER_TECNICO".equalsIgnoreCase(normalized)
+                || "DIRECTOR_TECNICO".equalsIgnoreCase(normalized);
+    }
+
+    private boolean isDirectorRole(String rolUsuario) {
+        String normalized = normalizeRole(rolUsuario);
+        if (normalized == null) {
+            return false;
+        }
+
+        return "director_proyecto".equals(normalized)
+                || "lider_tecnico".equals(normalized)
+                || "director_tecnico".equals(normalized);
+    }
+
+    @Transactional
+    protected void backfillUsuariosSinRol() {
+        List<SeguridadUsuario> usuarios = usuarioRepository.findAll();
+        if (usuarios.isEmpty()) {
+            return;
+        }
+
+        boolean changed = false;
+        for (SeguridadUsuario usuario : usuarios) {
+            Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(usuario, null, false);
+            if (resolvedRole.isEmpty()) {
+                continue;
+            }
+
+            SeguridadRol rol = resolvedRole.get();
+            boolean localChange = false;
+
+            if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
+                usuario.setRolCodigo(rol.getCodigo());
+                localChange = true;
+            }
+
+            if (!rol.getNombre().equalsIgnoreCase(normalizeText(usuario.getRolNombre()))) {
+                usuario.setRolNombre(rol.getNombre());
+                localChange = true;
+            }
+
+            if (localChange) {
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            usuarioRepository.saveAll(usuarios);
+        }
+    }
+
+    private Optional<SeguridadRol> resolveRoleForSecurityUser(
+            SeguridadUsuario usuario,
+            Authentication authentication,
+            boolean preferTokenRoles) {
+        List<String> candidateRoles = new ArrayList<>();
+
+        if (preferTokenRoles && authentication != null) {
+            candidateRoles.addAll(authentication.getAuthorities().stream()
+                    .map(authority -> authority.getAuthority())
+                    .filter(value -> value != null && value.startsWith("ROLE_"))
+                    .map(SecurityRoleCatalog::normalize)
+                    .filter(value -> value != null && !value.isBlank())
+                    .distinct()
+                    .toList());
+        }
+
+        if (usuario != null) {
+            candidateRoles.addAll(resolveRoleCodesFromText(
+                    usuario.getRolCodigo(),
+                    usuario.getRolNombre(),
+                    usuario.getUsername(),
+                    usuario.getCorreo(),
+                    usuario.getNombre(),
+                    usuario.getDependencia()));
+        }
+
+        if (authentication != null) {
+            candidateRoles.addAll(authentication.getAuthorities().stream()
+                    .map(authority -> authority.getAuthority())
+                    .filter(value -> value != null && value.startsWith("ROLE_"))
+                    .map(SecurityRoleCatalog::normalize)
+                    .filter(value -> value != null && !value.isBlank())
+                    .distinct()
+                    .toList());
+        }
+
+        String preferredCode = pickPreferredSecurityRoleCode(candidateRoles);
+        if (preferredCode == null) {
+            return Optional.empty();
+        }
+
+        return rolRepository.findByCodigoIgnoreCase(preferredCode);
+    }
+
+    private List<String> resolveRoleCodesFromText(String... values) {
+        List<String> codes = new ArrayList<>();
+        if (values == null) {
+            return codes;
+        }
+
+        for (String value : values) {
+            String resolved = resolveRoleCodeFromText(value);
+            if (resolved != null && !resolved.isBlank()) {
+                codes.add(resolved);
+            }
+        }
+
+        return codes;
+    }
+
+    private String resolveRoleCodeFromText(String value) {
+        String normalized = normalizeText(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        String lower = normalized.toLowerCase(Locale.ROOT);
+        if (lower.contains("admin") || lower.contains("administrador")) {
+            return "admin";
+        }
+        if (lower.contains("gestor_tic") || lower.contains("gestor tic") || lower.contains("gestor_proyectos_ti")) {
+            return "gestor_tic";
+        }
+        if (lower.contains("director_pro")
+                || lower.contains("director_proyecto")
+                || lower.contains("director proyecto")
+                || lower.contains("proyecta.director_proyecto")) {
+            return "director_proyecto";
+        }
+        if (lower.contains("auditor")) {
+            return "auditor";
+        }
+        if (lower.contains("consulta") || lower.contains("analista")) {
+            return "consulta";
+        }
+
+        return null;
+    }
+
+    private String pickPreferredSecurityRoleCode(List<String> candidateRoles) {
+        if (candidateRoles == null || candidateRoles.isEmpty()) {
+            return null;
+        }
+
+        List<String> priority = List.of("admin", "gestor_tic", "director_proyecto", "auditor", "consulta");
+        for (String preferred : priority) {
+            if (candidateRoles.stream().anyMatch(preferred::equalsIgnoreCase)) {
+                return preferred;
+            }
+        }
+
+        return candidateRoles.stream()
+                .map(SecurityRoleCatalog::normalize)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null);
     }
 
     private String normalizeText(String value) {

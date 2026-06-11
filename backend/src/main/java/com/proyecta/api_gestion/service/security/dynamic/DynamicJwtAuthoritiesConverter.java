@@ -23,24 +23,30 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
     private final List<String> resourceClientIds;
     private final SecurityCatalogCacheService catalogCacheService;
     private final KeycloakIdentityExtractor identityExtractor;
+    private final RoleAliasService roleAliasService;
 
     public DynamicJwtAuthoritiesConverter(
             @Value("${gob.security.resource-client-ids}") String resourceClientIds,
             SecurityCatalogCacheService catalogCacheService,
-            KeycloakIdentityExtractor identityExtractor) {
+            KeycloakIdentityExtractor identityExtractor,
+            RoleAliasService roleAliasService) {
         this.resourceClientIds = List.of(resourceClientIds.split(",")).stream()
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toList();
         this.catalogCacheService = catalogCacheService;
         this.identityExtractor = identityExtractor;
+        this.roleAliasService = roleAliasService;
     }
 
     @Override
     public Collection<GrantedAuthority> convert(Jwt jwt) {
         Set<GrantedAuthority> authorities = new LinkedHashSet<>();
 
-        Set<String> roles = identityExtractor.resolveRealmAndClientRoles(authenticationFrom(jwt), resourceClientIds);
+        Set<String> roles = identityExtractor.resolveRealmAndClientRoles(authenticationFrom(jwt), resourceClientIds).stream()
+                .map(roleAliasService::normalize)
+                .filter(role -> role != null && !role.isBlank())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         roles.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase(Locale.ROOT))));
 
         try {

@@ -6,10 +6,14 @@ import com.proyecta.api_gestion.dto.avance.EntregableAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.FaseAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.HitoAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
+import com.proyecta.api_gestion.model.DocumentoVersion;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Fase;
 import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
+import com.proyecta.api_gestion.repository.DocumentoVersionRepository;
+import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +35,12 @@ public class ProjectProgressMetricsService {
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     private final ObjectMapper objectMapper;
+    private final DocumentoVersionRepository documentoVersionRepository;
 
-    public ProjectProgressMetricsService(ObjectMapper objectMapper) {
+    public ProjectProgressMetricsService(ObjectMapper objectMapper,
+                                         DocumentoVersionRepository documentoVersionRepository) {
         this.objectMapper = objectMapper;
+        this.documentoVersionRepository = documentoVersionRepository;
     }
 
     public ProyectoAvanceResponseDTO construir(Proyecto proyecto, LocalDate corte) {
@@ -103,7 +110,7 @@ public class ProjectProgressMetricsService {
     private FaseAvanceDTO construirFase(Fase fase, LocalDate corte) {
         List<Hito> hitosFase = hitosSeguros(fase).stream()
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(Hito::getNombre, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .sorted(ProjectHierarchyOrdering.HITOS_BY_SEQUENCE)
                 .toList();
 
         List<HitoAvanceDTO> hitos = hitosFase.stream()
@@ -133,7 +140,7 @@ public class ProjectProgressMetricsService {
     private HitoAvanceDTO construirHito(Hito hito, LocalDate corte) {
         List<Entregable> entregablesHito = entregablesSeguros(hito).stream()
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(Entregable::getNombre, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE)
                 .toList();
 
         List<EntregableAvanceDTO> entregables = entregablesHito.stream()
@@ -169,12 +176,15 @@ public class ProjectProgressMetricsService {
         BigDecimal diferencia = progresoProgramado.subtract(progresoEjecutado).setScale(2, RoundingMode.HALF_UP);
         BigDecimal eficacia = calcularEficacia(progresoProgramado, progresoEjecutado);
         Long diasAtraso = calcularDiasAtraso(entregable, corte);
-        String estado = construirEstadoEntregable(conforme, diasAtraso, entregable.getFechaLimite(), corte);
+        String estadoCodigo = entregable.getEstadoCodigo();
+        String estado = construirEstadoEntregable(estadoCodigo, conforme, diasAtraso, entregable.getFechaLimite(), corte);
+        String evidenciaNombre = nombreEvidenciaActual(entregable);
 
         return new EntregableAvanceDTO(
                 entregable.getId(),
                 entregable.getNombre(),
                 normalizarPonderacion(entregable.getPonderacion()),
+                entregable.getFechaInicio(),
                 entregable.getFechaLimite(),
                 progresoProgramado,
                 progresoEjecutado,
@@ -183,14 +193,29 @@ public class ProjectProgressMetricsService {
                 estado,
                 diasAtraso,
                 entregable.getFechaEntregaReal(),
-                entregable.getArchivoPdf(),
+                evidenciaNombre,
                 entregable.getArchivoPdf() != null
                         ? "/api/v1/proyectos/" + entregable.getHito().getFase().getProyecto().getId() + "/avance/entregables/" + entregable.getId() + "/evidencia"
                         : null,
                 progresoEjecutado,
                 diasAtraso,
-                estado
+                estadoCodigo,
+                entregable.getObservacionRevision()
         );
+    }
+
+    private String nombreEvidenciaActual(Entregable entregable) {
+        if (entregable.getArchivoPdf() == null || entregable.getArchivoPdf().isBlank()) {
+            return null;
+        }
+
+        return documentoVersionRepository.findFirstByEntregableIdAndEstadoOrderByNumeroVersionDesc(
+                        entregable.getId(),
+                        DocumentoVersionEstado.ACTUAL
+                )
+                .map(DocumentoVersion::getNombreArchivoOriginal)
+                .filter(nombre -> nombre != null && !nombre.isBlank())
+                .orElse(entregable.getArchivoPdf());
     }
 
     private BigDecimal agregarPorPesoEntregable(List<EntregableAvanceDTO> entregables,
@@ -317,7 +342,13 @@ public class ProjectProgressMetricsService {
                 .count();
     }
 
-    private String construirEstadoEntregable(boolean conforme, Long diasAtraso, LocalDate fechaLimite, LocalDate corte) {
+    private String construirEstadoEntregable(String estadoCodigo, boolean conforme, Long diasAtraso, LocalDate fechaLimite, LocalDate corte) {
+        if ("RECHAZADO".equals(estadoCodigo)) {
+            return "RECHAZADO";
+        }
+        if ("EN_PROCESO".equals(estadoCodigo) || "COMPLETADO".equals(estadoCodigo)) {
+            return "EN_REVISION";
+        }
         if (conforme && diasAtraso != null && diasAtraso >= 0) {
             return "EN_TIEMPO";
         }

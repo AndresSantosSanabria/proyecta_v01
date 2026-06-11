@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS estado_riesgo_config (
 -- 1.3 system_parameters
 CREATE TABLE IF NOT EXISTS system_parameters (
     param_key       VARCHAR(50)     PRIMARY KEY,
-    param_value     VARCHAR(255)    NOT NULL,
+    param_value     VARCHAR(1000)   NOT NULL,
     descripcion     VARCHAR(255)
 );;
 
@@ -202,6 +202,8 @@ CREATE TABLE IF NOT EXISTS entregable (
     estado_config_id    INTEGER         REFERENCES estado_entregable_config(estado_entregable_id),
     conforme            BOOLEAN         NOT NULL DEFAULT FALSE,
     archivo_pdf         VARCHAR(300),
+    observacion_revision VARCHAR(1000),
+    fecha_inicio        DATE,
     fecha_limite        DATE,
     fecha_entrega_real  DATE,
     fecha_creacion      TIMESTAMP       NOT NULL DEFAULT NOW(),
@@ -256,6 +258,8 @@ CREATE TABLE IF NOT EXISTS actas_cierre (
     estado_final        VARCHAR(30),
     corte_calculo       DATE,
     snapshot_json       TEXT,
+    archivo_pdf         VARCHAR(255),
+    ruta_archivo_pdf    VARCHAR(255),
 
     CONSTRAINT fk_actas_cierre_proyecto
         FOREIGN KEY (proyecto_id)
@@ -299,6 +303,8 @@ ALTER TABLE hito ADD COLUMN IF NOT EXISTS estado_revision VARCHAR(30) DEFAULT 'P
 
 -- Entregable
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS estado VARCHAR(30);;
+ALTER TABLE entregable ADD COLUMN IF NOT EXISTS observacion_revision VARCHAR(1000);;
+ALTER TABLE entregable ADD COLUMN IF NOT EXISTS fecha_inicio DATE;;
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS fecha_entrega_real DATE;;
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS estado_config_id INTEGER REFERENCES estado_entregable_config(estado_entregable_id);;
 

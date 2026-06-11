@@ -11,6 +11,7 @@ import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.model.enums.NivelRiesgo;
+import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.ReporteService;
@@ -98,7 +99,7 @@ public class ReporteServiceImpl implements ReporteService {
             List<EntregablePendienteDTO> entregablesVencidos =
                     entregableRepository.findPendientesVencidosByProyecto(proyectoId, LocalDate.now());
 
-            String directorNombre = proyecto.getDirector() != null ? proyecto.getDirector() : "No asignado";
+            String directorNombre = resolveDirectorAsignado(proyecto);
             String patrocinadorNombre = proyecto.getPatrocinador() != null ? proyecto.getPatrocinador().getNombre() : "No asignado";
 
             return new ReporteVistaPreviaDTO(
@@ -133,7 +134,9 @@ public class ReporteServiceImpl implements ReporteService {
                     p.getId(),
                     p.getNombre(),
                     p.getPeti(),
-                    p.getEstrategiaPeti() != null ? p.getEstrategiaPeti().name() : null,
+                    p.getEstrategiaPetiConfig() != null
+                            ? p.getEstrategiaPetiConfig().getCodigo()
+                            : p.getEstrategiaPeti() != null ? p.getEstrategiaPeti().name() : null,
                     p.getVigenciaPeti(),
                     p.getObjetivoGeneral()
             );
@@ -165,7 +168,7 @@ public class ReporteServiceImpl implements ReporteService {
                     return new RiesgoVerificacionReporteDTO(
                             proyecto.getId(),
                             proyecto.getNombre(),
-                            safeOrDefault(proyecto.getDirector()),
+                            safe(resolveDirectorAsignado(proyecto)),
                             safeOrDefault(proyecto.getDependencia()),
                             diligencioTratamiento
                     );
@@ -175,7 +178,7 @@ public class ReporteServiceImpl implements ReporteService {
 
     @Override
     @Transactional(readOnly = true)
-    public byte[] generarReporteProyectoPdf(String id) {
+    public byte[] generarReporteProyectoPdf(String id, String detailMode) {
         Proyecto proyecto = cargarProyecto(id);
         List<Fase> fases = ordenarFases(proyecto);
         List<ObjetivoEspecifico> objetivos = ordenarObjetivos(proyecto);
@@ -191,7 +194,8 @@ public class ReporteServiceImpl implements ReporteService {
                 fases,
                 objetivos,
                 pendientesVencidos,
-                conformes
+                conformes,
+                detailMode
         );
     }
 
@@ -306,7 +310,7 @@ public class ReporteServiceImpl implements ReporteService {
                             safe(proyecto.getNombre()),
                             safe(proyecto.getObjetivoGeneral()),
                             safe(proyecto.getDependencia()),
-                            safe(proyecto.getDirector()),
+                            safe(resolveDirectorAsignado(proyecto)),
                             safe(projectStatus),
                             Boolean.TRUE.equals(proyecto.getPeti()) ? "PETI" : "NO PETI");
 
@@ -501,7 +505,7 @@ public class ReporteServiceImpl implements ReporteService {
                 metrics.eficacia(),
                 metrics.eficiencia(),
                 safe(proyecto.getDependencia()),
-                safe(proyecto.getDirector())
+                safe(resolveDirectorAsignado(proyecto))
         );
     }
 
@@ -686,6 +690,39 @@ public class ReporteServiceImpl implements ReporteService {
 
     private String safeOrDefault(String value) {
         return value == null || value.isBlank() ? "No asignado" : value.trim();
+    }
+
+    private String resolveDirectorAsignado(Proyecto proyecto) {
+        if (proyecto == null || proyecto.getId() == null) {
+            return null;
+        }
+        SeguridadUsuarioProyecto assignment = seguridadUsuarioProyectoRepository
+                .findActiveDirectorAssignmentsByProyectoId(proyecto.getId())
+                .stream()
+                .filter(item -> item.getUsuario() != null)
+                .findFirst()
+                .orElse(null);
+
+        if (assignment == null || assignment.getUsuario() == null) {
+            return null;
+        }
+
+        return firstNonBlank(
+                assignment.getUsuario().getNombre(),
+                assignment.getUsuario().getUsername()
+        );
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private boolean esTratamientoDiligenciado(com.proyecta.api_gestion.model.Riesgo riesgo) {

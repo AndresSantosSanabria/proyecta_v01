@@ -48,6 +48,12 @@ public class ActaCierre {
     @Column(name = "snapshot_json", columnDefinition = "TEXT")
     private String snapshotJson;
 
+    @Column(name = "archivo_pdf", length = 255)
+    private String archivoPdf;
+
+    @Column(name = "ruta_archivo_pdf", length = 255)
+    private String rutaArchivoPdf;
+
     public ActaCierre() {
     }
 
@@ -153,5 +159,21 @@ public class ActaCierre {
 
     public void setSnapshotJson(String snapshotJson) {
         this.snapshotJson = snapshotJson;
+    }
+
+    public String getArchivoPdf() {
+        return archivoPdf;
+    }
+
+    public void setArchivoPdf(String archivoPdf) {
+        this.archivoPdf = archivoPdf;
+    }
+
+    public String getRutaArchivoPdf() {
+        return rutaArchivoPdf;
+    }
+
+    public void setRutaArchivoPdf(String rutaArchivoPdf) {
+        this.rutaArchivoPdf = rutaArchivoPdf;
     }
 }

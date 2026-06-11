@@ -9,5 +9,6 @@ public record EntregableResponseDTO(
     BigDecimal ponderacion,
     String estado,
     Boolean conforme,
+    LocalDate fechaInicio,
     LocalDate fechaLimite
 ) {}

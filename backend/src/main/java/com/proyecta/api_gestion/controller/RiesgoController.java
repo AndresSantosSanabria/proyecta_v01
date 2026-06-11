@@ -33,7 +33,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @GetMapping("/{proyectoId}/riesgos")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<RiesgoListResponseDTO>> listarRiesgos(@PathVariable String proyectoId) {
         RiesgoListResponseDTO riesgos = riesgoService.getRisksByProject(proyectoId);
         return ResponseEntity.ok(ApiResponse.success(riesgos, "Matriz de riesgos recuperada con exito"));
@@ -47,7 +47,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @PostMapping("/{proyectoId}/riesgos")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<RiesgoCreatedResponseDTO>> crearRiesgo(
             @PathVariable String proyectoId,
             @Valid @RequestBody RiesgoRequestDTO requestDto) {
@@ -58,7 +58,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @PutMapping("/{proyectoId}/riesgos/{riesgoId}")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<RiesgoResponseDTO>> actualizarRiesgo(
             @PathVariable String proyectoId,
             @PathVariable Integer riesgoId,
@@ -69,7 +69,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @DeleteMapping("/{proyectoId}/riesgos/{riesgoId}")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<Void> eliminarRiesgo(
             @PathVariable String proyectoId,
             @PathVariable Integer riesgoId) {
@@ -79,7 +79,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @PatchMapping("/{proyectoId}/riesgos/{riesgoId}/tratamiento")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<Void>> verificarTratamiento(
             @PathVariable String proyectoId,
             @PathVariable Integer riesgoId,
@@ -90,7 +90,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @GetMapping("/{proyectoId}/riesgos/{riesgoId}/soluciones")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<java.util.List<RiesgoSolucionAdjuntoDTO>>> listarSoluciones(
             @PathVariable String proyectoId,
             @PathVariable Integer riesgoId) {
@@ -99,7 +99,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @PostMapping(value = "/{proyectoId}/riesgos/{riesgoId}/soluciones", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<java.util.List<RiesgoSolucionAdjuntoDTO>>> agregarSoluciones(
             @PathVariable String proyectoId,
             @PathVariable Integer riesgoId,
@@ -110,7 +110,7 @@ public class RiesgoController implements IRiesgoController {
 
     @Override
     @GetMapping("/{proyectoId}/riesgos/{riesgoId}/soluciones/{solucionId}/descargar")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<Resource> descargarSolucion(
             @PathVariable String proyectoId,
             @PathVariable Integer riesgoId,

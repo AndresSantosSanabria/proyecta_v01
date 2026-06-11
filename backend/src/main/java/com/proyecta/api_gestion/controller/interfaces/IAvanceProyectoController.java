@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,39 +40,57 @@ public interface IAvanceProyectoController {
             @PathVariable String proyectoId);
 
     @Operation(
-        summary     = "Marcar entregable como COMPLETADO + subir PDF",
-        description = "Marca un entregable como COMPLETADO, guarda el PDF de evidencia y lo vuelve inmutable."
+        summary     = "Subir evidencia de entregable",
+        description = "Guarda el PDF de evidencia y deja el entregable en estado de revision pendiente de aprobacion."
     )
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
-            description  = "Entregable completado exitosamente",
+            description  = "Evidencia registrada exitosamente",
             content = @Content(schema = @Schema(implementation = EntregableConformidadResponseDTO.class))
         )
     })
     @StandardApiResponses
-    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> marcarCompletado(
+    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> registrarEvidencia(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @Parameter(description = "fecha real de entrega (yyyy-MM-dd)") @RequestParam LocalDate fechaEntrega,
-            @Parameter(description = "archivo PDF de evidencia") @RequestPart("evidencia") MultipartFile evidencia);
+            @Parameter(description = "archivo PDF de evidencia") @RequestPart("evidencia") MultipartFile evidencia,
+            Authentication authentication);
 
     @Operation(
-        summary     = ProyectoAvanceSwaggerConstants.SUMMARY_PATCH_AVANCE,
-        description = ProyectoAvanceSwaggerConstants.DESCRIPTION_PATCH_AVANCE
+        summary     = ProyectoAvanceSwaggerConstants.SUMMARY_PATCH_APROBAR,
+        description = ProyectoAvanceSwaggerConstants.DESCRIPTION_PATCH_APROBAR
     )
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
-            description  = "Entregable marcado como conforme",
+            description  = "Entregable aprobado por el gestor",
             content = @Content(schema = @Schema(implementation = EntregableConformidadResponseDTO.class))
         )
     })
     @StandardApiResponses
-    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> marcarConformidad(
+    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> aprobarEntregable(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
-            @Parameter(description = "true para marcar a conformidad") @RequestParam Boolean conformidad,
-            @Parameter(description = "fecha real de entrega (yyyy-MM-dd)") @RequestParam LocalDate fechaEntrega,
-            @Parameter(description = "archivo PDF de evidencia") @RequestPart MultipartFile evidencia);
+            @Parameter(description = "Observacion opcional de aprobacion") @RequestParam(required = false) String observacion,
+            Authentication authentication);
+
+    @Operation(
+        summary     = "Rechazar entregable",
+        description = "Marca el entregable como rechazado para que el asignado corrija y vuelva a cargar la evidencia."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description  = "Entregable rechazado por el gestor",
+            content = @Content(schema = @Schema(implementation = EntregableConformidadResponseDTO.class))
+        )
+    })
+    @StandardApiResponses
+    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> rechazarEntregable(
+            @PathVariable String proyectoId,
+            @PathVariable Integer entregableId,
+            @Parameter(description = "Motivo del rechazo") @RequestParam String observacion,
+            Authentication authentication);
 }

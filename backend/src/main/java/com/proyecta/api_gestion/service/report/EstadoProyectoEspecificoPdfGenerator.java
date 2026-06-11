@@ -62,19 +62,39 @@ public final class EstadoProyectoEspecificoPdfGenerator {
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_RULE = new Color(152, 152, 152);
 
+    private enum DetailMode {
+        RESUMIDO,
+        DETALLADO;
+
+        static DetailMode from(String value) {
+            if (value != null && value.trim().equalsIgnoreCase("detallado")) {
+                return DETALLADO;
+            }
+            return RESUMIDO;
+        }
+
+        boolean isDetailed() {
+            return this == DETALLADO;
+        }
+    }
+
     public byte[] build(Proyecto proyecto,
                         List<Fase> fases,
                         List<ObjetivoEspecifico> objetivos,
                         List<Entregable> entregablesPendientes,
-                        List<Entregable> entregablesConformes) {
+                        List<Entregable> entregablesConformes,
+                        String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             FontPack fonts = loadFonts(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
+            DetailMode mode = DetailMode.from(detailMode);
 
-            canvas.renderPageOne(proyecto, objetivos);
-            canvas.renderPageTwo(fases);
-            canvas.renderPageThree(proyecto, entregablesPendientes, entregablesConformes);
+            canvas.renderPageOne(proyecto, objetivos, fases, entregablesPendientes, entregablesConformes, mode.isDetailed());
+            if (mode.isDetailed()) {
+                canvas.renderPageTwo(fases);
+                canvas.renderPageThree(proyecto, entregablesPendientes, entregablesConformes);
+            }
 
             document.save(out);
             return out.toByteArray();
@@ -125,7 +145,12 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             this.fonts = fonts;
         }
 
-        void renderPageOne(Proyecto proyecto, List<ObjetivoEspecifico> objetivos) throws IOException {
+        void renderPageOne(Proyecto proyecto,
+                           List<ObjetivoEspecifico> objetivos,
+                           List<Fase> fases,
+                           List<Entregable> entregablesPendientes,
+                           List<Entregable> entregablesConformes,
+                           boolean detailed) throws IOException {
             startPage();
             drawHeaderLogo();
 
@@ -180,6 +205,11 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             y -= 26f;
 
             drawStateCheckboxes(proyecto.getEstado(), y);
+            if (!detailed) {
+                y -= 22f;
+                drawText("VersiÃ³n resumida: para ver fases, hitos y entregables use el modo detallado.",
+                        fonts.regular(), 9.3f, LEFT, y, COLOR_MUTED);
+            }
             finishPage();
         }
 

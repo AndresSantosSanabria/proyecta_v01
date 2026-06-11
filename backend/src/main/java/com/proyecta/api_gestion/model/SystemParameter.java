@@ -13,7 +13,7 @@ public class SystemParameter {
     @Column(name = "param_key", length = 50)
     private String key;
 
-    @Column(name = "param_value", nullable = false)
+    @Column(name = "param_value", nullable = false, length = 1000)
     private String value;
 
     @Column

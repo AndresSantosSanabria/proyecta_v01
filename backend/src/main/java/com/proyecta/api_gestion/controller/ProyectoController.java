@@ -2,12 +2,17 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.proyecto.DashboardDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletarInformacionDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletionStatusDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCreatedDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoListDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoRegistroInicialDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoResponseDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoResumenDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
+import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.model.Furag;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
@@ -75,7 +80,51 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @Override
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
     public ResponseEntity<ApiResponse<ProyectoCreatedDTO>> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(proyectoService.crearProyecto(dto), "Proyecto creado exitosamente"));
+        throw new BadRequestException("La creacion completa de proyectos esta deshabilitada. Use /api/v1/proyectos/registro-inicial.");
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
+    public ResponseEntity<ApiResponse<ProyectoCreatedDTO>> registrarProyectoInicial(
+            @Valid @RequestBody ProyectoRegistroInicialDTO dto,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        ProyectoCreatedDTO creado = proyectoService.registrarProyectoInicial(dto, username);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(creado, "Proyecto registrado inicialmente"));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
+    public ResponseEntity<ApiResponse<List<SeguridadUsuarioDTO>>> listarDirectoresAsignables() {
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.listarDirectoresAsignables(),
+                "Directores asignables listados correctamente"
+        ));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoCompletionStatusDTO>> obtenerEstadoCompletitud(
+            @PathVariable String id,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.obtenerEstadoCompletitud(id, username),
+                "Estado de completitud obtenido"
+        ));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarInformacionInicial(
+            @PathVariable String id,
+            @Valid @RequestBody ProyectoCompletarInformacionDTO dto,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.completarInformacionInicial(id, dto, username),
+                "Informacion inicial completada exitosamente"
+        ));
     }
 
     @Override
@@ -100,26 +149,26 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResumenDTO>> obtenerResumen(String id) {
         return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerResumen(id), "Resumen del proyecto obtenido"));
     }
 
     @Override
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:CERRAR', #id, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:CERRAR', #id, authentication)")
     public ResponseEntity<Void> cerrarProyecto(String id) {
         proyectoService.cerrarProyecto(id);
         return ResponseEntity.ok().build();
     }
 
     @Override
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<ApiResponse<Furag>> obtenerFurag(String id) {
         return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerFurag(id), "FURAG obtenido"));
     }
 
     @Override
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #id, authentication)")
     public ResponseEntity<Void> actualizarFurag(String id, Furag furag) {
         proyectoService.actualizarFurag(id, furag);
         return ResponseEntity.ok().build();

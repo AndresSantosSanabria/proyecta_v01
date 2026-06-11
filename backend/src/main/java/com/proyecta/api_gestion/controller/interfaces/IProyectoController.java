@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.controller.interfaces;
 
 import com.proyecta.api_gestion.dto.proyecto.*;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +31,10 @@ public interface IProyectoController {
     @GetMapping("/mis-proyectos")
     ResponseEntity<ApiResponse<List<ProyectoListDTO>>> listarMisProyectos(Authentication authentication);
 
+    @Operation(summary = "EP-PROY-01C - Directores asignables", description = "Lista usuarios activos con rol directivo para asignarlos como Director del proyecto.")
+    @GetMapping("/directores-asignables")
+    ResponseEntity<ApiResponse<List<SeguridadUsuarioDTO>>> listarDirectoresAsignables();
+
     @Operation(summary = "EP-PROY-02 · Obtener detalle", description = "Obtener detalle completo de un proyecto por ID.")
     @GetMapping("/{id}")
     ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable String id);
@@ -37,6 +42,25 @@ public interface IProyectoController {
     @Operation(summary = "EP-PROY-03 · Crear proyecto", description = "Crear un nuevo proyecto TIC (wizard completo).")
     @PostMapping
     ResponseEntity<ApiResponse<ProyectoCreatedDTO>> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto);
+
+    @Operation(summary = "EP-PROY-03B - Registro inicial", description = "Crear el registro minimo del proyecto y dejarlo pendiente de completar por el Director asignado.")
+    @PostMapping("/registro-inicial")
+    ResponseEntity<ApiResponse<ProyectoCreatedDTO>> registrarProyectoInicial(
+            @Valid @RequestBody ProyectoRegistroInicialDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-03C - Estado de completitud", description = "Consultar si el proyecto requiere completitud inicial del Director asignado.")
+    @GetMapping("/{id}/completion-status")
+    ResponseEntity<ApiResponse<ProyectoCompletionStatusDTO>> obtenerEstadoCompletitud(
+            @PathVariable String id,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-03D - Completar informacion inicial", description = "Completar los datos restantes del proyecto pendiente. Solo aplica al Director asignado.")
+    @PutMapping("/{id}/completar-informacion")
+    ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarInformacionInicial(
+            @PathVariable String id,
+            @Valid @RequestBody ProyectoCompletarInformacionDTO dto,
+            Authentication authentication);
 
     @Operation(summary = "EP-PROY-04 · Actualizar proyecto", description = "Actualizar datos editables de un proyecto existente.")
     @PutMapping("/{id}")

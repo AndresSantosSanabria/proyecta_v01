@@ -35,7 +35,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/vista-previa/{proyectoId}")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<ReporteVistaPreviaDTO>> getVistaPrevia(@PathVariable String proyectoId) {
         ReporteVistaPreviaDTO dto = reporteService.obtenerVistaPrevia(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
@@ -60,7 +60,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/furag/{proyectoId}")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<FuragReporteDTO>> getFurag(@PathVariable String proyectoId) {
         FuragReporteDTO dto = reporteService.obtenerFurag(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
@@ -77,9 +77,11 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/proyecto/{id}/descargar")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
-    public ResponseEntity<byte[]> descargarReporteProyectoPdf(@PathVariable String id) {
-        byte[] content = reporteService.generarReporteProyectoPdf(id);
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<byte[]> descargarReporteProyectoPdf(
+            @PathVariable String id,
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
+        byte[] content = reporteService.generarReporteProyectoPdf(id, detailMode);
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
@@ -129,7 +131,7 @@ public class ReporteController implements IReporteController {
 
     @Override
     @GetMapping("/furag/{proyectoId}/descargar")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<byte[]> descargarReporteFuragPdf(@PathVariable String proyectoId) {
         byte[] content = reporteService.generarReporteFuragPdf(proyectoId);
         return ResponseEntity.ok()

@@ -1,31 +1,40 @@
 package com.proyecta.api_gestion.service.security.dynamic;
 
+import java.text.Normalizer;
 import java.util.Map;
 import java.util.Set;
+import static java.util.Map.entry;
 
 public final class SecurityRoleCatalog {
 
     public static final Set<String> PROTECTED_ROLE_CODES = Set.of(
             "admin",
             "gestor_tic",
+            "gestor_proyectos",
             "director_proyecto",
             "auditor",
             "consulta"
     );
 
-    public static final Set<String> TRANSVERSAL_ROLE_CODES = Set.of("admin", "gestor_tic");
+    public static final Set<String> TRANSVERSAL_ROLE_CODES = Set.of("admin", "gestor_tic", "gestor_proyectos");
 
-    private static final Map<String, String> ROLE_ALIASES = Map.of(
-            "administrador", "admin",
-            "admin", "admin",
-            "gestor_proyectos_ti", "gestor_tic",
-            "gestor_tic", "gestor_tic",
-            "gestor_proyectos", "director_proyecto",
-            "director_proyecto", "director_proyecto",
-            "analista_proyectos", "consulta",
-            "analista", "consulta",
-            "auditor", "auditor",
-            "consulta", "consulta"
+    private static final Map<String, String> ROLE_ALIASES = Map.ofEntries(
+            entry("administrador", "admin"),
+            entry("admin", "admin"),
+            entry("gestor_proyectos_ti", "gestor_tic"),
+            entry("gestor_tic", "gestor_tic"),
+            entry("gestor_pro", "gestor_proyectos"),
+            entry("gestor_proyecto", "gestor_proyectos"),
+            entry("gestor_de_proyectos", "gestor_proyectos"),
+            entry("gestor_proyectos", "gestor_proyectos"),
+            entry("director_pro", "director_proyecto"),
+            entry("director_de_proyecto", "director_proyecto"),
+            entry("director_proyectos", "director_proyecto"),
+            entry("director_proyecto", "director_proyecto"),
+            entry("analista_proyectos", "consulta"),
+            entry("analista", "consulta"),
+            entry("auditor", "auditor"),
+            entry("consulta", "consulta")
     );
 
     private SecurityRoleCatalog() {}
@@ -35,15 +44,18 @@ public final class SecurityRoleCatalog {
             return null;
         }
 
-        String trimmed = value.trim();
-        if (trimmed.isBlank()) {
+        String cleaned = value.trim();
+        if (cleaned.isBlank()) {
             return null;
         }
 
-        String lower = trimmed.toLowerCase();
-        if (lower.startsWith("role_")) {
-            lower = lower.substring(5);
-        }
+        String lower = Normalizer.normalize(cleaned, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase()
+                .replaceFirst("^role[\\s_-]+", "")
+                .replaceAll("[^a-z0-9]+", "_")
+                .replaceAll("^_+|_+$", "");
+
         if (lower.contains("admin")) {
             return "admin";
         }

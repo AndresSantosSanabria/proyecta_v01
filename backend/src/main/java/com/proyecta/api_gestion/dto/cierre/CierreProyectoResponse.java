@@ -18,13 +18,15 @@ public record CierreProyectoResponse(
     String message,
     String errorBanner,
     LocalDateTime fechaCierre,
-    BigDecimal avanceFinal
+    BigDecimal avanceFinal,
+    String archivoPdf,
+    String downloadUrl
 ) {
     public static CierreProyectoResponse error(String banner) {
-        return new CierreProyectoResponse(false, "No se pudo cerrar el proyecto", banner, null, null);
+        return new CierreProyectoResponse(false, "No se pudo cerrar el proyecto", banner, null, null, null, null);
     }
 
-    public static CierreProyectoResponse success(String message, LocalDateTime fecha, BigDecimal avance) {
-        return new CierreProyectoResponse(true, message, null, fecha, avance);
+    public static CierreProyectoResponse success(String message, LocalDateTime fecha, BigDecimal avance, String archivoPdf, String downloadUrl) {
+        return new CierreProyectoResponse(true, message, null, fecha, avance, archivoPdf, downloadUrl);
     }
 }

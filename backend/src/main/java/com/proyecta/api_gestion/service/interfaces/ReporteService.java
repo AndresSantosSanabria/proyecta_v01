@@ -15,7 +15,7 @@ public interface ReporteService {
     List<RiesgoVerificacionReporteDTO> obtenerVerificacionRiesgos();
     
     // Reportes Binarios
-    byte[] generarReporteProyectoPdf(String id);
+    byte[] generarReporteProyectoPdf(String id, String detailMode);
     byte[] generarReportePortafolioPdf();
     byte[] generarReporteProyectosConRetrasosPdf();
     byte[] generarReportePlanComunicacionesPdf();

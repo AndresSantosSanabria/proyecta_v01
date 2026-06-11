@@ -8,10 +8,23 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface SeguridadUsuarioRepository extends JpaRepository<SeguridadUsuario, Long> {
     Optional<SeguridadUsuario> findByUsernameIgnoreCase(String username);
     Optional<SeguridadUsuario> findByCorreoIgnoreCase(String correo);
+
+    @Query("""
+        SELECT u FROM SeguridadUsuario u
+        WHERE u.activo = true
+          AND (
+            LOWER(COALESCE(u.rolCodigo, '')) IN ('director_proyecto', 'director_pro', 'director_tecnico', 'lider_tecnico')
+            OR LOWER(COALESCE(u.rolNombre, '')) LIKE '%director%'
+            OR LOWER(COALESCE(u.rolNombre, '')) LIKE '%lider%tecnico%'
+          )
+        ORDER BY u.nombre ASC
+    """)
+    List<SeguridadUsuario> findAssignableProjectDirectors();
 
     @Query("""
         SELECT u FROM SeguridadUsuario u

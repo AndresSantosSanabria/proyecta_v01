@@ -20,11 +20,21 @@ public final class ProyectoAvanceSwaggerConstants {
             "Obtener el avance detallado del proyecto con árbol Fases > Hitos > Entregables. "
             + "El avance es calculado automáticamente a partir del estado de los entregables.";
 
-    // --- Operación PATCH /{proyectoId}/avance/entregables/{entregableId} ---
-    public static final String SUMMARY_PATCH_AVANCE     = "Marcar entregable como conforme";
-    public static final String DESCRIPTION_PATCH_AVANCE = 
-            "Marca un entregable como 'A conformidad' y permite subir el archivo PDF de evidencia. "
+    // --- Operación POST /{proyectoId}/avance/entregables/{entregableId}/evidencia ---
+    public static final String SUMMARY_POST_EVIDENCIA     = "Subir evidencia de entregable";
+    public static final String DESCRIPTION_POST_EVIDENCIA =
+            "Registra el PDF de evidencia de un entregable y lo deja pendiente de aprobación por el gestor.";
+
+    // --- Operación PATCH /{proyectoId}/avance/entregables/{entregableId}/aprobar ---
+    public static final String SUMMARY_PATCH_APROBAR     = "Aprobar entregable";
+    public static final String DESCRIPTION_PATCH_APROBAR =
+            "Marca un entregable como 'A conformidad' después de que el gestor valide la evidencia cargada. "
             + "El avance total del proyecto se recalcula automáticamente.";
+
+    // --- Operación PATCH /{proyectoId}/avance/entregables/{entregableId}/rechazar ---
+    public static final String SUMMARY_PATCH_RECHAZAR     = "Rechazar entregable";
+    public static final String DESCRIPTION_PATCH_RECHAZAR =
+            "Marca un entregable como rechazado para que el asignado corrija la evidencia y la vuelva a presentar.";
 
     // --- Respuestas ---
     public static final String RESPONSE_200_DESC = "Métricas de avance obtenidas correctamente";

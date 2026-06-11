@@ -26,7 +26,7 @@ public class CronogramaController implements ICronogramaController {
 
     @Override
     @GetMapping("/{proyectoId}/cronograma")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<CronogramaResponseDTO>> obtenerCronograma(@PathVariable String proyectoId) {
         CronogramaResponseDTO response = cronogramaService.obtenerCronograma(proyectoId);
         return ResponseEntity.ok(ApiResponse.success(response, "Cronograma obtenido exitosamente"));
@@ -34,7 +34,7 @@ public class CronogramaController implements ICronogramaController {
 
     @Override
     @PostMapping(value = "/{proyectoId}/cronograma", consumes = "multipart/form-data")
-    @PreAuthorize("@proyectoSecurity.canAccess('CRONOGRAMA:CARGAR', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CRONOGRAMA:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<CronogramaUploadResponseDTO>> cargarCronograma(
             @PathVariable String proyectoId, 
             @RequestPart("archivo") MultipartFile archivo) {
@@ -45,7 +45,7 @@ public class CronogramaController implements ICronogramaController {
 
     @Override
     @GetMapping(value = "/{proyectoId}/cronograma/descargar", produces = "application/pdf")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #proyectoId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<Resource> descargarCronograma(@PathVariable String proyectoId) {
         Resource resource = cronogramaService.descargarCronograma(proyectoId);
         return ResponseEntity.ok()

@@ -34,6 +34,33 @@ public interface SeguridadUsuarioProyectoRepository extends JpaRepository<Seguri
             @Param("cargo") String cargo);
 
     @Query("""
+        SELECT up FROM SeguridadUsuarioProyecto up
+        JOIN FETCH up.usuario u
+        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
+          AND up.activo = true
+          AND LOWER(up.cargo) IN :cargos
+        ORDER BY up.fechaAsignacion DESC
+    """)
+    List<SeguridadUsuarioProyecto> findActivasByProyectoIdAndCargoIn(
+            @Param("proyectoId") String proyectoId,
+            @Param("cargos") List<String> cargos);
+
+    @Query("""
+        SELECT up FROM SeguridadUsuarioProyecto up
+        JOIN FETCH up.usuario u
+        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
+          AND up.activo = true
+          AND (
+            LOWER(up.cargo) IN ('director_proyecto', 'director de proyecto', 'director_pro', 'lider_tecnico', 'lider tecnico', 'director_tecnico', 'director tecnico')
+            OR LOWER(up.cargo) LIKE '%director%proyecto%'
+            OR LOWER(up.cargo) LIKE '%director%tecnico%'
+            OR LOWER(up.cargo) LIKE '%lider%tecnico%'
+          )
+        ORDER BY up.fechaAsignacion DESC
+    """)
+    List<SeguridadUsuarioProyecto> findActiveDirectorAssignmentsByProyectoId(@Param("proyectoId") String proyectoId);
+
+    @Query("""
         SELECT DISTINCT up.proyectoId
         FROM SeguridadUsuarioProyecto up
         WHERE LOWER(up.usuario.username) = LOWER(:username)

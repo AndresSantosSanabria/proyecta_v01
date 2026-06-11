@@ -11,19 +11,22 @@ public class EntregableHierarchyDTO {
     private String nombre;
     private BigDecimal ponderacion;
     private Boolean conforme;
+    private LocalDate fechaInicio;
     private LocalDate fechaEntrega;
     private String estado;
     private Integer diasDiferencia;
+    private String observacionRevision;
 
     public EntregableHierarchyDTO() {}
 
     public EntregableHierarchyDTO(Integer id, Short numero, String nombre, BigDecimal ponderacion,
-                                   Boolean conforme, LocalDate fechaEntrega, String estado, Integer diasDiferencia) {
+                                   Boolean conforme, LocalDate fechaInicio, LocalDate fechaEntrega, String estado, Integer diasDiferencia) {
         this.id = id;
         this.numero = numero;
         this.nombre = nombre;
         this.ponderacion = ponderacion;
         this.conforme = conforme;
+        this.fechaInicio = fechaInicio;
         this.fechaEntrega = fechaEntrega;
         this.estado = estado;
         this.diasDiferencia = diasDiferencia;
@@ -40,10 +43,14 @@ public class EntregableHierarchyDTO {
     public void setPonderacion(BigDecimal ponderacion) { this.ponderacion = ponderacion; }
     public Boolean getConforme() { return conforme; }
     public void setConforme(Boolean conforme) { this.conforme = conforme; }
+    public LocalDate getFechaInicio() { return fechaInicio; }
+    public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
     public LocalDate getFechaEntrega() { return fechaEntrega; }
     public void setFechaEntrega(LocalDate fechaEntrega) { this.fechaEntrega = fechaEntrega; }
     public String getEstado() { return estado; }
     public void setEstado(String estado) { this.estado = estado; }
     public Integer getDiasDiferencia() { return diasDiferencia; }
     public void setDiasDiferencia(Integer diasDiferencia) { this.diasDiferencia = diasDiferencia; }
+    public String getObservacionRevision() { return observacionRevision; }
+    public void setObservacionRevision(String observacionRevision) { this.observacionRevision = observacionRevision; }
 }

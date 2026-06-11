@@ -9,8 +9,11 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -24,6 +27,7 @@ public interface IProjectClosureController {
             - Todos los hitos deben tener avance_calculado == 100%.
             - Todos los hitos deben tener estado_revision == 'APROBADO'.
             - El resumen_ejecutivo debe tener mínimo 100 caracteres.
+            - Deben existir lecciones aprendidas y transferencia de conocimiento.
             - El proyecto no debe estar ya cerrado.
             Persiste el registro en 'actas_cierre' y actualiza el campo 'cerrado' del proyecto.
             **Roles requeridos:** ADMINISTRADOR o GESTOR_TIC.
@@ -57,4 +61,21 @@ public interface IProjectClosureController {
     ResponseEntity<CierreProyectoResponse> cerrarProyecto(
             @Parameter(description = "ID del proyecto a cerrar", required = true) @PathVariable String id,
             @RequestBody CierreProyectoRequest request);
+
+    @Operation(
+            summary = "Descargar acta de cierre",
+            description = "Descarga el PDF institucional generado al cerrar el proyecto."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Acta descargada exitosamente"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "No existe acta generada para el proyecto"
+            )
+    })
+    @GetMapping(value = "/{id}/cierre/descargar", produces = MediaType.APPLICATION_PDF_VALUE)
+    ResponseEntity<Resource> descargarActaCierre(@PathVariable String id);
 }

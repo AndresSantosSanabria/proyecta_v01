@@ -50,9 +50,27 @@ public class SystemParameterSeeder {
         );
 
         crearParametroSiNoExiste(
+            SystemParameterKeys.SEGURIDAD_ROLE_ALIASES,
+            "ADMINISTRADOR:ADMIN,DIRECTOR_PRO:DIRECTOR_PROYECTO,GESTOR_PROYECTOS_TI:GESTOR_TIC,ANALISTA_PROYECTOS:CONSULTA",
+            "Alias de roles externos normalizados contra roles funcionales internos"
+        );
+
+        crearParametroSiNoExiste(
             SystemParameterKeys.FURAG_RESPUESTAS_OBLIGATORIAS,
             "7",
             "Cantidad minima de respuestas FURAG para generar reportes"
+        );
+
+        crearParametroSiNoExiste(
+            SystemParameterKeys.PETI_VIGENCIAS,
+            "2020-2024,2024-2027,2027-2030",
+            "Vigencias disponibles para el catalogo PETI"
+        );
+
+        crearParametroSiNoExiste(
+            SystemParameterKeys.PETI_ESTRATEGIAS,
+            "TECNOLOGIAS_INFORMACION:Tecnologias de la Informacion|TRANSFORMACION_DIGITAL:Transformacion Digital|CIUDADES_TERRITORIOS_INTELIGENTES:Ciudades y Territorios Inteligentes|GOBIERNO_DIGITAL:Gobierno Digital",
+            "Estrategias PETI disponibles. Formato: CODIGO:Nombre separadas por |"
         );
 
         crearParametroSiNoExiste(

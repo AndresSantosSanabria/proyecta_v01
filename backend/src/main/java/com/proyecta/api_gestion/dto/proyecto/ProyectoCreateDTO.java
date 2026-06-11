@@ -1,6 +1,5 @@
 package com.proyecta.api_gestion.dto.proyecto;
 
-import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,10 +14,10 @@ public record ProyectoCreateDTO(
     @NotNull LocalDate fechaInicio,
     @NotNull PatrocinadorDTO patrocinador,
     List<EquipoTrabajoDTO> equipoTrabajo,
-    @NotEmpty List<FaseDTO> fases,
+    List<FaseDTO> fases,
     @NotNull Boolean peti,
     String vigenciaPeti,
-    EstrategiaPeti estrategiaPeti,
+    String estrategiaPeti,
     @NotNull Boolean tienePlanComunicaciones,
     @NotNull FuragDTO furag
 ) {}

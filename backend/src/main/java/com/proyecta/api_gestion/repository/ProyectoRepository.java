@@ -27,7 +27,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     @Query("SELECT COUNT(p) FROM Proyecto p")
     long countTotal();
 
-    @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo IN ('ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (ec IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))")
+    @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo IN ('PLANIFICACION', 'ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (ec IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION, com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))")
     long countActivos();
 
     @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo = 'CERRADO') OR (ec IS NULL AND p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.CERRADO)")

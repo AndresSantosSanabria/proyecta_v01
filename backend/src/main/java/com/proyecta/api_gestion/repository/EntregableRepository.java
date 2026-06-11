@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.math.BigDecimal;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.util.Optional;
 
 @Repository
 public interface EntregableRepository extends JpaRepository<Entregable, Integer> {
@@ -17,16 +18,16 @@ public interface EntregableRepository extends JpaRepository<Entregable, Integer>
     @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN e.estadoConfig ec WHERE ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD))) AND e.fechaLimite < :hoy")
     long countAtrasadosTotal(@Param("hoy") LocalDate hoy);
 
-    @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc LEFT JOIN e.estadoConfig ec WHERE ((pc IS NOT NULL AND pc.codigo IN ('ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))) AND ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD))) AND e.fechaLimite BETWEEN :hoy AND :fin")
+    @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc LEFT JOIN e.estadoConfig ec WHERE ((pc IS NOT NULL AND pc.codigo IN ('PLANIFICACION', 'ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION, com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))) AND ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD))) AND e.fechaLimite BETWEEN :hoy AND :fin")
     long countProximosActivos(@Param("hoy") LocalDate hoy, @Param("fin") LocalDate fin);
 
-    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc LEFT JOIN e.estadoConfig ec WHERE ((pc IS NOT NULL AND pc.codigo IN ('ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))) AND ((ec IS NOT NULL AND ec.codigo IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD)))")
+    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc LEFT JOIN e.estadoConfig ec WHERE ((pc IS NOT NULL AND pc.codigo IN ('PLANIFICACION', 'ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION, com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))) AND ((ec IS NOT NULL AND ec.codigo IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD)))")
     BigDecimal sumPonderacionConformeActivos();
 
-    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc WHERE ((pc IS NOT NULL AND pc.codigo IN ('ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))) AND e.fechaLimite <= :hoy")
+    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc WHERE ((pc IS NOT NULL AND pc.codigo IN ('PLANIFICACION', 'ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION, com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))) AND e.fechaLimite <= :hoy")
     BigDecimal sumPonderacionEsperadaActivos(@Param("hoy") LocalDate hoy);
 
-    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc WHERE (pc IS NOT NULL AND pc.codigo IN ('ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))")
+    @Query("SELECT SUM(e.ponderacion) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN p.estadoConfig pc WHERE (pc IS NOT NULL AND pc.codigo IN ('PLANIFICACION', 'ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (pc IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION, com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))")
     BigDecimal sumTotalPonderacionActivos();
 
     @Query("SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f JOIN f.proyecto p LEFT JOIN e.estadoConfig ec WHERE p.id = :proyectoId AND ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD))) AND e.fechaLimite < :hoy")
@@ -46,4 +47,17 @@ public interface EntregableRepository extends JpaRepository<Entregable, Integer>
 
     @Query("SELECT e FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = :proyectoId")
     List<Entregable> findByProyectoId(@Param("proyectoId") String proyectoId);
+
+    @Query("""
+        SELECT e
+        FROM Entregable e
+        JOIN FETCH e.hito h
+        JOIN FETCH h.fase f
+        JOIN FETCH f.proyecto p
+        WHERE e.id = :entregableId
+        AND UPPER(p.id) = UPPER(:proyectoId)
+    """)
+    Optional<Entregable> findByIdAndProyectoIdWithHierarchy(
+            @Param("entregableId") Integer entregableId,
+            @Param("proyectoId") String proyectoId);
 }

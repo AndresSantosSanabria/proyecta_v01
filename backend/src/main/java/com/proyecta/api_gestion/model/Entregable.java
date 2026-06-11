@@ -36,11 +36,17 @@ public class Entregable {
 
     private Boolean conforme = false;
 
+    @Column(name = "fecha_inicio")
+    private LocalDate fechaInicio;
+
     @Column(name = "fecha_limite")
     private LocalDate fechaLimite;
 
     @Column(name = "fecha_entrega_real")
     private LocalDate fechaEntregaReal;
+
+    @Column(name = "observacion_revision", length = 1000)
+    private String observacionRevision;
 
     @Column(name = "archivo_pdf", length = 300)
     private String archivoPdf;
@@ -72,7 +78,13 @@ public class Entregable {
     }
 
     public void completar(String archivoPdf, LocalDate fechaEntrega) {
-        completar(archivoPdf, fechaEntrega, true);
+        asegurarModificable();
+        this.archivoPdf = archivoPdf;
+        this.fechaEntregaReal = fechaEntrega;
+        this.conforme = false;
+        this.observacionRevision = null;
+        this.estadoConfig = null;
+        this.estado = EstadoEntregable.EN_PROCESO;
     }
 
     public void completar(String archivoPdf, LocalDate fechaEntrega, boolean esConforme) {
@@ -80,8 +92,37 @@ public class Entregable {
         this.archivoPdf = archivoPdf;
         this.fechaEntregaReal = fechaEntrega;
         this.conforme = esConforme;
+        this.observacionRevision = null;
         this.estadoConfig = null;
         this.estado = esConforme ? EstadoEntregable.A_CONFORMIDAD : EstadoEntregable.COMPLETADO;
+    }
+
+    public void aprobarEvidencia() {
+        asegurarTieneEvidencia("aprobar");
+
+        if (estaAprobadoFinal()) {
+            throw new IllegalStateException(
+                "El entregable '" + this.nombre + "' ya fue aprobado. Esta accion no es reversible."
+            );
+        }
+        this.conforme = true;
+        this.observacionRevision = null;
+        this.estadoConfig = null;
+        this.estado = EstadoEntregable.A_CONFORMIDAD;
+    }
+
+    public void rechazarEvidencia(String observacion) {
+        asegurarTieneEvidencia("rechazar");
+
+        if (estaAprobadoFinal()) {
+            throw new IllegalStateException(
+                "El entregable '" + this.nombre + "' ya fue aprobado. No se permite observarlo ni modificar su documento."
+            );
+        }
+        this.conforme = false;
+        this.observacionRevision = observacion;
+        this.estadoConfig = null;
+        this.estado = EstadoEntregable.RECHAZADO;
     }
 
     public boolean estaCompletado() {
@@ -90,12 +131,23 @@ public class Entregable {
 
     public boolean esConforme() {
         if (estadoConfig != null) return estadoConfig.getEsConforme();
-        return EstadoEntregable.A_CONFORMIDAD.equals(this.estado) || Boolean.TRUE.equals(this.conforme);
+        return estaAprobadoFinal();
     }
 
     public boolean esTerminal() {
+        if (estaAprobadoFinal()) return true;
         if (estadoConfig != null) return estadoConfig.getEsTerminal();
-        return EstadoEntregable.COMPLETADO.equals(this.estado) || EstadoEntregable.A_CONFORMIDAD.equals(this.estado);
+        return false;
+    }
+
+    private boolean estaAprobadoFinal() {
+        return EstadoEntregable.A_CONFORMIDAD.equals(this.estado) || Boolean.TRUE.equals(this.conforme);
+    }
+
+    private void asegurarTieneEvidencia(String accion) {
+        if (this.archivoPdf == null || this.archivoPdf.isBlank()) {
+            throw new IllegalStateException("No se puede " + accion + " un entregable sin evidencia cargada.");
+        }
     }
 
     public String getEstadoCodigo() {
@@ -123,11 +175,17 @@ public class Entregable {
     public Boolean getConforme() { return conforme; }
     public void setConforme(Boolean conforme) { this.conforme = conforme; }
 
+    public LocalDate getFechaInicio() { return fechaInicio; }
+    public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
+
     public LocalDate getFechaLimite() { return fechaLimite; }
     public void setFechaLimite(LocalDate fechaLimite) { this.fechaLimite = fechaLimite; }
 
     public LocalDate getFechaEntregaReal() { return fechaEntregaReal; }
     public void setFechaEntregaReal(LocalDate fechaEntregaReal) { this.fechaEntregaReal = fechaEntregaReal; }
+
+    public String getObservacionRevision() { return observacionRevision; }
+    public void setObservacionRevision(String observacionRevision) { this.observacionRevision = observacionRevision; }
 
     public String getArchivoPdf() { return archivoPdf; }
     public void setArchivoPdf(String archivoPdf) { this.archivoPdf = archivoPdf; }

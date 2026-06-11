@@ -5,6 +5,9 @@ import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
 import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,12 +26,24 @@ public class ProjectClosureController implements IProjectClosureController {
 
     @Override
     @PostMapping("/{id}/cierre")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:CERRAR', #id, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:CERRAR', #id, authentication)")
     public ResponseEntity<CierreProyectoResponse> cerrarProyecto(
             @PathVariable String id,
             @Valid @RequestBody CierreProyectoRequest request) {
 
         CierreProyectoResponse response = closureService.cerrarProyecto(id, request);
         return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @GetMapping(value = "/{id}/cierre/descargar", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<Resource> descargarActaCierre(@PathVariable String id) {
+        Resource resource = closureService.descargarActaCierre(id);
+        String fileName = resource.getFilename() != null ? resource.getFilename() : "acta-cierre.pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(resource);
     }
 }

@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.cronograma.CronogramaResponseDTO;
 import com.proyecta.api_gestion.dto.cronograma.CronogramaUploadResponseDTO;
+import com.proyecta.api_gestion.dto.cronograma.EntregableGanttDTO;
 import com.proyecta.api_gestion.dto.cronograma.FaseGanttDTO;
 import com.proyecta.api_gestion.dto.cronograma.HitoGanttDTO;
 import com.proyecta.api_gestion.exception.BadRequestException;
@@ -16,13 +17,16 @@ import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.repository.FaseRepository;
 import com.proyecta.api_gestion.repository.HitoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.CronogramaService;
+import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -36,17 +40,20 @@ public class CronogramaServiceImpl implements CronogramaService {
     private final FaseRepository faseRepository;
     private final HitoRepository hitoRepository;
     private final EntregableRepository entregableRepository;
+    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
     private final FileStorageServiceImpl fileStorageService;
 
     public CronogramaServiceImpl(ProyectoRepository proyectoRepository,
                                  FaseRepository faseRepository,
                                  HitoRepository hitoRepository,
                                  EntregableRepository entregableRepository,
+                                 SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
                                  FileStorageServiceImpl fileStorageService) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
         this.entregableRepository = entregableRepository;
+        this.usuarioProyectoRepository = usuarioProyectoRepository;
         this.fileStorageService = fileStorageService;
     }
 
@@ -64,20 +71,32 @@ public class CronogramaServiceImpl implements CronogramaService {
 
         for (Fase fase : fases) {
             List<Hito> hitos = hitoRepository.findByFaseId(fase.getId());
-            hitos.sort(Comparator.comparing(Hito::getNombre));
+            hitos.sort(ProjectHierarchyOrdering.HITOS_BY_SEQUENCE);
             
             List<HitoGanttDTO> hitosGantt = new ArrayList<>();
 
             for (Hito hito : hitos) {
                 totalHitos++;
                 List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId());
+                entregables.sort(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE);
+                List<EntregableGanttDTO> entregablesGantt = entregables.stream()
+                        .map(entregable -> new EntregableGanttDTO(
+                                entregable.getId(),
+                                entregable.getNombre(),
+                                entregable.esConforme() ? BigDecimal.valueOf(100) : BigDecimal.ZERO,
+                                entregable.getPonderacion(),
+                                firstNonNull(entregable.getFechaInicio(), entregable.getFechaLimite()),
+                                entregable.getFechaLimite(),
+                                entregable.getEstadoCodigo()
+                        ))
+                        .toList();
                 
                 LocalDate hitoStart = null;
                 LocalDate hitoEnd = null;
                 
                 if (!entregables.isEmpty()) {
                     hitoStart = entregables.stream()
-                            .map(Entregable::getFechaLimite)
+                            .map(entregable -> firstNonNull(entregable.getFechaInicio(), entregable.getFechaLimite()))
                             .filter(Objects::nonNull)
                             .min(LocalDate::compareTo)
                             .orElse(null);
@@ -94,7 +113,8 @@ public class CronogramaServiceImpl implements CronogramaService {
                         hito.getNombre(),
                         hito.getAvanceCalculado(),
                         hitoStart,
-                        hitoEnd
+                        hitoEnd,
+                        entregablesGantt
                 ));
             }
             
@@ -120,7 +140,7 @@ public class CronogramaServiceImpl implements CronogramaService {
                 proyecto.getId(),
                 nombreArchivo,
                 LocalDate.now(), // La fecha de carga no se guarda por defecto en Proyecto, retornamos la actual
-                proyecto.getDirector(),
+                resolveDirectorAsignado(proyecto),
                 fases.size(),
                 totalHitos,
                 proyecto.getAvanceTotal(),
@@ -179,5 +199,35 @@ public class CronogramaServiceImpl implements CronogramaService {
 
     private String normalizeProjectId(String projectId) {
         return projectId == null ? null : projectId.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private LocalDate firstNonNull(LocalDate first, LocalDate second) {
+        return first != null ? first : second;
+    }
+
+    private String resolveDirectorAsignado(Proyecto proyecto) {
+        if (proyecto == null || proyecto.getId() == null) {
+            return null;
+        }
+        return usuarioProyectoRepository.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
+                .filter(assignment -> assignment.getUsuario() != null)
+                .findFirst()
+                .map(assignment -> firstNonBlank(
+                        assignment.getUsuario().getNombre(),
+                        assignment.getUsuario().getUsername()
+                ))
+                .orElse(null);
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 }

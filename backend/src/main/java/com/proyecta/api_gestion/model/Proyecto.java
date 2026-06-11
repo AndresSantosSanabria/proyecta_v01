@@ -94,6 +94,24 @@ public class Proyecto {
     @Column(name = "fecha_registro", updatable = false)
     private LocalDateTime fechaRegistro;
 
+    @Column(name = "requiere_completitud_director", nullable = false)
+    private Boolean requiereCompletitudDirector = false;
+
+    @Column(name = "primer_ingreso_director_at")
+    private LocalDateTime primerIngresoDirectorAt;
+
+    @Column(name = "completado_por_director_at")
+    private LocalDateTime completadoPorDirectorAt;
+
+    @Column(name = "registrado_inicial_por", length = 120)
+    private String registradoInicialPor;
+
+    @Column(name = "alcance_detallado", columnDefinition = "TEXT")
+    private String alcanceDetallado;
+
+    @Column(name = "presupuesto_estimado", precision = 18, scale = 2)
+    private BigDecimal presupuestoEstimado;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estrategia_peti_config_id", referencedColumnName = "estrategia_peti_id")
     private EstrategiaPetiConfig estrategiaPetiConfig;
@@ -178,6 +196,24 @@ public class Proyecto {
     public LocalDateTime getFechaRegistro() { return fechaRegistro; }
     public void setFechaRegistro(LocalDateTime fechaRegistro) { this.fechaRegistro = fechaRegistro; }
 
+    public Boolean getRequiereCompletitudDirector() { return requiereCompletitudDirector; }
+    public void setRequiereCompletitudDirector(Boolean requiereCompletitudDirector) { this.requiereCompletitudDirector = requiereCompletitudDirector; }
+
+    public LocalDateTime getPrimerIngresoDirectorAt() { return primerIngresoDirectorAt; }
+    public void setPrimerIngresoDirectorAt(LocalDateTime primerIngresoDirectorAt) { this.primerIngresoDirectorAt = primerIngresoDirectorAt; }
+
+    public LocalDateTime getCompletadoPorDirectorAt() { return completadoPorDirectorAt; }
+    public void setCompletadoPorDirectorAt(LocalDateTime completadoPorDirectorAt) { this.completadoPorDirectorAt = completadoPorDirectorAt; }
+
+    public String getRegistradoInicialPor() { return registradoInicialPor; }
+    public void setRegistradoInicialPor(String registradoInicialPor) { this.registradoInicialPor = registradoInicialPor; }
+
+    public String getAlcanceDetallado() { return alcanceDetallado; }
+    public void setAlcanceDetallado(String alcanceDetallado) { this.alcanceDetallado = alcanceDetallado; }
+
+    public BigDecimal getPresupuestoEstimado() { return presupuestoEstimado; }
+    public void setPresupuestoEstimado(BigDecimal presupuestoEstimado) { this.presupuestoEstimado = presupuestoEstimado; }
+
     public EstadoProyectoConfig getEstadoConfig() { return estadoConfig; }
     public void setEstadoConfig(EstadoProyectoConfig estadoConfig) { this.estadoConfig = estadoConfig; }
 
@@ -193,6 +229,28 @@ public class Proyecto {
     public boolean esEstadoTerminal() {
         if (estadoConfig != null) return estadoConfig.getEsTerminal();
         return EstadoProyecto.CERRADO.equals(estado);
+    }
+
+    public boolean requiereCompletitudDirector() {
+        return Boolean.TRUE.equals(requiereCompletitudDirector);
+    }
+
+    public void marcarRegistroInicialPendiente(String username) {
+        this.estado = EstadoProyecto.PENDIENTE_COMPLETAR;
+        this.requiereCompletitudDirector = true;
+        this.registradoInicialPor = username;
+    }
+
+    public void registrarPrimerIngresoDirector() {
+        if (this.primerIngresoDirectorAt == null) {
+            this.primerIngresoDirectorAt = LocalDateTime.now();
+        }
+    }
+
+    public void completarInformacionInicialPorDirector() {
+        this.estado = EstadoProyecto.PLANIFICACION;
+        this.requiereCompletitudDirector = false;
+        this.completadoPorDirectorAt = LocalDateTime.now();
     }
 
     // --- Lógica de Negocio (Rich Domain Model) ---

@@ -1,6 +1,5 @@
 package com.proyecta.api_gestion.dto.proyecto;
 
-import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -17,7 +16,7 @@ public record ProyectoUpdateDTO(
     List<FaseDTO> fases,
     Boolean peti,
     String vigenciaPeti,
-    EstrategiaPeti estrategiaPeti,
+    String estrategiaPeti,
     Boolean tienePlanComunicaciones,
     FuragDTO furag
 ) {}
