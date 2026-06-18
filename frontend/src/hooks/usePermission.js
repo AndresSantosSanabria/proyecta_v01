@@ -32,6 +32,13 @@ export function usePermission(permissionCode) {
     return true;
   }
 
+  if (permissionCode === 'CRONOGRAMA:CARGAR' && hasRole('DIRECTOR_PROYECTO')) {
+    return true;
+  }
+  if (hasRole('DIRECTOR_PROYECTO') && ['DOCUMENTO:CARGAR', 'EVIDENCIA:CARGAR'].includes(permissionCode)) {
+    return true;
+  }
+
   const isDirectorOnly = hasRole('DIRECTOR_PROYECTO')
     && !hasRole('GESTOR_TIC')
     && !hasRole('GESTOR_PROYECTOS')

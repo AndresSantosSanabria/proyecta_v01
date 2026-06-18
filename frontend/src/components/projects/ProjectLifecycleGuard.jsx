@@ -10,6 +10,12 @@ const ProjectLifecycleGuard = () => {
   const { id, codigoProyecto } = useParams();
   const location = useLocation();
   const projectId = useMemo(() => String(id || codigoProyecto || '').trim(), [codigoProyecto, id]);
+  const isBaseProjectRoute = useMemo(() => {
+    const normalizedPath = String(location.pathname || '').replace(/\/+$/, '');
+    const projectPrefix = `/projects/${projectId}`.toLowerCase();
+    const altPrefix = `/proyectos/${projectId}`.toLowerCase();
+    return normalizedPath.toLowerCase() === projectPrefix || normalizedPath.toLowerCase() === altPrefix;
+  }, [location.pathname, projectId]);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState(null);
   const [completionStatus, setCompletionStatus] = useState(null);
@@ -98,7 +104,7 @@ const ProjectLifecycleGuard = () => {
     return <div className="compact-page error-banner">{error}</div>;
   }
 
-  if (completionStatus?.requiereCompletitud && completionStatus?.puedeCompletar) {
+  if (isBaseProjectRoute && completionStatus?.requiereCompletitud && completionStatus?.puedeCompletar) {
     return (
       <ProjectOnboardingWizard
         project={project}

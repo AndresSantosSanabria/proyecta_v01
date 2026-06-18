@@ -133,6 +133,23 @@ const projectService = {
     return data;
   },
 
+  getBenefitImpact: async (id) => {
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}/beneficio-impacto`);
+    return data;
+  },
+
+  saveBenefitImpact: async (id, payload) => {
+    const { data } = await apiClient.put(`/proyectos/${normalizeProjectId(id)}/beneficio-impacto`, payload);
+    return data;
+  },
+
+  reviewBenefitImpact: async (id, aprobado, observaciones = '') => {
+    const params = { aprobado };
+    if (!aprobado && observaciones) params.observaciones = observaciones;
+    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/beneficio-impacto/revision`, null, { params });
+    return data;
+  },
+
   getHierarchy: async (id) => {
     const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}/hierarchy`);
     return data;

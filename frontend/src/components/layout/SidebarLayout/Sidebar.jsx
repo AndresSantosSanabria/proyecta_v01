@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -15,13 +15,13 @@ import {
   AlertTriangle,
   CheckSquare,
   BarChart3,
-  BellRing,
   UserCircle2
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import dashboardService from '../../../services/dashboardService';
 import { useAuthContext } from '../../../context/AuthContext';
 import { usePermission } from '../../../hooks/usePermission';
+import NotificationBell from '../NotificationBell';
 import './Sidebar.css';
 
 const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
@@ -31,8 +31,9 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
   const { user, roles, primaryRole, logout, isAdminLocal, transversal, hasRole, assignedProjects } = useAuthContext();
-  const canViewDashboard = usePermission('DASHBOARD:VER');
   const isDirectorProjectRole = hasRole('DIRECTOR_PROYECTO');
+  const canViewDashboardPermission = usePermission('DASHBOARD:VER');
+  const canViewDashboard = !isDirectorProjectRole && (isAdminLocal || transversal || hasRole('ADMIN') || canViewDashboardPermission);
   const canViewProjects = usePermission('PROYECTO:VER')
     || isDirectorProjectRole
     || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
@@ -51,6 +52,23 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
 
   const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
+  const assignedProjectItems = Array.isArray(assignedProjects)
+    ? assignedProjects
+        .map((item) => {
+          if (typeof item === 'string') {
+            return { id: item, label: item };
+          }
+
+          if (item && typeof item === 'object') {
+            const id = item.codigo || item.id || item.proyectoId || item.proyecto_id;
+            const label = item.nombre || item.nombreProyecto || item.name || id;
+            return id ? { id, label } : null;
+          }
+
+          return null;
+        })
+        .filter(Boolean)
+    : [];
 
   useEffect(() => {
     const fetchVisibleProjectCount = async () => {
@@ -100,6 +118,11 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     .join('') || 'PR';
 
   const compactItems = (items) => items.filter(Boolean);
+  const closeMobileMenu = () => {
+    if (mobileOpen && onMobileClose) {
+      onMobileClose();
+    }
+  };
 
   const menuItems = [
     {
@@ -109,20 +132,21 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
         canViewProjects ? { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: visibleProjectCount } : null,
       ])
     },
-    {
-      category: 'MÓVIL',
-      items: compactItems([
-        { name: 'Notificaciones', path: '/notifications', icon: <BellRing size={22} /> },
-        { name: 'Perfil', path: '/profile', icon: <UserCircle2 size={22} /> },
-      ])
-    },
+    ...(isDirectorProjectRole && assignedProjectItems.length > 0 ? [{
+      category: 'MIS PROYECTOS',
+      items: assignedProjectItems.map((project) => ({
+        name: project.label,
+        path: `/projects/${project.id}/progress`,
+        icon: <Activity size={22} />,
+      }))
+    }] : []),
     {
       category: 'MODULOS',
       items: currentProjectId ? [
         canViewProjects ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
-        !isDirectorLimited && canViewProjects ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
-        !isDirectorLimited && canViewProjects ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
-        !isDirectorLimited && canCloseProject ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
+        canViewProjects ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
+        canViewProjects ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
+        canViewProjects ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
       ].filter(Boolean) : []
     },
     {
@@ -161,7 +185,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
             </div>
           )}
         </div>
-        <button className="toggle-btn" onClick={toggleSidebar}>
+        <button className="toggle-btn" onClick={toggleSidebar} aria-label={isCollapsed ? 'Expandir barra' : 'Colapsar barra'}>
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
@@ -175,11 +199,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
                 key={item.name}
                 to={item.path}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  if (mobileOpen && onMobileClose) {
-                    onMobileClose();
-                  }
-                }}
+                onClick={closeMobileMenu}
               >
                 <span className="nav-icon">{item.icon}</span>
                 {!isCollapsed && (
@@ -207,6 +227,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
         </div>
 
         <div className="sidebar-footer-actions">
+          <NotificationBell />
           <button
             className="theme-toggle-btn"
             onClick={toggleTheme}

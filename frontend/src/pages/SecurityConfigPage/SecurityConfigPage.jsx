@@ -11,12 +11,14 @@ import {
   Save,
   Search,
   ShieldCheck,
+  BellRing,
   X,
   Users,
 } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
 import securityService from '../../services/securityService';
+import NotificationTemplatesPanel from '../../components/security/NotificationTemplatesPanel';
 import { decodeJwtPayload } from '../../utils/auth';
 import './SecurityConfigPage.css';
 
@@ -25,6 +27,7 @@ const SECURITY_TABS = {
   ROLES: 'roles',
   PARAMETERS: 'parametros',
   ASSIGNMENTS: 'asignaciones',
+  NOTIFICATIONS: 'notificaciones',
 };
 
 const emptyUserForm = {
@@ -62,6 +65,7 @@ const ACTION_ORDER = [
   'EDITAR',
   'ACTUALIZAR',
   'MODIFICAR',
+  'SOLICITAR',
   'APROBAR',
   'CERRAR',
   'ELIMINAR',
@@ -74,9 +78,11 @@ const roleLabels = {
   REPORTE: 'Reportes',
   ANALITICA: 'Analiticas',
   ENTREGABLE: 'Entregables',
+  AVANCE: 'Avance del Proyecto',
   EVIDENCIA: 'Evidencias',
   DOCUMENTO: 'Documentos',
   CRONOGRAMA: 'Cronograma',
+  CIERRE: 'Cierre del Proyecto',
   CONFIGURACION: 'Configuracion',
   SISTEMA: 'Administracion del Sistema',
   OTROS: 'Otros permisos',
@@ -1271,6 +1277,16 @@ const SecurityConfigPage = () => {
               </button>
             )}
             {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.NOTIFICATIONS ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.NOTIFICATIONS)}
+              >
+                <BellRing size={14} />
+                Notificaciones
+              </button>
+            )}
+            {canConfigure && (
               <button type="button" className="quick-action create" onClick={handleNewUser}>
                 <Plus size={14} />
                 Crear Usuario
@@ -1305,7 +1321,7 @@ const SecurityConfigPage = () => {
         </div>
       )}
 
-      {[SECURITY_TABS.USERS, SECURITY_TABS.PARAMETERS, SECURITY_TABS.ASSIGNMENTS].includes(activeSection) && (
+      {[SECURITY_TABS.USERS, SECURITY_TABS.PARAMETERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS].includes(activeSection) && (
         <section className="security-workspace users-workspace">
           {activeSection === SECURITY_TABS.USERS && (
           <article className="panel panel-main users-panel">
@@ -1714,6 +1730,9 @@ const SecurityConfigPage = () => {
                 </form>
               </article>
             </section>
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.NOTIFICATIONS && (
+            <NotificationTemplatesPanel />
           )}
           {canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS && (
             <div

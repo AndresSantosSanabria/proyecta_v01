@@ -94,6 +94,51 @@ const securityService = {
     });
     return unwrap(response);
   },
+
+  listNotificationEvents: async () => {
+    const response = await apiClient.get('/admin/notificaciones/eventos');
+    return unwrap(response);
+  },
+
+  listNotificationTemplates: async () => {
+    const response = await apiClient.get('/admin/notificaciones/plantillas');
+    return unwrap(response);
+  },
+
+  saveNotificationTemplate: async (payload) => {
+    const response = await apiClient.put('/admin/notificaciones/plantillas', payload);
+    return unwrap(response);
+  },
+
+  listNotificationPreferences: async () => {
+    const response = await apiClient.get('/admin/notificaciones/preferencias');
+    return unwrap(response);
+  },
+
+  saveNotificationPreference: async (payload) => {
+    const response = await apiClient.put('/admin/notificaciones/preferencias', payload);
+    return unwrap(response);
+  },
+
+  previewNotificationTemplate: async (payload) => {
+    const response = await apiClient.post('/admin/notificaciones/plantillas/preview', payload);
+    return unwrap(response);
+  },
+
+  listInAppNotifications: async ({ page = 0, size = 10 } = {}) => {
+    const response = await apiClient.get('/notificaciones', { params: { page, size } });
+    return unwrap(response);
+  },
+
+  countUnreadNotifications: async () => {
+    const response = await apiClient.get('/notificaciones/no-leidas');
+    return unwrap(response);
+  },
+
+  markNotificationAsRead: async (id) => {
+    const response = await apiClient.patch(`/notificaciones/${encodeURIComponent(id)}/leer`);
+    return unwrap(response);
+  },
 };
 
 export default securityService;

@@ -5,6 +5,7 @@ import projectService from '../../services/projectService';
 import ProgressHeader from '../../components/features/progress/ProgressHeader';
 import ProgressKPIs from '../../components/features/progress/ProgressKPIs';
 import ProgressTreeTable from '../../components/features/progress/ProgressTreeTable';
+import ProjectBenefitImpactPanel from '../../components/projects/ProjectBenefitImpactPanel';
 import './ProjectProgressPage.css';
 
 const normalizeProgressPayload = (payload, fallbackCode) => {
@@ -342,6 +343,13 @@ const ProjectProgressPage = () => {
       )}
 
       <ProgressKPIs progressData={progressData} />
+
+      <ProjectBenefitImpactPanel
+        proyectoId={codigoProyecto}
+        projectName={projectInfo?.nombre || progressData.nombre}
+        refreshToken={refreshKey}
+        onSaved={() => setRefreshKey((prev) => prev + 1)}
+      />
 
       <div className="info-alert">
         <Info size={18} className="info-icon" />

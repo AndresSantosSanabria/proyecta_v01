@@ -255,7 +255,7 @@ const ProjectClosurePage = () => {
           <AlertTriangle className="warning-icon" size={22} />
           <div className="banner-content">
             <p>
-              No es posible cerrar el proyecto aun. Todos los hitos deben estar al 100% de cumplimiento, aprobados y con sus evidencias cargadas.
+              No es posible cerrar el proyecto aún. Todos los entregables deben estar aprobados y con su evidencia cargada para habilitar la solicitud de cierre.
             </p>
           </div>
         </div>
@@ -477,6 +477,10 @@ const ProjectClosurePage = () => {
 
           {summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
             <div className="form-actions">
+              <div className="closure-ready-note">
+                <CheckCircle2 size={18} />
+                <span>El proyecto ya está listo para solicitar cierre.</span>
+              </div>
               <button
                 type="submit"
                 className="btn-primary-closure"

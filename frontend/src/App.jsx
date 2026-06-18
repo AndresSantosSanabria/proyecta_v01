@@ -16,8 +16,6 @@ import ProjectProgressPage from './pages/ProjectProgressPage/ProjectProgressPage
 import CronogramaPage from './pages/CronogramaPage/CronogramaPage';
 import ProjectClosurePage from './pages/ProjectClosurePage/ProjectClosurePage';
 import RiesgosPage from './pages/RiesgosPage/RiesgosPage';
-import NotificationsPage from './pages/NotificationsPage/NotificationsPage';
-import ProfilePage from './pages/ProfilePage/ProfilePage';
 import CallbackPage from './pages/CallbackPage/CallbackPage';
 import LoggedOutPage from './pages/LoggedOutPage/LoggedOutPage';
 import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
@@ -46,10 +44,12 @@ const DefaultEntryRoute = () => {
     );
   }
 
-  const canViewDashboard = isAdminLocal
+  const canViewDashboard = !hasRole('DIRECTOR_PROYECTO') && (
+    isAdminLocal
     || transversal
     || hasRole('ADMIN')
-    || hasPermission('DASHBOARD:VER');
+    || hasPermission('DASHBOARD:VER')
+  );
   const canViewProjects = hasRole('DIRECTOR_PROYECTO')
     || hasPermission('PROYECTO:VER')
     || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
@@ -116,8 +116,6 @@ function App() {
           <Route element={<PermissionRoute permissions={['REPORTE:VER']} />}>
             <Route path="reports" element={<ReportsPage />} />
           </Route>
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="profile" element={<ProfilePage />} />
           <Route element={<AnalyticsRoute />}>
             <Route path="analytics" element={<AnalyticsPage />} />
           </Route>

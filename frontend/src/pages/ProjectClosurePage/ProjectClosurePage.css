@@ -109,6 +109,20 @@
   color: var(--primary);
 }
 
+.closure-ready-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+  margin-bottom: 0.25rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .closed-icon {
   flex-shrink: 0;
   margin-top: 0.15rem;
