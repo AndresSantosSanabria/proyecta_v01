@@ -248,7 +248,11 @@ public class Proyecto {
     }
 
     public void completarInformacionInicialPorDirector() {
-        this.estado = EstadoProyecto.PLANIFICACION;
+        if (this.fechaInicio != null && !this.fechaInicio.isAfter(LocalDate.now())) {
+            this.estado = EstadoProyecto.ACTIVO;
+        } else {
+            this.estado = EstadoProyecto.PLANIFICACION;
+        }
         this.requiereCompletitudDirector = false;
         this.completadoPorDirectorAt = LocalDateTime.now();
     }

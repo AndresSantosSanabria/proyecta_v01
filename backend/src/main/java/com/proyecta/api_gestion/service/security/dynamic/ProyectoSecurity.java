@@ -2,6 +2,8 @@ package com.proyecta.api_gestion.service.security.dynamic;
 
 import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.enums.EstadoBeneficioImpacto;
+import com.proyecta.api_gestion.repository.ProyectoBeneficioImpactoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.model.Usuario;
@@ -49,16 +51,19 @@ public class ProyectoSecurity {
     private final SecurityCatalogCacheService catalogCacheService;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final ProyectoRepository proyectoRepository;
+    private final ProyectoBeneficioImpactoRepository beneficioImpactoRepository;
 
     public ProyectoSecurity(
             KeycloakIdentityExtractor identityExtractor,
             SecurityCatalogCacheService catalogCacheService,
             LocalUserAuthorizationService localUserAuthorizationService,
-            ProyectoRepository proyectoRepository) {
+            ProyectoRepository proyectoRepository,
+            ProyectoBeneficioImpactoRepository beneficioImpactoRepository) {
         this.identityExtractor = identityExtractor;
         this.catalogCacheService = catalogCacheService;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.proyectoRepository = proyectoRepository;
+        this.beneficioImpactoRepository = beneficioImpactoRepository;
     }
 
     public boolean canAccess(String permissionCode, String proyectoId, Authentication authentication) {
@@ -133,6 +138,83 @@ public class ProyectoSecurity {
     public boolean canAccessOperational(String permissionCode, String proyectoId, Authentication authentication) {
         canAccess(permissionCode, proyectoId, authentication);
         assertOperationalProjectReady(proyectoId, authentication);
+        return true;
+    }
+
+    public boolean canViewBenefitImpact(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+                .map(this::normalize)
+                .anyMatch("BENEFICIO_IMPACTO:VER"::equals);
+
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: BENEFICIO_IMPACTO:VER");
+        }
+
+        if (roleCodes.contains("director_proyecto") && !isTransversal(roleCodes)) {
+            if (proyectoId == null || proyectoId.isBlank()) {
+                return true;
+            }
+
+            if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+                throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            }
+            return true;
+        }
+
+        if (proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
+                .orElseThrow(() -> new ForbiddenException("El proyecto solicitado no existe."));
+        var record = beneficioImpactoRepository.findByProyecto_Id(proyecto.getId()).orElse(null);
+        if (record == null || record.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO) {
+            throw new ForbiddenException("La informacion de beneficio e impacto aun no esta disponible para consulta.");
+        }
+        return true;
+    }
+
+    public boolean canEditBenefitImpact(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+                .map(this::normalize)
+                .anyMatch("BENEFICIO_IMPACTO:EDITAR"::equals);
+
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: BENEFICIO_IMPACTO:EDITAR");
+        }
+
+        if (!roleCodes.contains("director_proyecto") || isTransversal(roleCodes)) {
+            throw new ForbiddenException("Solo el Director de Proyecto asignado puede diligenciar esta informacion.");
+        }
+
+        if (proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+        }
+
         return true;
     }
 

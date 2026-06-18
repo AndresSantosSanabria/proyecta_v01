@@ -2,7 +2,6 @@ package com.proyecta.api_gestion.dto.cierre;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -28,7 +27,6 @@ public record CierreProyectoRequest(
     @Size(max = 1500, message = "La actividad de transferencia no puede superar 1500 caracteres.")
     String transferenciaActividad,
 
-    @NotNull(message = "La fecha de transferencia es obligatoria.")
     @JsonFormat(pattern = "yyyy-MM-dd")
     LocalDate transferenciaFecha,
 
@@ -36,7 +34,6 @@ public record CierreProyectoRequest(
     @Size(max = 500, message = "La ubicación de la evidencia no puede superar 500 caracteres.")
     String transferenciaUbicacionEvidencia,
 
-    @NotNull(message = "La fecha de cierre es obligatoria.")
     @JsonFormat(pattern = "yyyy-MM-dd")
     LocalDate fechaCierre
 ) {}

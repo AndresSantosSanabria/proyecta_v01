@@ -16,6 +16,7 @@ import com.proyecta.api_gestion.repository.security.SeguridadRolRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,8 @@ class SecurityAdministrationServiceTest {
     private KeycloakIdentityExtractor identityExtractor;
     @Mock
     private LocalUserAuthorizationService localUserAuthorizationService;
+    @Mock
+    private NotificationEventPublisherPort notificationPublisher;
 
     private SecurityAdministrationService service;
 
@@ -71,7 +74,8 @@ class SecurityAdministrationServiceTest {
                 systemParameterService,
                 catalogCacheService,
                 identityExtractor,
-                localUserAuthorizationService);
+                localUserAuthorizationService,
+                notificationPublisher);
     }
 
     @Test

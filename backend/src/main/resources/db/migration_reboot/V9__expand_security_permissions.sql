@@ -14,6 +14,9 @@ VALUES
     ('ENTREGABLE:CREAR', 'Crear entregable', 'Permite registrar entregables nuevos', TRUE),
     ('ENTREGABLE:EDITAR', 'Editar entregable', 'Permite modificar entregables existentes', TRUE),
     ('ENTREGABLE:APROBAR', 'Aprobar entregable', 'Permite marcar entregables como conformes', TRUE),
+    ('AVANCE:VER', 'Ver avance', 'Permite consultar el avance consolidado del proyecto', TRUE),
+    ('AVANCE:EDITAR', 'Editar avance', 'Permite registrar y actualizar avances del proyecto', TRUE),
+    ('AVANCE:APROBAR', 'Aprobar avance', 'Permite validar avances enviados por el Director de Proyecto', TRUE),
     ('EVIDENCIA:VER', 'Ver evidencia', 'Permite consultar evidencias registradas', TRUE),
     ('EVIDENCIA:CARGAR', 'Cargar evidencia', 'Permite subir evidencias PDF', TRUE),
     ('EVIDENCIA:EDITAR', 'Editar evidencia', 'Permite actualizar evidencias existentes', TRUE),
@@ -26,6 +29,8 @@ VALUES
     ('CRONOGRAMA:CARGAR', 'Cargar cronograma', 'Permite subir el PDF del cronograma', TRUE),
     ('CRONOGRAMA:EDITAR', 'Editar cronograma', 'Permite actualizar cronogramas existentes', TRUE),
     ('CRONOGRAMA:ELIMINAR', 'Eliminar cronograma', 'Permite eliminar cronogramas registrados', TRUE),
+    ('CIERRE:SOLICITAR', 'Solicitar cierre', 'Permite enviar la solicitud de cierre del proyecto', TRUE),
+    ('CIERRE:APROBAR', 'Aprobar cierre', 'Permite validar y aprobar el cierre del proyecto', TRUE),
     ('SISTEMA:VER', 'Ver sistema', 'Permite consultar la configuracion general del sistema', TRUE),
     ('SISTEMA:CREAR', 'Crear configuracion del sistema', 'Permite registrar configuraciones de sistema', TRUE),
     ('SISTEMA:EDITAR', 'Editar sistema', 'Permite actualizar la configuracion general del sistema', TRUE),
@@ -50,9 +55,11 @@ FROM proyecta_db.roles r
 JOIN proyecta_db.permisos p ON p.codigo IN (
     'DASHBOARD:VER', 'PROYECTO:VER', 'PROYECTO:EDITAR', 'REPORTE:VER', 'ANALITICA:VER',
     'ENTREGABLE:VER', 'ENTREGABLE:CREAR', 'ENTREGABLE:EDITAR', 'ENTREGABLE:APROBAR',
+    'AVANCE:VER', 'AVANCE:EDITAR',
     'EVIDENCIA:VER', 'EVIDENCIA:CARGAR',
     'DOCUMENTO:VER', 'DOCUMENTO:CARGAR',
-    'CRONOGRAMA:VER', 'CRONOGRAMA:CARGAR')
+    'CRONOGRAMA:VER', 'CRONOGRAMA:CARGAR',
+    'CIERRE:SOLICITAR')
 WHERE r.codigo = 'director_proyecto'
 ON CONFLICT (rol_id, permiso_id) DO UPDATE
 SET activo = TRUE;

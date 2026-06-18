@@ -19,6 +19,9 @@ import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepo
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.core.io.Resource;
@@ -51,6 +54,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final ActaCierrePdfGenerator pdfGenerator;
     private final IStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
+    private final NotificationEventPublisherPort notificationPublisher;
 
     public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
                                      ActaCierreRepository actaCierreRepository,
@@ -60,7 +64,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      ProjectProgressMetricsService metricsService,
                                      ActaCierrePdfGenerator pdfGenerator,
                                      IStorageProvider storageProvider,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     NotificationEventPublisherPort notificationPublisher) {
         this.proyectoRepository = proyectoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -70,6 +75,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.pdfGenerator = pdfGenerator;
         this.storageProvider = storageProvider;
         this.objectMapper = objectMapper;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -85,10 +91,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         closureValidator.validarCierre(projectId);
         closureValidator.validarDatosActa(projectId);
 
-        LocalDateTime fechaCierre = request.fechaCierre() != null
-                ? request.fechaCierre().atStartOfDay()
-                : LocalDateTime.now();
+        LocalDateTime fechaCierre = LocalDateTime.now();
         LocalDate corteCalculo = fechaCierre.toLocalDate();
+        LocalDate transferenciaFecha = corteCalculo;
 
         BigDecimal avanceFinal = progressCalculator.calcularYActualizarAvanceProyecto(projectId);
         ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, corteCalculo);
@@ -142,7 +147,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 request.leccionesMejorar(),
                 request.recomendaciones(),
                 request.transferenciaActividad(),
-                formatDate(request.transferenciaFecha()),
+                formatDate(transferenciaFecha),
                 request.transferenciaUbicacionEvidencia(),
                 formatPercent(avanceFinal),
                 formatPercent(snapshot.progresoProgramado()),
@@ -180,6 +185,15 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             proyecto.cerrar();
             proyecto.setAvanceTotal(avanceFinal);
             proyectoRepository.save(proyecto);
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.PROJECT_CLOSED,
+                    projectId,
+                    "system",
+                    java.util.Map.of(
+                            "projectName", proyecto.getNombre(),
+                            "state", proyecto.getEstadoCodigo(),
+                            "recipients", List.of(proyecto.getCorreoDirector())
+                    )));
         } catch (RuntimeException ex) {
             storageProvider.deleteFile(rutaArchivo, storedFileName);
             throw ex;

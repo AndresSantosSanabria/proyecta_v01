@@ -18,6 +18,9 @@ import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.config.PetiCatalogService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityCatalogCacheService;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import jakarta.persistence.criteria.Predicate;
@@ -33,6 +36,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -49,6 +53,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final SecurityCatalogCacheService securityCatalogCacheService;
     private final PetiCatalogService petiCatalogService;
     private final IProgressCalculator progressCalculator;
+    private final NotificationEventPublisherPort notificationPublisher;
 
     public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
                                FuragRespuestaRepository furagRespuestaRepository,
@@ -56,7 +61,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                                SeguridadUsuarioRepository seguridadUsuarioRepository,
                                SecurityCatalogCacheService securityCatalogCacheService,
                                PetiCatalogService petiCatalogService,
-                               IProgressCalculator progressCalculator) {
+                               IProgressCalculator progressCalculator,
+                               NotificationEventPublisherPort notificationPublisher) {
         this.proyectoRepository = proyectoRepository;
         this.furagRespuestaRepository = furagRespuestaRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -64,6 +70,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.securityCatalogCacheService = securityCatalogCacheService;
         this.petiCatalogService = petiCatalogService;
         this.progressCalculator = progressCalculator;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -267,6 +274,15 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         Proyecto guardado = proyectoRepository.save(proyecto);
         asignarDirectorProyecto(guardado, director);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_INITIAL_REGISTERED,
+                guardado.getId(),
+                gestorUsername,
+                Map.of(
+                        "projectName", guardado.getNombre(),
+                        "state", guardado.getEstadoCodigo(),
+                        "recipients", List.of(director.getCorreo(), gestorUsername)
+                )));
 
         return new ProyectoCreatedDTO(
                 guardado.getId(),
@@ -327,6 +343,15 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         Proyecto guardado = proyectoRepository.save(proyecto);
         sincronizarRespuestasFurag(guardado);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_INITIAL_COMPLETED,
+                guardado.getId(),
+                username,
+                Map.of(
+                        "projectName", guardado.getNombre(),
+                        "state", guardado.getEstadoCodigo(),
+                        "recipients", List.of(guardado.getCorreoDirector(), guardado.getRegistradoInicialPor())
+                )));
         return mapToResponseDto(guardado);
     }
 
@@ -352,6 +377,15 @@ public class ProyectoServiceImpl implements ProyectoService {
         // ... (se puede implementar merge fino si es necesario)
 
         Proyecto actualizado = proyectoRepository.save(proyecto);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_UPDATED,
+                actualizado.getId(),
+                "system",
+                Map.of(
+                        "projectName", actualizado.getNombre(),
+                        "state", actualizado.getEstadoCodigo(),
+                        "recipients", List.of(actualizado.getCorreoDirector())
+                )));
         return mapToResponseDto(actualizado);
     }
 
@@ -398,14 +432,11 @@ public class ProyectoServiceImpl implements ProyectoService {
                 for (Entregable e : h.getEntregables()) {
                     entregables.add(e.getNombre());
                 }
-
-                if (h.getAvanceCalculado() == null || h.getAvanceCalculado().compareTo(new BigDecimal("100")) < 0) {
-                    puedeCerrar = false;
-                }
-                if (!"APROBADO".equalsIgnoreCase(h.getEstadoRevision())) {
-                    puedeCerrar = false;
-                }
             }
+        }
+
+        if (totalEntregables == 0 || entregablesConformes < totalEntregables) {
+            puedeCerrar = false;
         }
 
         return new ProyectoResumenDTO(
@@ -448,6 +479,15 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.cerrar();
 
         proyectoRepository.save(proyecto);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_CLOSED,
+                proyecto.getId(),
+                "system",
+                Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "state", proyecto.getEstadoCodigo(),
+                        "recipients", List.of(proyecto.getCorreoDirector())
+                )));
     }
 
     @Override

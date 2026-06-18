@@ -23,6 +23,9 @@ import com.proyecta.api_gestion.repository.RiesgoSolucionAdjuntoRepository;
 import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.service.IRiesgoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.core.io.Resource;
@@ -57,17 +60,20 @@ public class RiesgoServiceImpl implements IRiesgoService {
     private final MatrizRiesgoRepository matrizRiesgoRepository;
     private final RiesgoSolucionAdjuntoRepository solucionRepository;
     private final IStorageProvider storageProvider;
+    private final NotificationEventPublisherPort notificationPublisher;
 
     public RiesgoServiceImpl(RiesgoRepository riesgoRepository,
                              ProyectoRepository proyectoRepository,
                              MatrizRiesgoRepository matrizRiesgoRepository,
                              RiesgoSolucionAdjuntoRepository solucionRepository,
-                             IStorageProvider storageProvider) {
+                             IStorageProvider storageProvider,
+                             NotificationEventPublisherPort notificationPublisher) {
         this.riesgoRepository = riesgoRepository;
         this.proyectoRepository = proyectoRepository;
         this.matrizRiesgoRepository = matrizRiesgoRepository;
         this.solucionRepository = solucionRepository;
         this.storageProvider = storageProvider;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -113,6 +119,16 @@ public class RiesgoServiceImpl implements IRiesgoService {
         Riesgo savedRisk = riesgoRepository.save(riesgo);
         savedRisk.setCodigo("R" + String.format("%02d", savedRisk.getId()));
         riesgoRepository.save(savedRisk);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.RISK_CREATED,
+                projectId,
+                "system",
+                java.util.Map.of(
+                        "riskCode", savedRisk.getCodigo(),
+                        "riskLevel", savedRisk.getNivel(),
+                        "projectName", proyecto.getNombre(),
+                        "recipients", List.of(proyecto.getCorreoDirector())
+                )));
 
         return new RiesgoCreatedResponseDTO(
                 savedRisk.getId(),
@@ -137,7 +153,17 @@ public class RiesgoServiceImpl implements IRiesgoService {
         }
 
         aplicarRequest(riesgo, requestDto, riesgo.getProyecto());
-        return convertToResponseDto(riesgoRepository.save(riesgo));
+        Riesgo saved = riesgoRepository.save(riesgo);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.RISK_UPDATED,
+                projectId,
+                "system",
+                java.util.Map.of(
+                        "riskCode", saved.getCodigo(),
+                        "riskLevel", saved.getNivel(),
+                        "recipients", List.of(saved.getProyecto().getCorreoDirector())
+                )));
+        return convertToResponseDto(saved);
     }
 
     @Override
@@ -169,7 +195,16 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
         riesgo.setTratamiento((riesgo.getTratamiento() == null ? "" : riesgo.getTratamiento()) + "\nVERIFICACION: " + verificacion);
         riesgo.setEstado(EstadoRiesgo.TRATADO);
-        riesgoRepository.save(riesgo);
+        Riesgo saved = riesgoRepository.save(riesgo);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.RISK_TREATED,
+                projectId,
+                "system",
+                java.util.Map.of(
+                        "riskCode", saved.getCodigo(),
+                        "riskLevel", saved.getNivel(),
+                        "recipients", List.of(saved.getProyecto().getCorreoDirector())
+                )));
     }
 
     @Override

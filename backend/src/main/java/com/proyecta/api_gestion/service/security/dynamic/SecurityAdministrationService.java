@@ -31,6 +31,9 @@ import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.SystemParameterRepository;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -66,6 +69,7 @@ public class SecurityAdministrationService {
     private final SecurityCatalogCacheService catalogCacheService;
     private final KeycloakIdentityExtractor identityExtractor;
     private final LocalUserAuthorizationService localUserAuthorizationService;
+    private final NotificationEventPublisherPort notificationPublisher;
 
     public SecurityAdministrationService(
             SeguridadUsuarioRepository usuarioRepository,
@@ -78,7 +82,8 @@ public class SecurityAdministrationService {
             SystemParameterService systemParameterService,
             SecurityCatalogCacheService catalogCacheService,
             KeycloakIdentityExtractor identityExtractor,
-            LocalUserAuthorizationService localUserAuthorizationService) {
+            LocalUserAuthorizationService localUserAuthorizationService,
+            NotificationEventPublisherPort notificationPublisher) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.permisoRepository = permisoRepository;
@@ -90,6 +95,7 @@ public class SecurityAdministrationService {
         this.catalogCacheService = catalogCacheService;
         this.identityExtractor = identityExtractor;
         this.localUserAuthorizationService = localUserAuthorizationService;
+        this.notificationPublisher = notificationPublisher;
     }
 
     public Page<SeguridadUsuarioDTO> listarUsuarios(String search, String rol, Pageable pageable) {
@@ -218,6 +224,14 @@ public class SecurityAdministrationService {
 
         SeguridadUsuario saved = usuarioRepository.save(usuario);
         catalogCacheService.evictAll();
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.SECURITY_USER_UPDATED,
+                null,
+                "system",
+                java.util.Map.of(
+                        "username", saved.getUsername(),
+                        "recipients", List.of(saved.getCorreo())
+                )));
         return toUsuarioDTO(saved);
     }
 
@@ -277,6 +291,14 @@ public class SecurityAdministrationService {
 
         SeguridadRol saved = rolRepository.save(rol);
         catalogCacheService.evictAll();
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.SECURITY_ROLE_UPDATED,
+                null,
+                "system",
+                java.util.Map.of(
+                        "roleCode", saved.getCodigo(),
+                        "recipients", List.of()
+                )));
         return toRolDTO(saved, new LinkedHashMap<>());
     }
 
@@ -417,6 +439,15 @@ public class SecurityAdministrationService {
         }
 
         catalogCacheService.evictAll();
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_ASSIGNMENT_CREATED,
+                proyectoId,
+                username,
+                java.util.Map.of(
+                        "assignedUsername", username,
+                        "assignmentRole", cargoNormalizado,
+                        "recipients", List.of(usuario.getCorreo(), proyectoRepository.findById(proyectoId).map(Proyecto::getCorreoDirector).orElse(null))
+                )));
         return toUsuarioProyectoDTO(saved);
     }
 

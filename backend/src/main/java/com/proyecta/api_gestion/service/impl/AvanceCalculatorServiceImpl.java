@@ -12,6 +12,7 @@ import com.proyecta.api_gestion.repository.FaseRepository;
 import com.proyecta.api_gestion.repository.HitoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
+import com.proyecta.api_gestion.service.notification.ProjectDelayNotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,17 +28,20 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
     private final HitoRepository hitoRepository;
     private final EntregableRepository entregableRepository;
     private final ProjectProgressMetricsService metricsService;
+    private final ProjectDelayNotificationService projectDelayNotificationService;
 
     public AvanceCalculatorServiceImpl(ProyectoRepository proyectoRepository,
                                        FaseRepository faseRepository,
                                        HitoRepository hitoRepository,
                                        EntregableRepository entregableRepository,
-                                       ProjectProgressMetricsService metricsService) {
+                                       ProjectProgressMetricsService metricsService,
+                                       ProjectDelayNotificationService projectDelayNotificationService) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
         this.entregableRepository = entregableRepository;
         this.metricsService = metricsService;
+        this.projectDelayNotificationService = projectDelayNotificationService;
     }
 
     @Override
@@ -47,6 +51,7 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
         ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, java.time.LocalDate.now());
         sincronizarPersistencia(proyecto, snapshot);
         proyectoRepository.save(proyecto);
+        projectDelayNotificationService.notifyIfDelayed(proyecto, snapshot, null);
         return snapshot.avanceTotal();
     }
 
@@ -59,6 +64,7 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
         ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, java.time.LocalDate.now());
         sincronizarPersistencia(proyecto, snapshot);
         proyectoRepository.save(proyecto);
+        projectDelayNotificationService.notifyIfDelayed(proyecto, snapshot, null);
 
         return snapshot.fases().stream()
                 .filter(faseAvance -> faseId.equals(faseAvance.id()))
@@ -76,6 +82,7 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
         ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, java.time.LocalDate.now());
         sincronizarPersistencia(proyecto, snapshot);
         proyectoRepository.save(proyecto);
+        projectDelayNotificationService.notifyIfDelayed(proyecto, snapshot, null);
 
         return snapshot.fases().stream()
                 .flatMap(fase -> fase.hitos().stream())

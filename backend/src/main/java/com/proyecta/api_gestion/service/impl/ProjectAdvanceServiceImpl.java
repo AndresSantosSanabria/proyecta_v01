@@ -27,7 +27,11 @@ import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
+import com.proyecta.api_gestion.service.interfaces.ProyectoBeneficioImpactoService;
 import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
@@ -61,6 +65,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     private final DocumentoAuditoriaRepository documentoAuditoriaRepository;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final KeycloakIdentityExtractor identityExtractor;
+    private final NotificationEventPublisherPort notificationPublisher;
+    private final ProyectoBeneficioImpactoService beneficioImpactoService;
 
     public ProjectAdvanceServiceImpl(ProyectoRepository proyectoRepository,
                                      EntregableRepository entregableRepository,
@@ -73,7 +79,9 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                                      DocumentoObservacionRepository documentoObservacionRepository,
                                      DocumentoAuditoriaRepository documentoAuditoriaRepository,
                                      LocalUserAuthorizationService localUserAuthorizationService,
-                                     KeycloakIdentityExtractor identityExtractor) {
+                                     KeycloakIdentityExtractor identityExtractor,
+                                     NotificationEventPublisherPort notificationPublisher,
+                                     ProyectoBeneficioImpactoService beneficioImpactoService) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.progressCalculator = progressCalculator;
@@ -86,6 +94,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         this.documentoAuditoriaRepository = documentoAuditoriaRepository;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.identityExtractor = identityExtractor;
+        this.notificationPublisher = notificationPublisher;
+        this.beneficioImpactoService = beneficioImpactoService;
     }
 
     @Override
@@ -180,7 +190,17 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             entityManager.refresh(entregable);
 
             Proyecto proyectoActualizado = cargarProyecto(proyectoId);
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.DELIVERABLE_EVIDENCE_UPLOADED,
+                    proyectoId,
+                    actor.username(),
+                    java.util.Map.of(
+                            "deliverableName", entregable.getNombre(),
+                            "projectName", proyectoActualizado.getNombre(),
+                            "recipients", List.of(proyectoActualizado.getCorreoDirector())
+                    )));
             ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
+            beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
             String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
             return new EntregableConformidadResponseDTO(
@@ -238,7 +258,17 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         entityManager.refresh(entregable);
 
         Proyecto proyectoActualizado = cargarProyecto(proyectoId);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.DELIVERABLE_APPROVED,
+                proyectoId,
+                actor.username(),
+                java.util.Map.of(
+                        "deliverableName", entregable.getNombre(),
+                        "projectName", proyectoActualizado.getNombre(),
+                        "recipients", List.of(proyectoActualizado.getCorreoDirector())
+                )));
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
+        beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
         String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
         return new EntregableConformidadResponseDTO(
@@ -292,7 +322,18 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         entityManager.refresh(entregable);
 
         Proyecto proyectoActualizado = cargarProyecto(proyectoId);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.DELIVERABLE_REJECTED,
+                proyectoId,
+                actor.username(),
+                java.util.Map.of(
+                        "deliverableName", entregable.getNombre(),
+                        "projectName", proyectoActualizado.getNombre(),
+                        "observation", observacion.trim(),
+                        "recipients", List.of(proyectoActualizado.getCorreoDirector())
+                )));
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
+        beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
         String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
         return new EntregableConformidadResponseDTO(
@@ -341,6 +382,22 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         observacion.setComentarioSubsanacion(trimToNull(comentario));
         DocumentoObservacion guardada = documentoObservacionRepository.save(observacion);
         auditar(guardada.getEntregable(), guardada.getVersion(), guardada, "SUBSANAR", actor, "observacionId=" + guardada.getId());
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.OBSERVATION_SUBSANATED,
+                proyectoId,
+                actor.username(),
+                java.util.Map.of(
+                        "observationId", guardada.getId(),
+                        "deliverableName", guardada.getEntregable() != null ? guardada.getEntregable().getNombre() : "",
+                        "recipients", List.of(
+                                guardada.getEntregable() != null
+                                        && guardada.getEntregable().getHito() != null
+                                        && guardada.getEntregable().getHito().getFase() != null
+                                        && guardada.getEntregable().getHito().getFase().getProyecto() != null
+                                        ? guardada.getEntregable().getHito().getFase().getProyecto().getCorreoDirector()
+                                        : null
+                        )
+                )));
         return toObservacionDto(guardada);
     }
 
