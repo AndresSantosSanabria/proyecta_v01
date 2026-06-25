@@ -7,6 +7,11 @@ const statusMap = {
     class: 'warning',
     tooltip: 'Proyecto creado, pero aún no ha sido completado por el director.',
   },
+  PENDIENTE_COMPLETAR: {
+    label: 'Pendiente completar',
+    class: 'warning',
+    tooltip: 'El proyecto requiere que el director complete la información obligatoria.',
+  },
   CON_RETRASOS: {
     label: 'Con retrasos',
     class: 'warning',

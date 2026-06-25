@@ -4,6 +4,7 @@ import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorE
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
 import Paso4PetiComunicaciones from '../features/wizard/steps/Paso4PetiComunicaciones';
 import Paso5Furag from '../features/wizard/steps/Paso5Furag';
+import Paso6GestionDocumental from '../features/wizard/steps/Paso6GestionDocumental';
 import configCatalogService from '../../services/configCatalogService';
 import '../../pages/NewProjectPage/NewProjectPage.css';
 import './ProjectOnboardingWizard.css';
@@ -27,6 +28,7 @@ const STEPS = [
   { id: 3, label: 'Fases / hitos / entregables' },
   { id: 4, label: 'PETI y comunicaciones' },
   { id: 5, label: 'FURAG' },
+  { id: 6, label: 'Gestion documental' },
 ];
 
 const initialForm = (project) => ({
@@ -43,6 +45,10 @@ const initialForm = (project) => ({
   estrategiaPeti: project?.estrategiaPeti || null,
   tienePlanComunicaciones: project?.tienePlanComunicaciones ?? null,
   furag: project?.furag || {},
+  viabilizacionPdf: null,
+  actaConstitucionPdf: null,
+  cronogramaPdf: null,
+  planComunicacionesPdf: null,
 });
 
 const sumPonderacion = (items = []) => items.reduce((sum, item) => sum + (parseFloat(item?.ponderacion) || 0), 0);
@@ -147,6 +153,8 @@ const ProjectOnboardingWizard = ({
         nextErrors.presupuestoEstimado = 'El presupuesto estimado es obligatorio.';
       } else if (Number(source.presupuestoEstimado) < 0) {
         nextErrors.presupuestoEstimado = 'El presupuesto no puede ser negativo.';
+      } else if (Number(source.presupuestoEstimado) > 1e15) {
+        nextErrors.presupuestoEstimado = 'El presupuesto no puede superar $9.999.999.999.999.999.';
       }
     }
 
@@ -304,7 +312,12 @@ const ProjectOnboardingWizard = ({
     }
 
     setErrors({});
-    onComplete?.(buildPayload());
+    onComplete?.(buildPayload(), {
+      viabilizacionPdf: form.viabilizacionPdf || null,
+      actaConstitucionPdf: form.actaConstitucionPdf || null,
+      cronogramaPdf: form.cronogramaPdf || null,
+      planComunicacionesPdf: form.planComunicacionesPdf || null,
+    });
   };
 
   const renderStep = () => {
@@ -344,6 +357,7 @@ const ProjectOnboardingWizard = ({
               <input
                 type="number"
                 min="0"
+                max="9999999999999999.99"
                 step="0.01"
                 className={`form-input ${errors.presupuestoEstimado ? 'input-error' : ''}`}
                 value={form.presupuestoEstimado}
@@ -416,7 +430,11 @@ const ProjectOnboardingWizard = ({
       );
     }
 
-    return <Paso5Furag data={form} onChange={handleChange} errors={errors} />;
+    if (step === 5) {
+      return <Paso5Furag data={form} onChange={handleChange} errors={errors} />;
+    }
+
+    return <Paso6GestionDocumental data={form} onChange={handleChange} errors={errors} />;
   };
 
   return (

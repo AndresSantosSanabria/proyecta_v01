@@ -125,6 +125,11 @@ const securityService = {
     return unwrap(response);
   },
 
+  testSendNotificationTemplate: async (payload) => {
+    const response = await apiClient.post('/admin/notificaciones/plantillas/test-send', payload);
+    return unwrap(response);
+  },
+
   listInAppNotifications: async ({ page = 0, size = 10 } = {}) => {
     const response = await apiClient.get('/notificaciones', { params: { page, size } });
     return unwrap(response);

@@ -565,7 +565,8 @@ td {
 .matrix-help-overlay,
 .risk-modal-overlay,
 .solution-modal-overlay,
-.evidence-upload-overlay {
+.evidence-upload-overlay,
+.pim-overlay {
   background: var(--modal-backdrop);
   backdrop-filter: none;
 }
@@ -580,7 +581,8 @@ td {
 .new-project-discard-modal,
 .project-summary-modal,
 .project-onboarding__panel,
-.evidence-upload-modal {
+.evidence-upload-modal,
+.pim-modal {
   background: var(--bg-surface);
   color: var(--text-main);
   border-color: var(--border-color);
@@ -596,7 +598,8 @@ td {
 .solution-modal-header,
 .new-project-modal-header,
 .project-onboarding__header,
-.project-onboarding__footer {
+.project-onboarding__footer,
+.pim-header {
   color: var(--text-main);
 }
 

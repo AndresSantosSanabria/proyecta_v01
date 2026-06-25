@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Info, Lock, Maximize2, X } from 'lucide-react';
+import { Info, Lock, Maximize2, X, FileText } from 'lucide-react';
 import projectService from '../../services/projectService';
 import ProgressHeader from '../../components/features/progress/ProgressHeader';
 import ProgressKPIs from '../../components/features/progress/ProgressKPIs';
 import ProgressTreeTable from '../../components/features/progress/ProgressTreeTable';
 import ProjectBenefitImpactPanel from '../../components/projects/ProjectBenefitImpactPanel';
+import ProjectInfoModal from '../../components/projects/ProjectInfoModal';
 import './ProjectProgressPage.css';
 
 const normalizeProgressPayload = (payload, fallbackCode) => {
@@ -84,6 +85,23 @@ const ProjectProgressPage = () => {
     fases: [],
   });
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [projectInfoModalOpen, setProjectInfoModalOpen] = useState(false);
+
+  const showBenefitImpact = useMemo(() => {
+    const allEntregables = flattenEntregables(progressData.fases || []);
+    if (allEntregables.length === 0) return false;
+    const isEntregado = (ent) => {
+      const estado = String(ent.estadoCodigo || ent.estado || '').toUpperCase();
+      return Boolean(
+        ent.fechaEntrega
+        || ent.fechaEntregaReal
+        || estado === 'A_CONFORMIDAD'
+        || estado === 'APROBADO'
+        || estado === 'COMPLETADO'
+      );
+    };
+    return allEntregables.every(isEntregado);
+  }, [progressData.fases]);
 
   const toggleNode = (nodeId) => {
     setExpandedNodes((prev) => ({
@@ -225,6 +243,17 @@ const ProjectProgressPage = () => {
         corte={progressData.corte ? new Date(progressData.corte).toLocaleDateString('es-CO') : new Date().toLocaleDateString('es-CO')}
       />
 
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+        <button
+          type="button"
+          className="pim-trigger"
+          onClick={() => setProjectInfoModalOpen(true)}
+        >
+          <FileText size={16} />
+          Informacion del proyecto
+        </button>
+      </div>
+
       <section className="excel-summary-card">
         <div className="excel-summary-top">
           <div className="excel-summary-title">
@@ -344,12 +373,14 @@ const ProjectProgressPage = () => {
 
       <ProgressKPIs progressData={progressData} />
 
-      <ProjectBenefitImpactPanel
-        proyectoId={codigoProyecto}
-        projectName={projectInfo?.nombre || progressData.nombre}
-        refreshToken={refreshKey}
-        onSaved={() => setRefreshKey((prev) => prev + 1)}
-      />
+      {showBenefitImpact && (
+        <ProjectBenefitImpactPanel
+          proyectoId={codigoProyecto}
+          projectName={projectInfo?.nombre || progressData.nombre}
+          refreshToken={refreshKey}
+          onSaved={() => setRefreshKey((prev) => prev + 1)}
+        />
+      )}
 
       <div className="info-alert">
         <Info size={18} className="info-icon" />
@@ -374,6 +405,12 @@ const ProjectProgressPage = () => {
         toggleNode={toggleNode}
         proyectoId={codigoProyecto}
         onEvidenceUploaded={handleEvidenceUploaded}
+      />
+
+      <ProjectInfoModal
+        project={projectInfo}
+        open={projectInfoModalOpen}
+        onClose={() => setProjectInfoModalOpen(false)}
       />
     </div>
   );

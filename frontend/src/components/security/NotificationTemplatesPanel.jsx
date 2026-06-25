@@ -31,6 +31,7 @@ const emptyForm = {
   scope: 'GLOBAL',
   subjectTemplate: '',
   bodyTemplate: '',
+  targetRoles: '',
 };
 
 const categoryMeta = {
@@ -137,6 +138,7 @@ const NotificationTemplatesPanel = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('BUSINESS');
+  const [availableRoles, setAvailableRoles] = useState([]);
 
   const preferenceUsername = authUser?.profile?.preferred_username
     || authUser?.profile?.username
@@ -268,6 +270,7 @@ const NotificationTemplatesPanel = () => {
       scope: template?.scope || 'GLOBAL',
       subjectTemplate: template?.subjectTemplate || `Notificación: ${event?.name || selectedCode}`,
       bodyTemplate: template?.bodyTemplate || 'Hola {{nombre_usuario}}, se generó una notificación para {{proyecto_nombre}}.',
+      targetRoles: template?.targetRoles || '',
     });
   }, [events, selectedCode, templates]);
 
@@ -297,7 +300,7 @@ const NotificationTemplatesPanel = () => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const openEditor = (row) => {
+  const openEditor = async (row) => {
     const code = row?.event?.code || row?.code || selectedCode || events[0]?.code || '';
     const event = events.find((item) => item.code === code) || null;
     if (event?.category && categoryFilter === 'ALL') {
@@ -306,6 +309,14 @@ const NotificationTemplatesPanel = () => {
     setSelectedCode(code);
     setPreview({ subject: '', body: '' });
     setIsEditorOpen(true);
+
+    try {
+      const rolesResult = await securityService.listRoles({ includeInactive: false });
+      const rolesData = rolesResult?.data || rolesResult || [];
+      setAvailableRoles(Array.isArray(rolesData) ? rolesData : []);
+    } catch {
+      setAvailableRoles([]);
+    }
   };
 
   const handleSave = async () => {
@@ -354,6 +365,37 @@ const NotificationTemplatesPanel = () => {
       });
     } catch (err) {
       setError(`No fue posible generar el preview. ${extractApiDetail(err)}`);
+    }
+  };
+
+  const handleTestSend = async () => {
+    try {
+      setSaving(true);
+      setError('');
+      const response = await securityService.testSendNotificationTemplate({
+        eventCode: selectedCode || form.eventCode,
+        subjectTemplate: form.subjectTemplate,
+        bodyTemplate: form.bodyTemplate,
+        htmlEnabled: form.htmlEnabled,
+        variables: {
+          nombre_usuario: 'Juan Pérez',
+          enlace_aprobacion: 'https://demo.local/aprobar',
+          monto: '$ 18.500.000',
+          proyecto_nombre: 'Proyecto Demo',
+          entregable_nombre: 'Entregable Principal',
+          estado_anterior: 'En revisión',
+          estado_nuevo: 'Aprobado',
+          projectId: 'TEST-001',
+          projectName: 'Proyecto Demo',
+        },
+      });
+      const message = response?.message || 'Correo de prueba enviado correctamente';
+      setNotice(message);
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.response?.data?.title || err.message;
+      setError(`No se pudo enviar el correo de prueba. ${detail}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -599,7 +641,7 @@ const NotificationTemplatesPanel = () => {
                 </div>
               </div>
               <div className="template-modal__actions">
-                <button type="button" className="btn-secondary" onClick={() => void handlePreview()} disabled={saving}>
+                <button type="button" className="btn-secondary" onClick={() => void handleTestSend()} disabled={saving}>
                   <Eye size={16} />
                   Enviar prueba
                 </button>
@@ -663,6 +705,37 @@ const NotificationTemplatesPanel = () => {
                       <span className={`status-chip ${form.htmlEnabled ? 'active' : 'inactive'}`}>{form.htmlEnabled ? 'HTML' : 'Texto'}</span>
                     </button>
                   </label>
+                </section>
+
+                <section className="template-block">
+                  <h4>Roles destinatarios</h4>
+                  <p className="template-block__hint">Selecciona los roles que recibirán esta notificación. Si no seleccionas ninguno, se enviará a todos.</p>
+                  <div className="roles-checkbox-list">
+                    {availableRoles.map((role) => {
+                      const roleCode = role.codigo || role.code || '';
+                      const isSelected = form.targetRoles.split(',').map((r) => r.trim()).includes(roleCode);
+                      return (
+                        <label key={roleCode} className="role-checkbox-row">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              const currentRoles = form.targetRoles.split(',').map((r) => r.trim()).filter(Boolean);
+                              const nextRoles = isSelected
+                                ? currentRoles.filter((r) => r !== roleCode)
+                                : [...currentRoles, roleCode];
+                              setForm((current) => ({ ...current, targetRoles: nextRoles.join(',') }));
+                            }}
+                          />
+                          <span className="role-checkbox-label">{role.nombre || roleCode}</span>
+                          <span className="role-checkbox-code">{roleCode}</span>
+                        </label>
+                      );
+                    })}
+                    {availableRoles.length === 0 && (
+                      <p className="template-block__empty">No hay roles disponibles.</p>
+                    )}
+                  </div>
                 </section>
               </aside>
 
