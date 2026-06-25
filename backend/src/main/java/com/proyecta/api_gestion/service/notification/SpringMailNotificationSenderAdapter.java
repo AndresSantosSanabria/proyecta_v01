@@ -1,6 +1,5 @@
 package com.proyecta.api_gestion.service.notification;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +16,7 @@ public class SpringMailNotificationSenderAdapter implements NotificationSenderPo
     private final JavaMailSender javaMailSender;
     private final com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository usuarioRepository;
     
-    @Value("${spring.mail.username}")
+    @Value("${mail.from:notificaciones@gobierno.gov.co}")
     private String fromEmail;
 
     public SpringMailNotificationSenderAdapter(JavaMailSender javaMailSender, com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository usuarioRepository) {
@@ -49,9 +48,9 @@ public class SpringMailNotificationSenderAdapter implements NotificationSenderPo
             
             javaMailSender.send(mimeMessage);
             logger.info("Notification email sent successfully to: {}", targetEmail);
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             logger.error("Failed to send notification email to: {}", to, e);
-            throw new RuntimeException("Error al enviar el correo", e);
+            throw new RuntimeException("Error al enviar el correo: " + e.getMessage(), e);
         }
     }
 }

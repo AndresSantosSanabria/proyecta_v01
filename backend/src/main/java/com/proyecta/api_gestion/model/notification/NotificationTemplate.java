@@ -32,6 +32,9 @@ public class NotificationTemplate {
     @Column(name = "body_template", columnDefinition = "TEXT", nullable = false)
     private String bodyTemplate;
 
+    @Column(name = "target_roles", columnDefinition = "TEXT")
+    private String targetRoles;
+
     @Column(name = "updated_by", length = 120)
     private String updatedBy;
 
@@ -52,6 +55,8 @@ public class NotificationTemplate {
     public void setSubjectTemplate(String subjectTemplate) { this.subjectTemplate = subjectTemplate; }
     public String getBodyTemplate() { return bodyTemplate; }
     public void setBodyTemplate(String bodyTemplate) { this.bodyTemplate = bodyTemplate; }
+    public String getTargetRoles() { return targetRoles; }
+    public void setTargetRoles(String targetRoles) { this.targetRoles = targetRoles; }
     public String getUpdatedBy() { return updatedBy; }
     public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
