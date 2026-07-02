@@ -411,6 +411,7 @@ const ProjectProgressPage = () => {
         project={projectInfo}
         open={projectInfoModalOpen}
         onClose={() => setProjectInfoModalOpen(false)}
+        onDocumentUploaded={() => setRefreshKey((prev) => prev + 1)}
       />
     </div>
   );

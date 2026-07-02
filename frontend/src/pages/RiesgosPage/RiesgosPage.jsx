@@ -48,7 +48,6 @@ const emptyForm = {
   entidadResponsable: '',
   rolResponsable: '',
   fechaAccion: '',
-  evidenciaIndicador: '',
   estado: 'PENDIENTE',
 };
 
@@ -354,7 +353,6 @@ const RiesgosPage = () => {
       entidadResponsable: risk.entidadResponsable || '',
       rolResponsable: risk.rolResponsable || '',
       fechaAccion: risk.fechaAccion || '',
-      evidenciaIndicador: risk.evidenciaIndicador || '',
       estado: risk.estado || 'PENDIENTE',
     });
     setModalOpen(true);
@@ -383,7 +381,6 @@ const RiesgosPage = () => {
         entidadResponsable: form.entidadResponsable,
         rolResponsable: form.rolResponsable,
         fechaAccion: form.fechaAccion || null,
-        evidenciaIndicador: form.evidenciaIndicador,
         estado: form.estado,
       };
 
@@ -919,14 +916,6 @@ const RiesgosPage = () => {
                     type="date"
                     value={form.fechaAccion}
                     onChange={(e) => setForm((prev) => ({ ...prev, fechaAccion: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Evidencia / Indicador
-                  <input
-                    value={form.evidenciaIndicador}
-                    onChange={(e) => setForm((prev) => ({ ...prev, evidenciaIndicador: e.target.value }))}
-                    placeholder="Cómo se verificará el control"
                   />
                 </label>
               </div>

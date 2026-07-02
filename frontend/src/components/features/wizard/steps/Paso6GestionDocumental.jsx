@@ -1,5 +1,30 @@
 import { useState } from 'react';
-import { Upload, FileText, X } from 'lucide-react';
+import { Upload, FileText, X, FileCheck, AlertCircle } from 'lucide-react';
+import './Paso6GestionDocumental.css';
+
+const DOC_CONFIG = [
+  {
+    field: 'viabilizacionPdf',
+    label: 'Documento de Viabilización',
+    icon: FileCheck,
+    required: true,
+    note: null,
+  },
+  {
+    field: 'actaConstitucionPdf',
+    label: 'Acta de Constitución',
+    icon: FileText,
+    required: false,
+    note: 'El acta debe generarse dentro de los 6 meses siguientes a la viabilización del proyecto.',
+  },
+  {
+    field: 'cronogramaPdf',
+    label: 'Cronograma del Proyecto',
+    icon: FileText,
+    required: false,
+    note: null,
+  },
+];
 
 const Paso6GestionDocumental = ({ data, onChange, errors }) => {
   const [dragging, setDragging] = useState(null);
@@ -21,76 +46,119 @@ const Paso6GestionDocumental = ({ data, onChange, errors }) => {
     onChange({ [field]: null });
   };
 
-  const renderFileUpload = (field, label, required = false, note = null) => {
-    const file = data[field];
-    const hasError = errors[field];
-
-    return (
-      <div className={`document-upload-card ${hasError ? 'upload-error' : ''}`}>
-        <div className="upload-card-header">
-          <h4>{label} {required && <span className="required-mark">*</span>}</h4>
-          {note && <p className="upload-note">{note}</p>}
-        </div>
-
-        {file ? (
-          <div className="file-selected">
-            <FileText size={20} />
-            <span className="file-name">{file.name}</span>
-            <span className="file-size">({(file.size / 1024).toFixed(1)} KB)</span>
-            <button type="button" className="btn-icon-danger" onClick={() => handleRemove(field)}>
-              <X size={16} />
-            </button>
-          </div>
-        ) : (
-          <div
-            className={`drop-zone ${dragging === field ? 'dragging' : ''}`}
-            onDragOver={(e) => { e.preventDefault(); setDragging(field); }}
-            onDragLeave={() => setDragging(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(null);
-              const f = e.dataTransfer.files[0];
-              if (f && f.type === 'application/pdf') {
-                onChange({ [field]: f });
-              }
-            }}
-            onClick={() => handleFileSelect(field)}
-          >
-            <Upload size={24} />
-            <p>Arrastre el archivo PDF aquí o <span className="upload-link">haga clic para seleccionar</span></p>
-            <span className="upload-hint">Solo archivos PDF</span>
-          </div>
-        )}
-        {hasError && <span className="error-text">{errors[field]}</span>}
-      </div>
-    );
+  const handleDrop = (field, e) => {
+    e.preventDefault();
+    setDragging(null);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type === 'application/pdf') {
+      onChange({ [field]: f });
+    }
   };
+
+  const docs = [...DOC_CONFIG];
+  if (data.tienePlanComunicaciones === true) {
+    docs.push({
+      field: 'planComunicacionesPdf',
+      label: 'Plan de Comunicaciones',
+      icon: FileText,
+      required: true,
+      note: 'Obligatorio porque indicó que el proyecto cuenta con un Plan de Comunicaciones.',
+    });
+  }
 
   return (
     <div className="step-form">
       <h3 className="step-title">Gestión Documental</h3>
-      <p className="help-text">Cargue los documentos requeridos en formato PDF para formalizar la creación del proyecto.</p>
+      <p className="help-text">
+        Cargue los documentos requeridos en formato PDF para formalizar la creación del proyecto.
+      </p>
 
-      <div className="document-grid">
-        {renderFileUpload('viabilizacionPdf', 'Documento de Viabilización', true)}
+      <div className="doc-grid">
+        {docs.map(({ field, label, icon: Icon, required, note }) => {
+          const file = data[field];
+          const hasError = errors[field];
 
-        {renderFileUpload(
-          'actaConstitucionPdf',
-          'Acta de Constitución',
-          false,
-          'El acta de constitución debe generarse dentro de los 6 meses siguientes a la viabilización del proyecto.'
-        )}
+          return (
+            <div
+              key={field}
+              className={[
+                'doc-card',
+                hasError ? 'has-error' : '',
+                file ? 'has-file' : '',
+              ].filter(Boolean).join(' ')}
+            >
+              <div className="doc-card-header">
+                <div className="doc-card-icon">
+                  <Icon size={17} strokeWidth={2} />
+                </div>
+                <div className="doc-card-title">
+                  <h4>
+                    {label}
+                    {required && <span className="doc-required">Requerido</span>}
+                    {!required && <span className="doc-optional">Opcional</span>}
+                  </h4>
+                  {note && <p className="doc-card-note">{note}</p>}
+                </div>
+              </div>
 
-        {renderFileUpload('cronogramaPdf', 'Cronograma del Proyecto', false)}
+              {file ? (
+                <div className="doc-file-selected">
+                  <div className="doc-file-icon">
+                    <FileText size={16} strokeWidth={2.2} />
+                  </div>
+                  <div className="doc-file-info">
+                    <span className="doc-file-name">{file.name}</span>
+                    <span className="doc-file-size">
+                      {(file.size / 1024).toFixed(1)} KB
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="doc-file-remove"
+                    onClick={() => handleRemove(field)}
+                    aria-label={`Eliminar ${label}`}
+                  >
+                    <X size={14} strokeWidth={2.5} />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className={`doc-dropzone ${dragging === field ? 'dragging' : ''}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragging(field);
+                  }}
+                  onDragLeave={() => setDragging(null)}
+                  onDrop={(e) => handleDrop(field, e)}
+                  onClick={() => handleFileSelect(field)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleFileSelect(field);
+                    }
+                  }}
+                >
+                  <div className="doc-dropzone-icon">
+                    <Upload size={19} strokeWidth={2} />
+                  </div>
+                  <p className="doc-dropzone-text">
+                    Arrastre el archivo aquí o <span>seleccione</span>
+                  </p>
+                  <span className="doc-dropzone-hint">Solo archivos PDF</span>
+                </div>
+              )}
 
-        {data.tienePlanComunicaciones === true && (
-          renderFileUpload(
-            'planComunicacionesPdf',
-            'Plan de Comunicaciones',
-            true,
-            'Este documento es obligatorio porque indicó que el proyecto cuenta con un Plan de Comunicaciones.'
-          )
-        )}
+              {hasError && (
+                <p className="doc-error-text">
+                  <AlertCircle size={12} strokeWidth={2.5} />
+                  {errors[field]}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

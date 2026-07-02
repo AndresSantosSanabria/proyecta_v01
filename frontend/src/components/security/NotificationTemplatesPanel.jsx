@@ -6,10 +6,8 @@ import {
   Clock3,
   Eye,
   FileText,
-  Image,
   LoaderCircle,
   Pencil,
-  Plus,
   RefreshCw,
   Save,
   Search,
@@ -59,8 +57,6 @@ const categoryMeta = {
 
 const channelMeta = {
   EMAIL: { label: 'EMAIL', className: 'channel-email', icon: FileText },
-  SMS: { label: 'SMS', className: 'channel-sms', icon: BellRing },
-  PUSH: { label: 'PUSH', className: 'channel-push', icon: BellRing },
 };
 
 const severityMeta = {
@@ -87,23 +83,6 @@ const templateVariables = [
   { key: 'estado_nuevo', label: 'Estado nuevo', description: 'Estado después del cambio.' },
 ];
 
-const REQUIRED_VARIABLES = {
-  PROJECT_INITIAL_REGISTERED: ['nombre_usuario', 'proyecto_nombre'],
-  PROJECT_INITIAL_COMPLETED: ['nombre_usuario', 'proyecto_nombre'],
-  PROJECT_UPDATED: ['nombre_usuario', 'proyecto_nombre', 'estado_anterior', 'estado_nuevo'],
-  PROJECT_CLOSED: ['nombre_usuario', 'proyecto_nombre'],
-  PROJECT_ASSIGNMENT_CREATED: ['nombre_usuario', 'proyecto_nombre'],
-  DELIVERABLE_EVIDENCE_UPLOADED: ['nombre_usuario', 'proyecto_nombre', 'entregable_nombre'],
-  DELIVERABLE_APPROVED: ['nombre_usuario', 'proyecto_nombre', 'entregable_nombre', 'enlace_aprobacion'],
-  DELIVERABLE_REJECTED: ['nombre_usuario', 'proyecto_nombre', 'entregable_nombre', 'estado_anterior', 'estado_nuevo'],
-  OBSERVATION_SUBSANATED: ['nombre_usuario', 'proyecto_nombre', 'entregable_nombre'],
-  RISK_CREATED: ['nombre_usuario', 'proyecto_nombre', 'monto'],
-  RISK_UPDATED: ['nombre_usuario', 'proyecto_nombre', 'monto'],
-  RISK_TREATED: ['nombre_usuario', 'proyecto_nombre', 'monto'],
-  SECURITY_USER_UPDATED: ['nombre_usuario'],
-  SECURITY_ROLE_UPDATED: ['nombre_usuario'],
-};
-
 const extractApiDetail = (error) => error?.response?.data?.detail || error?.response?.data?.title || error?.message || '';
 
 const formatDateTime = (value) => {
@@ -116,10 +95,6 @@ const formatDateTime = (value) => {
     year: 'numeric',
   }).format(date);
 };
-
-const extractTemplateTokens = (value) => Array.from(new Set((value || '').match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)?.map((token) => token.match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/)?.[1]).filter(Boolean) || []));
-
-const tokenLabelMap = Object.fromEntries(templateVariables.map((item) => [item.key, item]));
 
 const NotificationTemplatesPanel = () => {
   const { user: authUser } = useAuthContext();
@@ -138,7 +113,7 @@ const NotificationTemplatesPanel = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('BUSINESS');
-  const [availableRoles, setAvailableRoles] = useState([]);
+  const [globalNotifCheck, setGlobalNotifCheck] = useState(false);
 
   const preferenceUsername = authUser?.profile?.preferred_username
     || authUser?.profile?.username
@@ -151,10 +126,11 @@ const NotificationTemplatesPanel = () => {
     try {
       setLoading(true);
       setError('');
-      const [eventsResult, templatesResult, preferencesResult] = await Promise.allSettled([
+      const [eventsResult, templatesResult, preferencesResult, profileResult] = await Promise.allSettled([
         securityService.listNotificationEvents(),
         securityService.listNotificationTemplates(),
         securityService.listNotificationPreferences(),
+        securityService.getCurrentProfile(),
       ]);
 
       const eventData = eventsResult.status === 'fulfilled' ? (eventsResult.value?.data || eventsResult.value || []) : [];
@@ -164,6 +140,11 @@ const NotificationTemplatesPanel = () => {
       setEvents(Array.isArray(eventData) ? eventData : []);
       setTemplates(Array.isArray(templateData) ? templateData : []);
       setPreferences(Array.isArray(preferenceData) ? preferenceData : []);
+
+      if (profileResult.status === 'fulfilled') {
+        const profile = profileResult.value?.data || profileResult.value || {};
+        setGlobalNotifCheck(Boolean(profile.recibirNotificacionesGlobales));
+      }
 
       const activeEvents = Array.isArray(eventData) ? eventData.filter((event) => event?.active !== false) : [];
       const preferredInitialEvent = activeEvents.find((event) => event.category === 'BUSINESS')
@@ -194,6 +175,7 @@ const NotificationTemplatesPanel = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadData();
   }, []);
 
@@ -250,6 +232,7 @@ const NotificationTemplatesPanel = () => {
   }, [preferences, search, templates, visibleEvents]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
   }, [search]);
 
@@ -261,6 +244,7 @@ const NotificationTemplatesPanel = () => {
     const event = events.find((item) => item.code === selectedCode) || null;
     const activeTemplate = templates.find((item) => item.eventCode === selectedCode && item?.enabled !== false) || null;
     const template = activeTemplate || templates.find((item) => item.eventCode === selectedCode) || null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setForm({
       ...emptyForm,
       eventCode: selectedCode,
@@ -285,7 +269,7 @@ const NotificationTemplatesPanel = () => {
       totalEvents,
       totalPreferences,
     };
-  }, [events, rows, templates.length]);
+  }, [events, rows, templates.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.code === selectedCode) || null,
@@ -300,7 +284,7 @@ const NotificationTemplatesPanel = () => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const openEditor = async (row) => {
+  const openEditor = (row) => {
     const code = row?.event?.code || row?.code || selectedCode || events[0]?.code || '';
     const event = events.find((item) => item.code === code) || null;
     if (event?.category && categoryFilter === 'ALL') {
@@ -309,14 +293,13 @@ const NotificationTemplatesPanel = () => {
     setSelectedCode(code);
     setPreview({ subject: '', body: '' });
     setIsEditorOpen(true);
+  };
 
-    try {
-      const rolesResult = await securityService.listRoles({ includeInactive: false });
-      const rolesData = rolesResult?.data || rolesResult || [];
-      setAvailableRoles(Array.isArray(rolesData) ? rolesData : []);
-    } catch {
-      setAvailableRoles([]);
-    }
+  const insertVariable = (key) => {
+    setForm((current) => ({
+      ...current,
+      bodyTemplate: `${current.bodyTemplate}{{${key}}}`,
+    }));
   };
 
   const handleSave = async () => {
@@ -451,19 +434,42 @@ const NotificationTemplatesPanel = () => {
             </div>
 
             <div className="templates-hero__actions">
+              <label
+                className="global-notif-check"
+                title="Activa este check para recibir todas las notificaciones del sistema independientemente del contexto."
+              >
+                <input
+                  type="checkbox"
+                  checked={globalNotifCheck}
+                  onChange={async (e) => {
+                    const next = e.target.checked;
+                    setGlobalNotifCheck(next);
+                    try {
+                      await securityService.updateGlobalNotifications(next);
+                    } catch {
+                      setGlobalNotifCheck(!next);
+                      setError('No se pudo actualizar la preferencia de notificaciones globales.');
+                    }
+                  }}
+                />
+                <span>Recibir notificaciones globales</span>
+              </label>
               <button type="button" className="btn-secondary" onClick={() => void loadData()} disabled={loading}>
                 {loading ? <LoaderCircle size={16} className="animate-spin" /> : <RefreshCw size={16} />}
                 Actualizar
-              </button>
-              <button type="button" className="btn-primary" onClick={() => openEditor(currentRows[0] || events[0] || null)}>
-                <Plus size={16} />
-                Nueva plantilla
               </button>
             </div>
           </header>
 
           {error ? <div className="feedback-banner error">{error}</div> : null}
           {notice ? <div className="feedback-banner success">{notice}</div> : null}
+
+          {globalNotifCheck && (
+            <div className="feedback-banner" style={{ background: 'linear-gradient(90deg, #0f766e22, #0f766e11)', border: '1px solid #0f766e55', color: '#0f766e', borderRadius: '8px', padding: '10px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={16} />
+              <span><strong>Notificaciones globales activas:</strong> Todas las notificaciones del sistema llegarán a este usuario independientemente del contexto.</span>
+            </div>
+          )}
 
           <section className="templates-stats">
             <article className="templates-stat dark">
@@ -636,11 +642,16 @@ const NotificationTemplatesPanel = () => {
                   <ChevronLeft size={18} />
                 </button>
                 <div>
-                  <p className="security-eyebrow">GESTIÓN DE PLANTILLAS</p>
-                  <h3>Editar: {selectedEvent?.name || form.eventCode || 'Plantilla'}</h3>
+                  <p className="security-eyebrow">MODIFICAR PLANTILLA</p>
+                  <h3>{selectedEvent?.name || form.eventCode || 'Plantilla'}</h3>
+                  <span style={{ fontSize: '12px', color: '#6b7280' }}>ID: {selectedCode}</span>
                 </div>
               </div>
               <div className="template-modal__actions">
+                <button type="button" className="btn-secondary" onClick={() => setIsEditorOpen(false)} disabled={saving}>
+                  <X size={16} />
+                  Cancelar
+                </button>
                 <button type="button" className="btn-secondary" onClick={() => void handleTestSend()} disabled={saving}>
                   <Eye size={16} />
                   Enviar prueba
@@ -654,37 +665,28 @@ const NotificationTemplatesPanel = () => {
 
             <div className="template-modal__body">
               <aside className="template-modal__sidebar">
+                {/* ── Configuración básica ── */}
                 <section className="template-block">
                   <h4>Configuración</h4>
                   <label>
-                    <span>Nombre de la plantilla</span>
+                    <span>Nombre del evento</span>
                     <input value={selectedEvent?.name || ''} disabled />
                   </label>
                   <label>
-                    <span>Asunto del email</span>
-                    <input value={form.subjectTemplate} onChange={handleField('subjectTemplate')} />
+                    <span>Asunto del correo</span>
+                    <input
+                      value={form.subjectTemplate}
+                      onChange={handleField('subjectTemplate')}
+                      placeholder="Asunto del correo electrónico"
+                    />
                   </label>
                 </section>
 
+                {/* ── Estado ── */}
                 <section className="template-block">
-                  <div className="template-block__title">
-                    <h4>Variables disponibles</h4>
-                    <span className="soft-pill">Bloques protegidos</span>
-                  </div>
-                  <div className="variables-list">
-                    {templateVariables.map((variable) => (
-                      <div key={variable.key} className="variable-chip" title={variable.description}>
-                        <span className="variable-chip__token">{`{{${variable.key}}}`}</span>
-                        <span className="variable-chip__label">{variable.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="template-block">
-                  <h4>Estado</h4>
+                  <h4>Estado del canal</h4>
                   <label className="toggle-row">
-                    <span>Plantilla activa</span>
+                    <span>Correo activo</span>
                     <button
                       type="button"
                       className="template-toggle"
@@ -695,7 +697,7 @@ const NotificationTemplatesPanel = () => {
                     </button>
                   </label>
                   <label className="toggle-row">
-                    <span>Enviar como HTML</span>
+                    <span>Formato HTML</span>
                     <button
                       type="button"
                       className="template-toggle"
@@ -707,48 +709,35 @@ const NotificationTemplatesPanel = () => {
                   </label>
                 </section>
 
+                {/* ── Variables de inserción rápida ── */}
                 <section className="template-block">
-                  <h4>Roles destinatarios</h4>
-                  <p className="template-block__hint">Selecciona los roles que recibirán esta notificación. Si no seleccionas ninguno, se enviará a todos.</p>
-                  <div className="roles-checkbox-list">
-                    {availableRoles.map((role) => {
-                      const roleCode = role.codigo || role.code || '';
-                      const isSelected = form.targetRoles.split(',').map((r) => r.trim()).includes(roleCode);
-                      return (
-                        <label key={roleCode} className="role-checkbox-row">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {
-                              const currentRoles = form.targetRoles.split(',').map((r) => r.trim()).filter(Boolean);
-                              const nextRoles = isSelected
-                                ? currentRoles.filter((r) => r !== roleCode)
-                                : [...currentRoles, roleCode];
-                              setForm((current) => ({ ...current, targetRoles: nextRoles.join(',') }));
-                            }}
-                          />
-                          <span className="role-checkbox-label">{role.nombre || roleCode}</span>
-                          <span className="role-checkbox-code">{roleCode}</span>
-                        </label>
-                      );
-                    })}
-                    {availableRoles.length === 0 && (
-                      <p className="template-block__empty">No hay roles disponibles.</p>
-                    )}
+                  <div className="template-block__title">
+                    <h4>Insertar variable</h4>
+                    <span className="soft-pill">Haz clic para insertar</span>
                   </div>
+                  <div className="variables-list">
+                    {templateVariables.map((variable) => (
+                      <button
+                        key={variable.key}
+                        type="button"
+                        className="variable-chip variable-chip--clickable"
+                        title={`${variable.description} — Haz clic para insertar en el cuerpo`}
+                        onClick={() => insertVariable(variable.key)}
+                      >
+                        <span className="variable-chip__token">{`{{${variable.key}}}`}</span>
+                        <span className="variable-chip__label">{variable.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px' }}>
+                    Haz clic en cualquier variable para insertarla automáticamente al final del cuerpo.
+                  </p>
                 </section>
               </aside>
 
               <section className="template-modal__editor">
                 <div className="template-toolbar">
                   <div className="toolbar-left">
-                    <button type="button" className="toolbar-btn"><strong>B</strong></button>
-                    <button type="button" className="toolbar-btn"><em>I</em></button>
-                    <button type="button" className="toolbar-btn"><u>U</u></button>
-                    <button type="button" className="toolbar-btn"><Image size={14} /></button>
-                    <button type="button" className="toolbar-btn">&lt;/&gt;</button>
-                  </div>
-                  <div className="toolbar-right">
                     <span className={`channel-pill ${selectedCategory.className}`}>{selectedCategory.label}</span>
                     <span className={`channel-pill ${selectedSeverity.className}`}>{selectedSeverity.label}</span>
                     <span className="channel-pill channel-email">
@@ -758,21 +747,21 @@ const NotificationTemplatesPanel = () => {
                 </div>
 
                 <label className="editor-field">
-                  <span>Cuerpo de la plantilla</span>
+                  <span>Cuerpo del correo</span>
                   <textarea
                     value={form.bodyTemplate}
                     onChange={handleField('bodyTemplate')}
                     rows={20}
-                    placeholder="Escribe el contenido del correo..."
+                    placeholder="Escribe el contenido del correo. Usa las variables del panel izquierdo haciendo clic en ellas."
                   />
                 </label>
 
                 <div className="template-modal__preview">
                   <div className="template-modal__preview-head">
-                    <h4>Vista previa</h4>
+                    <h4>Vista previa con datos de prueba</h4>
                     <button type="button" className="btn-secondary" onClick={() => void handlePreview()}>
                       <Eye size={16} />
-                      Generar
+                      Generar preview
                     </button>
                   </div>
                   <div className="preview-card">
@@ -785,38 +774,10 @@ const NotificationTemplatesPanel = () => {
                         <span>{selectedEvent?.name || 'Evento seleccionado'}</span>
                       </div>
                     </div>
-                    <p>{preview.body || 'Aún no has generado un preview.'}</p>
+                    <p>{preview.body || 'Aún no has generado un preview. Presiona "Generar preview" para ver cómo quedará.'}</p>
                   </div>
                 </div>
               </section>
-
-              <aside className="template-modal__legend">
-                <section className="template-block">
-                  <h4>Referencia de variables</h4>
-                  <div className="legend-list">
-                    {templateVariables.map((variable) => (
-                      <article key={variable.key} className="legend-item">
-                        <strong>{`{{${variable.key}}}`}</strong>
-                        <span>{variable.description}</span>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="template-block">
-                  <h4>Canales</h4>
-                  <div className="legend-list">
-                    <article className="legend-item">
-                      <strong>Correo</strong>
-                      <span>Plantilla editable por asunto y cuerpo HTML o texto.</span>
-                    </article>
-                    <article className="legend-item">
-                      <strong>Interna</strong>
-                      <span>Se muestra en la campana de notificaciones del sidebar.</span>
-                    </article>
-                  </div>
-                </section>
-              </aside>
             </div>
           </article>
         </div>

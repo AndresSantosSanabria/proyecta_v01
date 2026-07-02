@@ -234,6 +234,10 @@ const ProjectOnboardingWizard = ({
       });
     }
 
+    if (targetStep === 6) {
+      if (!source.viabilizacionPdf) nextErrors.viabilizacionPdf = 'El documento de viabilidad es obligatorio.';
+    }
+
     return nextErrors;
   };
 

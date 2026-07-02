@@ -251,6 +251,62 @@
   margin: 0;
 }
 
+/* ── Document Upload ── */
+.pim-doc-upload-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pim-doc-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.pim-doc-upload:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.pim-doc-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pim-doc-upload span:first-of-type {
+  flex: 1;
+  text-align: left;
+}
+
+.pim-doc-upload-hint {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.pim-doc-upload-error {
+  color: #ef6461;
+  font-size: 0.75rem;
+  padding-left: 0.5rem;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .pim-trigger {
   display: inline-flex;
   align-items: center;

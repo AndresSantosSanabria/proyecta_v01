@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle, Save, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle, Info, X } from 'lucide-react';
 import projectService from '../../services/projectService';
 import { usePermission } from '../../hooks/usePermission';
 import AccessDeniedPage from '../AccessDeniedPage/AccessDeniedPage';
@@ -309,10 +309,10 @@ const NewProjectPage = () => {
               <span>Informacion que queda para el Director</span>
               <div className="locked-next-grid">
                 <small>Fechas</small>
-                <small>Alcance detallado</small>
+                <small>Alcance</small>
                 <small>Presupuesto</small>
-                <small>Fases, hitos y entregables</small>
-                <small>PETI y comunicaciones</small>
+                <small>Fases y entregables</small>
+                <small>PETI</small>
                 <small>FURAG</small>
               </div>
             </div>
@@ -320,7 +320,7 @@ const NewProjectPage = () => {
 
           <section className="initial-registration-form-card">
             <div className="info-alert">
-              <AlertTriangle size={18} className="info-icon" />
+              <Info size={18} className="info-icon" />
               <p>
                 El proyecto quedara en estado Pendiente de Completar. El Director asignado no podra usar los modulos
                 operativos hasta completar la informacion restante en su primer ingreso.
@@ -429,8 +429,8 @@ const NewProjectPage = () => {
                   Cancelar
                 </button>
                 <button className="btn-primary btn-submit" type="submit" disabled={submitting || directorsLoading || codeLoading}>
-                  <Save size={18} />
-                  {submitting ? 'Registrando...' : 'Registrar Proyecto'}
+                  {submitting ? 'Registrando...' : 'Guardar y Continuar'}
+                  {!submitting && <ArrowLeft size={16} style={{ transform: 'rotate(180deg)' }} />}
                 </button>
               </div>
             </div>

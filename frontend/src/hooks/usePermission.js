@@ -2,19 +2,14 @@ import { useAuthContext } from '../context/AuthContext';
 
 const DIRECTOR_BLOCKED_PERMISSIONS = new Set([
   'PROYECTO:CREAR',
-  'PROYECTO:EDITAR',
   'PROYECTO:CERRAR',
   'ENTREGABLE:CREAR',
   'ENTREGABLE:EDITAR',
   'ENTREGABLE:APROBAR',
   'EVIDENCIA:EDITAR',
   'EVIDENCIA:ELIMINAR',
-  'DOCUMENTO:CARGAR',
-  'DOCUMENTO:EDITAR',
-  'DOCUMENTO:ELIMINAR',
   'DOCUMENTO:HISTORIAL',
   'DOCUMENTO:REVERTIR',
-  'CRONOGRAMA:CARGAR',
   'CRONOGRAMA:EDITAR',
   'CRONOGRAMA:ELIMINAR',
   'REPORTE:VER',
@@ -32,10 +27,7 @@ export function usePermission(permissionCode) {
     return true;
   }
 
-  if (permissionCode === 'CRONOGRAMA:CARGAR' && hasRole('DIRECTOR_PROYECTO')) {
-    return true;
-  }
-  if (hasRole('DIRECTOR_PROYECTO') && ['DOCUMENTO:CARGAR', 'EVIDENCIA:CARGAR'].includes(permissionCode)) {
+  if (hasRole('DIRECTOR_PROYECTO') && ['EVIDENCIA:CARGAR'].includes(permissionCode)) {
     return true;
   }
 

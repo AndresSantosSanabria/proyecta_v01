@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, ChevronDown, ChevronUp, FileText, Download, Users, Target, Layers, Shield, ClipboardList } from 'lucide-react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle } from 'lucide-react';
 import documentService from '../../services/documentService';
 import './ProjectInfoModal.css';
 
@@ -26,7 +26,7 @@ const Field = ({ label, value }) => (
   </div>
 );
 
-const DocumentLink = ({ proyectoId, tipoDocumento, nombre }) => {
+const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
@@ -53,12 +53,89 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre }) => {
     <button type="button" className="pim-doc-link" onClick={handleDownload} disabled={downloading}>
       <FileText size={14} />
       <span>{nombre || tipoDocumento}</span>
-      <Download size={14} />
+      {downloading ? <LoaderCircle size={14} className="animate-spin" /> : <Download size={14} />}
     </button>
   );
 };
 
-const ProjectInfoModal = ({ project, open, onClose }) => {
+const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploading(true);
+      setError('');
+      await documentService.cargarDocumento(proyectoId, tipoDocumento, file);
+      onUploaded?.();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error al cargar el archivo.';
+      setError(detail);
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="pim-doc-upload-row">
+      <button
+        type="button"
+        className="pim-doc-upload"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+      >
+        {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
+        <span>{nombre}</span>
+        <span className="pim-doc-upload-hint">Cargar archivo</span>
+      </button>
+      <input ref={inputRef} type="file" accept=".pdf,.doc,.docx" onChange={handleFile} hidden />
+      {error && <span className="pim-doc-upload-error">{error}</span>}
+    </div>
+  );
+};
+
+const DOC_TYPES = [
+  { key: 'viabilizacionPdf', tipo: 'VIABILIZACION', nombre: 'Documento de viabilidad' },
+  { key: 'actaConstitucionPdf', tipo: 'ACTA_CONSTITUCION', nombre: 'Acta de constitucion' },
+  { key: 'cronogramaPdf', tipo: 'CRONOGRAMA', nombre: 'Cronograma del proyecto' },
+  { key: 'planComunicacionesPdf', tipo: 'PLAN_COMUNICACIONES', nombre: 'Plan de comunicaciones' },
+];
+
+const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
+  const [existingDocs, setExistingDocs] = useState({});
+  const [loadingDocs, setLoadingDocs] = useState(false);
+
+  const proyectoId = project?.codigo || project?.id;
+
+  const fetchDocuments = useCallback(async () => {
+    if (!proyectoId) return;
+    try {
+      setLoadingDocs(true);
+      const response = await documentService.listarDocumentos(proyectoId);
+      const docs = response?.data?.documentos || response?.documentos || [];
+      const map = {};
+      docs.forEach((doc) => {
+        const codigo = doc.tipoDocumentoCodigo || doc.tipoDocumento;
+        if (codigo) map[codigo] = doc;
+      });
+      setExistingDocs(map);
+    } catch {
+      setExistingDocs({});
+    } finally {
+      setLoadingDocs(false);
+    }
+  }, [proyectoId]);
+
+  useEffect(() => {
+    if (open && proyectoId) {
+      fetchDocuments();
+    }
+  }, [open, proyectoId, fetchDocuments]);
+
   if (!open || !project) return null;
 
   const patrocinador = project.patrocinador || {};
@@ -66,6 +143,11 @@ const ProjectInfoModal = ({ project, open, onClose }) => {
   const fases = Array.isArray(project.fases) ? project.fases : [];
   const objetivos = Array.isArray(project.objetivosEspecificos) ? project.objetivosEspecificos : [];
   const furag = project.furag || {};
+
+  const handleDocumentUploaded = () => {
+    fetchDocuments();
+    onDocumentUploaded?.();
+  };
 
   return (
     <div className="pim-overlay" role="presentation" onClick={onClose}>
@@ -178,20 +260,27 @@ const ProjectInfoModal = ({ project, open, onClose }) => {
 
           <Section title="Documentos" icon={FileText} defaultOpen={false}>
             <div className="pim-docs">
-              {project.viabilizacionPdf && (
-                <DocumentLink proyectoId={project.codigo || project.id} tipoDocumento="VIABILIZACION" nombre="Documento de viabilizacion" />
-              )}
-              {project.actaConstitucionPdf && (
-                <DocumentLink proyectoId={project.codigo || project.id} tipoDocumento="ACTA_CONSTITUCION" nombre="Acta de constitucion" />
-              )}
-              {project.cronogramaPdf && (
-                <DocumentLink proyectoId={project.codigo || project.id} tipoDocumento="CRONOGRAMA" nombre="Cronograma del proyecto" />
-              )}
-              {project.planComunicacionesPdf && (
-                <DocumentLink proyectoId={project.codigo || project.id} tipoDocumento="PLAN_COMUNICACIONES" nombre="Plan de comunicaciones" />
-              )}
-              {!project.viabilizacionPdf && !project.actaConstitucionPdf && !project.cronogramaPdf && !project.planComunicacionesPdf && (
-                <p className="pim-empty">No hay documentos cargados.</p>
+              {loadingDocs ? (
+                <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando documentos...</p>
+              ) : (
+                DOC_TYPES.map((doc) =>
+                  existingDocs[doc.tipo] ? (
+                    <DocumentLink
+                      key={doc.key}
+                      proyectoId={proyectoId}
+                      tipoDocumento={doc.tipo}
+                      nombre={doc.nombre}
+                    />
+                  ) : (
+                    <DocumentUpload
+                      key={doc.key}
+                      proyectoId={proyectoId}
+                      tipoDocumento={doc.tipo}
+                      nombre={doc.nombre}
+                      onUploaded={handleDocumentUploaded}
+                    />
+                  )
+                )
               )}
             </div>
           </Section>

@@ -8,6 +8,13 @@ const securityService = {
     return unwrap(response);
   },
 
+  updateGlobalNotifications: async (enabled) => {
+    const response = await apiClient.patch('/usuarios/me/notificaciones-globales', {
+      recibirNotificacionesGlobales: enabled,
+    });
+    return unwrap(response);
+  },
+
   getAuthorization: async () => {
     const response = await apiClient.get('/authz/me');
     return unwrap(response);

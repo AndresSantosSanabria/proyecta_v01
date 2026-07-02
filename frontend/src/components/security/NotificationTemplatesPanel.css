@@ -28,10 +28,59 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
 }
 
-/* ---- Stats cards ---- */
+/* ── Check de notificaciones globales ── */
+.global-notif-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+  padding: 6px 12px;
+  border: 1px dashed var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: transparent;
+  transition: border-color 0.2s, background 0.2s;
+  user-select: none;
+}
+.global-notif-check:hover {
+  border-color: #0f766e;
+  background: #0f766e0d;
+  color: #0f766e;
+}
+.global-notif-check input[type='checkbox'] {
+  accent-color: #0f766e;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* ── Variable chips clicables ── */
+.variable-chip--clickable {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+}
+.variable-chip--clickable:hover {
+  background: #2563eb0d;
+  border-color: #2563eb55;
+}
+.variable-chip--clickable:active {
+  background: #2563eb1a;
+}
+
+
 .templates-stats {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr;
