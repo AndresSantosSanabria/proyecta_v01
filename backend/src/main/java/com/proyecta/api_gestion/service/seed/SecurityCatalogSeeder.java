@@ -102,10 +102,11 @@ public class SecurityCatalogSeeder {
                     "BENEFICIO_IMPACTO:VER",
                     "CIERRE:SOLICITAR"),
             "director_proyecto", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER",
+                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:EDITAR",
                     "ENTREGABLE:VER", "EVIDENCIA:VER", "EVIDENCIA:CARGAR",
                     "BENEFICIO_IMPACTO:VER", "BENEFICIO_IMPACTO:EDITAR",
-                    "DOCUMENTO:VER", "AVANCE:VER", "AVANCE:EDITAR",
+                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
+                    "AVANCE:VER", "AVANCE:EDITAR",
                     "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR",
                     "CIERRE:SOLICITAR"),
             "auditor", List.of(

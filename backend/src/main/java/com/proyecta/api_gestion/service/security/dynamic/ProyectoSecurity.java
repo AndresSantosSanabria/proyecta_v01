@@ -23,16 +23,12 @@ public class ProyectoSecurity {
     private static final Set<String> PROJECT_STRUCTURE_EDITOR_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos", "director_proyecto");
     private static final Set<String> DIRECTOR_BLOCKED_PERMISSIONS = Set.of(
             "PROYECTO:CREAR",
-            "PROYECTO:EDITAR",
             "PROYECTO:CERRAR",
             "ENTREGABLE:CREAR",
             "ENTREGABLE:EDITAR",
             "ENTREGABLE:APROBAR",
             "EVIDENCIA:EDITAR",
             "EVIDENCIA:ELIMINAR",
-            "DOCUMENTO:CARGAR",
-            "DOCUMENTO:EDITAR",
-            "DOCUMENTO:ELIMINAR",
             "DOCUMENTO:HISTORIAL",
             "DOCUMENTO:REVERTIR",
             "CRONOGRAMA:CARGAR",

@@ -25,7 +25,6 @@ public class DefaultNotificationTemplateRulesProvider implements NotificationTem
             Map.entry("RISK_CREATED", new TemplateRules("RISK_CREATED", Set.of("projectId", "riskCode", "riskLevel", "actorUsername", "recipientName"), Set.of("projectId", "riskCode"))),
             Map.entry("RISK_UPDATED", new TemplateRules("RISK_UPDATED", Set.of("projectId", "riskCode", "riskLevel", "actorUsername", "recipientName"), Set.of("projectId", "riskCode"))),
             Map.entry("RISK_TREATED", new TemplateRules("RISK_TREATED", Set.of("projectId", "riskCode", "riskLevel", "actorUsername", "recipientName"), Set.of("projectId", "riskCode"))),
-            Map.entry("SECURITY_USER_UPDATED", new TemplateRules("SECURITY_USER_UPDATED", Set.of("username", "actorUsername", "recipientName"), Set.of("username"))),
             Map.entry("SECURITY_ROLE_UPDATED", new TemplateRules("SECURITY_ROLE_UPDATED", Set.of("roleCode", "actorUsername", "recipientName"), Set.of("roleCode")))
     );
 

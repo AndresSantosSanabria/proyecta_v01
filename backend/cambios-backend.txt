@@ -1,0 +1,104 @@
+CAMBIOS EN EL REPOSITORIO BACKEND (Spring Boot)
+================================================
+
+MIGRACIONES DE BASE DE DATOS (Flyway V31 - V37)
+------------------------------------------------
+
+V31 - Columnas de vigencia PETI
+Agrega las columnas vigencia_desde y vigencia_hasta a la tabla proyecta_db.estrategia_peti_config para el control de vigencia del Plan Estrategico de Tecnologias de Informacion.
+
+V32 - Aumento de precision de presupuesto
+Cambia el tipo de dato de la columna presupuesto_estimado en la tabla proyecta_db.proyecto de NUMERIC(18,2) a NUMERIC(24,2) para soportar presupuestos de proyectos con valores mas altos.
+
+V33 - Roles objetivo en plantillas de notificacion
+Agrega la columna target_roles TEXT a la tabla proyecta_db.notification_template. Permite que cada plantilla de notificacion se dirija a roles especificos. Si el campo esta vacio, la notificacion se envia a todos los roles.
+
+V34 - Flag de notificaciones globales y tabla de auditoria
+Agrega la columna recibir_notificaciones_globales BOOLEAN a la tabla proyecta_db.usuarios para que cada usuario controle si recibe notificaciones del sistema. Crea la tabla proyecta_db.notification_audit con campos id, event_code, recipient, channel, status, failure_reason y created_at, mas tres indices para consultas de auditoria.
+
+V35 - Semilla de tipos de documento
+Inserta cuatro tipos de documento por defecto en proyecta_db.tipo_documento_config: VIABILIZACION (Documento de Viabilidad), ACTA_CONSTITUCION (Acta de Constitucion), CRONOGRAMA (Cronograma del Proyecto) y PLAN_COMUNICACIONES (Plan de Comunicaciones). Usa ON CONFLICT DO NOTHING para ser idempotente.
+
+V36 - Eliminacion de plantilla obsoleta
+Elimina la plantilla de notificacion SECURITY_USER_UPDATED de la tabla proyecta_db.notification_template. Esta plantilla ya no era utilizada.
+
+V37 - Permiso PROYECTO:EDITAR para el rol director
+Inserta el permiso PROYECTO:EDITAR en la tabla proyecta_db.rol_permiso para el rol director_proyecto. Esto permite que el director de proyecto pueda gestionar riesgos (crear, editar, eliminar) en sus proyectos asignados.
+
+
+SEGURIDAD Y CONTROL DE ACCESO
+-------------------------------
+
+ProyectoSecurity.java
+
+DIRECTOR_BLOCKED_PERMISSIONS: Lista negra de 19 permisos que estan bloqueados para el rol director_proyecto cuando el usuario no tiene otros roles de gestion. Los permisos bloqueados son: PROYECTO:CREAR, PROYECTO:CERRAR, ENTREGABLE:CREAR, ENTREGABLE:EDITAR, ENTREGABLE:APROBAR, EVIDENCIA:EDITAR, EVIDENCIA:ELIMINAR, DOCUMENTO:HISTORIAL, DOCUMENTO:REVERTIR, CRONOGRAMA:EDITAR, CRONOGRAMA:ELIMINAR, REPORTE:VER, ANALITICA:VER, CONFIGURACION:VER, SISTEMA:VER, SISTEMA:CREAR, SISTEMA:EDITAR, SISTEMA:CONFIGURAR. Se eliminaron del bloqueo: PROYECTO:EDITAR, DOCUMENTO:CARGAR, DOCUMENTO:EDITAR, DOCUMENTO:ELIMINAR para permitir gestion de riesgos y documentos.
+
+assertOperationalProjectReady: Metodo que previene que el director acceda a modulos operacionales hasta completar la informacion inicial del proyecto. Verifica si el proyecto requiere completitud del director. Los administradores y roles transversales saltan esta validacion.
+
+isDirectorOnly: Determina si el usuario es director exclusivo, es decir, tiene el rol director_proyecto pero no tiene gestor_tic, gestor_proyectos ni admin.
+
+SecurityCatalogSeeder.java
+
+Permisos asignados al rol director_proyecto: DASHBOARD:VER, PROYECTO:VER, PROYECTO:EDITAR, ENTREGABLE:VER, EVIDENCIA:VER, EVIDENCIA:CARGAR, BENEFICIO_IMPACTO:VER, BENEFICIO_IMPACTO:EDITAR, DOCUMENTO:VER, DOCUMENTO:CARGAR, DOCUMENTO:EDITAR, DOCUMENTO:ELIMINAR, AVANCE:VER, AVANCE:EDITAR, CRONOGRAMA:VER, CRONOGRAMA:CARGAR, CIERRE:SOLICITAR.
+
+RiesgoController.java
+
+El endpoint GET /riesgos/matriz fue cambiado para usar la anotacion @localUserAuthorization.hasBaseAccess en lugar de @proyectoSecurity.canAccessOperational. Esto se debe a que la matriz de riesgos es un catalogo de referencia global y no datos privados de un proyecto especifico.
+
+
+INFRAESTRUCTURA Y RENDIMIENTO
+-------------------------------
+
+application.properties
+
+HikariCP Connection Pool: Pool name ProyectaHikariPool, maximo 15 conexiones, minimo 5 idle, timeout de idle 5 minutos, maximo tiempo de vida 20 minutos, deteccion de fugas a los 30 segundos, keepalive cada 1 minuto.
+
+Tomcat Thread Pool: Maximo 20 threads, minimo 5 spare, keep-alive 60 segundos, accept count 100, connection timeout 10 segundos.
+
+Graceful Shutdown: server.shutdown=graceful con timeout de 30 segundos para completar requests en vuelo.
+
+SMTP: Gmail SSL via puerto 465 (el puerto 587 esta bloqueado por la red corporativa). Connection timeout 10 segundos, read timeout 15 segundos, write timeout 10 segundos.
+
+NotificationAsyncConfig.java
+
+Tres beans de thread pool con @EnableScheduling:
+- notificationExecutor: core 2, max 6, queue 50, prefijo notif-
+- taskExecutor: core 4, max 10, queue 100, prefijo async-
+- taskScheduler: pool 4, prefijo sched-
+Todos con waitForTasksToCompleteOnShutdown=true y 30 segundos de espera.
+
+DataSourceMonitorConfig.java
+
+Programado para ejecutarse cada 5 minutos con @Scheduled(fixedDelay=300000). Registra estadisticas del pool HikariCP: conexiones activas, idle, en espera y totales.
+
+DatabaseRetryConfig.java
+
+BeanPostProcessor que reintenta la conexion a la base de datos hasta 20 veces con 3 segundos de intervalo al iniciar la aplicacion. Util para entornos Docker Compose donde la base de datos puede no estar lista.
+
+
+CORRECCION DE FUGAS DE RECURSOS
+---------------------------------
+
+ProjectAdvanceServiceImpl.java
+
+El metodo validarPdfReal envolvio evidencia.getInputStream() en try-with-resources para garantizar el cierre del stream aunque ocurra una excepcion durante la validacion del encabezado PDF.
+
+RiesgoServiceImpl.java
+
+El metodo validarPdf envolvio archivo.getInputStream() en try-with-resources. Ademas se agrego validacion de content-type (application/pdf) antes de la validacion binaria del encabezado PDF, proporcionando una doble capa de validacion.
+
+
+NOTIFICACIONES
+---------------
+
+SpringNotificationEventPublisher.java
+
+Adapter que implementa la interfaz NotificationEventPublisherPort y publica eventos de notificacion via ApplicationEventPublisher de Spring. Desacopla la logica de negocio de la entrega de notificaciones.
+
+
+DTO DE RIESGOS
+---------------
+
+RiesgoRequestDTO.java
+
+El campo evidenciaIndicador es un campo opcional sin validacion @NotNull. Se guarda como texto nullable y se trimea a null si esta vacio.

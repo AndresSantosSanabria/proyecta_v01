@@ -40,7 +40,7 @@ public class RiesgoController implements IRiesgoController {
     }
 
     @GetMapping("/riesgos/matriz")
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
+    @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
     public ResponseEntity<ApiResponse<java.util.List<MatrizRiesgoDTO>>> listarMatrizRiesgos() {
         return ResponseEntity.ok(ApiResponse.success(riesgoService.getRiskMatrix(), "Matriz de riesgos configurada con exito"));
     }

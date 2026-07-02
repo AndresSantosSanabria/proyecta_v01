@@ -48,6 +48,9 @@ public class SeguridadUsuario {
     @Column(name = "ultimo_acceso")
     private LocalDateTime ultimoAcceso;
 
+    @Column(name = "recibir_notificaciones_globales")
+    private Boolean recibirNotificacionesGlobales = false;
+
     @PrePersist
     void onCreate() {
         if (fechaCreacion == null) {
@@ -141,5 +144,13 @@ public class SeguridadUsuario {
 
     public void setUltimoAcceso(LocalDateTime ultimoAcceso) {
         this.ultimoAcceso = ultimoAcceso;
+    }
+
+    public Boolean getRecibirNotificacionesGlobales() {
+        return recibirNotificacionesGlobales;
+    }
+
+    public void setRecibirNotificacionesGlobales(Boolean recibirNotificacionesGlobales) {
+        this.recibirNotificacionesGlobales = recibirNotificacionesGlobales;
     }
 }

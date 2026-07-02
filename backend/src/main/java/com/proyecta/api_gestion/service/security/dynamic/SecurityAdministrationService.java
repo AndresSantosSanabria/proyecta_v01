@@ -224,14 +224,6 @@ public class SecurityAdministrationService {
 
         SeguridadUsuario saved = usuarioRepository.save(usuario);
         catalogCacheService.evictAll();
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.SECURITY_USER_UPDATED,
-                null,
-                "system",
-                java.util.Map.of(
-                        "username", saved.getUsername(),
-                        "recipients", List.of(saved.getCorreo())
-                )));
         return toUsuarioDTO(saved);
     }
 

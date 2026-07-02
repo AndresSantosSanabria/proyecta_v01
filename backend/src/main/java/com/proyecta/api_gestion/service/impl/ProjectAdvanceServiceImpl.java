@@ -464,8 +464,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     }
 
     private void validarPdfReal(MultipartFile evidencia) {
-        try {
-            byte[] encabezado = evidencia.getInputStream().readNBytes(5);
+        try (var is = evidencia.getInputStream()) {
+            byte[] encabezado = is.readNBytes(5);
             String firma = new String(encabezado, StandardCharsets.US_ASCII);
             if (!firma.startsWith("%PDF-")) {
                 throw new UnprocessableEntityException("El archivo cargado no es un PDF válido.");

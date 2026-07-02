@@ -14,5 +14,6 @@ public record UsuarioDTO(
     Integer nivelAcceso,
     String dependencia,
     Boolean activo,
-    LocalDateTime ultimoAcceso
+    LocalDateTime ultimoAcceso,
+    Boolean recibirNotificacionesGlobales
 ) {}

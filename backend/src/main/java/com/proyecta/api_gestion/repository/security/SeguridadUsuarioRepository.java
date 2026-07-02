@@ -13,6 +13,7 @@ import java.util.List;
 public interface SeguridadUsuarioRepository extends JpaRepository<SeguridadUsuario, Long> {
     Optional<SeguridadUsuario> findByUsernameIgnoreCase(String username);
     Optional<SeguridadUsuario> findByCorreoIgnoreCase(String correo);
+    List<SeguridadUsuario> findByRecibirNotificacionesGlobalesTrue();
 
     @Query("""
         SELECT u FROM SeguridadUsuario u

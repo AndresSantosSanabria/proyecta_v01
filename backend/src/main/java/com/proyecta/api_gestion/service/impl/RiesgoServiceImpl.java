@@ -422,8 +422,8 @@ public class RiesgoServiceImpl implements IRiesgoService {
         if (contentType != null && !contentType.equalsIgnoreCase("application/pdf")) {
             throw new BadRequestException("Solo se permiten archivos PDF para las soluciones.");
         }
-        try {
-            byte[] encabezado = archivo.getInputStream().readNBytes(5);
+        try (var is = archivo.getInputStream()) {
+            byte[] encabezado = is.readNBytes(5);
             String firma = new String(encabezado, StandardCharsets.US_ASCII);
             if (!firma.startsWith("%PDF-")) {
                 throw new BadRequestException("El archivo cargado no es un PDF válido.");

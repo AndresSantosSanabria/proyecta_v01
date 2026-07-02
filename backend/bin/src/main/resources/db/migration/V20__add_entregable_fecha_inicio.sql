@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS entregable
+    ADD COLUMN IF NOT EXISTS fecha_inicio DATE;
