@@ -77,6 +77,15 @@ public class Proyecto {
     @Column(name = "avance_total", precision = 5, scale = 2)
     private BigDecimal avanceTotal = BigDecimal.ZERO;
 
+    @Column(name = "cierre_solicitado", nullable = false)
+    private Boolean cierreSolicitado = false;
+
+    @Column(name = "cierre_solicitado_en")
+    private LocalDateTime cierreSolicitadoEn;
+
+    @Column(name = "cierre_solicitado_por", length = 120)
+    private String cierreSolicitadoPor;
+
     @Embedded
     private Furag furag;
 
@@ -180,6 +189,15 @@ public class Proyecto {
 
     public BigDecimal getAvanceTotal() { return avanceTotal; }
     public void setAvanceTotal(BigDecimal avanceTotal) { this.avanceTotal = avanceTotal; }
+
+    public Boolean getCierreSolicitado() { return cierreSolicitado; }
+    public void setCierreSolicitado(Boolean cierreSolicitado) { this.cierreSolicitado = cierreSolicitado; }
+
+    public LocalDateTime getCierreSolicitadoEn() { return cierreSolicitadoEn; }
+    public void setCierreSolicitadoEn(LocalDateTime cierreSolicitadoEn) { this.cierreSolicitadoEn = cierreSolicitadoEn; }
+
+    public String getCierreSolicitadoPor() { return cierreSolicitadoPor; }
+    public void setCierreSolicitadoPor(String cierreSolicitadoPor) { this.cierreSolicitadoPor = cierreSolicitadoPor; }
 
     public Furag getFurag() { return furag; }
     public void setFurag(Furag furag) { this.furag = furag; }

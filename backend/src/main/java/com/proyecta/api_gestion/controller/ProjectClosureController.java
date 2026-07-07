@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -32,6 +33,17 @@ public class ProjectClosureController implements IProjectClosureController {
             @Valid @RequestBody CierreProyectoRequest request) {
 
         CierreProyectoResponse response = closureService.cerrarProyecto(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @PostMapping("/{id}/cierre/solicitar")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:SOLICITAR', #id, authentication)")
+    public ResponseEntity<CierreProyectoResponse> solicitarCierre(
+            @PathVariable String id,
+            Authentication authentication) {
+
+        CierreProyectoResponse response = closureService.solicitarCierre(id, authentication);
         return ResponseEntity.ok(response);
     }
 

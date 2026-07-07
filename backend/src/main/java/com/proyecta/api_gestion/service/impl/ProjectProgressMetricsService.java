@@ -62,8 +62,8 @@ public class ProjectProgressMetricsService {
         long entregablesEntregadosAlCorte = contarEntregablesEntregadosAlCorte(proyecto, corte);
         long entregablesEntregadosATiempo = contarEntregablesEntregadosATiempo(proyecto, corte);
         BigDecimal eficaciaCorte = calcularRatio(entregablesEntregadosAlCorte, entregablesProgramadosAlCorte);
-        BigDecimal eficienciaCorte = calcularRatio(entregablesEntregadosATiempo, entregablesEntregadosAlCorte);
-        long entregablesConformes = entregablesEntregadosAlCorte;
+        BigDecimal eficienciaCorte = calcularRatio(entregablesEntregadosATiempo, entregablesProgramadosAlCorte);
+        long entregablesConformes = contarEntregablesConformes(proyecto);
         long entregablesTotal = contarEntregablesTotales(proyecto);
         long entregablesAtrasados = contarEntregablesAtrasados(proyecto, corte);
         long proximosAVencer = contarEntregablesPorVencer(proyecto, corte);
@@ -321,9 +321,8 @@ public class ProjectProgressMetricsService {
                 .filter(Objects::nonNull)
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
-                .filter(entregable -> entregable.getFechaLimite() != null
-                        && !entregable.getFechaLimite().isAfter(corte))
                 .filter(Entregable::esConforme)
+                .filter(entregable -> entregable.getFechaEntregaReal() == null || !entregable.getFechaEntregaReal().isAfter(corte))
                 .count();
     }
 
@@ -334,10 +333,10 @@ public class ProjectProgressMetricsService {
                 .filter(Objects::nonNull)
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
-                .filter(entregable -> entregable.getFechaLimite() != null
-                        && !entregable.getFechaLimite().isAfter(corte))
                 .filter(Entregable::esConforme)
+                .filter(entregable -> entregable.getFechaEntregaReal() == null || !entregable.getFechaEntregaReal().isAfter(corte))
                 .filter(entregable -> entregable.getFechaEntregaReal() != null
+                        && entregable.getFechaLimite() != null
                         && !entregable.getFechaEntregaReal().isAfter(entregable.getFechaLimite()))
                 .count();
     }

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -78,4 +79,18 @@ public interface IProjectClosureController {
     })
     @GetMapping(value = "/{id}/cierre/descargar", produces = MediaType.APPLICATION_PDF_VALUE)
     ResponseEntity<Resource> descargarActaCierre(@PathVariable String id);
+
+    @Operation(
+        summary = "Solicitar cierre de proyecto",
+        description = """
+            El Director solicita formalmente el cierre del proyecto al Gestor.
+            Marca el proyecto con cierre_solicitado = true y notifica al Gestor asignado.
+            **Roles requeridos:** DIRECTOR_PROYECTO.
+            """
+    )
+    @StandardApiResponses
+    @PostMapping("/{id}/cierre/solicitar")
+    ResponseEntity<CierreProyectoResponse> solicitarCierre(
+            @Parameter(description = "ID del proyecto") @PathVariable String id,
+            Authentication authentication);
 }

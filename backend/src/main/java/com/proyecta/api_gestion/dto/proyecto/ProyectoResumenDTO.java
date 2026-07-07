@@ -28,5 +28,6 @@ public record ProyectoResumenDTO(
     long entregablesConformes,
     long totalEntregables,
     @JsonProperty("puede_cerrar") boolean puedeCerrar,
-    List<String> entregables
+    List<String> entregables,
+    @JsonProperty("cierre_solicitado") boolean cierreSolicitado
 ) {}

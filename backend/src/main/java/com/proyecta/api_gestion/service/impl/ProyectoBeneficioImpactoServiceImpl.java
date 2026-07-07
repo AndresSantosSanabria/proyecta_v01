@@ -155,6 +155,10 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
             throw new UnprocessableEntityException("Solo se puede revisar informacion en estado DILIGENCIADO.");
         }
 
+        if (!aprobado && (observaciones == null || observaciones.isBlank())) {
+            throw new UnprocessableEntityException("Debe ingresar el motivo del rechazo para continuar.");
+        }
+
         EstadoBeneficioImpacto nuevoEstado = aprobado ? EstadoBeneficioImpacto.APROBADO : EstadoBeneficioImpacto.OBSERVADO;
         record.setEstado(nuevoEstado);
         record.setRevisadoEn(LocalDateTime.now());

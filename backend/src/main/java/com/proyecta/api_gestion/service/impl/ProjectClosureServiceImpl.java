@@ -23,8 +23,10 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.core.io.Resource;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +57,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final IStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
     private final NotificationEventPublisherPort notificationPublisher;
+    private final KeycloakIdentityExtractor identityExtractor;
 
     public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
                                      ActaCierreRepository actaCierreRepository,
@@ -65,7 +68,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      ActaCierrePdfGenerator pdfGenerator,
                                      IStorageProvider storageProvider,
                                      ObjectMapper objectMapper,
-                                     NotificationEventPublisherPort notificationPublisher) {
+                                     NotificationEventPublisherPort notificationPublisher,
+                                     KeycloakIdentityExtractor identityExtractor) {
         this.proyectoRepository = proyectoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -76,6 +80,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.storageProvider = storageProvider;
         this.objectMapper = objectMapper;
         this.notificationPublisher = notificationPublisher;
+        this.identityExtractor = identityExtractor;
     }
 
     @Override
@@ -205,6 +210,54 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 avanceFinal,
                 storedFileName,
                 "/api/v1/proyectos/" + projectId + "/cierre/descargar"
+        );
+    }
+
+    @Override
+    @Transactional
+    public CierreProyectoResponse solicitarCierre(String projectId, Authentication authentication) {
+        Proyecto proyecto = proyectoRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+
+        if (proyecto.esEstadoTerminal()) {
+            return CierreProyectoResponse.error("El proyecto ya se encuentra cerrado o finalizado.");
+        }
+
+        if (Boolean.TRUE.equals(proyecto.getCierreSolicitado())) {
+            return CierreProyectoResponse.error("Ya existe una solicitud de cierre activa para este proyecto.");
+        }
+
+        String actorUsername = identityExtractor.resolveUsername(authentication);
+        LocalDateTime now = LocalDateTime.now();
+        proyecto.setCierreSolicitado(true);
+        proyecto.setCierreSolicitadoEn(now);
+        proyecto.setCierreSolicitadoPor(actorUsername);
+        proyectoRepository.save(proyecto);
+
+        List<String> gestorEmails = usuarioProyectoRepository
+                .findActivasByProyectoIdAndCargoIn(projectId, List.of("GESTOR_TIC", "gestor_tic", "Gestor TIC"))
+                .stream()
+                .map(SeguridadUsuarioProyecto::getUsuario)
+                .map(u -> u.getCorreo())
+                .filter(Objects::nonNull)
+                .toList();
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.CLOSURE_REQUESTED,
+                projectId,
+                actorUsername,
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "requester", actorUsername,
+                        "recipients", gestorEmails.isEmpty() ? List.of("sistema@proyecta.com") : gestorEmails
+                )));
+
+        return CierreProyectoResponse.success(
+                "Solicitud de cierre enviada al Gestor del proyecto.",
+                now,
+                null,
+                null,
+                null
         );
     }
 

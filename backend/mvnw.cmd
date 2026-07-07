@@ -5,6 +5,10 @@ set DIRNAME=%~dp0
 if "%DIRNAME%"=="" set DIRNAME=.
 set APP_HOME=%DIRNAME%
 
+if exist "C:\Program Files\Amazon Corretto\jdk25.0.3_9\bin\java.exe" (
+  set "JAVA_HOME=C:\Program Files\Amazon Corretto\jdk25.0.3_9"
+)
+
 if "%JAVA_HOME%"=="" (
   set JAVA_EXE=java.exe
 ) else (
