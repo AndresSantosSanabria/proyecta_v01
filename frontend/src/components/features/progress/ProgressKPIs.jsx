@@ -51,8 +51,16 @@ const ProgressKPIs = ({ progressData }) => {
       <div className="kpi-card progress-card">
         <div className="kpi-content">
           <h3 className="kpi-title">DIFERENCIA</h3>
-          <div className={`kpi-value ${diferencia <= 0 ? 'success' : 'danger'}`}>{diferencia.toFixed(2)}%</div>
-          <p className="kpi-detail lock-detail"><TrendingDown size={12} /> programado - ejecutado</p>
+          <div className={`kpi-value ${diferencia < 0 ? 'success' : diferencia > 0 ? 'danger' : 'warning'}`}>
+            {diferencia < 0 ? '+' : diferencia > 0 ? '-' : ''}{Math.abs(diferencia).toFixed(2)}%
+          </div>
+          <p className="kpi-detail lock-detail">
+            {diferencia < 0
+              ? <><TrendingUp size={12} /> adelantado al plan</>
+              : diferencia > 0
+                ? <><TrendingDown size={12} /> atrasado respecto al plan</>
+                : <><Lock size={12} /> en línea con el plan</>}
+          </p>
         </div>
         <div className="kpi-progress-container">
           <div

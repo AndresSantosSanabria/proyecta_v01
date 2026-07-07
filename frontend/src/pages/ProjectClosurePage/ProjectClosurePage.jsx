@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertTriangle, Calendar, CheckCircle2, Download, FileText, ListTodo, Lock, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Download, FileText, ListTodo, Lock, Send, ShieldAlert, Clock } from 'lucide-react';
 import projectService from '../../services/projectService';
+import authzService from '../../services/authzService';
 import './ProjectClosurePage.css';
 
 const triggerBlobDownload = (blob, fileName) => {
@@ -49,6 +50,9 @@ const ProjectClosurePage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [downloadingActa, setDownloadingActa] = useState(false);
   const [actaFileName, setActaFileName] = useState(null);
+  const [requestingClosure, setRequestingClosure] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const [cierreSolicitado, setCierreSolicitado] = useState(false);
 
   const [summaryData, setSummaryData] = useState({
     id,
@@ -85,8 +89,12 @@ const ProjectClosurePage = () => {
     const fetchSummary = async () => {
       try {
         setLoading(true);
-        const response = await projectService.getSummary(id);
+        const [response, meResponse] = await Promise.all([
+          projectService.getSummary(id),
+          authzService.getMe()
+        ]);
         const apiData = response.data || response;
+        const meData = meResponse.data || meResponse;
 
         if (apiData) {
           setSummaryData({
@@ -110,6 +118,12 @@ const ProjectClosurePage = () => {
             puedeCerrar: apiData.puede_cerrar !== undefined ? apiData.puede_cerrar : false,
             entregables: apiData.entregables || [],
           });
+          setCierreSolicitado(apiData.cierre_solicitado || false);
+        }
+
+        if (meData) {
+          const roles = meData.roles || [];
+          setUserRole(roles);
         }
       } catch (err) {
         console.error('Error fetching project summary:', err);
@@ -137,6 +151,31 @@ const ProjectClosurePage = () => {
       setError('No se pudo descargar el acta de cierre.');
     } finally {
       setDownloadingActa(false);
+    }
+  };
+
+  const handleSolicitarCierre = async () => {
+    if (!window.confirm('Esta seguro que desea solicitar el cierre del proyecto? El Gestor sera notificado.')) {
+      return;
+    }
+
+    try {
+      setRequestingClosure(true);
+      setError(null);
+      const response = await projectService.solicitarCierre(id);
+
+      if (response.success) {
+        setCierreSolicitado(true);
+        setSuccessMsg(response.message || 'Solicitud de cierre enviada exitosamente al Gestor.');
+      } else {
+        setError(response.errorBanner || response.message || 'No se pudo enviar la solicitud de cierre.');
+      }
+    } catch (err) {
+      console.error('Error requesting closure:', err);
+      const errData = err.response?.data;
+      setError(errData?.errorBanner || errData?.message || 'No se pudo enviar la solicitud de cierre.');
+    } finally {
+      setRequestingClosure(false);
     }
   };
 
@@ -217,6 +256,11 @@ const ProjectClosurePage = () => {
   }
 
   const isDisabled = !summaryData.puedeCerrar || summaryData.estado === 'CERRADO' || submitting;
+  const roles = Array.isArray(userRole) ? userRole.map(r => r.toLowerCase()) : [];
+  const isDirector = roles.some(r => r.includes('director'));
+  const isGestorOrAdmin = roles.some(r => r.includes('gestor') || r.includes('administrador'));
+  const canRequestClosure = isDirector && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && !cierreSolicitado;
+  const canCloseProject = isGestorOrAdmin && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado;
 
   return (
     <div className="closure-page-container">
@@ -475,11 +519,38 @@ const ProjectClosurePage = () => {
             </div>
           </div>
 
-          {summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
+          {summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado && !isGestorOrAdmin && (
+            <div className="form-actions">
+              <div className="closure-ready-note">
+                <Clock size={18} />
+                <span>Solicitud de cierre enviada. Esperando respuesta del Gestor.</span>
+              </div>
+            </div>
+          )}
+
+          {canRequestClosure && (
             <div className="form-actions">
               <div className="closure-ready-note">
                 <CheckCircle2 size={18} />
-                <span>El proyecto ya está listo para solicitar cierre.</span>
+                <span>El proyecto esta listo para solicitar cierre.</span>
+              </div>
+              <button
+                type="button"
+                className="btn-primary-closure"
+                onClick={handleSolicitarCierre}
+                disabled={requestingClosure}
+              >
+                <Send size={16} style={{ marginRight: '8px' }} />
+                {requestingClosure ? 'Enviando solicitud...' : 'Solicitar Cierre al Gestor'}
+              </button>
+            </div>
+          )}
+
+          {canCloseProject && (
+            <div className="form-actions">
+              <div className="closure-ready-note">
+                <CheckCircle2 size={18} />
+                <span>El Director ha solicitado el cierre. Puede proceder a cerrar el proyecto.</span>
               </div>
               <button
                 type="submit"

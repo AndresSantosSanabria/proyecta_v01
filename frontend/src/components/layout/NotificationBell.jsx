@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BellRing, CheckCheck, LoaderCircle, X } from 'lucide-react';
+import { BellRing, CheckCheck, LoaderCircle, X, FolderKanban } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
 import './NotificationBell.css';
@@ -14,6 +14,16 @@ const formatTime = (value) => {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+};
+
+const extractProjectId = (title) => {
+  const match = title?.match(/IS-PROY-[A-Z]+-\d+/);
+  return match ? match[0] : null;
+};
+
+const cleanTitle = (title) => {
+  if (!title) return '';
+  return title.replace(/ en IS-PROY-[A-Z]+-\d+| en IS-PROY-[A-Z]+-\d+/g, '').trim();
 };
 
 const NotificationBell = () => {
@@ -77,7 +87,7 @@ const NotificationBell = () => {
       {open && (
         <div className="notification-bell__modal" role="dialog" aria-modal="true">
           <div className="notification-bell__modal-header">
-            <div>
+            <div className="notification-bell__modal-header-text">
               <strong>Notificaciones</strong>
               <span>{count} sin leer</span>
             </div>
@@ -98,15 +108,24 @@ const NotificationBell = () => {
                 <span>No hay notificaciones pendientes.</span>
               </div>
             ) : (
-              unreadItems.map((item) => (
-                <button key={item.id} type="button" className="notification-bell__item" onClick={() => markRead(item)}>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.message}</p>
-                  </div>
-                  <span>{formatTime(item.createdAt)}</span>
-                </button>
-              ))
+              unreadItems.map((item) => {
+                const projectId = extractProjectId(item.title);
+                return (
+                  <button key={item.id} type="button" className="notification-bell__item" onClick={() => markRead(item)}>
+                    <div className="notification-bell__item-header">
+                      <span className="notification-bell__item-title">{cleanTitle(item.title)}</span>
+                      <span className="notification-bell__item-date">{formatTime(item.createdAt)}</span>
+                    </div>
+                    {projectId && (
+                      <div className="notification-bell__item-project">
+                        <FolderKanban size={11} />
+                        {projectId}
+                      </div>
+                    )}
+                    <p className="notification-bell__item-message">{item.message}</p>
+                  </button>
+                );
+              })
             )}
           </div>
         </div>

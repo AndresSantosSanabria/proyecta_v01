@@ -217,6 +217,16 @@ const projectService = {
     });
   },
 
+  /**
+   * Solicita el cierre del proyecto (Director -> Gestor).
+   * @param {string|number} id
+   * @returns {Promise<Object>}
+   */
+  solicitarCierre: async (id) => {
+    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/solicitar`);
+    return data;
+  },
+
   uploadEvidencia: async (proyectoId, entregableId, file, fechaEntrega, onUploadProgress) => {
     const formData = new FormData();
     formData.append('evidencia', file);

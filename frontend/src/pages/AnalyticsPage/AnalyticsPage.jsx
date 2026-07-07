@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -47,7 +47,7 @@ const SORT_OPTIONS = [
   { value: 'eficacia_desc', label: 'Eficacia descendente' },
   { value: 'eficiencia_desc', label: 'Eficiencia descendente' },
   { value: 'furag_desc', label: 'Cobertura FURAG descendente' },
-  { value: 'mitigacion_desc', label: 'MitigaciÃ³n descendente' },
+  { value: 'mitigacion_desc', label: 'Mitigación descendente' },
   { value: 'atrasos_desc', label: 'Atrasos descendentes' },
   { value: 'nombre_asc', label: 'Nombre A-Z' },
 ];
@@ -216,8 +216,8 @@ const AnalyticsPage = () => {
       const payload = await analyticsService.getPortfolio();
       setData(payload);
     } catch (err) {
-      console.error('Error cargando analÃ­ticas del portafolio:', err);
-      setError('No fue posible cargar las analÃ­ticas del portafolio.');
+      console.error('Error cargando analíticas del portafolio:', err);
+      setError('No fue posible cargar las analíticas del portafolio.');
       setData(null);
     } finally {
       setLoading(false);
@@ -336,7 +336,7 @@ const AnalyticsPage = () => {
     });
     return [...grouped.values()]
       .map((item) => ({
-        name: item.dependencia.length > 18 ? item.dependencia.slice(0, 18) + 'â€¦' : item.dependencia,
+        name: item.dependencia.length > 18 ? item.dependencia.slice(0, 18) + '…' : item.dependencia,
         fullName: item.dependencia,
         Avance: Math.round(item.avance / item.count),
         Eficacia: Math.round(item.eficacia / item.count),
@@ -378,7 +378,7 @@ const AnalyticsPage = () => {
 
   const activeFilterChips = useMemo(() => {
     const chips = [];
-    if (filters.query) chips.push({ key: 'query', label: `BÃºsqueda: ${filters.query}` });
+    if (filters.query) chips.push({ key: 'query', label: `Búsqueda: ${filters.query}` });
     if (filters.dependencia !== 'ALL') chips.push({ key: 'dependencia', label: `Dependencia: ${filters.dependencia}` });
     if (filters.peti !== 'ALL') chips.push({ key: 'peti', label: filters.peti === 'PETI' ? 'Solo PETI' : 'Solo NO PETI' });
     if (filters.estado !== 'ALL') chips.push({ key: 'estado', label: `Estado: ${filters.estado}` });
@@ -404,17 +404,17 @@ const AnalyticsPage = () => {
       {/* â”€â”€ Hero â”€â”€ */}
       <section className="analytics-hero">
         <div>
-          <span className="analytics-kicker">Gobernanza analÃ­tica</span>
-          <h1>AnalÃ­ticas del Portafolio</h1>
+          <span className="analytics-kicker">Gobernanza analítica</span>
+          <h1>Analíticas del Portafolio</h1>
           <p>
-            Tablero ejecutivo interactivo con KPIs de eficiencia y eficacia, grÃ¡ficos avanzados y filtros
+            Tablero ejecutivo interactivo con KPIs de eficiencia y eficacia, gráficos avanzados y filtros
             que reaccionan en todos los visuales.
           </p>
         </div>
         <div className="analytics-hero__actions">
           <button className="analytics-refresh" onClick={loadAnalytics} disabled={loading}>
             <RefreshCw size={18} />
-            {loading ? 'Actualizandoâ€¦' : 'Actualizar'}
+            {loading ? 'Actualizando…' : 'Actualizar'}
           </button>
           <button className="analytics-refresh analytics-refresh--secondary" onClick={resetFilters}>
             <X size={18} /> Limpiar filtros
@@ -445,7 +445,7 @@ const AnalyticsPage = () => {
         <div className="analytics-filters__grid analytics-filters__grid--extended">
           <label className="analytics-filter">
             <span><Search size={14} /> Buscar</span>
-            <input type="search" value={filters.query} onChange={(e) => updateFilter('query', e.target.value)} placeholder="Nombre, cÃ³digo, dependenciaâ€¦" />
+            <input type="search" value={filters.query} onChange={(e) => updateFilter('query', e.target.value)} placeholder="Nombre, código, dependencia…" />
           </label>
 
           <label className="analytics-filter">
@@ -457,7 +457,7 @@ const AnalyticsPage = () => {
           </label>
 
           <label className="analytics-filter">
-            <span><Sparkles size={14} /> ClasificaciÃ³n</span>
+            <span><Sparkles size={14} /> Clasificación</span>
             <select value={filters.peti} onChange={(e) => updateFilter('peti', e.target.value)}>
               <option value="ALL">PETI y NO PETI</option>
               <option value="PETI">Solo PETI</option>
@@ -493,7 +493,7 @@ const AnalyticsPage = () => {
           <div className="analytics-filter analytics-filter--summary">
             <span><Sparkles size={14} /> Resumen</span>
             <strong>{formatNumber(summary.total)} proyectos</strong>
-            <small>{formatNumber(summary.petiProjects)} PETI Â· {formatNumber(summary.noPetiProjects)} NO PETI</small>
+            <small>{formatNumber(summary.petiProjects)} PETI · {formatNumber(summary.noPetiProjects)} NO PETI</small>
           </div>
         </div>
 
@@ -521,19 +521,19 @@ const AnalyticsPage = () => {
         <article className="analytics-kpi-card analytics-kpi-card--accent">
           <span><Target size={14} /> Proyectos</span>
           <strong>{formatNumber(summary.total)}</strong>
-          <small>{formatNumber(summary.enTiempo)} en tiempo Â· {formatNumber(summary.enAtraso)} en atraso</small>
+          <small>{formatNumber(summary.enTiempo)} en tiempo · {formatNumber(summary.enAtraso)} en atraso</small>
           <div className="kpi-spark kpi-spark--blue" />
         </article>
         <article className="analytics-kpi-card">
           <span><Sparkles size={14} /> PETI / No PETI</span>
           <strong>{formatNumber(summary.petiProjects)} <small className="kpi-slash">/ {formatNumber(summary.noPetiProjects)}</small></strong>
-          <small>EstratÃ©gicos vs operativos</small>
+          <small>Estratégicos vs operativos</small>
           <div className="kpi-spark kpi-spark--cyan" />
         </article>
         <article className="analytics-kpi-card">
           <span><BarChart3 size={14} /> Avance promedio</span>
           <strong>{formatPercent(summary.avancePromedio)}</strong>
-          <small>Progreso fÃ­sico del portafolio</small>
+          <small>Progreso físico del portafolio</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.avancePromedio)}%`, '--kpi-color': '#3b82f6' }} />
         </article>
         <article className="analytics-kpi-card">
@@ -555,7 +555,7 @@ const AnalyticsPage = () => {
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.furagPromedio)}%`, '--kpi-color': '#8b5cf6' }} />
         </article>
         <article className="analytics-kpi-card">
-          <span><ShieldCheck size={14} /> MitigaciÃ³n riesgos</span>
+          <span><ShieldCheck size={14} /> Mitigación riesgos</span>
           <strong>{formatPercent(summary.mitigacionPromedio)}</strong>
           <small>{formatNumber(data?.riesgos?.tratados)} tratados en total</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.mitigacionPromedio)}%`, '--kpi-color': '#ef4444' }} />
@@ -573,7 +573,7 @@ const AnalyticsPage = () => {
             <div className="analytics-panel__header">
               <div>
                 <h2>Dispersión Eficiencia vs Eficacia</h2>
-                <p>Cada punto es un proyecto - tamaÃ±o representa el avance fÃ­sico.</p>
+                <p>Cada punto es un proyecto - tamaño representa el avance físico.</p>
               </div>
               <div className="analytics-panel__meta">
                 <span><Zap size={14} /> {formatNumber(scatterData.length)} proyectos</span>

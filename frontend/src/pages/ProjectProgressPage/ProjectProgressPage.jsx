@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Info, Lock, Maximize2, X, FileText } from 'lucide-react';
+import { Info, Lock, Maximize2, X, FileText, Eye } from 'lucide-react';
 import projectService from '../../services/projectService';
+import { useAuthContext } from '../../context/AuthContext';
 import ProgressHeader from '../../components/features/progress/ProgressHeader';
 import ProgressKPIs from '../../components/features/progress/ProgressKPIs';
 import ProgressTreeTable from '../../components/features/progress/ProgressTreeTable';
 import ProjectBenefitImpactPanel from '../../components/projects/ProjectBenefitImpactPanel';
+import BenefitImpactReviewModal from '../../components/projects/BenefitImpactReviewModal';
 import ProjectInfoModal from '../../components/projects/ProjectInfoModal';
 import './ProjectProgressPage.css';
 
@@ -57,6 +59,7 @@ const flattenEntregables = (fases = []) => {
 const ProjectProgressPage = () => {
   const params = useParams();
   const codigoProyecto = (params.codigoProyecto || params.id || '').toUpperCase();
+  const { hasRole, isProjectAssigned, isAdminLocal, transversal } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -86,6 +89,8 @@ const ProjectProgressPage = () => {
   });
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [projectInfoModalOpen, setProjectInfoModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [benefitImpactData, setBenefitImpactData] = useState(null);
 
   const showBenefitImpact = useMemo(() => {
     const allEntregables = flattenEntregables(progressData.fases || []);
@@ -102,6 +107,28 @@ const ProjectProgressPage = () => {
     };
     return allEntregables.every(isEntregado);
   }, [progressData.fases]);
+
+  const isGestorOrAdmin = hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC') || isAdminLocal || transversal;
+  const isDirectorOnly = hasRole('DIRECTOR_PROYECTO') && !hasRole('GESTOR_PROYECTOS') && !hasRole('GESTOR_TIC') && isProjectAssigned(codigoProyecto) && !isAdminLocal && !transversal;
+  const hasBenefitData = benefitImpactData && ['DILIGENCIADO', 'OBSERVADO', 'RECHAZADO', 'APROBADO'].includes(benefitImpactData.estado);
+  const canReview = isGestorOrAdmin && hasBenefitData;
+  const canViewBenefitModal = hasBenefitData && (isGestorOrAdmin || isDirectorOnly);
+
+  useEffect(() => {
+    if (!codigoProyecto) return;
+    let active = true;
+    const fetchBenefitImpact = async () => {
+      try {
+        const response = await projectService.getBenefitImpact(codigoProyecto);
+        const payload = response?.data?.data ?? response?.data ?? response ?? null;
+        if (active) setBenefitImpactData(payload);
+      } catch {
+        if (active) setBenefitImpactData(null);
+      }
+    };
+    fetchBenefitImpact();
+    return () => { active = false; };
+  }, [codigoProyecto, refreshKey]);
 
   const toggleNode = (nodeId) => {
     setExpandedNodes((prev) => ({
@@ -243,7 +270,17 @@ const ProjectProgressPage = () => {
         corte={progressData.corte ? new Date(progressData.corte).toLocaleDateString('es-CO') : new Date().toLocaleDateString('es-CO')}
       />
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+        {canViewBenefitModal && (
+          <button
+            type="button"
+            className="pim-trigger"
+            onClick={() => setReviewModalOpen(true)}
+          >
+            <Eye size={16} />
+            {isGestorOrAdmin ? 'Revisar Beneficios e Impacto' : 'Ver Beneficios e Impacto'}
+          </button>
+        )}
         <button
           type="button"
           className="pim-trigger"
@@ -373,7 +410,7 @@ const ProjectProgressPage = () => {
 
       <ProgressKPIs progressData={progressData} />
 
-      {showBenefitImpact && (
+      {showBenefitImpact && isDirectorOnly && (
         <ProjectBenefitImpactPanel
           proyectoId={codigoProyecto}
           projectName={projectInfo?.nombre || progressData.nombre}
@@ -412,6 +449,16 @@ const ProjectProgressPage = () => {
         open={projectInfoModalOpen}
         onClose={() => setProjectInfoModalOpen(false)}
         onDocumentUploaded={() => setRefreshKey((prev) => prev + 1)}
+      />
+
+      <BenefitImpactReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        proyectoId={codigoProyecto}
+        projectName={projectInfo?.nombre || progressData.nombre}
+        benefitImpactData={benefitImpactData}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
+        isDirectorOnly={isDirectorOnly}
       />
     </div>
   );

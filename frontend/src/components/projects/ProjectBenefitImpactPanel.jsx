@@ -64,7 +64,15 @@ const AccordionField = ({ label, value }) => {
         {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
       {open && (
-        <div style={{ marginTop: '0.75rem', fontWeight: 'normal', color: '#475569', lineHeight: '1.5' }}>
+        <div style={{
+          marginTop: '0.75rem',
+          fontWeight: 'normal',
+          color: '#475569',
+          lineHeight: '1.5',
+          wordWrap: 'break-word',
+          overflowWrap: 'break-word',
+          whiteSpace: 'pre-wrap'
+        }}>
           {value || 'No registrado'}
         </div>
       )}
@@ -102,6 +110,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
   const [forbidden, setForbidden] = useState(false);
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [observacion, setObservacion] = useState('');
+  const [rejectError, setRejectError] = useState('');
 
   const isEditable = Boolean(data?.editable) && !isGestor;
   const isRequired = Boolean(data?.requerido && data?.editable) && !isGestor;
@@ -198,8 +207,16 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       };
     }
 
+    if (data.estado === 'APROBADO') {
+      return {
+        tone: 'success',
+        title: 'Aprobado',
+        detail: 'La informacion de beneficio e impacto ha sido auditada y aprobada.',
+      };
+    }
+
     return {
-      tone: 'danger',
+      tone: 'warning',
       title: 'Pendiente de diligenciar',
       detail: 'El Director debe completar este formulario para habilitar el cierre formal del proyecto.',
     };
@@ -241,7 +258,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
   const handleReview = async (aprobado) => {
     if (!proyectoId || reviewing) return;
     if (!aprobado && !observacion.trim()) {
-      setShowRejectInput(true);
+      setRejectError('Debe ingresar el motivo del rechazo para continuar.');
       return;
     }
 
@@ -249,12 +266,14 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       setReviewing(true);
       setError('');
       setSuccess('');
+      setRejectError('');
       const response = await projectService.reviewBenefitImpact(proyectoId, aprobado, observacion);
       const saved = unwrap(response);
       setData(saved);
       setForm(toFormState(saved));
       setShowRejectInput(false);
       setObservacion('');
+      setRejectError('');
       if (!aprobado) {
         setEditorOpen(Boolean(saved?.editable && !isGestor));
       }
@@ -273,150 +292,11 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
   };
 
   if (loading) {
-    return (
-      <section className="benefit-impact-card loading">
-        <div className="benefit-impact-skeleton" />
-        <div className="benefit-impact-skeleton short" />
-        <div className="benefit-impact-skeleton" />
-      </section>
-    );
+    return null;
   }
 
   return (
     <>
-      <section className="benefit-impact-card">
-        <div className={`benefit-impact-top ${statusMeta.tone}`}>
-          <div className="benefit-impact-title">
-            <span className="benefit-impact-kicker">
-              <ShieldAlert size={14} />
-              Beneficio e impacto del proyecto
-            </span>
-            <h2>{projectName || 'Proyecto'}</h2>
-            <p>{statusMeta.detail}</p>
-          </div>
-
-          <div className="benefit-impact-actions">
-            <div className={`benefit-impact-state ${statusMeta.tone}`}>{statusMeta.title}</div>
-            {isEditable && (
-              <button type="button" className="benefit-impact-open" onClick={() => setEditorOpen(true)}>
-                {data?.estado === 'DILIGENCIADO' ? <Edit3 size={16} /> : <FileText size={16} />}
-                {data?.estado === 'DILIGENCIADO' ? 'Editar' : 'Diligenciar'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {error && (
-          <div className="benefit-impact-alert error">
-            <AlertTriangle size={18} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="benefit-impact-alert success">
-            <CheckCircle2 size={18} />
-            <span>{success}</span>
-          </div>
-        )}
-
-        {data ? (
-          <>
-            <div className="benefit-impact-grid">
-              <Field label="Estado" value={data.estado} />
-              <AccordionField label="Beneficios del proyecto" value={data.beneficioPrincipal} />
-              <AccordionField label="Impactos en valor público" value={data.impactoSocial} />
-              <AccordionField label="Observaciones" value={data.observaciones} />
-            </div>
-
-            {isGestor && (data.estado === 'DILIGENCIADO' || data.estado === 'OBSERVADO' || data.estado === 'APROBADO') && (
-              <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: '#0f172a', borderRadius: '6px', border: '1px solid #334155' }}>
-                <h4 style={{ margin: '0 0 1rem', color: '#f1f5f9', fontSize: '1rem' }}>Revision del Gestor</h4>
-                {data.estado === 'APROBADO' && (
-                  <div className="benefit-impact-alert success">
-                    <CheckCircle2 size={16} />
-                    <span>
-                      Informacion aprobada el {data.revisadoEn ? new Date(data.revisadoEn).toLocaleDateString('es-CO') : '-'} por {data.revisadoPor}.
-                    </span>
-                  </div>
-                )}
-                {data.estado === 'OBSERVADO' && (
-                  <div className="benefit-impact-alert error" style={{ marginBottom: '1rem' }}>
-                    <AlertTriangle size={16} />
-                    <span>Observada. Se requiere que el Director corrija y vuelva a diligenciar.</span>
-                  </div>
-                )}
-                {(data.estado === 'DILIGENCIADO' || data.estado === 'OBSERVADO') && (
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start', flexDirection: 'column' }}>
-                    {showRejectInput && (
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Observacion de rechazo *</label>
-                        <textarea
-                          value={observacion}
-                          onChange={(e) => setObservacion(e.target.value)}
-                          rows={3}
-                          placeholder="Describe el motivo del rechazo..."
-                          className="benefit-impact-textarea"
-                        />
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      {!showRejectInput && (
-                        <button
-                          type="button"
-                          disabled={reviewing}
-                          onClick={() => handleReview(true)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '4px', fontWeight: '600', cursor: 'pointer' }}
-                        >
-                          <ThumbsUp size={16} /> Aprobar
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={reviewing}
-                        onClick={() => (showRejectInput ? handleReview(false) : setShowRejectInput(true))}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showRejectInput ? '#ef4444' : '#64748b', color: 'white', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '4px', fontWeight: '600', cursor: 'pointer' }}
-                      >
-                        <ThumbsDown size={16} /> {showRejectInput ? 'Confirmar Rechazo' : 'Rechazar / Observar'}
-                      </button>
-                      {showRejectInput && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowRejectInput(false);
-                            setObservacion('');
-                          }}
-                          style={{ background: 'none', color: '#94a3b8', border: '1px solid #334155', padding: '0.6rem 1rem', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="benefit-impact-footnote">
-              <Lock size={14} />
-              <span>
-                {visibleForAudit
-                  ? 'Visible para Gestor y auditoria institucional.'
-                  : 'Solo visible para el Director mientras esta pendiente de diligenciamiento.'}
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="benefit-impact-empty">
-            <Lock size={18} />
-            <div>
-              <strong>No hay informacion publicada todavia.</strong>
-              <p>Cuando el proyecto alcance el 100% de entregables aprobados, aparecera el formulario obligatorio.</p>
-            </div>
-          </div>
-        )}
-      </section>
-
       {showEditor && (
         <div
           className="benefit-impact-overlay"
@@ -474,7 +354,8 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
                   name="observaciones"
                   value={form.observaciones}
                   onChange={handleChange}
-                  placeholder="Observaciones adicionales, si aplican."
+                  disabled={true}
+                  placeholder="Observaciones de la revisión del Gestor/Admin."
                 />
               </div>
 
