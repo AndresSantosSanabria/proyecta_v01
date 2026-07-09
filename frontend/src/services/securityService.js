@@ -151,6 +151,71 @@ const securityService = {
     const response = await apiClient.patch(`/notificaciones/${encodeURIComponent(id)}/leer`);
     return unwrap(response);
   },
+
+  getActiveClosureTemplate: async () => {
+    const response = await apiClient.get('/admin/closure-templates/active');
+    return unwrap(response);
+  },
+
+  saveClosureTemplate: async (payload) => {
+    const response = await apiClient.post('/admin/closure-templates', payload);
+    return unwrap(response);
+  },
+
+  getClosureRecord: async (projectId) => {
+    const response = await apiClient.get(`/admin/closure-templates/closure-record/${encodeURIComponent(projectId)}`);
+    return unwrap(response);
+  },
+
+  saveClosureRecord: async (projectId, formData) => {
+    const response = await apiClient.post(`/admin/closure-templates/closure-record/${encodeURIComponent(projectId)}`, { formData });
+    return unwrap(response);
+  },
+
+  listClosureQuestions: async () => {
+    const response = await apiClient.get('/admin/closure-questions');
+    return unwrap(response);
+  },
+
+  listActiveClosureQuestions: async () => {
+    const response = await apiClient.get('/admin/closure-questions/active');
+    return unwrap(response);
+  },
+
+  createClosureQuestion: async (payload) => {
+    const response = await apiClient.post('/admin/closure-questions', payload);
+    return unwrap(response);
+  },
+
+  updateClosureQuestion: async (id, payload) => {
+    const response = await apiClient.patch(`/admin/closure-questions/${id}`, payload);
+    return unwrap(response);
+  },
+
+  toggleClosureQuestion: async (id) => {
+    const response = await apiClient.patch(`/admin/closure-questions/${id}/toggle`);
+    return unwrap(response);
+  },
+
+  deleteClosureQuestion: async (id) => {
+    const response = await apiClient.delete(`/admin/closure-questions/${id}`);
+    return unwrap(response);
+  },
+
+  getClosureAnswers: async (projectId) => {
+    const response = await apiClient.get(`/admin/closure-questions/answers/${encodeURIComponent(projectId)}`);
+    return unwrap(response);
+  },
+
+  saveClosureAnswers: async (projectId, answers) => {
+    const response = await apiClient.post(`/admin/closure-questions/answers/${encodeURIComponent(projectId)}`, answers);
+    return unwrap(response);
+  },
+
+  getResolvedClosureTemplate: async (projectId) => {
+    const response = await apiClient.get(`/admin/closure-questions/resolved-template/${encodeURIComponent(projectId)}`);
+    return unwrap(response);
+  },
 };
 
 export default securityService;

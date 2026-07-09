@@ -21,7 +21,10 @@ const ProjectAccessRoute = () => {
     return (code || '').toString().trim().toLowerCase() === projectId;
   });
 
-  if (isAdminLike || isAssigned) {
+  const hasAssignedProjects = Array.isArray(assignedProjects) && assignedProjects.length > 0;
+  const isDirector = hasRole('DIRECTOR_PROYECTO');
+
+  if (isAdminLike || isAssigned || (isDirector && hasAssignedProjects)) {
     return <Outlet />;
   }
 

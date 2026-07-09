@@ -5,6 +5,8 @@ import {
   CircleAlert,
   Clock3,
   Briefcase,
+  FileText,
+  ListTodo,
   Pencil,
   Plus,
   RefreshCw,
@@ -19,6 +21,8 @@ import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
 import securityService from '../../services/securityService';
 import NotificationTemplatesPanel from '../../components/security/NotificationTemplatesPanel';
+import ClosureTemplatePanel from '../../components/security/ClosureTemplatePanel';
+import ClosureQuestionsPanel from '../../components/security/ClosureQuestionsPanel';
 import { decodeJwtPayload } from '../../utils/auth';
 import './SecurityConfigPage.css';
 
@@ -28,6 +32,8 @@ const SECURITY_TABS = {
   PARAMETERS: 'parametros',
   ASSIGNMENTS: 'asignaciones',
   NOTIFICATIONS: 'notificaciones',
+  CLOSURE_TEMPLATE: 'acta_cierre',
+  CLOSURE_QUESTIONS: 'preguntas_cierre',
 };
 
 const emptyUserForm = {
@@ -1287,6 +1293,26 @@ const SecurityConfigPage = () => {
               </button>
             )}
             {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.CLOSURE_TEMPLATE ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.CLOSURE_TEMPLATE)}
+              >
+                <FileText size={14} />
+                Acta de Cierre
+              </button>
+            )}
+            {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.CLOSURE_QUESTIONS ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.CLOSURE_QUESTIONS)}
+              >
+                <ListTodo size={14} />
+                Preguntas Cierre
+              </button>
+            )}
+            {canConfigure && (
               <button type="button" className="quick-action create" onClick={handleNewUser}>
                 <Plus size={14} />
                 Crear Usuario
@@ -1321,7 +1347,7 @@ const SecurityConfigPage = () => {
         </div>
       )}
 
-      {[SECURITY_TABS.USERS, SECURITY_TABS.PARAMETERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS].includes(activeSection) && (
+      {[SECURITY_TABS.USERS, SECURITY_TABS.PARAMETERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS, SECURITY_TABS.CLOSURE_TEMPLATE, SECURITY_TABS.CLOSURE_QUESTIONS].includes(activeSection) && (
         <section className="security-workspace users-workspace">
           {activeSection === SECURITY_TABS.USERS && (
           <article className="panel panel-main users-panel">
@@ -1733,6 +1759,12 @@ const SecurityConfigPage = () => {
           )}
           {canConfigure && activeSection === SECURITY_TABS.NOTIFICATIONS && (
             <NotificationTemplatesPanel />
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.CLOSURE_TEMPLATE && (
+            <ClosureTemplatePanel />
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.CLOSURE_QUESTIONS && (
+            <ClosureQuestionsPanel />
           )}
           {canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS && (
             <div

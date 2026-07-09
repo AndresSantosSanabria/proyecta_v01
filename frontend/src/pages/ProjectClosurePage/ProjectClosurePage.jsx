@@ -3,13 +3,11 @@ import { useParams } from 'react-router-dom';
 import { AlertTriangle, Calendar, CheckCircle2, Download, FileText, ListTodo, Lock, Send, ShieldAlert, Clock } from 'lucide-react';
 import projectService from '../../services/projectService';
 import authzService from '../../services/authzService';
+import securityService from '../../services/securityService';
 import './ProjectClosurePage.css';
 
 const triggerBlobDownload = (blob, fileName) => {
-  if (!(blob instanceof Blob)) {
-    return;
-  }
-
+  if (!(blob instanceof Blob)) return;
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -21,27 +19,15 @@ const triggerBlobDownload = (blob, fileName) => {
 };
 
 const getFilenameFromDisposition = (disposition, fallback) => {
-  if (!disposition) {
-    return fallback;
-  }
-
+  if (!disposition) return fallback;
   const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
   if (utf8Match?.[1]) {
-    try {
-      return decodeURIComponent(utf8Match[1]);
-    } catch {
-      return utf8Match[1];
-    }
+    try { return decodeURIComponent(utf8Match[1]); } catch { return utf8Match[1]; }
   }
-
   const asciiMatch = disposition.match(/filename="?([^"]+)"?/i);
   return asciiMatch?.[1] || fallback;
 };
 
-/**
- * ProjectClosurePage Component
- * Vista de Cierre de Proyecto. Muestra el estado del cierre, valida requisitos y genera actas.
- */
 const ProjectClosurePage = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
@@ -76,22 +62,18 @@ const ProjectClosurePage = () => {
     entregables: [],
   });
 
-  const [resumenEjecutivo, setResumenEjecutivo] = useState('');
-  const [leccionesPositivas, setLeccionesPositivas] = useState('');
-  const [leccionesMejorar, setLeccionesMejorar] = useState('');
-  const [recomendaciones, setRecomendaciones] = useState('');
-  const [transferenciaActividad, setTransferenciaActividad] = useState('');
-  const [transferenciaFecha, setTransferenciaFecha] = useState(() => new Date().toISOString().split('T')[0]);
-  const [transferenciaUbicacionEvidencia, setTransferenciaUbicacionEvidencia] = useState('');
-  const [fechaCierre, setFechaCierre] = useState(() => new Date().toISOString().split('T')[0]);
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [questionsLoading, setQuestionsLoading] = useState(true);
+  const [resolvedTemplate, setResolvedTemplate] = useState(null);
 
   useEffect(() => {
-    const fetchSummary = async () => {
+    const fetchAll = async () => {
       try {
         setLoading(true);
         const [response, meResponse] = await Promise.all([
           projectService.getSummary(id),
-          authzService.getMe()
+          authzService.getMe(),
         ]);
         const apiData = response.data || response;
         const meData = meResponse.data || meResponse;
@@ -127,14 +109,53 @@ const ProjectClosurePage = () => {
         }
       } catch (err) {
         console.error('Error fetching project summary:', err);
-        setError('No se pudo cargar el resumen del proyecto. Verifica si el backend esta activo.');
+        setError('No se pudo cargar el resumen del proyecto.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSummary();
+    fetchAll();
   }, [id]);
+
+  useEffect(() => {
+    const fetchQuestionsAndAnswers = async () => {
+      try {
+        setQuestionsLoading(true);
+        const [qRes, aRes, tRes] = await Promise.all([
+          securityService.listActiveClosureQuestions().catch(() => ({ data: [] })),
+          securityService.getClosureAnswers(id).catch(() => ({ data: [] })),
+          securityService.getResolvedClosureTemplate(id).catch(() => ({ data: null })),
+        ]);
+        const qData = qRes?.data?.data ?? qRes?.data ?? qRes;
+        setQuestions(Array.isArray(qData) ? qData : []);
+
+        const aData = aRes?.data?.data ?? aRes?.data ?? aRes;
+        if (Array.isArray(aData)) {
+          const map = {};
+          aData.forEach((a) => { map[a.questionId] = a.respuesta || ''; });
+          setAnswers(map);
+        }
+
+        const tData = tRes?.data?.data ?? tRes?.data ?? tRes;
+        if (tData) {
+          try {
+            const parsed = typeof tData === 'string' ? JSON.parse(tData) : tData;
+            setResolvedTemplate(parsed);
+          } catch { setResolvedTemplate(null); }
+        }
+      } catch (err) {
+        console.error('Error loading questions/answers:', err);
+      } finally {
+        setQuestionsLoading(false);
+      }
+    };
+    if (id) fetchQuestionsAndAnswers();
+  }, [id]);
+
+  const updateAnswer = (questionId, value) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
 
   const handleDownloadActa = async () => {
     try {
@@ -155,13 +176,12 @@ const ProjectClosurePage = () => {
   };
 
   const handleSolicitarCierre = async () => {
-    if (!window.confirm('Esta seguro que desea solicitar el cierre del proyecto? El Gestor sera notificado.')) {
-      return;
-    }
+    if (!window.confirm('Esta seguro que desea solicitar el cierre del proyecto? El Gestor sera notificado.')) return;
 
     try {
       setRequestingClosure(true);
       setError(null);
+      await saveAnswersIfDynamic();
       const response = await projectService.solicitarCierre(id);
 
       if (response.success) {
@@ -179,45 +199,31 @@ const ProjectClosurePage = () => {
     }
   };
 
+  const saveAnswersIfDynamic = async () => {
+    if (questions.length === 0) return;
+    const payload = questions.map((q) => ({
+      questionId: q.id,
+      respuesta: answers[q.id] || '',
+    }));
+    await securityService.saveClosureAnswers(id, payload);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!summaryData.puedeCerrar) return;
 
-    if (resumenEjecutivo.length < 100) {
-      alert('El resumen ejecutivo debe contener al menos 100 caracteres.');
-      return;
-    }
-
-    if (!leccionesPositivas.trim() || !leccionesMejorar.trim() || !recomendaciones.trim() || !transferenciaActividad.trim() || !transferenciaUbicacionEvidencia.trim()) {
-      alert('Completa todos los campos obligatorios del acta antes de cerrar.');
-      return;
-    }
-
     try {
       setSubmitting(true);
       setError(null);
+      await saveAnswersIfDynamic();
 
-      const closurePayload = {
-        resumenEjecutivo,
-        leccionesPositivas,
-        leccionesMejorar,
-        recomendaciones,
-        transferenciaActividad,
-        transferenciaFecha,
-        transferenciaUbicacionEvidencia,
-        fechaCierre,
-      };
-
+      const closurePayload = {};
       const response = await projectService.closeProject(id, closurePayload);
 
       if (response.success) {
         setSuccessMsg(response.message || 'Proyecto cerrado formalmente con exito.');
         setActaFileName(response.archivoPdf || `acta_cierre_${id}.pdf`);
-        setSummaryData((prev) => ({
-          ...prev,
-          estado: 'CERRADO',
-          puedeCerrar: false,
-        }));
+        setSummaryData((prev) => ({ ...prev, estado: 'CERRADO', puedeCerrar: false }));
 
         try {
           setDownloadingActa(true);
@@ -239,8 +245,7 @@ const ProjectClosurePage = () => {
     } catch (err) {
       console.error('Error closing project:', err);
       const errData = err.response?.data;
-      const errMsg = errData?.errorBanner || errData?.message || errData?.detail || 'No se pudo completar el cierre del proyecto.';
-      setError(errMsg);
+      setError(errData?.errorBanner || errData?.message || errData?.detail || 'No se pudo completar el cierre del proyecto.');
     } finally {
       setSubmitting(false);
     }
@@ -262,14 +267,75 @@ const ProjectClosurePage = () => {
   const canRequestClosure = isDirector && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && !cierreSolicitado;
   const canCloseProject = isGestorOrAdmin && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado;
 
+  const renderQuestion = (q) => {
+    const value = answers[q.id] || '';
+    if (q.tipoRespuesta === 'fecha') {
+      return (
+        <div key={q.id} className="closure-dyn-field">
+          <label className="closure-dyn-label">{q.texto}</label>
+          <input type="date" className="closure-dyn-input" value={value} onChange={(e) => updateAnswer(q.id, e.target.value)} disabled={isDisabled} />
+        </div>
+      );
+    }
+    if (q.tipoRespuesta === 'numero') {
+      return (
+        <div key={q.id} className="closure-dyn-field">
+          <label className="closure-dyn-label">{q.texto}</label>
+          <input type="number" className="closure-dyn-input" value={value} onChange={(e) => updateAnswer(q.id, e.target.value)} disabled={isDisabled} />
+        </div>
+      );
+    }
+    if (q.tipoRespuesta === 'seleccion_unica') {
+      const opts = Array.isArray(q.opciones) ? q.opciones : [];
+      return (
+        <div key={q.id} className="closure-dyn-field">
+          <label className="closure-dyn-label">{q.texto}</label>
+          <div className="closure-dyn-options">
+            {opts.map((opt, i) => (
+              <label key={i} className="closure-dyn-option">
+                <input type="radio" name={`q_${q.id}`} value={opt} checked={value === opt} onChange={(e) => updateAnswer(q.id, e.target.value)} disabled={isDisabled} />
+                <span>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    if (q.tipoRespuesta === 'seleccion_multiple') {
+      const opts = Array.isArray(q.opciones) ? q.opciones : [];
+      const selected = value ? value.split(',').filter(Boolean) : [];
+      const toggleOpt = (opt) => {
+        const next = selected.includes(opt) ? selected.filter((s) => s !== opt) : [...selected, opt];
+        updateAnswer(q.id, next.join(', '));
+      };
+      return (
+        <div key={q.id} className="closure-dyn-field">
+          <label className="closure-dyn-label">{q.texto}</label>
+          <div className="closure-dyn-options">
+            {opts.map((opt, i) => (
+              <label key={i} className="closure-dyn-option">
+                <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggleOpt(opt)} disabled={isDisabled} />
+                <span>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div key={q.id} className="closure-dyn-field">
+        <label className="closure-dyn-label">{q.texto}</label>
+        <textarea className="closure-dyn-textarea" value={value} onChange={(e) => updateAnswer(q.id, e.target.value)} disabled={isDisabled} maxLength={2000} rows={4} />
+      </div>
+    );
+  };
+
   return (
     <div className="closure-page-container">
       <header className="closure-header">
         <div className="title-group">
           <h1>Cierre del Proyecto</h1>
-          <p className="subtitle">
-            {summaryData.id} - {summaryData.nombre || 'Proyecto'}
-          </p>
+          <p className="subtitle">{summaryData.id} - {summaryData.nombre || 'Proyecto'}</p>
         </div>
       </header>
 
@@ -280,13 +346,7 @@ const ProjectClosurePage = () => {
             <strong>Exito en el cierre</strong>
             <p>{successMsg}</p>
             {actaFileName && <p>Archivo generado: {actaFileName}</p>}
-            <button
-              type="button"
-              className="btn-primary-closure"
-              onClick={handleDownloadActa}
-              disabled={downloadingActa}
-              style={{ marginTop: '12px' }}
-            >
+            <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa} style={{ marginTop: '12px' }}>
               <Download size={16} style={{ marginRight: '8px' }} />
               {downloadingActa ? 'Descargando acta...' : 'Descargar acta de cierre'}
             </button>
@@ -298,9 +358,7 @@ const ProjectClosurePage = () => {
         <div className="validation-warning-banner" id="warning-closure-banner">
           <AlertTriangle className="warning-icon" size={22} />
           <div className="banner-content">
-            <p>
-              No es posible cerrar el proyecto aún. Todos los entregables deben estar aprobados y con su evidencia cargada para habilitar la solicitud de cierre.
-            </p>
+            <p>No es posible cerrar el proyecto aun. Todos los entregables deben estar aprobados y con su evidencia cargada para habilitar la solicitud de cierre.</p>
           </div>
         </div>
       )}
@@ -310,13 +368,7 @@ const ProjectClosurePage = () => {
           <CheckCircle2 className="closed-icon" size={22} />
           <div className="banner-content">
             <p><strong>Proyecto cerrado.</strong> Este proyecto ha finalizado su ciclo de vida y cuenta con acta de cierre aprobada.</p>
-            <button
-              type="button"
-              className="btn-primary-closure"
-              onClick={handleDownloadActa}
-              disabled={downloadingActa}
-              style={{ marginTop: '12px' }}
-            >
+            <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa} style={{ marginTop: '12px' }}>
               <Download size={16} style={{ marginRight: '8px' }} />
               {downloadingActa ? 'Descargando acta...' : 'Descargar acta de cierre'}
             </button>
@@ -330,9 +382,7 @@ const ProjectClosurePage = () => {
             <FileText size={20} className="header-icon" />
             <h2>Acta de Cierre del Proyecto</h2>
           </div>
-          <span className={`status-badge ${summaryData.estado.toLowerCase()}`}>
-            {summaryData.estado}
-          </span>
+          <span className={`status-badge ${summaryData.estado.toLowerCase()}`}>{summaryData.estado}</span>
         </div>
 
         <div className="form-group">
@@ -341,148 +391,55 @@ const ProjectClosurePage = () => {
             <p><strong>Patrocinador:</strong> {summaryData.patrocinadorNombre || 'No registrado'} {summaryData.patrocinadorCargo ? `- ${summaryData.patrocinadorCargo}` : ''} {summaryData.patrocinadorEntidad ? `- ${summaryData.patrocinadorEntidad}` : ''}</p>
             <p><strong>Director:</strong> {summaryData.director || 'No registrado'} {summaryData.directorCargo ? `- ${summaryData.directorCargo}` : ''} {summaryData.directorEntidad ? `- ${summaryData.directorEntidad}` : ''}</p>
             <p><strong>Objetivo general:</strong> {summaryData.objetivoGeneral || 'No registrado'}</p>
-            <p><strong>Objetivos especificos:</strong> {Array.isArray(summaryData.objetivosEspecificos) && summaryData.objetivosEspecificos.length > 0 ? summaryData.objetivosEspecificos.length : 0}</p>
+            <p><strong>Objetivos especificos:</strong> {Array.isArray(summaryData.objetivosEspecificos) ? summaryData.objetivosEspecificos.length : 0}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="closure-form">
-          <div className="form-group">
-            <label htmlFor="resumen-ejecutivo">
-              Resumen Ejecutivo <span className="required-asterisk">*</span>
-            </label>
-            <div className="textarea-container">
-              <textarea
-                id="resumen-ejecutivo"
-                className="resumen-textarea"
-                placeholder="Resumen de los logros obtenidos al finalizar el proyecto."
-                value={resumenEjecutivo}
-                onChange={(e) => setResumenEjecutivo(e.target.value)}
-                disabled={isDisabled}
-                maxLength={2000}
-                required
-              />
-              <div className={`char-count ${resumenEjecutivo.length >= 100 ? 'char-ok' : resumenEjecutivo.length > 0 ? 'char-warn' : ''}`}>
-                {resumenEjecutivo.length} / 100 caracteres minimos
-                {resumenEjecutivo.length >= 100 && ' ✓'}
-              </div>
+          {questionsLoading ? (
+            <div className="closure-dyn-loading"><span>Cargando preguntas...</span></div>
+          ) : resolvedTemplate?.secciones ? (
+            <div className="closure-dyn-questions">
+              {resolvedTemplate.secciones.map((seccion) => (
+                <div key={seccion.id || seccion.titulo} className="closure-dyn-section">
+                  <h3 className="closure-dyn-section-title">{seccion.titulo}</h3>
+                  {seccion.tipo_seccion === 'formulario' && seccion.campos?.map((campo) => {
+                    if (campo.activo === false) return null;
+                    const value = campo.resolvedValue || answers[campo.questionId] || '';
+                    const isLinked = !!campo.questionId;
+                    return (
+                      <div key={campo.id} className="closure-dyn-field">
+                        <label className="closure-dyn-label">
+                          {campo.label}
+                          {isLinked && <span className="closure-dyn-linked-badge">VINCULADO</span>}
+                        </label>
+                        {campo.tipo_input === 'texto_largo' ? (
+                          <textarea className="closure-dyn-textarea" value={value} onChange={(e) => {
+                            if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
+                          }} disabled={isDisabled || isLinked} maxLength={2000} rows={4} />
+                        ) : campo.tipo_input === 'fecha' ? (
+                          <input type="date" className="closure-dyn-input" value={value} onChange={(e) => {
+                            if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
+                          }} disabled={isDisabled || isLinked} />
+                        ) : (
+                          <input type="text" className="closure-dyn-input" value={value} onChange={(e) => {
+                            if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
+                          }} disabled={isDisabled || isLinked} maxLength={500} />
+                        )}
+                        {isLinked && !value && <span className="closure-dyn-empty-hint">Sin respuesta en el banco de preguntas</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="lecciones-positivas">
-              Lecciones aprendidas: aspectos positivos <span className="required-asterisk">*</span>
-            </label>
-            <textarea
-              id="lecciones-positivas"
-              className="resumen-textarea"
-              placeholder="Describe que funciono bien durante el proyecto."
-              value={leccionesPositivas}
-              onChange={(e) => setLeccionesPositivas(e.target.value)}
-              disabled={isDisabled}
-              maxLength={2000}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="lecciones-mejorar">
-              Lecciones aprendidas: aspectos a mejorar <span className="required-asterisk">*</span>
-            </label>
-            <textarea
-              id="lecciones-mejorar"
-              className="resumen-textarea"
-              placeholder="Describe que se debe ajustar o mejorar en futuros proyectos."
-              value={leccionesMejorar}
-              onChange={(e) => setLeccionesMejorar(e.target.value)}
-              disabled={isDisabled}
-              maxLength={2000}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="recomendaciones">
-              Recomendaciones para futuros proyectos <span className="required-asterisk">*</span>
-            </label>
-            <textarea
-              id="recomendaciones"
-              className="resumen-textarea"
-              placeholder="Incluye recomendaciones operativas, tecnicas o de gestion."
-              value={recomendaciones}
-              onChange={(e) => setRecomendaciones(e.target.value)}
-              disabled={isDisabled}
-              maxLength={2000}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="transferencia-actividad">
-              Transferencia de conocimiento: actividad ejecutada <span className="required-asterisk">*</span>
-            </label>
-            <textarea
-              id="transferencia-actividad"
-              className="resumen-textarea"
-              placeholder="Describe la capacitacion, taller, video, curso o metodo aplicado."
-              value={transferenciaActividad}
-              onChange={(e) => setTransferenciaActividad(e.target.value)}
-              disabled={isDisabled}
-              maxLength={1500}
-              required
-            />
-          </div>
-
-          <div className="form-control-row">
-            <div className="form-group col-half">
-              <label htmlFor="transferencia-fecha">
-                Fecha de transferencia <span className="required-asterisk">*</span>
-              </label>
-              <div className="input-with-icon">
-                <Calendar size={18} className="input-icon" />
-                <input
-                  type="date"
-                  id="transferencia-fecha"
-                  value={transferenciaFecha}
-                  onChange={(e) => setTransferenciaFecha(e.target.value)}
-                  disabled={isDisabled}
-                  required
-                />
-              </div>
+          ) : questions.length > 0 ? (
+            <div className="closure-dyn-questions">
+              {questions.map(renderQuestion)}
             </div>
-
-            <div className="form-group col-half">
-              <label htmlFor="fecha-cierre">
-                Fecha de Cierre <span className="required-asterisk">*</span>
-              </label>
-              <div className="input-with-icon">
-                <Calendar size={18} className="input-icon" />
-                <input
-                  type="date"
-                  id="fecha-cierre"
-                  value={fechaCierre}
-                  onChange={(e) => setFechaCierre(e.target.value)}
-                  disabled={isDisabled}
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="transferencia-ubicacion">
-              Ubicacion de la evidencia <span className="required-asterisk">*</span>
-            </label>
-            <textarea
-              id="transferencia-ubicacion"
-              className="resumen-textarea"
-              placeholder="Ruta, enlace o ubicacion fisica de la evidencia de la transferencia."
-              value={transferenciaUbicacionEvidencia}
-              onChange={(e) => setTransferenciaUbicacionEvidencia(e.target.value)}
-              disabled={isDisabled}
-              maxLength={500}
-              required
-            />
-          </div>
+          ) : (
+            <div className="closure-dyn-empty"><p>No hay preguntas configuradas para el acta de cierre.</p></div>
+          )}
 
           <div className="form-group">
             <label>
@@ -493,7 +450,7 @@ const ProjectClosurePage = () => {
               {summaryData.entregables && summaryData.entregables.length > 0 ? (
                 summaryData.entregables.map((entregable, index) => (
                   <div key={index} className="deliverable-item">
-                    <span className="bullet">•</span>
+                    <span className="bullet">&bull;</span>
                     <span className="deliverable-text">{entregable}</span>
                   </div>
                 ))
@@ -509,12 +466,7 @@ const ProjectClosurePage = () => {
               <label htmlFor="avance-final">Avance Final (calculado)</label>
               <div className="input-with-icon disabled-input-wrapper">
                 <Lock size={16} className="input-icon locked-icon" />
-                <input
-                  type="text"
-                  id="avance-final"
-                  value={`${summaryData.avanceTotal}% - calculado automaticamente`}
-                  disabled
-                />
+                <input type="text" id="avance-final" value={`${summaryData.avanceTotal}% - calculado automaticamente`} disabled />
               </div>
             </div>
           </div>
@@ -534,12 +486,7 @@ const ProjectClosurePage = () => {
                 <CheckCircle2 size={18} />
                 <span>El proyecto esta listo para solicitar cierre.</span>
               </div>
-              <button
-                type="button"
-                className="btn-primary-closure"
-                onClick={handleSolicitarCierre}
-                disabled={requestingClosure}
-              >
+              <button type="button" className="btn-primary-closure" onClick={handleSolicitarCierre} disabled={requestingClosure}>
                 <Send size={16} style={{ marginRight: '8px' }} />
                 {requestingClosure ? 'Enviando solicitud...' : 'Solicitar Cierre al Gestor'}
               </button>
@@ -552,11 +499,7 @@ const ProjectClosurePage = () => {
                 <CheckCircle2 size={18} />
                 <span>El Director ha solicitado el cierre. Puede proceder a cerrar el proyecto.</span>
               </div>
-              <button
-                type="submit"
-                className="btn-primary-closure"
-                disabled={submitting || resumenEjecutivo.length < 100}
-              >
+              <button type="submit" className="btn-primary-closure" disabled={submitting}>
                 {submitting ? 'Procesando cierre...' : 'Cerrar Proyecto'}
               </button>
             </div>
@@ -564,12 +507,7 @@ const ProjectClosurePage = () => {
 
           {summaryData.estado === 'CERRADO' && !successMsg && (
             <div className="form-actions">
-              <button
-                type="button"
-                className="btn-primary-closure"
-                onClick={handleDownloadActa}
-                disabled={downloadingActa}
-              >
+              <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa}>
                 <Download size={16} style={{ marginRight: '8px' }} />
                 {downloadingActa ? 'Descargando acta...' : 'Descargar acta de cierre'}
               </button>

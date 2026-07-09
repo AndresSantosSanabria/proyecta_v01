@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BellRing, CheckCheck, LoaderCircle, X, FolderKanban } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
@@ -28,6 +29,7 @@ const cleanTitle = (title) => {
 
 const NotificationBell = () => {
   const { backendLoading } = useAuthContext();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(0);
@@ -68,10 +70,14 @@ const NotificationBell = () => {
 
   const unreadItems = useMemo(() => items.filter((item) => !item.readStatus), [items]);
 
-  const markRead = async (item) => {
+  const handleNotificationClick = async (item) => {
     try {
       await securityService.markNotificationAsRead(item.id);
+      setOpen(false);
       await load();
+      if (item.targetUrl) {
+        navigate(item.targetUrl);
+      }
     } catch {
       setOpen(true);
     }
@@ -111,7 +117,7 @@ const NotificationBell = () => {
               unreadItems.map((item) => {
                 const projectId = extractProjectId(item.title);
                 return (
-                  <button key={item.id} type="button" className="notification-bell__item" onClick={() => markRead(item)}>
+                  <button key={item.id} type="button" className="notification-bell__item" onClick={() => handleNotificationClick(item)}>
                     <div className="notification-bell__item-header">
                       <span className="notification-bell__item-title">{cleanTitle(item.title)}</span>
                       <span className="notification-bell__item-date">{formatTime(item.createdAt)}</span>

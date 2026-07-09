@@ -222,8 +222,18 @@ const projectService = {
    * @param {string|number} id
    * @returns {Promise<Object>}
    */
-  solicitarCierre: async (id) => {
-    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/solicitar`);
+  solicitarCierre: async (id, payload) => {
+    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/solicitar`, payload);
+    return data;
+  },
+
+  aprobarCierre: async (id) => {
+    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/aprobar`);
+    return data;
+  },
+
+  rechazarCierre: async (id, observaciones) => {
+    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/rechazar`, { observaciones });
     return data;
   },
 

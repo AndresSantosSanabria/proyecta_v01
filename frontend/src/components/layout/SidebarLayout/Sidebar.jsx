@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   CheckSquare,
   BarChart3,
-  UserCircle2
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import dashboardService from '../../../services/dashboardService';
@@ -52,23 +51,6 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
 
   const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
-  const assignedProjectItems = Array.isArray(assignedProjects)
-    ? assignedProjects
-        .map((item) => {
-          if (typeof item === 'string') {
-            return { id: item, label: item };
-          }
-
-          if (item && typeof item === 'object') {
-            const id = item.codigo || item.id || item.proyectoId || item.proyecto_id;
-            const label = item.nombre || item.nombreProyecto || item.name || id;
-            return id ? { id, label } : null;
-          }
-
-          return null;
-        })
-        .filter(Boolean)
-    : [];
 
   useEffect(() => {
     const fetchVisibleProjectCount = async () => {
@@ -132,14 +114,6 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
         canViewProjects ? { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: visibleProjectCount } : null,
       ])
     },
-    ...(isDirectorProjectRole && assignedProjectItems.length > 0 ? [{
-      category: 'MIS PROYECTOS',
-      items: assignedProjectItems.map((project) => ({
-        name: project.label,
-        path: `/projects/${project.id}/progress`,
-        icon: <Activity size={22} />,
-      }))
-    }] : []),
     {
       category: 'MODULOS',
       items: currentProjectId ? [

@@ -66,34 +66,58 @@
   margin-top: 0.15rem;
 }
 
+/* Rejection Banner */
+.rejection-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+  color: var(--danger);
+}
+
+.rejection-icon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--danger);
+}
+
+.rejection-observaciones {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.06);
+  border-left: 3px solid var(--danger);
+  border-radius: 6px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.rejection-hint {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 /* Conditionally Rendered Validation Alert Banner */
 .validation-warning-banner {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  background-color: #fef2f2; /* pinkish / light red background */
-  border: 1px solid #fecaca; /* sutil light red border */
+  background-color: var(--danger-soft);
+  border: 1px solid var(--danger);
   border-radius: var(--radius);
   padding: 1.25rem;
   margin-bottom: 2rem;
-  color: #991b1b; /* dark red text for contrast */
-}
-
-/* Dark Mode adaptation for validation banner */
-.dark .validation-warning-banner {
-  background-color: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  color: var(--danger);
 }
 
 .warning-icon {
-  color: #dc2626;
+  color: var(--danger);
   flex-shrink: 0;
   margin-top: 0.15rem;
-}
-
-.dark .warning-icon {
-  color: #f87171;
 }
 
 /* Info Closed Banner */
@@ -121,6 +145,16 @@
   color: var(--success);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.closure-pending-note {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+}
+
+.gestor-pending-note {
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--primary);
 }
 
 .closed-icon {
@@ -396,6 +430,13 @@
   margin-top: 1rem;
 }
 
+.gestor-review-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .btn-primary-closure {
   background-color: var(--primary);
   color: white;
@@ -426,6 +467,62 @@
   box-shadow: none;
 }
 
+/* Approve Button (green) */
+.btn-approve-closure {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--success);
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--radius);
+  border: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-approve-closure:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.btn-approve-closure:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Reject Button (red) */
+.btn-reject-closure {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--danger);
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--radius);
+  border: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reject-closure:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.btn-reject-closure:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Error message block */
 .error-message-box {
   display: flex;
@@ -439,6 +536,184 @@
   font-size: 0.9rem;
 }
 
+/* Confirm Modal */
+.closure-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.closure-confirm-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 2rem;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modalSlideIn 0.25s ease-out;
+}
+
+.closure-reject-modal {
+  width: 480px;
+}
+
+.closure-confirm-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.reject-icon-wrapper {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.reject-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.reject-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.reject-modal-close:hover {
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+.closure-confirm-modal h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 0.5rem;
+}
+
+.closure-confirm-modal p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
+.closure-confirm-modal p strong {
+  color: var(--text-main);
+}
+
+.reject-observaciones-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  transition: all 0.2s ease;
+  margin-bottom: 0.35rem;
+  box-sizing: border-box;
+}
+
+.reject-observaciones-textarea:focus {
+  outline: none;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.reject-char-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: 1rem;
+}
+
+.closure-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.closure-confirm-btn-cancel {
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.closure-confirm-btn-cancel:hover {
+  background: var(--bg-main);
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+
+.closure-confirm-btn-ok {
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.closure-confirm-btn-ok:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.closure-confirm-btn-ok:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-reject-closure-modal {
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--danger);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-reject-closure-modal:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btn-reject-closure-modal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Animations */
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -449,10 +724,297 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 /* Responsive grid control row */
 @media (max-width: 640px) {
   .form-control-row {
     flex-direction: column;
     gap: 1.25rem;
   }
+
+  .gestor-review-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gestor-review-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── DYNAMIC FORM (TEMPLATE-BASED) ─────────────── */
+.closure-dyn-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.closure-dynamic-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.closure-dyn-section {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.closure-dyn-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  padding: 12px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  margin: 0;
+}
+
+.closure-dyn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.closure-dyn-field:last-child {
+  border-bottom: none;
+}
+
+.closure-dyn-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.closure-dyn-required {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.closure-dyn-char-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.closure-dyn-char-count.ok {
+  color: var(--success);
+}
+
+.closure-dyn-char-count.warn {
+  color: var(--warning);
+}
+
+.closure-dyn-input,
+.closure-dyn-textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.closure-dyn-input:focus,
+.closure-dyn-textarea:focus {
+  border-color: var(--primary);
+}
+
+.closure-dyn-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Dynamic table */
+.closure-dyn-table-wrapper {
+  padding: 14px 20px;
+}
+
+.closure-dyn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.closure-dyn-th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.closure-dyn-th-num {
+  width: 36px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 6px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.closure-dyn-th-action {
+  width: 40px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.closure-dyn-td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.closure-dyn-td-num {
+  text-align: center;
+  padding: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.closure-dyn-td-action {
+  padding: 6px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.closure-dyn-table-input {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  outline: none;
+}
+
+.closure-dyn-table-input:focus {
+  border-color: var(--primary);
+}
+
+.closure-dyn-empty {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.closure-dyn-btn-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--danger);
+  padding: 4px;
+  border-radius: var(--radius-xs);
+  display: inline-flex;
+  align-items: center;
+}
+
+.closure-dyn-btn-remove:hover {
+  background: var(--danger-soft);
+}
+
+.closure-dyn-add-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px dashed var(--primary);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.closure-dyn-add-row:hover {
+  background: var(--primary-soft);
+}
+
+/* ── DYNAMIC QUESTIONS ─────────────────────────── */
+.closure-dyn-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.closure-dyn-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.closure-dyn-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.closure-dyn-option input[type="radio"],
+.closure-dyn-option input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+}
+
+/* ── LINKED QUESTION STYLES ────────────────────── */
+.closure-dyn-linked-badge {
+  display: inline-flex;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.closure-dyn-empty-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.closure-dyn-section {
+  margin-bottom: 16px;
+}
+
+.closure-dyn-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
 }
