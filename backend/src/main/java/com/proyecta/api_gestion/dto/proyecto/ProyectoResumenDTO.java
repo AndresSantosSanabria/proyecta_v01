@@ -29,5 +29,8 @@ public record ProyectoResumenDTO(
     long totalEntregables,
     @JsonProperty("puede_cerrar") boolean puedeCerrar,
     List<String> entregables,
-    @JsonProperty("cierre_solicitado") boolean cierreSolicitado
+    @JsonProperty("cierre_solicitado") boolean cierreSolicitado,
+    @JsonProperty("cierre_estado") String cierreEstado,
+    @JsonProperty("cierre_observaciones") String cierreObservaciones,
+    @JsonProperty("cierre_borrador_json") String cierreBorradorJson
 ) {}

@@ -217,8 +217,9 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         ProyectoBeneficioImpacto record = beneficioImpactoRepository.findByProyecto_Id(normalizeProjectId(proyectoId))
                 .orElseThrow(() -> new UnprocessableEntityException("El proyecto debe registrar la informacion de beneficio e impacto antes del cierre."));
 
-        if (record.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO) {
-            throw new UnprocessableEntityException("La informacion de beneficio e impacto es obligatoria y debe quedar en estado DILIGENCIADO antes del cierre.");
+        if (record.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO
+                && record.getEstado() != EstadoBeneficioImpacto.APROBADO) {
+            throw new UnprocessableEntityException("La informacion de beneficio e impacto es obligatoria y debe estar en estado DILIGENCIADO o APROBADO antes del cierre.");
         }
     }
 

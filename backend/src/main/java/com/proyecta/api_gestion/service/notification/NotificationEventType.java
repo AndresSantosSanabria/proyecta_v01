@@ -18,5 +18,7 @@ public enum NotificationEventType {
     RISK_UPDATED,
     RISK_TREATED,
     CLOSURE_REQUESTED,
+    CLOSURE_APPROVED,
+    CLOSURE_REJECTED,
     SECURITY_ROLE_UPDATED
 }

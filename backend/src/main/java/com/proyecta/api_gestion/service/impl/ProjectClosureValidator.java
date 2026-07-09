@@ -95,8 +95,8 @@ public class ProjectClosureValidator {
         }
 
         List<ObjetivoEspecifico> objetivos = proyecto.getObjetivosEspecificos();
-        if (objetivos == null || objetivos.stream().noneMatch(obj -> obj != null && obj.getDescripcion() != null && !obj.getDescripcion().isBlank())) {
-            throw new BadRequestException("Validacion fallida: el proyecto no tiene objetivos especificos registrados.");
+        if (objetivos != null) {
+            objetivos.removeIf(obj -> obj == null || obj.getDescripcion() == null || obj.getDescripcion().isBlank());
         }
 
         if (proyecto.getPatrocinador() == null

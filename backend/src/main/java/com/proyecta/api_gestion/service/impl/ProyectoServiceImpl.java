@@ -462,7 +462,10 @@ public class ProyectoServiceImpl implements ProyectoService {
                 totalEntregables,
                 puedeCerrar,
                 entregables,
-                Boolean.TRUE.equals(p.getCierreSolicitado())
+                Boolean.TRUE.equals(p.getCierreSolicitado()),
+                p.getCierreEstado(),
+                p.getCierreObservaciones(),
+                p.getCierreBorradorJson()
         );
     }
 

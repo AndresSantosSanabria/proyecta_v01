@@ -41,6 +41,9 @@ public class InAppNotification {
     @Column(name = "severity", length = 30)
     private String severity;
 
+    @Column(name = "target_url", columnDefinition = "TEXT")
+    private String targetUrl;
+
     @PrePersist
     void onCreate() {
         if (createdAt == null) {
@@ -68,4 +71,6 @@ public class InAppNotification {
     public void setSourceEntityId(String sourceEntityId) { this.sourceEntityId = sourceEntityId; }
     public String getSeverity() { return severity; }
     public void setSeverity(String severity) { this.severity = severity; }
+    public String getTargetUrl() { return targetUrl; }
+    public void setTargetUrl(String targetUrl) { this.targetUrl = targetUrl; }
 }

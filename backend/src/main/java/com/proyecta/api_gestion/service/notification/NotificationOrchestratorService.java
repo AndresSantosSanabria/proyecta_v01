@@ -22,6 +22,30 @@ public class NotificationOrchestratorService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationOrchestratorService.class);
 
+    private static final Map<String, String> EVENT_ROUTE_MAP;
+    static {
+        var tmp = new java.util.HashMap<String, String>();
+        tmp.put("CLOSURE_REQUESTED", "/closure");
+        tmp.put("CLOSURE_APPROVED", "/closure");
+        tmp.put("CLOSURE_REJECTED", "/closure");
+        tmp.put("PROJECT_CLOSED", "/closure");
+        tmp.put("DELIVERABLE_EVIDENCE_UPLOADED", "/progress");
+        tmp.put("DELIVERABLE_APPROVED", "/progress");
+        tmp.put("DELIVERABLE_REJECTED", "/progress");
+        tmp.put("OBSERVATION_SUBSANATED", "/progress");
+        tmp.put("PROJECT_DELAYED", "/schedule");
+        tmp.put("PROJECT_INITIAL_REGISTERED", "/progress");
+        tmp.put("PROJECT_INITIAL_COMPLETED", "/progress");
+        tmp.put("PROJECT_UPDATED", "/progress");
+        tmp.put("PROJECT_BENEFIT_IMPACT_REQUIRED", "/progress");
+        tmp.put("PROJECT_BENEFIT_IMPACT_SUBMITTED", "/progress");
+        tmp.put("PROJECT_BENEFIT_IMPACT_REVIEWED", "/progress");
+        tmp.put("RISK_CREATED", "/risks");
+        tmp.put("RISK_UPDATED", "/risks");
+        tmp.put("RISK_TREATED", "/risks");
+        EVENT_ROUTE_MAP = java.util.Map.copyOf(tmp);
+    }
+
     private final NotificationRecipientResolverPort recipientResolver;
     private final NotificationTemplateService templateService;
     private final NotificationPreferenceService preferenceService;
@@ -94,12 +118,14 @@ public class NotificationOrchestratorService {
 
             log.debug("[Notification] Dispatching event {} to {} final recipients", context.eventType(), finalRecipients.size());
 
+            String targetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
+
             // 4. Dispatch with Audit
             for (String recipient : finalRecipients) {
                 // In-App
                 try {
                     inAppService.create(recipient, title, message.body(),
-                            context.eventType().name(), template.getSeverity(), context.projectId());
+                            context.eventType().name(), template.getSeverity(), context.projectId(), targetUrl);
                     auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "IN_APP", "SENT", null));
                 } catch (Exception ex) {
                     log.warn("[Notification] In-app creation failed for recipient {} - {}", recipient, ex.getMessage());
@@ -127,5 +153,16 @@ public class NotificationOrchestratorService {
         } finally {
             MDC.clear();
         }
+    }
+
+    private String resolveTargetUrl(String eventCode, String projectId) {
+        if (projectId == null || projectId.isBlank()) {
+            return null;
+        }
+        String route = EVENT_ROUTE_MAP.get(eventCode);
+        if (route == null) {
+            return null;
+        }
+        return "/projects/" + projectId.toLowerCase() + route;
     }
 }

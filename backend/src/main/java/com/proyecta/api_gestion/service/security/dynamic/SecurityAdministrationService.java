@@ -521,7 +521,6 @@ public class SecurityAdministrationService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
         boolean transversal = roleCodes.stream().anyMatch(SecurityRoleCatalog::isTransversal);
-        List<String> projects = catalogCacheService.getProjectsForUser(username);
         boolean administradorLocal = false;
 
         if (jwt != null) {
@@ -530,6 +529,8 @@ public class SecurityAdministrationService {
             usuario.setUltimoAcceso(LocalDateTime.now());
             usuarioRepository.save(usuario);
         }
+
+        List<String> projects = catalogCacheService.getProjectsForUser(username);
         try {
             Usuario localUser = localUserAuthorizationService.requireLocalUser(authentication);
             administradorLocal = administradorLocal || localUser.esAdministrador();

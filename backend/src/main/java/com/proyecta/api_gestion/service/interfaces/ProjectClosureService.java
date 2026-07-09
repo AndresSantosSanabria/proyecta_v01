@@ -7,6 +7,8 @@ import org.springframework.security.core.Authentication;
 
 public interface ProjectClosureService {
     CierreProyectoResponse cerrarProyecto(String projectId, CierreProyectoRequest request);
-    CierreProyectoResponse solicitarCierre(String projectId, Authentication authentication);
+    CierreProyectoResponse solicitarCierre(String projectId, CierreProyectoRequest request, Authentication authentication);
+    CierreProyectoResponse aprobarCierre(String projectId, Authentication authentication);
+    CierreProyectoResponse rechazarCierre(String projectId, String observaciones, Authentication authentication);
     Resource descargarActaCierre(String projectId);
 }

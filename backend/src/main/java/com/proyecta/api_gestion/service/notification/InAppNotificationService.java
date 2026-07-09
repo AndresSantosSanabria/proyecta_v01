@@ -23,12 +23,11 @@ public class InAppNotificationService {
     }
 
     @Transactional
-    public InAppNotification create(String usernameOrEmail, String title, String message, String eventCode, String severity, String sourceEntityId) {
+    public InAppNotification create(String usernameOrEmail, String title, String message, String eventCode, String severity, String sourceEntityId, String targetUrl) {
         SeguridadUsuario user = usuarioRepository.findByUsernameIgnoreCase(usernameOrEmail)
                 .or(() -> usuarioRepository.findByCorreoIgnoreCase(usernameOrEmail))
                 .orElse(null);
         if (user == null) {
-            // Recipient not found as a local user — skip silently (best-effort)
             return null;
         }
         InAppNotification notification = new InAppNotification();
@@ -38,6 +37,7 @@ public class InAppNotificationService {
         notification.setEventCode(eventCode);
         notification.setSeverity(severity);
         notification.setSourceEntityId(sourceEntityId);
+        notification.setTargetUrl(targetUrl);
         return repository.save(notification);
     }
 
@@ -75,7 +75,8 @@ public class InAppNotificationService {
                 notification.getEventCode(),
                 notification.getReadStatus(),
                 notification.getCreatedAt(),
-                notification.getSeverity()
+                notification.getSeverity(),
+                notification.getTargetUrl()
         );
     }
 }

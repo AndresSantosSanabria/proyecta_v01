@@ -41,9 +41,34 @@ public class ProjectClosureController implements IProjectClosureController {
     @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:SOLICITAR', #id, authentication)")
     public ResponseEntity<CierreProyectoResponse> solicitarCierre(
             @PathVariable String id,
+            @Valid @RequestBody CierreProyectoRequest request,
             Authentication authentication) {
 
-        CierreProyectoResponse response = closureService.solicitarCierre(id, authentication);
+        CierreProyectoResponse response = closureService.solicitarCierre(id, request, authentication);
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @PostMapping("/{id}/cierre/aprobar")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:APROBAR', #id, authentication)")
+    public ResponseEntity<CierreProyectoResponse> aprobarCierre(
+            @PathVariable String id,
+            Authentication authentication) {
+
+        CierreProyectoResponse response = closureService.aprobarCierre(id, authentication);
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @PostMapping("/{id}/cierre/rechazar")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:APROBAR', #id, authentication)")
+    public ResponseEntity<CierreProyectoResponse> rechazarCierre(
+            @PathVariable String id,
+            @RequestBody java.util.Map<String, String> body,
+            Authentication authentication) {
+
+        String observaciones = body.getOrDefault("observaciones", "");
+        CierreProyectoResponse response = closureService.rechazarCierre(id, observaciones, authentication);
         return ResponseEntity.ok(response);
     }
 

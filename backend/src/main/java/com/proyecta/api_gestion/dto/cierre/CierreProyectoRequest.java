@@ -35,5 +35,7 @@ public record CierreProyectoRequest(
     String transferenciaUbicacionEvidencia,
 
     @JsonFormat(pattern = "yyyy-MM-dd")
-    LocalDate fechaCierre
+    LocalDate fechaCierre,
+
+    String formData
 ) {}

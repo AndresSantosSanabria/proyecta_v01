@@ -9,6 +9,7 @@ public record InAppNotificationDTO(
         String eventCode,
         Boolean readStatus,
         LocalDateTime createdAt,
-        String severity
+        String severity,
+        String targetUrl
 ) {
 }

@@ -92,5 +92,34 @@ public interface IProjectClosureController {
     @PostMapping("/{id}/cierre/solicitar")
     ResponseEntity<CierreProyectoResponse> solicitarCierre(
             @Parameter(description = "ID del proyecto") @PathVariable String id,
+            @RequestBody CierreProyectoRequest request,
+            Authentication authentication);
+
+    @Operation(
+        summary = "Aprobar solicitud de cierre",
+        description = """
+            El Gestor o Administrador aprueba la solicitud de cierre del Director.
+            Marca cierre_estado = APROBADO y notifica al Director.
+            """
+    )
+    @StandardApiResponses
+    @PostMapping("/{id}/cierre/aprobar")
+    ResponseEntity<CierreProyectoResponse> aprobarCierre(
+            @Parameter(description = "ID del proyecto") @PathVariable String id,
+            Authentication authentication);
+
+    @Operation(
+        summary = "Rechazar solicitud de cierre",
+        description = """
+            El Gestor o Administrador rechaza la solicitud de cierre del Director.
+            Requiere observaciones obligatorias. Marca cierre_estado = RECHAZADO,
+            resetea cierre_solicitado = false y notifica al Director con las observaciones.
+            """
+    )
+    @StandardApiResponses
+    @PostMapping("/{id}/cierre/rechazar")
+    ResponseEntity<CierreProyectoResponse> rechazarCierre(
+            @Parameter(description = "ID del proyecto") @PathVariable String id,
+            @RequestBody java.util.Map<String, String> body,
             Authentication authentication);
 }

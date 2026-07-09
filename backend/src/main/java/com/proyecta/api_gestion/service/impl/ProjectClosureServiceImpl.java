@@ -23,6 +23,8 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
+import com.proyecta.api_gestion.service.closure.DynamicClosurePdfService;
+import com.proyecta.api_gestion.service.closure.ClosureTemplateService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.core.io.Resource;
@@ -58,6 +60,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final ObjectMapper objectMapper;
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
+    private final DynamicClosurePdfService dynamicPdfService;
+    private final ClosureTemplateService templateService;
 
     public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
                                      ActaCierreRepository actaCierreRepository,
@@ -69,7 +73,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      IStorageProvider storageProvider,
                                      ObjectMapper objectMapper,
                                      NotificationEventPublisherPort notificationPublisher,
-                                     KeycloakIdentityExtractor identityExtractor) {
+                                     KeycloakIdentityExtractor identityExtractor,
+                                     DynamicClosurePdfService dynamicPdfService,
+                                     ClosureTemplateService templateService) {
         this.proyectoRepository = proyectoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -81,6 +87,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.objectMapper = objectMapper;
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
+        this.dynamicPdfService = dynamicPdfService;
+        this.templateService = templateService;
     }
 
     @Override
@@ -129,41 +137,48 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 .sorted(Comparator.comparing(ObjetivoEspecifico::getOrden, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
-        List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
-        ActaCierrePdfGenerator.ActaCierrePdfData pdfData = new ActaCierrePdfGenerator.ActaCierrePdfData(
-                proyecto.getId(),
-                proyecto.getNombre(),
-                patrocinador != null ? patrocinador.getNombre() : null,
-                patrocinador != null ? patrocinador.getCargo() : null,
-                patrocinadorEntidad,
-                directorAsignado.getUsuario() != null ? directorAsignado.getUsuario().getNombre() : proyecto.getDirector(),
-                directorAsignado.getCargo(),
-                directorEntidad,
-                formatDate(proyecto.getFechaInicio()),
-                formatDate(corteCalculo),
-                calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
-                proyecto.getObjetivoGeneral(),
-                objetivosEspecificos.stream()
-                        .map(ObjetivoEspecifico::getDescripcion)
-                        .filter(value -> value != null && !value.isBlank())
-                        .toList(),
-                request.resumenEjecutivo(),
-                request.leccionesPositivas(),
-                request.leccionesMejorar(),
-                request.recomendaciones(),
-                request.transferenciaActividad(),
-                formatDate(transferenciaFecha),
-                request.transferenciaUbicacionEvidencia(),
-                formatPercent(avanceFinal),
-                formatPercent(snapshot.progresoProgramado()),
-                formatPercent(snapshot.progresoEjecutado()),
-                formatPercent(snapshot.diferencia()),
-                formatRatio(snapshot.eficacia()),
-                snapshot.estado(),
-                entregables
-        );
-
-        byte[] pdfBytes = pdfGenerator.build(pdfData);
+        byte[] pdfBytes;
+        if (request.formData() != null && !request.formData().isBlank()) {
+            String templateJson = templateService.getActiveTemplateJson();
+            templateService.validarFormData(templateJson, request.formData());
+            pdfBytes = dynamicPdfService.generatePdf(templateJson, request.formData(),
+                    "A-GT-FR-004", 1, "Acta de Cierre del Proyecto");
+        } else {
+            List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
+            ActaCierrePdfGenerator.ActaCierrePdfData pdfData = new ActaCierrePdfGenerator.ActaCierrePdfData(
+                    proyecto.getId(),
+                    proyecto.getNombre(),
+                    patrocinador != null ? patrocinador.getNombre() : null,
+                    patrocinador != null ? patrocinador.getCargo() : null,
+                    patrocinadorEntidad,
+                    directorAsignado.getUsuario() != null ? directorAsignado.getUsuario().getNombre() : proyecto.getDirector(),
+                    directorAsignado.getCargo(),
+                    directorEntidad,
+                    formatDate(proyecto.getFechaInicio()),
+                    formatDate(corteCalculo),
+                    calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
+                    proyecto.getObjetivoGeneral(),
+                    objetivosEspecificos.stream()
+                            .map(ObjetivoEspecifico::getDescripcion)
+                            .filter(value -> value != null && !value.isBlank())
+                            .toList(),
+                    request.resumenEjecutivo(),
+                    request.leccionesPositivas(),
+                    request.leccionesMejorar(),
+                    request.recomendaciones(),
+                    request.transferenciaActividad(),
+                    formatDate(transferenciaFecha),
+                    request.transferenciaUbicacionEvidencia(),
+                    formatPercent(avanceFinal),
+                    formatPercent(snapshot.progresoProgramado()),
+                    formatPercent(snapshot.progresoEjecutado()),
+                    formatPercent(snapshot.diferencia()),
+                    formatRatio(snapshot.eficacia()),
+                    snapshot.estado(),
+                    entregables
+            );
+            pdfBytes = pdfGenerator.build(pdfData);
+        }
         String nombreArchivo = buildActaFileName(projectId, fechaCierre);
         String rutaArchivo = STORAGE_SUBDIR;
         String storedFileName = storageProvider.storeBytes(pdfBytes, rutaArchivo, nombreArchivo);
@@ -215,7 +230,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
 
     @Override
     @Transactional
-    public CierreProyectoResponse solicitarCierre(String projectId, Authentication authentication) {
+    public CierreProyectoResponse solicitarCierre(String projectId, CierreProyectoRequest request, Authentication authentication) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
 
@@ -227,11 +242,25 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             return CierreProyectoResponse.error("Ya existe una solicitud de cierre activa para este proyecto.");
         }
 
+        if (request.formData() != null && !request.formData().isBlank()) {
+            String templateJson = templateService.getActiveTemplateJson();
+            templateService.validarFormData(templateJson, request.formData());
+        }
+
         String actorUsername = identityExtractor.resolveUsername(authentication);
         LocalDateTime now = LocalDateTime.now();
         proyecto.setCierreSolicitado(true);
         proyecto.setCierreSolicitadoEn(now);
         proyecto.setCierreSolicitadoPor(actorUsername);
+        proyecto.setCierreEstado("PENDIENTE");
+        proyecto.setCierreObservaciones(null);
+        
+        try {
+            proyecto.setCierreBorradorJson(objectMapper.writeValueAsString(request));
+        } catch (Exception ex) {
+            throw new IllegalStateException("No fue posible guardar el borrador del acta de cierre", ex);
+        }
+        
         proyectoRepository.save(proyecto);
 
         List<String> gestorEmails = usuarioProyectoRepository
@@ -254,6 +283,88 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
 
         return CierreProyectoResponse.success(
                 "Solicitud de cierre enviada al Gestor del proyecto.",
+                now,
+                null,
+                null,
+                null
+        );
+    }
+
+    @Override
+    @Transactional
+    public CierreProyectoResponse aprobarCierre(String projectId, Authentication authentication) {
+        Proyecto proyecto = proyectoRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+
+        if (!proyecto.cierrePendienteRevision()) {
+            return CierreProyectoResponse.error("No hay una solicitud de cierre pendiente de revision para este proyecto.");
+        }
+
+        String actorUsername = identityExtractor.resolveUsername(authentication);
+        LocalDateTime now = LocalDateTime.now();
+        proyecto.setCierreEstado("APROBADO");
+        proyecto.setCierreObservaciones(null);
+        proyectoRepository.save(proyecto);
+
+        String directorEmail = proyecto.getCorreoDirector();
+        List<String> recipients = directorEmail != null ? List.of(directorEmail) : List.of("sistema@proyecta.com");
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.CLOSURE_APPROVED,
+                projectId,
+                actorUsername,
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "approver", actorUsername,
+                        "recipients", recipients
+                )));
+
+        return CierreProyectoResponse.success(
+                "Cierre del proyecto aprobado exitosamente.",
+                now,
+                null,
+                null,
+                null
+        );
+    }
+
+    @Override
+    @Transactional
+    public CierreProyectoResponse rechazarCierre(String projectId, String observaciones, Authentication authentication) {
+        Proyecto proyecto = proyectoRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+
+        if (!proyecto.cierrePendienteRevision()) {
+            return CierreProyectoResponse.error("No hay una solicitud de cierre pendiente de revision para este proyecto.");
+        }
+
+        if (observaciones == null || observaciones.isBlank()) {
+            return CierreProyectoResponse.error("Debe ingresar una observacion o motivo del rechazo.");
+        }
+
+        String actorUsername = identityExtractor.resolveUsername(authentication);
+        LocalDateTime now = LocalDateTime.now();
+        proyecto.setCierreEstado("RECHAZADO");
+        proyecto.setCierreObservaciones(observaciones.trim());
+        proyecto.setCierreSolicitado(false);
+        proyectoRepository.save(proyecto);
+
+        String directorEmail = proyecto.getCorreoDirector();
+        List<String> recipients = directorEmail != null ? List.of(directorEmail) : List.of("sistema@proyecta.com");
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.CLOSURE_REJECTED,
+                projectId,
+                actorUsername,
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "rejector", actorUsername,
+                        "observaciones", observaciones.trim(),
+                        "recipients", recipients
+                )));
+
+        return CierreProyectoResponse.success(
+                "Solicitud de cierre rechazada. El Director sera notificado con las observaciones.",
                 now,
                 null,
                 null,

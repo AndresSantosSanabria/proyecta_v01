@@ -86,6 +86,15 @@ public class Proyecto {
     @Column(name = "cierre_solicitado_por", length = 120)
     private String cierreSolicitadoPor;
 
+    @Column(name = "cierre_estado", length = 30)
+    private String cierreEstado;
+
+    @Column(name = "cierre_observaciones", columnDefinition = "TEXT")
+    private String cierreObservaciones;
+
+    @Column(name = "cierre_borrador_json", columnDefinition = "TEXT")
+    private String cierreBorradorJson;
+
     @Embedded
     private Furag furag;
 
@@ -199,6 +208,15 @@ public class Proyecto {
     public String getCierreSolicitadoPor() { return cierreSolicitadoPor; }
     public void setCierreSolicitadoPor(String cierreSolicitadoPor) { this.cierreSolicitadoPor = cierreSolicitadoPor; }
 
+    public String getCierreEstado() { return cierreEstado; }
+    public void setCierreEstado(String cierreEstado) { this.cierreEstado = cierreEstado; }
+
+    public String getCierreObservaciones() { return cierreObservaciones; }
+    public void setCierreObservaciones(String cierreObservaciones) { this.cierreObservaciones = cierreObservaciones; }
+
+    public String getCierreBorradorJson() { return cierreBorradorJson; }
+    public void setCierreBorradorJson(String cierreBorradorJson) { this.cierreBorradorJson = cierreBorradorJson; }
+
     public Furag getFurag() { return furag; }
     public void setFurag(Furag furag) { this.furag = furag; }
 
@@ -283,6 +301,18 @@ public class Proyecto {
      */
     public boolean esAptoParaCierre() {
         return this.avanceTotal != null && this.avanceTotal.compareTo(new BigDecimal("100.00")) >= 0;
+    }
+
+    public boolean cierrePendienteRevision() {
+        return Boolean.TRUE.equals(cierreSolicitado) && (cierreEstado == null || "PENDIENTE".equals(cierreEstado));
+    }
+
+    public boolean cierreRechazado() {
+        return "RECHAZADO".equals(cierreEstado);
+    }
+
+    public boolean cierreAprobado() {
+        return "APROBADO".equals(cierreEstado);
     }
 
     /**
