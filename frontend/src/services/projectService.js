@@ -311,6 +311,22 @@ const projectService = {
     );
     return data;
   },
+
+  cambiarFechaEntregable: async (proyectoId, entregableId, formData) => {
+    const { data } = await apiClient.post(
+      `/proyectos/${normalizeProjectId(proyectoId)}/entregables/${entregableId}/cambiar-fecha`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return data;
+  },
+
+  obtenerHistorialFechas: async (proyectoId, entregableId) => {
+    const { data } = await apiClient.get(
+      `/proyectos/${normalizeProjectId(proyectoId)}/entregables/${entregableId}/historial-fechas`
+    );
+    return data;
+  },
 };
 
 export default projectService;

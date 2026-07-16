@@ -134,12 +134,37 @@
   color: var(--text-main);
 }
 
+.notification-bell__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notification-bell__mark-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent-color, #3b82f6);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.notification-bell__mark-all:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent-color, #3b82f6);
+}
+
 .notification-bell__modal-body {
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 10px;
-  max-height: 420px;
+  max-height: 60vh;
   overflow-y: auto;
 }
 

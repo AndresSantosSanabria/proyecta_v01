@@ -18,6 +18,8 @@ import {
   Pencil,
   History,
   RotateCcw,
+  Calendar,
+  Clock,
 } from 'lucide-react';
 import EvidenceUpload from '../../common/EvidenceUpload';
 import Paso3FasesHitosEntregables from '../wizard/steps/Paso3FasesHitosEntregables';
@@ -25,6 +27,8 @@ import apiClient from '../../../api/axiosConfig';
 import projectService from '../../../services/projectService';
 import { usePermission, useProjectAccess } from '../../../hooks/usePermission';
 import { useAuthContext } from '../../../context/AuthContext';
+import ModificarFechaModal from './ModificarFechaModal';
+import HistorialCambiosFecha from './HistorialCambiosFecha';
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -325,10 +329,14 @@ const TreeTableRow = ({
   onRejectEvidence,
   onOpenHistory,
   approvingEntregableId,
+  onCambiarFecha,
+  onVerHistorialFechas,
 }) => {
   const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
   const canReviewEvidence = useEvidenceReviewPermission();
   const canViewDocumentHistory = useDocumentHistoryPermission();
+  const { hasRole, isAdminLocal } = useAuthContext();
+  const canModificarFecha = isAdminLocal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR');
   const ponderacionFase = toNumber(fase.ponderacion);
   const programadoFase = toNumber(fase.progresoProgramado ?? fase.avanceProgramado ?? fase.avance ?? 0);
   const ejecutadoFase = toNumber(fase.progresoEjecutado ?? fase.avance ?? 0);
@@ -553,6 +561,30 @@ const TreeTableRow = ({
                       )}
 
                       {!tieneDocumento && !canUploadEvidence && <span className="action-placeholder">--</span>}
+
+                      {canModificarFecha && (
+                        <button
+                          type="button"
+                          className="btn-action-icon"
+                          title="Modificar fecha limite"
+                          aria-label="Modificar fecha limite"
+                          onClick={() => onCambiarFecha(ent)}
+                        >
+                          <Calendar size={15} />
+                        </button>
+                      )}
+
+                      {canModificarFecha && ent.tieneHistorialCambiosFecha && (
+                        <button
+                          type="button"
+                          className="btn-action-icon info"
+                          title="Ver historial de cambios de fecha"
+                          aria-label="Ver historial de cambios de fecha"
+                          onClick={() => onVerHistorialFechas(ent)}
+                        >
+                          <Clock size={15} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -615,6 +647,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     objectUrl: '',
   });
   const [approvingEntregableId, setApprovingEntregableId] = React.useState(null);
+  const [showCambiarFechaModal, setShowCambiarFechaModal] = React.useState(null);
+  const [showHistorialFechasModal, setShowHistorialFechasModal] = React.useState(null);
 
   React.useEffect(() => {
     return () => {
@@ -1245,6 +1279,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
                 onRejectEvidence={handleOpenReviewModal}
                 onOpenHistory={handleOpenHistory}
                 approvingEntregableId={approvingEntregableId}
+                onCambiarFecha={(ent) => setShowCambiarFechaModal(ent)}
+                onVerHistorialFechas={(ent) => setShowHistorialFechasModal(ent)}
               />
             ))}
           </tbody>
@@ -1625,6 +1661,23 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
             </div>
           </div>
         </div>
+      )}
+
+      {showCambiarFechaModal && (
+        <ModificarFechaModal
+          entregable={showCambiarFechaModal}
+          proyectoId={proyectoId}
+          onClose={() => setShowCambiarFechaModal(null)}
+          onSaved={() => {}}
+        />
+      )}
+
+      {showHistorialFechasModal && (
+        <HistorialCambiosFecha
+          entregable={showHistorialFechasModal}
+          proyectoId={proyectoId}
+          onClose={() => setShowHistorialFechasModal(null)}
+        />
       )}
     </div>
   );

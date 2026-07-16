@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, LockKeyhole, Save } from 'lucide-react';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
@@ -65,17 +65,68 @@ const isBeforeDate = (value, minValue) => {
   return Boolean(date && minDate && date < minDate);
 };
 
+const getStorageKey = (project) => {
+  const projectId = project?.id || project?.codigo || project?.projectId;
+  return projectId ? `wizard_onboarding_${projectId}` : null;
+};
+
+const loadSavedState = (project) => {
+  const key = getStorageKey(project);
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      step: typeof parsed.step === 'number' ? parsed.step : 1,
+      form: parsed.form || null,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const saveState = (project, step, form) => {
+  const key = getStorageKey(project);
+  if (!key) return;
+  try {
+    const serializable = { ...form };
+    delete serializable.viabilizacionPdf;
+    delete serializable.actaConstitucionPdf;
+    delete serializable.cronogramaPdf;
+    delete serializable.planComunicacionesPdf;
+    localStorage.setItem(key, JSON.stringify({ step, form: serializable }));
+  } catch {
+    // silently fail
+  }
+};
+
+const clearSavedState = (project) => {
+  const key = getStorageKey(project);
+  if (!key) return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // silently fail
+  }
+};
+
 const ProjectOnboardingWizard = ({
   project,
   saving = false,
   error = '',
   onComplete,
 }) => {
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState(() => initialForm(project));
+  const [savedState] = useState(() => loadSavedState(project));
+  const [step, setStep] = useState(savedState?.step || 1);
+  const [form, setForm] = useState(() => savedState?.form || initialForm(project));
   const [errors, setErrors] = useState({});
   const [petiCatalog, setPetiCatalog] = useState(null);
   const [petiCatalogLoading, setPetiCatalogLoading] = useState(false);
+
+  useEffect(() => {
+    saveState(project, step, form);
+  }, [project, step, form]);
 
   const projectSummary = useMemo(() => ({
     codigo: project?.codigo || project?.id || 'PENDIENTE',
@@ -316,6 +367,7 @@ const ProjectOnboardingWizard = ({
     }
 
     setErrors({});
+    clearSavedState(project);
     onComplete?.(buildPayload(), {
       viabilizacionPdf: form.viabilizacionPdf || null,
       actaConstitucionPdf: form.actaConstitucionPdf || null,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellRing, CheckCheck, LoaderCircle, X, FolderKanban } from 'lucide-react';
+import { BellRing, CheckCheck, LoaderCircle, X, FolderKanban, CheckCheckIcon } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
 import './NotificationBell.css';
@@ -40,7 +40,7 @@ const NotificationBell = () => {
     try {
       const [countResponse, listResponse] = await Promise.all([
         securityService.countUnreadNotifications(),
-        securityService.listInAppNotifications({ page: 0, size: 8 }),
+        securityService.listInAppNotifications({ page: 0, size: 100 }),
       ]);
       const countPayload = countResponse?.data?.data ?? countResponse?.data ?? countResponse ?? 0;
       const listPayload = listResponse?.data?.data ?? listResponse?.data ?? listResponse ?? {};
@@ -73,13 +73,21 @@ const NotificationBell = () => {
   const handleNotificationClick = async (item) => {
     try {
       await securityService.markNotificationAsRead(item.id);
-      setOpen(false);
       await load();
       if (item.targetUrl) {
         navigate(item.targetUrl);
       }
     } catch {
-      setOpen(true);
+      // keep panel open
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await securityService.markAllNotificationsAsRead();
+      await load();
+    } catch {
+      // keep panel open
     }
   };
 
@@ -97,9 +105,16 @@ const NotificationBell = () => {
               <strong>Notificaciones</strong>
               <span>{count} sin leer</span>
             </div>
-            <button type="button" className="notification-bell__close" onClick={() => setOpen(false)} aria-label="Cerrar">
-              <X size={16} />
-            </button>
+            <div className="notification-bell__header-actions">
+              {unreadItems.length > 0 && (
+                <button type="button" className="notification-bell__mark-all" onClick={handleMarkAllRead} title="Marcar todas como leídas">
+                  <CheckCheck size={14} />
+                </button>
+              )}
+              <button type="button" className="notification-bell__close" onClick={() => setOpen(false)} aria-label="Cerrar">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="notification-bell__modal-body">

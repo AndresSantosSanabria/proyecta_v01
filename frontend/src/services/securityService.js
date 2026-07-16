@@ -152,6 +152,11 @@ const securityService = {
     return unwrap(response);
   },
 
+  markAllNotificationsAsRead: async () => {
+    const response = await apiClient.patch('/notificaciones/marcar-todas-leidas');
+    return unwrap(response);
+  },
+
   getActiveClosureTemplate: async () => {
     const response = await apiClient.get('/admin/closure-templates/active');
     return unwrap(response);
