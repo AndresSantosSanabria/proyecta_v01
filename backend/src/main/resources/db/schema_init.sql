@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS reporte_config (
 
 -- 2.1 proyecto
 CREATE TABLE IF NOT EXISTS proyecto (
-    proyecto_id             VARCHAR(30)     PRIMARY KEY,
+    proyecto_id             VARCHAR(40)     PRIMARY KEY,
     nombre                  VARCHAR(300)    NOT NULL,
     dependencia             VARCHAR(200),
     director_nombre         VARCHAR(120),
@@ -346,7 +346,7 @@ COMMENT ON COLUMN system_parameters.param_key   IS 'Clave única del parámetro 
 
 COMMENT ON TABLE reporte_config IS 'Configuración dinámica de los tipos de reportes disponibles en el sistema.';;
 
-COMMENT ON TABLE  proyecto                      IS 'Proyectos de gestión tecnológica. PK manual con formato IS-PROY-CUN-NNN.';;
+COMMENT ON TABLE  proyecto                      IS 'Proyectos de gestión tecnológica. PK manual con formato IS-PROY-CUN-YYYY-NNN.';;
 COMMENT ON COLUMN proyecto.avance_total         IS 'Avance ponderado calculado automáticamente a partir de los entregables.';;
 COMMENT ON COLUMN proyecto.estado               IS 'Estado operativo del proyecto: ACTIVO | CON_RETRASOS | CERRADO';;
 

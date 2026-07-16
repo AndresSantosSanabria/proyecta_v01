@@ -36,7 +36,7 @@ public interface IAvanceProyectoController {
     })
     @StandardApiResponses
     ResponseEntity<ApiResponse<ProyectoAvanceResponseDTO>> getAvanceProyecto(
-            @Parameter(description = "Identificador del proyecto", example = "IS-PROY-CUN-001")
+            @Parameter(description = "Identificador del proyecto", example = "IS-PROY-CUN-2026-001")
             @PathVariable String proyectoId);
 
     @Operation(

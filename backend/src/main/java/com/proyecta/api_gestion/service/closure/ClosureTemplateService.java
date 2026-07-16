@@ -69,6 +69,39 @@ public class ClosureTemplateService {
         return templateResolver.resolveTemplateWithAnswers(templateJson, answerMap);
     }
 
+    public void validarFormData(String templateJson, String formDataJson) {
+        try {
+            JsonNode template = objectMapper.readTree(templateJson);
+            JsonNode data = objectMapper.readTree(formDataJson);
+            JsonNode secciones = template.get("secciones");
+            if (secciones == null || !secciones.isArray()) return;
+
+            JsonNode fields = data.has("fields") ? data.get("fields") : data;
+
+            for (JsonNode seccion : secciones) {
+                if (!"formulario".equals(seccion.get("tipo_seccion").asText(""))) continue;
+                JsonNode campos = seccion.get("campos");
+                if (campos == null || !campos.isArray()) continue;
+
+                for (JsonNode campo : campos) {
+                    if (!campo.has("requerido") || !campo.get("requerido").asBoolean(false)) continue;
+                    String id = campo.has("id_campo") ? campo.get("id_campo").asText() : campo.get("id").asText();
+                    if (id == null || id.isBlank()) continue;
+
+                    JsonNode val = fields.get(id);
+                    if (val == null || val.isNull() || (val.isTextual() && val.asText("").isBlank())) {
+                        String label = campo.has("label") ? campo.get("label").asText() : id;
+                        throw new BadRequestException("El campo obligatorio '" + label + "' no tiene respuesta.");
+                    }
+                }
+            }
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (JsonProcessingException e) {
+            throw new BadRequestException("Error al validar los datos del formulario contra la plantilla.");
+        }
+    }
+
     private void validateTemplateJson(String json) {
         try {
             JsonNode root = objectMapper.readTree(json);

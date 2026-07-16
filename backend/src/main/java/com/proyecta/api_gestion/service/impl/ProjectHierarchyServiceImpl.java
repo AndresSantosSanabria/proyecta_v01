@@ -1,25 +1,40 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.project.*;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaRequest;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaResponse;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.repository.*;
-import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
+import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.NotificationOrchestratorService;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectHierarchyServiceImpl.class);
 
     private final ProyectoRepository proyectoRepository;
     private final FaseRepository faseRepository;
@@ -27,23 +42,37 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private final EntregableRepository entregableRepository;
     private final SystemParameterRepository systemParameterRepository;
     private final IProgressCalculator avanceCalculatorService;
+    private final EntregableCambioFechaRepository cambioFechaRepository;
+    private final IStorageProvider storageProvider;
+    private final KeycloakIdentityExtractor identityExtractor;
+    private final NotificationOrchestratorService notificationOrchestrator;
 
     private static final String DIAS_POR_VENCER_PARAM = "dias_por_vencer";
     private static final int DIAS_POR_VENCER_DEFAULT = 7;
     private static final double EPSILON_PONDERACION = 0.01;
+    private static final long MAX_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
+    private static final String CAMBIOS_FECHA_SUBDIR = "cambios-fecha";
 
     public ProjectHierarchyServiceImpl(ProyectoRepository proyectoRepository,
-                                       FaseRepository faseRepository,
-                                       HitoRepository hitoRepository,
-                                       EntregableRepository entregableRepository,
-                                       SystemParameterRepository systemParameterRepository,
-                                       IProgressCalculator avanceCalculatorService) {
+                                        FaseRepository faseRepository,
+                                        HitoRepository hitoRepository,
+                                        EntregableRepository entregableRepository,
+                                        SystemParameterRepository systemParameterRepository,
+                                        IProgressCalculator avanceCalculatorService,
+                                        EntregableCambioFechaRepository cambioFechaRepository,
+                                        IStorageProvider storageProvider,
+                                        KeycloakIdentityExtractor identityExtractor,
+                                        NotificationOrchestratorService notificationOrchestrator) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
         this.entregableRepository = entregableRepository;
         this.systemParameterRepository = systemParameterRepository;
         this.avanceCalculatorService = avanceCalculatorService;
+        this.cambioFechaRepository = cambioFechaRepository;
+        this.storageProvider = storageProvider;
+        this.identityExtractor = identityExtractor;
+        this.notificationOrchestrator = notificationOrchestrator;
     }
 
     @Override
@@ -454,6 +483,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 diasDiferencia
         );
         dto.setObservacionRevision(entregable.getObservacionRevision());
+        dto.setTieneHistorialCambiosFecha(cambioFechaRepository.existsByEntregableId(entregable.getId()));
         return dto;
     }
 
@@ -518,5 +548,144 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE)
                 .map(this::buildEntregableDTO)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    // -----------------------------------------------------------------------
+    // Cambio de fecha limite con justificacion y evidencia
+    // -----------------------------------------------------------------------
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public CambioFechaResponse cambiarFecha(String proyectoId, Integer entregableId,
+                                              CambioFechaRequest request,
+                                              MultipartFile evidencia,
+                                              Authentication authentication) {
+
+        Entregable entregable = entregableRepository.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+        asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
+
+        entregable.asegurarModificable();
+
+        String justificacion = request.justificacion().trim();
+        if (justificacion.isBlank()) {
+            throw new BadRequestException("La justificacion es obligatoria para modificar la fecha limite.");
+        }
+
+        LocalDate fechaAnterior = entregable.getFechaLimite();
+        LocalDate fechaNueva = request.nuevaFecha();
+        if (fechaNueva == null) {
+            throw new BadRequestException("La nueva fecha limite es obligatoria.");
+        }
+        if (fechaAnterior != null && fechaNueva.isEqual(fechaAnterior)) {
+            throw new BadRequestException("La nueva fecha debe ser diferente a la fecha actual.");
+        }
+        if (entregable.getFechaInicio() != null && fechaNueva.isBefore(entregable.getFechaInicio())) {
+            throw new BadRequestException("La nueva fecha limite no puede ser anterior a la fecha de inicio del entregable.");
+        }
+
+        // Validar PDF
+        if (evidencia == null || evidencia.isEmpty()) {
+            throw new BadRequestException("Debe adjuntar un archivo PDF como soporte.");
+        }
+        storageProvider.validateFile(evidencia, MAX_FILE_SIZE_BYTES, Set.of("application/pdf"));
+        validarPdfMagicBytes(evidencia);
+
+        // Almacenar PDF
+        String fileName = "cambio-fecha_" + entregableId + "_" + System.currentTimeMillis();
+        String storedName = storageProvider.storeFile(evidencia, CAMBIOS_FECHA_SUBDIR, fileName);
+
+        // Actualizar fecha limite
+        entregable.setFechaLimite(fechaNueva);
+        entregableRepository.save(entregable);
+
+        // Registrar auditoria
+        String username = identityExtractor.resolveUsername(authentication);
+        Set<String> roles = identityExtractor.resolveRealmAndClientRoles(authentication,
+                List.of("proyecta", "proyecta-api", "account"));
+        String rol = roles.isEmpty() ? "DESCONOCIDO" : String.join(", ", roles);
+
+        EntregableCambioFecha auditoria = new EntregableCambioFecha();
+        auditoria.setEntregable(entregable);
+        auditoria.setFechaAnterior(fechaAnterior);
+        auditoria.setFechaNueva(fechaNueva);
+        auditoria.setJustificacion(justificacion);
+        auditoria.setArchivoPdf(storedName);
+        auditoria.setNombreOriginal(evidencia.getOriginalFilename());
+        auditoria.setUsuario(username);
+        auditoria.setUsuarioRol(rol);
+        cambioFechaRepository.save(auditoria);
+
+        // Recalcular avance
+        avanceCalculatorService.calcularYActualizarAvanceHito(entregable.getHito().getId());
+
+        // Notificar
+        try {
+            notificationOrchestrator.dispatch(new NotificationContext(
+                    NotificationEventType.ENTREGABLE_FECHA_CAMBIADA,
+                    proyectoId,
+                    username,
+                    java.util.Map.of(
+                            "entregableId", String.valueOf(entregableId),
+                            "entregableNombre", entregable.getNombre(),
+                            "fechaAnterior", String.valueOf(fechaAnterior),
+                            "fechaNueva", String.valueOf(fechaNueva),
+                            "justificacion", justificacion
+                    )));
+        } catch (Exception e) {
+            log.warn("No se pudo notificar el cambio de fecha: {}", e.getMessage());
+        }
+
+        return toCambioFechaResponse(auditoria);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<CambioFechaResponse> obtenerHistorialFechas(Integer entregableId) {
+        entregableRepository.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+        return cambioFechaRepository.findByEntregableIdOrderByCreadoEnDesc(entregableId).stream()
+                .map(this::toCambioFechaResponse)
+                .toList();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public boolean tieneHistorialCambiosFecha(Integer entregableId) {
+        return cambioFechaRepository.existsByEntregableId(entregableId);
+    }
+
+    // -----------------------------------------------------------------------
+    // Metodos privados de soporte
+    // -----------------------------------------------------------------------
+
+    private CambioFechaResponse toCambioFechaResponse(EntregableCambioFecha entity) {
+        return new CambioFechaResponse(
+                entity.getId(),
+                entity.getEntregable().getId(),
+                entity.getFechaAnterior(),
+                entity.getFechaNueva(),
+                entity.getJustificacion(),
+                entity.getArchivoPdf(),
+                entity.getNombreOriginal(),
+                entity.getUsuario(),
+                entity.getUsuarioRol(),
+                entity.getCreadoEn()
+        );
+    }
+
+    private void validarPdfMagicBytes(MultipartFile file) {
+        try {
+            byte[] header = new byte[4];
+            int read = file.getInputStream().read(header, 0, 4);
+            if (read < 4 || header[0] != '%' || header[1] != 'P' || header[2] != 'D' || header[3] != 'F') {
+                throw new BadRequestException("El archivo no es un PDF valido (cabecera %PDF no detectada).");
+            }
+            file.getInputStream().reset();
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new BadRequestException("No se pudo leer el archivo para validar su formato.");
+        }
     }
 }

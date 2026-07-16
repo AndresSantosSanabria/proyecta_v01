@@ -3,10 +3,22 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.controller.interfaces.IProjectHierarchyController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.project.ProjectHierarchyDTO;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaRequest;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaResponse;
+import com.proyecta.api_gestion.model.EntregableCambioFecha;
+import com.proyecta.api_gestion.repository.EntregableCambioFechaRepository;
+import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
@@ -15,9 +27,15 @@ import org.springframework.web.bind.annotation.*;
 public class ProjectHierarchyController implements IProjectHierarchyController {
 
     private final ProjectHierarchyService projectHierarchyService;
+    private final EntregableCambioFechaRepository cambioFechaRepository;
+    private final IStorageProvider storageProvider;
 
-    public ProjectHierarchyController(ProjectHierarchyService projectHierarchyService) {
+    public ProjectHierarchyController(ProjectHierarchyService projectHierarchyService,
+                                       EntregableCambioFechaRepository cambioFechaRepository,
+                                       IStorageProvider storageProvider) {
         this.projectHierarchyService = projectHierarchyService;
+        this.cambioFechaRepository = cambioFechaRepository;
+        this.storageProvider = storageProvider;
     }
 
     @Override
@@ -93,5 +111,40 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
     public ResponseEntity<Void> eliminarEntregable(String id, Integer entregableId) {
         projectHierarchyService.eliminarEntregable(id, entregableId);
         return ResponseEntity.noContent().build();
+    }
+
+    // -----------------------------------------------------------------------
+    // Cambio de fecha limite con justificacion y evidencia
+    // -----------------------------------------------------------------------
+
+    @Override
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<CambioFechaResponse>> cambiarFecha(
+            String id, Integer entregableId,
+            CambioFechaRequest request,
+            MultipartFile evidencia,
+            Authentication authentication) {
+        CambioFechaResponse response = projectHierarchyService.cambiarFecha(id, entregableId, request, evidencia, authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, "Fecha limite actualizada exitosamente"));
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<CambioFechaResponse>>> historialFechas(String id, Integer entregableId) {
+        List<CambioFechaResponse> historial = projectHierarchyService.obtenerHistorialFechas(entregableId);
+        return ResponseEntity.ok(ApiResponse.success(historial, "Historial de cambios de fecha"));
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    public ResponseEntity<Resource> descargarPdfCambioFecha(String id, Long cambioId) {
+        EntregableCambioFecha registro = cambioFechaRepository.findById(cambioId)
+                .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException("Registro de cambio de fecha no encontrado: " + cambioId));
+        Resource resource = storageProvider.loadFileAsResource("cambios-fecha", registro.getArchivoPdf());
+        String nombreDescarga = registro.getNombreOriginal() != null ? registro.getNombreOriginal() : "soporte-cambio-fecha.pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + nombreDescarga + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(resource);
     }
 }

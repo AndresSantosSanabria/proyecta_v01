@@ -42,24 +42,28 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
                 .filter(Objects::nonNull)
                 .toList();
 
-        long programadosAlCorte = todosEntregables.stream()
+        List<Entregable> iniciados = todosEntregables.stream()
+                .filter(e -> isEntregableIniciado(e, fechaCorte))
+                .toList();
+
+        long programadosAlCorte = iniciados.stream()
                 .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
                 .count();
 
-        long entregadosAlCorte = todosEntregables.stream()
+        long entregadosAlCorte = iniciados.stream()
                 .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
                 .filter(Entregable::esConforme)
                 .count();
 
-        long entregadosATiempo = todosEntregables.stream()
+        long entregadosATiempo = iniciados.stream()
                 .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
                 .filter(Entregable::esConforme)
                 .filter(e -> e.getFechaEntregaReal() != null
                         && !e.getFechaEntregaReal().isAfter(e.getFechaLimite()))
                 .count();
 
-        BigDecimal eficacia = calcularRatio(entregadosAlCorte, programadosAlCorte);
-        BigDecimal eficiencia = calcularRatio(entregadosATiempo, programadosAlCorte);
+        BigDecimal eficacia = clampRatio(calcularRatio(entregadosAlCorte, programadosAlCorte));
+        BigDecimal eficiencia = clampRatio(calcularRatio(entregadosATiempo, programadosAlCorte));
 
         return new IndicadoresEficienciaDTO(
                 proyecto.getId(),
@@ -70,7 +74,7 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
                 entregadosATiempo,
                 eficacia,
                 eficiencia,
-                todosEntregables.size()
+                iniciados.size()
         );
     }
 
@@ -81,5 +85,16 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
         return BigDecimal.valueOf(numerador)
                 .multiply(HUNDRED)
                 .divide(BigDecimal.valueOf(denominador), 4, RoundingMode.HALF_UP);
+    }
+
+    private static boolean isEntregableIniciado(Entregable e, LocalDate corte) {
+        return e.getFechaInicio() != null && !e.getFechaInicio().isAfter(corte);
+    }
+
+    private static BigDecimal clampRatio(BigDecimal value) {
+        if (value == null) return ZERO;
+        if (value.compareTo(ZERO) < 0) return ZERO;
+        if (value.compareTo(HUNDRED) > 0) return HUNDRED;
+        return value;
     }
 }

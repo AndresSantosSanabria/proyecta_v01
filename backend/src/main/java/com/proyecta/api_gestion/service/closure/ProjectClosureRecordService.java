@@ -39,7 +39,7 @@ public class ProjectClosureRecordService {
     }
 
     @Transactional
-    public ProjectClosureRecord saveOrUpdate(String proyectoId, String formDataJson, String username) {
+    public ProjectClosureRecordDTO saveOrUpdate(String proyectoId, String formDataJson, String username) {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 

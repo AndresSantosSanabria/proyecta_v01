@@ -43,6 +43,7 @@ public class NotificationOrchestratorService {
         tmp.put("RISK_CREATED", "/risks");
         tmp.put("RISK_UPDATED", "/risks");
         tmp.put("RISK_TREATED", "/risks");
+        tmp.put("ENTREGABLE_FECHA_CAMBIADA", "/schedule");
         EVENT_ROUTE_MAP = java.util.Map.copyOf(tmp);
     }
 

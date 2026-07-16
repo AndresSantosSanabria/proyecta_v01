@@ -3,10 +3,12 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.analytics.AnalyticsPortfolioDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.model.ActaCierre;
+import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.FuragRespuesta;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.Riesgo;
 import com.proyecta.api_gestion.model.config.MatrizRiesgo;
+import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.repository.ActaCierreRepository;
 import com.proyecta.api_gestion.repository.EntregableRepository;
@@ -64,6 +66,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     public AnalyticsPortfolioDTO getPortfolioAnalytics() {
         LocalDate corte = LocalDate.now();
         List<ProjectMetricsHolder> proyectos = proyectoRepository.findAll().stream()
+                .filter(p -> !esPendienteCompletar(p))
                 .map(proyecto -> construirProyectoMetrics(proyecto, corte))
                 .sorted(Comparator.comparing(
                                 (ProjectMetricsHolder holder) -> normalizeGroup(holder.metrics().dependencia()),
@@ -86,15 +89,27 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return new AnalyticsPortfolioDTO(corte, executive, dependencias, estrategias, furag, riesgos, proyectosDto);
     }
 
+    private void addMetric(List<BigDecimal> acc, BigDecimal value, boolean tieneActividad) {
+        if (tieneActividad && value != null) acc.add(value);
+    }
+
     private AnalyticsPortfolioDTO.ExecutiveMetrics construirExecutiveMetrics(List<ProjectMetricsHolder> proyectos, LocalDate corte) {
         long total = proyectos.size();
         long activos = proyectos.stream().filter(holder -> holder.proyecto().getEstado() != null
                 && !holder.proyecto().esEstadoTerminal()).count();
         long cerrados = total - activos;
 
-        BigDecimal avancePromedio = average(proyectos.stream().map((ProjectMetricsHolder holder) -> holder.metrics().avance()).toList());
-        BigDecimal eficaciaPromedio = average(proyectos.stream().map((ProjectMetricsHolder holder) -> holder.metrics().eficacia()).toList());
-        BigDecimal eficienciaPromedio = average(proyectos.stream().map((ProjectMetricsHolder holder) -> holder.metrics().eficiencia()).toList());
+        List<BigDecimal> avances = new ArrayList<>();
+        List<BigDecimal> eficacias = new ArrayList<>();
+        List<BigDecimal> eficiencias = new ArrayList<>();
+        for (ProjectMetricsHolder h : proyectos) {
+            addMetric(avances, h.metrics().avance(), true);
+            addMetric(eficacias, h.metrics().eficacia(), h.tieneActividad());
+            addMetric(eficiencias, h.metrics().eficiencia(), h.tieneActividad());
+        }
+        BigDecimal avancePromedio = average(avances);
+        BigDecimal eficaciaPromedio = average(eficacias);
+        BigDecimal eficienciaPromedio = average(eficiencias);
 
         long entregablesAtrasados = entregableRepository.countAtrasadosTotal(corte);
         long proximosAVencer = entregableRepository.countProximosActivos(corte, corte.plusDays(7));
@@ -124,12 +139,21 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                     long riesgosTratados = items.stream().mapToLong(holder -> riesgoRepository.countByProyecto_IdAndEstado(holder.proyecto().getId(), EstadoRiesgo.TRATADO)).sum();
                     long riesgosPendientes = items.stream().mapToLong(holder -> riesgoRepository.countByProyecto_IdAndEstado(holder.proyecto().getId(), EstadoRiesgo.PENDIENTE)).sum();
                     long proyectosPeti = items.stream().filter(holder -> Boolean.TRUE.equals(holder.proyecto().getPeti())).count();
+
+                    List<BigDecimal> avances = new ArrayList<>();
+                    List<BigDecimal> eficacias = new ArrayList<>();
+                    List<BigDecimal> eficiencias = new ArrayList<>();
+                    for (ProjectMetricsHolder h : items) {
+                        addMetric(avances, h.metrics().avance(), true);
+                        addMetric(eficacias, h.metrics().eficacia(), h.tieneActividad());
+                        addMetric(eficiencias, h.metrics().eficiencia(), h.tieneActividad());
+                    }
                     return new AnalyticsPortfolioDTO.DependenciaMetrics(
                             entry.getKey(),
                             items.size(),
-                            average(items.stream().map(holder -> holder.metrics().avance()).toList()),
-                            average(items.stream().map(holder -> holder.metrics().eficacia()).toList()),
-                            average(items.stream().map(holder -> holder.metrics().eficiencia()).toList()),
+                            average(avances),
+                            average(eficacias),
+                            average(eficiencias),
                             proyectosPeti,
                             riesgosTratados,
                             riesgosPendientes
@@ -149,13 +173,21 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .stream()
                 .map(entry -> {
                     List<ProjectMetricsHolder> items = entry.getValue();
+                    List<BigDecimal> avances = new ArrayList<>();
+                    List<BigDecimal> eficacias = new ArrayList<>();
+                    List<BigDecimal> eficiencias = new ArrayList<>();
+                    for (ProjectMetricsHolder h : items) {
+                        addMetric(avances, h.metrics().avance(), true);
+                        addMetric(eficacias, h.metrics().eficacia(), h.tieneActividad());
+                        addMetric(eficiencias, h.metrics().eficiencia(), h.tieneActividad());
+                    }
                     return new AnalyticsPortfolioDTO.EstrategiaMetrics(
                             entry.getKey(),
                             "PETI".equals(entry.getKey()) ? "PETI" : "NO PETI",
                             items.size(),
-                            average(items.stream().map(holder -> holder.metrics().avance()).toList()),
-                            average(items.stream().map(holder -> holder.metrics().eficacia()).toList()),
-                            average(items.stream().map(holder -> holder.metrics().eficiencia()).toList())
+                            average(avances),
+                            average(eficacias),
+                            average(eficiencias)
                     );
                 })
                 .sorted(Comparator.comparing(AnalyticsPortfolioDTO.EstrategiaMetrics::codigo, String.CASE_INSENSITIVE_ORDER))
@@ -244,6 +276,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         long riesgosTratados = riesgoRepository.countByProyecto_IdAndEstado(proyecto.getId(), EstadoRiesgo.TRATADO);
         long riesgosPendientes = riesgoRepository.countByProyecto_IdAndEstado(proyecto.getId(), EstadoRiesgo.PENDIENTE);
         BigDecimal indiceMitigacion = riesgosTotal == 0 ? BigDecimal.ZERO : ratioPercent(riesgosTratados, riesgosTotal);
+        boolean tieneActividad = tieneEntregablesIniciados(proyecto, corte);
 
         AnalyticsPortfolioDTO.ProjectMetrics metrics = new AnalyticsPortfolioDTO.ProjectMetrics(
                 proyecto.getId(),
@@ -252,14 +285,24 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 estrategiaLabel(proyecto),
                 proyecto.getPeti(),
                 avance.avanceTotal(),
-                avance.eficacia(),
-                avance.eficiencia(),
+                tieneActividad ? avance.eficacia() : null,
+                tieneActividad ? avance.eficiencia() : null,
                 avance.estado(),
                 avance.entregablesAtrasados(),
                 furagCoverage(proyecto.getId()),
                 indiceMitigacion
         );
-        return new ProjectMetricsHolder(proyecto, metrics, riesgosTratados, riesgosPendientes);
+        return new ProjectMetricsHolder(proyecto, metrics, riesgosTratados, riesgosPendientes, tieneActividad);
+    }
+
+    private boolean tieneEntregablesIniciados(Proyecto proyecto, LocalDate corte) {
+        return proyecto.getFases().stream()
+                .filter(Objects::nonNull)
+                .flatMap(fase -> fase.getHitos().stream())
+                .filter(Objects::nonNull)
+                .flatMap(hito -> hito.getEntregables().stream())
+                .filter(Objects::nonNull)
+                .anyMatch(e -> e.getFechaInicio() != null && !e.getFechaInicio().isAfter(corte));
     }
 
     private ProyectoAvanceResponseDTO resolverAvance(Proyecto proyecto, LocalDate corte) {
@@ -324,10 +367,18 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         };
     }
 
+    private boolean esPendienteCompletar(Proyecto proyecto) {
+        if (proyecto.getEstadoConfig() != null) {
+            return "PENDIENTE_COMPLETAR".equals(proyecto.getEstadoConfig().getCodigo());
+        }
+        return EstadoProyecto.PENDIENTE_COMPLETAR.equals(proyecto.getEstado());
+    }
+
     private record ProjectMetricsHolder(
             Proyecto proyecto,
             AnalyticsPortfolioDTO.ProjectMetrics metrics,
             long riesgosTratados,
-            long riesgosPendientes) {
+            long riesgosPendientes,
+            boolean tieneActividad) {
     }
 }

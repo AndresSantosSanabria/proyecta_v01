@@ -1,6 +1,12 @@
 package com.proyecta.api_gestion.service.interfaces;
 
 import com.proyecta.api_gestion.dto.project.ProjectHierarchyDTO;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaRequest;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 public interface ProjectHierarchyService {
     ProjectHierarchyDTO getProjectHierarchy(String proyectoId);
@@ -20,5 +26,11 @@ public interface ProjectHierarchyService {
     com.proyecta.api_gestion.model.Entregable editarEntregable(String proyectoId, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto);
     void eliminarEntregable(String proyectoId, Integer entregableId);
 
-    java.util.List<com.proyecta.api_gestion.dto.project.EntregableHierarchyDTO> listarEntregablesProyecto(String proyectoId);
+    List<com.proyecta.api_gestion.dto.project.EntregableHierarchyDTO> listarEntregablesProyecto(String proyectoId);
+
+    // Cambio de fecha limite con justificacion y evidencia
+    CambioFechaResponse cambiarFecha(String proyectoId, Integer entregableId, CambioFechaRequest request, MultipartFile evidencia, Authentication authentication);
+    List<CambioFechaResponse> obtenerHistorialFechas(Integer entregableId);
+    boolean tieneHistorialCambiosFecha(Integer entregableId);
 }
+

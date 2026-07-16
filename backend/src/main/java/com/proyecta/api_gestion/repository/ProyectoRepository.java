@@ -24,7 +24,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
 
     boolean existsByNombreAndDependencia(String nombre, String dependencia);
 
-    @Query("SELECT COUNT(p) FROM Proyecto p")
+    @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NULL OR ec.codigo != 'PENDIENTE_COMPLETAR') AND (ec IS NOT NULL OR p.estado != com.proyecta.api_gestion.model.enums.EstadoProyecto.PENDIENTE_COMPLETAR)")
     long countTotal();
 
     @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo IN ('PLANIFICACION', 'ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (ec IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION, com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))")
@@ -33,7 +33,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo = 'CERRADO') OR (ec IS NULL AND p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.CERRADO)")
     long countCerrados();
 
-    @Query("SELECT AVG(p.avanceTotal) FROM Proyecto p")
+    @Query("SELECT AVG(p.avanceTotal) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NULL OR ec.codigo != 'PENDIENTE_COMPLETAR') AND (ec IS NOT NULL OR p.estado != com.proyecta.api_gestion.model.enums.EstadoProyecto.PENDIENTE_COMPLETAR)")
     BigDecimal getAvancePromedio();
 
     @Query("""
@@ -106,6 +106,8 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
             (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD) AND e.fechaLimite < :now)
         )
         FROM Proyecto p
+        LEFT JOIN p.estadoConfig ec
+        WHERE (ec IS NULL OR ec.codigo != 'PENDIENTE_COMPLETAR') AND (ec IS NOT NULL OR p.estado != com.proyecta.api_gestion.model.enums.EstadoProyecto.PENDIENTE_COMPLETAR)
     """)
     List<ProyectoReporteResumenDTO> getProyectosResumen(@Param("now") LocalDate now);
 
@@ -129,6 +131,8 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
             (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD) AND e.fechaLimite < :now)
         )
         FROM Proyecto p
+        LEFT JOIN p.estadoConfig ec
+        WHERE (ec IS NULL OR ec.codigo != 'PENDIENTE_COMPLETAR') AND (ec IS NOT NULL OR p.estado != com.proyecta.api_gestion.model.enums.EstadoProyecto.PENDIENTE_COMPLETAR)
     """)
     List<DashboardProjectSummaryDTO> getDashboardProjectSummary(@Param("now") LocalDate now);
 
@@ -139,6 +143,8 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
             AVG(p.avanceTotal)
         )
         FROM Proyecto p
+        LEFT JOIN p.estadoConfig ec
+        WHERE (ec IS NULL OR ec.codigo != 'PENDIENTE_COMPLETAR') AND (ec IS NOT NULL OR p.estado != com.proyecta.api_gestion.model.enums.EstadoProyecto.PENDIENTE_COMPLETAR)
         GROUP BY p.dependencia
     """)
     List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> getProjectsByDependencia();

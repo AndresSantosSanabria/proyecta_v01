@@ -220,6 +220,7 @@ public class ReporteServiceImpl implements ReporteService {
     public byte[] generarReportePlanComunicacionesPdf() {
         List<Proyecto> proyectos = proyectoRepository.findAll().stream()
                 .filter(p -> !Boolean.TRUE.equals(p.getPeti()))
+                .filter(p -> !esPendienteCompletar(p))
                 .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
@@ -233,6 +234,7 @@ public class ReporteServiceImpl implements ReporteService {
 
         List<Proyecto> proyectosDependencia = proyectoRepository.findAll().stream()
                 .filter(p -> sameText(p.getDependencia(), dependencia))
+                .filter(p -> !esPendienteCompletar(p))
                 .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
@@ -249,6 +251,7 @@ public class ReporteServiceImpl implements ReporteService {
     public byte[] generarReportePortafolioExcel() {
         return construirExcelPortafolio(
                 proyectoRepository.findAll().stream()
+                        .filter(p -> !esPendienteCompletar(p))
                         .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                         .toList(),
                 LocalDate.now()
@@ -268,6 +271,7 @@ public class ReporteServiceImpl implements ReporteService {
             try {
                 if (proyectoSecurity.canAccessGlobal("PROYECTO:VER", authentication)) {
                     return proyectoRepository.findAll().stream()
+                            .filter(p -> !esPendienteCompletar(p))
                             .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                             .toList();
                 }
@@ -292,6 +296,7 @@ public class ReporteServiceImpl implements ReporteService {
         }
 
         return proyectoRepository.findAllById(proyectoIds).stream()
+                .filter(p -> !esPendienteCompletar(p))
                 .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
     }
@@ -731,6 +736,13 @@ public class ReporteServiceImpl implements ReporteService {
         }
         boolean tieneTratamiento = riesgo.getTratamiento() != null && !riesgo.getTratamiento().trim().isEmpty();
         return tieneTratamiento && EstadoRiesgo.TRATADO.equals(riesgo.getEstado());
+    }
+
+    private boolean esPendienteCompletar(Proyecto proyecto) {
+        if (proyecto.getEstadoConfig() != null) {
+            return "PENDIENTE_COMPLETAR".equals(proyecto.getEstadoConfig().getCodigo());
+        }
+        return EstadoProyecto.PENDIENTE_COMPLETAR.equals(proyecto.getEstado());
     }
 
     private record RowSnapshot(

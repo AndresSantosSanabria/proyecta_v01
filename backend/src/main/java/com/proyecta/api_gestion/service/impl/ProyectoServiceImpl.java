@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 public class ProyectoServiceImpl implements ProyectoService {
 
     private static final String PROJECT_CODE_PREFIX = "IS-PROY-CUN-";
-    private static final String PROJECT_CODE_REGEX = "^IS-PROY-CUN-\\d+$";
+    private static final String PROJECT_CODE_REGEX = "^IS-PROY-CUN-\\d{4}-\\d+$";
 
     private final ProyectoRepository proyectoRepository;
     private final FuragRespuestaRepository furagRespuestaRepository;
@@ -726,8 +726,10 @@ public class ProyectoServiceImpl implements ProyectoService {
     }
 
     private synchronized String generarCodigo() {
+        String yearPrefix = PROJECT_CODE_PREFIX + java.time.Year.now().getValue() + "-";
         int maxConsecutivo = proyectoRepository.findAll().stream()
                 .map(Proyecto::getId)
+                .filter(id -> id != null && id.startsWith(yearPrefix))
                 .mapToInt(this::extractConsecutivoCodigoProyecto)
                 .max()
                 .orElse(0);
@@ -735,7 +737,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         String codigo;
         int siguiente = maxConsecutivo + 1;
         do {
-            codigo = String.format("%s%03d", PROJECT_CODE_PREFIX, siguiente++);
+            codigo = String.format("%s%03d", yearPrefix, siguiente++);
         } while (proyectoRepository.existsById(codigo));
 
         return codigo;
@@ -748,7 +750,12 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
 
         try {
-            return Integer.parseInt(normalized.substring(PROJECT_CODE_PREFIX.length()));
+            String afterPrefix = normalized.substring(PROJECT_CODE_PREFIX.length());
+            int lastDash = afterPrefix.lastIndexOf('-');
+            if (lastDash < 0) {
+                return 0;
+            }
+            return Integer.parseInt(afterPrefix.substring(lastDash + 1));
         } catch (NumberFormatException ex) {
             return 0;
         }

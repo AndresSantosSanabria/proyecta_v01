@@ -16,6 +16,7 @@ public class EntregableHierarchyDTO {
     private String estado;
     private Integer diasDiferencia;
     private String observacionRevision;
+    private Boolean tieneHistorialCambiosFecha;
 
     public EntregableHierarchyDTO() {}
 
@@ -53,4 +54,6 @@ public class EntregableHierarchyDTO {
     public void setDiasDiferencia(Integer diasDiferencia) { this.diasDiferencia = diasDiferencia; }
     public String getObservacionRevision() { return observacionRevision; }
     public void setObservacionRevision(String observacionRevision) { this.observacionRevision = observacionRevision; }
+    public Boolean getTieneHistorialCambiosFecha() { return tieneHistorialCambiosFecha; }
+    public void setTieneHistorialCambiosFecha(Boolean tieneHistorialCambiosFecha) { this.tieneHistorialCambiosFecha = tieneHistorialCambiosFecha; }
 }

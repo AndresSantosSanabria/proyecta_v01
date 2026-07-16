@@ -3,12 +3,15 @@ package com.proyecta.api_gestion.service.closure;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.openhtmltopdf.pdfbox.PdfRendererBuilder;
-import com.openhtmltopdf.svgsupport.BatikSVGDrawer;
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ClassPathResource;
+
 import org.springframework.stereotype.Service;
+
+import com.openhtmltopdf.svgsupport.BatikSVGDrawer;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,13 +38,8 @@ public class DynamicClosurePdfService {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.withHtmlContent(html, ".");
-            builder.withSvgDrawer(new BatikSVGDrawer());
+            builder.useSVGDrawer(new BatikSVGDrawer());
             builder.toStream(baos);
-            ClassPathResource fontRes = new ClassPathResource("report-assets/Helvetica.ttf");
-            if (fontRes.exists()) {
-                builder.useFont(fontRes, "Helvetica",
-                        com.openhtmltopdf.fonts.FontResolver.FontGroup.DESIGN, true);
-            }
             builder.run();
             return baos.toByteArray();
         } catch (Exception e) {

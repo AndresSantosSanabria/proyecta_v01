@@ -55,7 +55,7 @@ public class ProyectoSeeder {
         
         // Proyectos con retrasos
         crearProyecto(
-            "IS-PROY-CUN-001",
+            "IS-PROY-CUN-2026-001",
             "Modernización del Data Center Principal",
             "Infraestructura",
             "Andrés Santos",
@@ -68,7 +68,7 @@ public class ProyectoSeeder {
         );
         
         crearProyecto(
-            "IS-PROY-CUN-002",
+            "IS-PROY-CUN-2026-002",
             "Sistema de PQRS Ciudadano",
             "Atención al Ciudadano",
             "Carolina Gómez",
@@ -81,7 +81,7 @@ public class ProyectoSeeder {
         );
         
         crearProyecto(
-            "IS-PROY-CUN-003",
+            "IS-PROY-CUN-2026-003",
             "Migración SAP S/4HANA",
             "Finanzas",
             "Martha Lucía Ríos",
@@ -95,7 +95,7 @@ public class ProyectoSeeder {
         
         // Proyectos activos
         crearProyecto(
-            "IS-PROY-CUN-004",
+            "IS-PROY-CUN-2026-004",
             "Portal Web Gobernación 2.0",
             "Prensa y Comunicaciones",
             "Felipe Rojas",
@@ -108,7 +108,7 @@ public class ProyectoSeeder {
         );
         
         crearProyecto(
-            "IS-PROY-CUN-005",
+            "IS-PROY-CUN-2026-005",
             "Capacitación en Ciberseguridad 2026",
             "Seguridad de la Información",
             "Roberto Díaz",
@@ -121,7 +121,7 @@ public class ProyectoSeeder {
         );
         
         crearProyecto(
-            "IS-PROY-CUN-006",
+            "IS-PROY-CUN-2026-006",
             "App Móvil Trámites Ciudadanos",
             "Innovación y Tecnología",
             "Luisa Fernanda Mora",
@@ -135,7 +135,7 @@ public class ProyectoSeeder {
         
         // Proyectos cerrados
         crearProyecto(
-            "IS-PROY-CUN-007",
+            "IS-PROY-CUN-2026-007",
             "Infraestructura de Red LAN Sede Central",
             "Infraestructura",
             "Andrés Santos",
@@ -148,7 +148,7 @@ public class ProyectoSeeder {
         );
         
         crearProyecto(
-            "IS-PROY-CUN-015",
+            "IS-PROY-CUN-2026-015",
             "Portal de Datos Abiertos de Cundinamarca",
             "Innovación",
             "Luisa Fernanda Mora",
@@ -231,13 +231,13 @@ public class ProyectoSeeder {
     }
 
     private void crearProyectoMasivo() {
-        if (proyectoRepository.findById("IS-PROY-CUN-008").isPresent()) {
-            proyectoRepository.findById("IS-PROY-CUN-008").ifPresent(this::agregarRiesgosMasivos);
+        if (proyectoRepository.findById("IS-PROY-CUN-2026-008").isPresent()) {
+            proyectoRepository.findById("IS-PROY-CUN-2026-008").ifPresent(this::agregarRiesgosMasivos);
             return;
         }
         
         Proyecto p = new Proyecto();
-        p.setId("IS-PROY-CUN-008");
+        p.setId("IS-PROY-CUN-2026-008");
         p.setNombre("Proyecto Masivo de Pruebas de Estrés UI");
         p.setDependencia("Calidad de Software");
         p.setDirector("Usuario de Pruebas");
@@ -284,7 +284,7 @@ public class ProyectoSeeder {
         
         proyectoRepository.save(p);
         agregarRiesgosMasivos(p);
-        logger.debug("Proyecto masivo creado: IS-PROY-CUN-008");
+        logger.debug("Proyecto masivo creado: IS-PROY-CUN-2026-008");
     }
 
     private void crearProyectoRealista() {

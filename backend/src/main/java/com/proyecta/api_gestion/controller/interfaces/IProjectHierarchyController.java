@@ -3,6 +3,8 @@ package com.proyecta.api_gestion.controller.interfaces;
 import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.project.ProjectHierarchyDTO;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaRequest;
+import com.proyecta.api_gestion.dto.proyecto.CambioFechaResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -10,8 +12,13 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Tag(name = "Jerarquía de Proyectos", description = "Endpoints para obtener la estructura completa de fases e hitos")
 public interface IProjectHierarchyController {
@@ -83,4 +90,24 @@ public interface IProjectHierarchyController {
     @Operation(summary = "EP-ENTR-05 · Eliminar entregable")
     @DeleteMapping("/{id}/entregables/{entregableId}")
     ResponseEntity<Void> eliminarEntregable(@PathVariable String id, @PathVariable Integer entregableId);
+
+    // Cambio de fecha limite
+    @Operation(summary = "EP-ENTR-06 · Cambiar fecha limite con justificacion y PDF de soporte",
+               description = "Permite a Gestor/Admin modificar la fecha limite de un entregable. Requiere justificacion escrita y archivo PDF de soporte. El cambio queda registrado en historial de auditoria.")
+    @PostMapping(value = "/{id}/entregables/{entregableId}/cambiar-fecha", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<ApiResponse<CambioFechaResponse>> cambiarFecha(
+            @PathVariable String id,
+            @PathVariable Integer entregableId,
+            @RequestPart("request") @org.springframework.lang.NonNull CambioFechaRequest request,
+            @RequestPart("evidencia") MultipartFile evidencia,
+            Authentication authentication);
+
+    @Operation(summary = "EP-ENTR-07 · Obtener historial de cambios de fecha",
+               description = "Retorna el historial completo de cambios de fecha limite de un entregable, ordenado por fecha descendente.")
+    @GetMapping("/{id}/entregables/{entregableId}/historial-fechas")
+    ResponseEntity<ApiResponse<List<CambioFechaResponse>>> historialFechas(@PathVariable String id, @PathVariable Integer entregableId);
+
+    @Operation(summary = "EP-ENTR-08 · Descargar PDF de soporte de un cambio de fecha")
+    @GetMapping("/{id}/entregables/cambios-fecha/{cambioId}/descargar")
+    ResponseEntity<org.springframework.core.io.Resource> descargarPdfCambioFecha(@PathVariable String id, @PathVariable Long cambioId);
 }

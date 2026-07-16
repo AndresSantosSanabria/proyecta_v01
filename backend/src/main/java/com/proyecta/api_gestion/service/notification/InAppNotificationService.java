@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class InAppNotificationService {
@@ -42,7 +43,11 @@ public class InAppNotificationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<InAppNotificationDTO> list(String username, Pageable pageable) {
+    public Page<InAppNotificationDTO> list(String username, Boolean readStatus, Pageable pageable) {
+        if (readStatus != null) {
+            return repository.findByRecipient_UsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(username, readStatus, pageable)
+                    .map(this::toDto);
+        }
         return repository.findByRecipient_UsernameIgnoreCaseOrderByCreatedAtDesc(username, pageable)
                 .map(this::toDto);
     }
@@ -65,6 +70,16 @@ public class InAppNotificationService {
         notification.setReadStatus(true);
         notification.setReadAt(LocalDateTime.now());
         repository.save(notification);
+    }
+
+    @Transactional
+    public void markAllRead(String username) {
+        List<InAppNotification> unread = repository.findByRecipient_UsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(username, false, org.springframework.data.domain.Pageable.unpaged()).getContent();
+        for (InAppNotification notification : unread) {
+            notification.setReadStatus(true);
+            notification.setReadAt(LocalDateTime.now());
+        }
+        repository.saveAll(unread);
     }
 
     private InAppNotificationDTO toDto(InAppNotification notification) {

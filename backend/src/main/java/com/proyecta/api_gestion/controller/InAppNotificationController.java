@@ -22,9 +22,12 @@ public class InAppNotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<InAppNotificationDTO>>> list(Authentication authentication, Pageable pageable) {
+    public ResponseEntity<ApiResponse<Page<InAppNotificationDTO>>> list(
+            Authentication authentication,
+            @RequestParam(required = false) Boolean leido,
+            Pageable pageable) {
         String username = identityExtractor.resolveUsername(authentication);
-        return ResponseEntity.ok(ApiResponse.success(service.list(username, pageable), "Notificaciones consultadas correctamente"));
+        return ResponseEntity.ok(ApiResponse.success(service.list(username, leido, pageable), "Notificaciones consultadas correctamente"));
     }
 
     @GetMapping("/no-leidas")
@@ -37,5 +40,12 @@ public class InAppNotificationController {
     public ResponseEntity<ApiResponse<Void>> read(@PathVariable Long id) {
         service.markRead(id);
         return ResponseEntity.ok(ApiResponse.success("Notificacion marcada como leida"));
+    }
+
+    @PatchMapping("/marcar-todas-leidas")
+    public ResponseEntity<ApiResponse<Void>> readAll(Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        service.markAllRead(username);
+        return ResponseEntity.ok(ApiResponse.success("Todas las notificaciones marcadas como leidas"));
     }
 }
