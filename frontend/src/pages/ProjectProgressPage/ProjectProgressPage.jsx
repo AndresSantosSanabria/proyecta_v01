@@ -95,17 +95,14 @@ const ProjectProgressPage = () => {
   const showBenefitImpact = useMemo(() => {
     const allEntregables = flattenEntregables(progressData.fases || []);
     if (allEntregables.length === 0) return false;
-    const isEntregado = (ent) => {
+    const isAprobado = (ent) => {
       const estado = String(ent.estadoCodigo || ent.estado || '').toUpperCase();
-      return Boolean(
-        ent.fechaEntrega
-        || ent.fechaEntregaReal
-        || estado === 'A_CONFORMIDAD'
+      return estado === 'A_CONFORMIDAD'
         || estado === 'APROBADO'
-        || estado === 'COMPLETADO'
-      );
+        || ent.conforme === true;
     };
-    return allEntregables.every(isEntregado);
+    const tieneEvidencia = (ent) => Boolean(ent.fechaEntrega || ent.fechaEntregaReal || ent.evidenciaUrl || ent.descargaUrl);
+    return allEntregables.every((ent) => tieneEvidencia(ent) && isAprobado(ent));
   }, [progressData.fases]);
 
   const isGestorOrAdmin = hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC') || isAdminLocal || transversal;

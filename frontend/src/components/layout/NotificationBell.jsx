@@ -22,10 +22,45 @@ const extractProjectId = (title) => {
   return match ? match[0] : null;
 };
 
+const extractProjectName = (item) => {
+  return item?.projectName
+    || item?.projectNombre
+    || item?.proyectoNombre
+    || item?.project_name
+    || item?.proyecto_nombre
+    || null;
+};
+
 const cleanTitle = (title) => {
   if (!title) return '';
   return title.replace(/ en IS-PROY-[A-Z]+-\d+| en IS-PROY-[A-Z]+-\d+/g, '').trim();
 };
+
+const getEventLabel = (item) => {
+  const code = String(item?.eventCode || item?.codigoEvento || item?.type || '').toUpperCase();
+  if (code.includes('APROB')) return 'Aprobado';
+  if (code.includes('REENV') || code.includes('REENVI')) return 'Reenviado';
+  if (code.includes('OBSERV') || code.includes('RECHAZ')) return 'Observado';
+  if (code.includes('DILIG') || code.includes('CREAD') || code.includes('REGISTR')) return 'Diligenciado';
+
+  const text = `${item?.title || ''} ${item?.message || ''}`.toUpperCase();
+  if (text.includes('APROB')) return 'Aprobado';
+  if (text.includes('REENV')) return 'Reenviado';
+  if (text.includes('OBSERV') || text.includes('RECHAZ')) return 'Observado';
+  if (text.includes('DILIG') || text.includes('GUARD')) return 'Diligenciado';
+
+  return 'Notificación';
+};
+
+const getEventTone = (item) => {
+  const label = getEventLabel(item);
+  if (label === 'Aprobado' || label === 'Diligenciado') return 'success';
+  if (label === 'Observado') return 'warning';
+  if (label === 'Reenviado') return 'info';
+  return 'neutral';
+};
+
+const NOTIFICATION_REFRESH_EVENT = 'proyecta:notificaciones:refresh';
 
 const NotificationBell = () => {
   const { backendLoading } = useAuthContext();
@@ -62,9 +97,14 @@ const NotificationBell = () => {
     };
     void refresh();
     const interval = window.setInterval(() => void load(), 30000);
+    const handleRefresh = () => {
+      void load();
+    };
+    window.addEventListener(NOTIFICATION_REFRESH_EVENT, handleRefresh);
     return () => {
       active = false;
       window.clearInterval(interval);
+      window.removeEventListener(NOTIFICATION_REFRESH_EVENT, handleRefresh);
     };
   }, [backendLoading]);
 
@@ -131,16 +171,23 @@ const NotificationBell = () => {
             ) : (
               unreadItems.map((item) => {
                 const projectId = extractProjectId(item.title);
+                const projectName = extractProjectName(item);
+                const eventLabel = getEventLabel(item);
+                const eventTone = getEventTone(item);
                 return (
                   <button key={item.id} type="button" className="notification-bell__item" onClick={() => handleNotificationClick(item)}>
                     <div className="notification-bell__item-header">
                       <span className="notification-bell__item-title">{cleanTitle(item.title)}</span>
                       <span className="notification-bell__item-date">{formatTime(item.createdAt)}</span>
                     </div>
-                    {projectId && (
+                    <div className={`notification-bell__item-event ${eventTone}`}>
+                      {eventLabel}
+                    </div>
+                    {(projectName || projectId) && (
                       <div className="notification-bell__item-project">
                         <FolderKanban size={11} />
-                        {projectId}
+                        {projectName || projectId}
+                        {projectName && projectId ? ` · ${projectId}` : ''}
                       </div>
                     )}
                     <p className="notification-bell__item-message">{item.message}</p>

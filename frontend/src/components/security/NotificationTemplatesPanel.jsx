@@ -73,6 +73,41 @@ const categoryPriority = {
   DEFAULT: 3,
 };
 
+const fallbackEvents = [
+  {
+    code: 'BENEFICIO_IMPACTO_DILIGENCIADO',
+    name: 'Beneficio e impacto diligenciado',
+    category: 'BUSINESS',
+    active: true,
+    defaultEnabled: true,
+    requiresProjectContext: true,
+  },
+  {
+    code: 'BENEFICIO_IMPACTO_OBSERVADO',
+    name: 'Beneficio e impacto observado',
+    category: 'BUSINESS',
+    active: true,
+    defaultEnabled: true,
+    requiresProjectContext: true,
+  },
+  {
+    code: 'BENEFICIO_IMPACTO_REENVIADO',
+    name: 'Beneficio e impacto reenviado',
+    category: 'BUSINESS',
+    active: true,
+    defaultEnabled: true,
+    requiresProjectContext: true,
+  },
+  {
+    code: 'BENEFICIO_IMPACTO_APROBADO',
+    name: 'Beneficio e impacto aprobado',
+    category: 'BUSINESS',
+    active: true,
+    defaultEnabled: true,
+    requiresProjectContext: true,
+  },
+];
+
 const templateVariables = [
   { key: 'nombre_usuario', label: 'Nombre del usuario', description: 'Usuario o destinatario del evento.' },
   { key: 'enlace_aprobacion', label: 'Enlace de aprobación', description: 'Link seguro para aprobar o revisar.' },
@@ -137,12 +172,18 @@ const NotificationTemplatesPanel = () => {
       const templateData = templatesResult.status === 'fulfilled' ? (templatesResult.value?.data || templatesResult.value || []) : [];
       const preferenceData = preferencesResult.status === 'fulfilled' ? (preferencesResult.value?.data || preferencesResult.value || []) : [];
 
-      setEvents(Array.isArray(eventData) ? eventData : []);
+      const mergedEvents = Array.isArray(eventData) ? [...eventData] : [];
+      fallbackEvents.forEach((fallbackEvent) => {
+        if (!mergedEvents.some((event) => event.code === fallbackEvent.code)) {
+          mergedEvents.push(fallbackEvent);
+        }
+      });
+      setEvents(mergedEvents);
       setTemplates(Array.isArray(templateData) ? templateData : []);
       setPreferences(Array.isArray(preferenceData) ? preferenceData : []);
 
       if (profileResult.status === 'fulfilled') {
-        const profile = profileResult.value?.data || profileResult.value || {};
+        const profile = profileResult.value?.data?.data || profileResult.value?.data || profileResult.value || {};
         setGlobalNotifCheck(Boolean(profile.recibirNotificacionesGlobales));
       }
 
@@ -165,7 +206,7 @@ const NotificationTemplatesPanel = () => {
         severity: firstTemplate?.severity || 'INFO',
         scope: firstTemplate?.scope || 'GLOBAL',
         subjectTemplate: firstTemplate?.subjectTemplate || `Notificación: ${initialEvent?.name || firstTemplate?.eventCode || ''}`,
-        bodyTemplate: firstTemplate?.bodyTemplate || 'Hola {{nombre_usuario}}, se generó una notificación para {{proyecto_nombre}}.',
+        bodyTemplate: firstTemplate?.bodyTemplate || 'Hola {{nombre_usuario}}, se generó una notificación para el proyecto {{proyecto_nombre}}.',
       });
     } catch (err) {
       setError(`No fue posible cargar las plantillas. ${extractApiDetail(err)}`);
@@ -253,7 +294,7 @@ const NotificationTemplatesPanel = () => {
       severity: template?.severity || 'INFO',
       scope: template?.scope || 'GLOBAL',
       subjectTemplate: template?.subjectTemplate || `Notificación: ${event?.name || selectedCode}`,
-      bodyTemplate: template?.bodyTemplate || 'Hola {{nombre_usuario}}, se generó una notificación para {{proyecto_nombre}}.',
+      bodyTemplate: template?.bodyTemplate || 'Hola {{nombre_usuario}}, se generó una notificación para el proyecto {{proyecto_nombre}}.',
       targetRoles: template?.targetRoles || '',
     });
   }, [events, selectedCode, templates]);
@@ -446,6 +487,7 @@ const NotificationTemplatesPanel = () => {
                     setGlobalNotifCheck(next);
                     try {
                       await securityService.updateGlobalNotifications(next);
+                      await loadData();
                     } catch {
                       setGlobalNotifCheck(!next);
                       setError('No se pudo actualizar la preferencia de notificaciones globales.');

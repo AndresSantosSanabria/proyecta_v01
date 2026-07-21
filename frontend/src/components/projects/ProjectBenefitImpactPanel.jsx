@@ -14,12 +14,21 @@ import {
   ThumbsDown,
 } from 'lucide-react';
 import projectService from '../../services/projectService';
+import securityService from '../../services/securityService';
 import './ProjectBenefitImpactPanel.css';
 
 const emptyForm = {
   beneficiosValorPublico: '',
   impactosValorPublico: '',
   observaciones: '',
+};
+
+const emitGlobalToast = (detail) => {
+  window.dispatchEvent(new CustomEvent('proyecta:toast', { detail }));
+};
+
+const refreshNotifications = () => {
+  window.dispatchEvent(new Event('proyecta:notificaciones:refresh'));
 };
 
 const unwrap = (response) => response?.data?.data ?? response?.data ?? response ?? null;
@@ -241,7 +250,38 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       setData(saved);
       setForm(toFormState(saved));
       setEditorOpen(false);
+      const nextState = String(saved?.estado || 'DILIGENCIADO').toUpperCase();
+      const eventType = nextState === 'OBSERVADO'
+        ? 'BENEFICIO_IMPACTO_REENVIADO'
+        : nextState === 'APROBADO'
+          ? 'BENEFICIO_IMPACTO_APROBADO'
+          : 'BENEFICIO_IMPACTO_DILIGENCIADO';
       setSuccess('La informacion de beneficio e impacto quedo guardada y lista para revision.');
+      emitGlobalToast({
+        tone: 'success',
+        title: 'Beneficio e impacto guardado',
+        message:
+          nextState === 'APROBADO'
+            ? 'El registro quedo aprobado y los involucrados fueron notificados.'
+            : nextState === 'OBSERVADO'
+              ? 'El registro fue reenviado tras observaciones y se notifico al equipo.'
+              : 'El registro fue diligenciado y se notifico al equipo.',
+      });
+      refreshNotifications();
+      void securityService.notifyProjectBenefitImpactEvent(proyectoId, {
+        proyectoId,
+        proyectoNombre: projectName || '',
+        evento: eventType,
+        estado: nextState,
+        mensaje:
+          nextState === 'APROBADO'
+            ? 'El beneficio e impacto fue aprobado.'
+            : nextState === 'OBSERVADO'
+              ? 'El beneficio e impacto fue corregido y reenviado.'
+              : 'El beneficio e impacto fue diligenciado por el Director.',
+      }).catch((notifyError) => {
+        console.warn('No fue posible notificar a los involucrados del proyecto:', notifyError);
+      });
       if (onSaved) onSaved(saved);
     } catch (saveError) {
       const message =
@@ -278,6 +318,26 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
         setEditorOpen(Boolean(saved?.editable && !isGestor));
       }
       setSuccess(aprobado ? 'Informacion aprobada exitosamente.' : 'Informacion observada. El Director debe corregirla y reenviarla.');
+      emitGlobalToast({
+        tone: aprobado ? 'success' : 'warning',
+        title: aprobado ? 'Beneficio e impacto aprobado' : 'Beneficio e impacto observado',
+        message: aprobado
+          ? 'Se notifico la aprobacion al equipo del proyecto.'
+          : 'Se notifico la observacion para que el Director corrija y reenvíe.',
+      });
+      refreshNotifications();
+      void securityService.notifyProjectBenefitImpactEvent(proyectoId, {
+        proyectoId,
+        proyectoNombre: projectName || '',
+        evento: aprobado ? 'BENEFICIO_IMPACTO_APROBADO' : 'BENEFICIO_IMPACTO_OBSERVADO',
+        estado: aprobado ? 'APROBADO' : 'OBSERVADO',
+        mensaje: aprobado
+          ? 'El beneficio e impacto fue aprobado por el Gestor.'
+          : 'El beneficio e impacto fue observado por el Gestor y requiere correccion.',
+        observacion: aprobado ? '' : observacion.trim(),
+      }).catch((notifyError) => {
+        console.warn('No fue posible notificar la revision del beneficio e impacto:', notifyError);
+      });
       if (onSaved) onSaved(saved);
     } catch (reviewError) {
       const message =

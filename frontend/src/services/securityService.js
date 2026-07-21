@@ -157,6 +157,14 @@ const securityService = {
     return unwrap(response);
   },
 
+  notifyProjectBenefitImpactEvent: async (projectId, payload = {}) => {
+    const response = await apiClient.post(
+      `/proyectos/${encodeURIComponent(projectId)}/beneficio-impacto/notificar`,
+      payload
+    );
+    return unwrap(response);
+  },
+
   getActiveClosureTemplate: async () => {
     const response = await apiClient.get('/admin/closure-templates/active');
     return unwrap(response);

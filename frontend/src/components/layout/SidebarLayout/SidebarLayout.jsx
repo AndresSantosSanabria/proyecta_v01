@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ErrorBoundary from '../../common/ErrorBoundary';
 import NotificationBell from '../NotificationBell';
+import ToastHost from '../ToastHost';
 import { useAuthContext } from '../../../context/AuthContext';
 import './SidebarLayout.css';
 
@@ -63,6 +64,7 @@ const SidebarLayout = () => {
           </ErrorBoundary>
         </main>
       </div>
+      <ToastHost />
     </div>
   );
 };

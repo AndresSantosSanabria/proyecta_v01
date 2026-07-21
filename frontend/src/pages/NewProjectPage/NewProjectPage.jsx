@@ -6,8 +6,6 @@ import { usePermission } from '../../hooks/usePermission';
 import AccessDeniedPage from '../AccessDeniedPage/AccessDeniedPage';
 import './NewProjectPage.css';
 
-const PROJECT_CODE_PREFIX = 'IS-PROY-CUN';
-
 const INITIAL_STATE = {
   codigoProyecto: '',
   nombre: '',
@@ -21,21 +19,8 @@ const getDirectorId = (director) => director?.id ?? director?.usuarioId ?? direc
 const getDirectorName = (director) => director?.nombre || director?.name || director?.username || '';
 const getDirectorEmail = (director) => director?.correo || director?.email || '';
 const getDirectorRole = (director) => director?.rolNombre || director?.rolCodigo || director?.rol || '';
-const getProjectCode = (project) => project?.codigo || project?.codigoProyecto || project?.proyectoCodigo || project?.id || '';
 
 const normalizeProjectCode = (value) => String(value || '').trim().toUpperCase();
-
-const buildNextProjectCode = (projects = []) => {
-  const codePattern = new RegExp(`^${PROJECT_CODE_PREFIX}-(\\d+)$`, 'i');
-  const maxConsecutive = projects.reduce((max, project) => {
-    const match = normalizeProjectCode(getProjectCode(project)).match(codePattern);
-    if (!match) return max;
-    const consecutive = Number.parseInt(match[1], 10);
-    return Number.isFinite(consecutive) ? Math.max(max, consecutive) : max;
-  }, 0);
-
-  return `${PROJECT_CODE_PREFIX}-${String(maxConsecutive + 1).padStart(3, '0')}`;
-};
 
 const extractApiMessage = (error) => (
   error?.response?.data?.detail
@@ -108,12 +93,12 @@ const NewProjectPage = () => {
     setCodeLoading(true);
     setCodeError('');
 
-    projectService.getAllUnpaged()
-      .then((projects) => {
+    projectService.getSiguienteCodigo()
+      .then((codigo) => {
         if (!mounted) return;
         setFormData((current) => ({
           ...current,
-          codigoProyecto: buildNextProjectCode(Array.isArray(projects) ? projects : []),
+          codigoProyecto: codigo || '',
         }));
       })
       .catch((error) => {
@@ -342,7 +327,7 @@ const NewProjectPage = () => {
                     value={codeLoading && !formData.codigoProyecto ? 'Generando codigo...' : (formData.codigoProyecto || 'Se generara al guardar')}
                     readOnly
                     disabled={codeLoading}
-                    placeholder="IS-PROY-CUN-NNN"
+                    placeholder="IS-PROY-CUN-YYYY-NNN"
                   />
                   <span className="help-text">
                     Se genera automaticamente segun el consecutivo existente.

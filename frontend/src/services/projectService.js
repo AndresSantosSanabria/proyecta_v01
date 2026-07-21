@@ -102,6 +102,12 @@ const projectService = {
     return data;
   },
 
+  getSiguienteCodigo: async () => {
+    const { data } = await apiClient.get('/proyectos/siguiente-codigo');
+    const payload = data?.data ?? data;
+    return typeof payload === 'string' ? payload : payload?.codigo ?? '';
+  },
+
   getCompletionStatus: async (id) => {
     const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}/completion-status`);
     return data;
