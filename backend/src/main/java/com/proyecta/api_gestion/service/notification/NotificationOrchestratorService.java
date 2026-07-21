@@ -24,7 +24,7 @@ public class NotificationOrchestratorService {
 
     private static final Map<String, String> EVENT_ROUTE_MAP;
     static {
-        var tmp = new java.util.HashMap<String, String>();
+        var tmp = new HashMap<String, String>();
         tmp.put("CLOSURE_REQUESTED", "/closure");
         tmp.put("CLOSURE_APPROVED", "/closure");
         tmp.put("CLOSURE_REJECTED", "/closure");
@@ -37,14 +37,17 @@ public class NotificationOrchestratorService {
         tmp.put("PROJECT_INITIAL_REGISTERED", "/progress");
         tmp.put("PROJECT_INITIAL_COMPLETED", "/progress");
         tmp.put("PROJECT_UPDATED", "/progress");
+        tmp.put("PROJECT_DOCUMENT_UPLOADED", "/progress");
+        tmp.put("PROJECT_DOCUMENT_DELETED", "/progress");
         tmp.put("PROJECT_BENEFIT_IMPACT_REQUIRED", "/progress");
         tmp.put("PROJECT_BENEFIT_IMPACT_SUBMITTED", "/progress");
+        tmp.put("PROJECT_BENEFIT_IMPACT_RESUBMITTED", "/progress");
         tmp.put("PROJECT_BENEFIT_IMPACT_REVIEWED", "/progress");
         tmp.put("RISK_CREATED", "/risks");
         tmp.put("RISK_UPDATED", "/risks");
         tmp.put("RISK_TREATED", "/risks");
         tmp.put("ENTREGABLE_FECHA_CAMBIADA", "/schedule");
-        EVENT_ROUTE_MAP = java.util.Map.copyOf(tmp);
+        EVENT_ROUTE_MAP = Map.copyOf(tmp);
     }
 
     private final NotificationRecipientResolverPort recipientResolver;
@@ -55,6 +58,8 @@ public class NotificationOrchestratorService {
     private final InAppNotificationService inAppService;
     private final SeguridadUsuarioRepository usuarioRepository;
     private final NotificationAuditRepository auditRepository;
+    private final NotificationMailDispatchTracker mailDispatchTracker;
+    private final NotificationActorResolver actorResolver;
 
     public NotificationOrchestratorService(NotificationRecipientResolverPort recipientResolver,
                                            NotificationTemplateService templateService,
@@ -63,7 +68,9 @@ public class NotificationOrchestratorService {
                                            NotificationSenderPort sender,
                                            InAppNotificationService inAppService,
                                            SeguridadUsuarioRepository usuarioRepository,
-                                           NotificationAuditRepository auditRepository) {
+                                           NotificationAuditRepository auditRepository,
+                                           NotificationMailDispatchTracker mailDispatchTracker,
+                                           NotificationActorResolver actorResolver) {
         this.recipientResolver = recipientResolver;
         this.templateService = templateService;
         this.preferenceService = preferenceService;
@@ -72,6 +79,8 @@ public class NotificationOrchestratorService {
         this.inAppService = inAppService;
         this.usuarioRepository = usuarioRepository;
         this.auditRepository = auditRepository;
+        this.mailDispatchTracker = mailDispatchTracker;
+        this.actorResolver = actorResolver;
     }
 
     public void dispatch(NotificationContext context) {
@@ -91,39 +100,40 @@ public class NotificationOrchestratorService {
 
             var message = renderer.render(template, model);
             String title = String.valueOf(model.getOrDefault("title", message.subject()));
+            Set<String> actorIdentifiers = actorResolver.resolveActorIdentifiers(context.actorUsername());
 
-            // 1. Contextual recipients
             List<String> contextualRecipients = recipientResolver.resolveRecipients(context);
             Set<String> finalRecipients = new HashSet<>();
 
-            // 2. Anti-notification Rule (exclude actor)
-            for (String rec : contextualRecipients) {
-                if (rec == null || rec.isBlank()) continue;
-                if (rec.equalsIgnoreCase(context.actorUsername())) {
-                    log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", rec);
+            for (String recipient : contextualRecipients) {
+                if (recipient == null || recipient.isBlank()) {
                     continue;
                 }
-                finalRecipients.add(rec);
+                if (actorResolver.isActor(recipient, actorIdentifiers)) {
+                    log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", recipient);
+                    continue;
+                }
+                finalRecipients.add(recipient);
             }
 
-            // 3. Global Admin Inclusion (ignoring context)
-            List<SeguridadUsuario> globalAdmins = usuarioRepository.findByRecibirNotificacionesGlobalesTrue();
-            for (SeguridadUsuario admin : globalAdmins) {
-                if (admin.getUsername().equalsIgnoreCase(context.actorUsername())) {
-                    log.info("[Notification] Omitido Admin: {} (Regla 2 - Actor Original)", admin.getUsername());
+            List<SeguridadUsuario> globalRecipients = usuarioRepository.findByRecibirNotificacionesGlobalesTrue();
+            for (SeguridadUsuario user : globalRecipients) {
+                if (user == null) {
                     continue;
                 }
-                finalRecipients.add(admin.getUsername());
-                log.info("[Notification] Añadido Admin: {} (Regla 3 - Flag Global)", admin.getUsername());
+                if (actorResolver.isActor(user.getUsername(), actorIdentifiers) || actorResolver.isActor(user.getCorreo(), actorIdentifiers)) {
+                    log.info("[Notification] Omitido Admin: {} (Regla 2 - Actor Original)", user.getUsername());
+                    continue;
+                }
+                finalRecipients.add(user.getUsername());
+                log.info("[Notification] Añadido Admin: {} (Regla 3 - Flag Global)", user.getUsername());
             }
 
             log.debug("[Notification] Dispatching event {} to {} final recipients", context.eventType(), finalRecipients.size());
 
             String targetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
 
-            // 4. Dispatch with Audit
             for (String recipient : finalRecipients) {
-                // In-App
                 try {
                     inAppService.create(recipient, title, message.body(),
                             context.eventType().name(), template.getSeverity(), context.projectId(), targetUrl);
@@ -133,21 +143,33 @@ public class NotificationOrchestratorService {
                     auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "IN_APP", "FAILED", ex.getMessage()));
                 }
 
-                // Email
-                if (context.eventType() == NotificationEventType.PROJECT_DELAYED) {
-                    continue;
-                }
-
                 try {
-                    if (!preferenceService.isEnabled(recipient, context.eventType().name(), context.projectId())) {
+                    SeguridadUsuario resolvedRecipient = usuarioRepository.findByUsernameIgnoreCase(recipient)
+                            .or(() -> usuarioRepository.findByCorreoIgnoreCase(recipient))
+                            .orElse(null);
+                    String emailAddress = resolveEmailAddress(resolvedRecipient, recipient);
+
+                    boolean globalNotificationsEnabled = resolvedRecipient != null
+                            && Boolean.TRUE.equals(resolvedRecipient.getRecibirNotificacionesGlobales());
+                    boolean emailAllowed = globalNotificationsEnabled
+                            || preferenceService.isEnabled(recipient, context.eventType().name(), context.projectId());
+
+                    if (!emailAllowed) {
                         log.info("[Notification] Email omitido para {}: Preferencias apagadas", recipient);
+                        mailDispatchTracker.skipped(recipient, message.subject(), "Preferencias de correo desactivadas");
                         continue;
                     }
-                    sender.send(recipient, message);
-                    log.debug("[Notification] Email sent to {}", recipient);
-                    auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "EMAIL", "SENT", null));
+
+                    var result = sender.send(emailAddress, message);
+                    if (result.success()) {
+                        log.debug("[Notification] Email sent to {}", emailAddress);
+                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "EMAIL", result.status().name(), null));
+                    } else {
+                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "EMAIL", result.status().name(), result.errorMessage()));
+                    }
                 } catch (Exception ex) {
                     log.warn("[Notification] Email send failed for recipient {} - {}", recipient, ex.getMessage());
+                    mailDispatchTracker.failed(recipient, message.subject(), ex.getMessage());
                     auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "EMAIL", "FAILED", ex.getMessage()));
                 }
             }
@@ -165,5 +187,17 @@ public class NotificationOrchestratorService {
             return null;
         }
         return "/projects/" + projectId.toLowerCase() + route;
+    }
+
+    private String resolveEmailAddress(SeguridadUsuario user, String fallbackRecipient) {
+        if (user != null) {
+            if (user.getCorreo() != null && !user.getCorreo().isBlank()) {
+                return user.getCorreo().trim();
+            }
+            if (user.getUsername() != null && !user.getUsername().isBlank()) {
+                return user.getUsername().trim();
+            }
+        }
+        return fallbackRecipient;
     }
 }

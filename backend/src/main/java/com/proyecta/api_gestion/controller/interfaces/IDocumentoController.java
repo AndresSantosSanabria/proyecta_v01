@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -45,7 +46,8 @@ public interface IDocumentoController {
     ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumento(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
             @Parameter(description = "Tipo de documento (ej: VIABILIZACION, CRONOGRAMA, EVIDENCIA_1, etc.)") @PathVariable String tipoDocumento,
-            @Parameter(description = "Archivo a subir") @RequestPart("archivo") MultipartFile archivo);
+            @Parameter(description = "Archivo a subir") @RequestPart("archivo") MultipartFile archivo,
+            Authentication authentication);
 
     @Operation(summary = "EP-DOC-03 · Descargar un documento del proyecto")
     @ApiResponses(value = {
@@ -72,5 +74,6 @@ public interface IDocumentoController {
     @DeleteMapping("/{proyectoId}/documentos/{tipoDocumento}")
     ResponseEntity<ApiResponse<Void>> eliminarDocumento(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Parameter(description = "Tipo de documento (ej: VIABILIZACION, CRONOGRAMA, EVIDENCIA_1, etc.)") @PathVariable String tipoDocumento);
+            @Parameter(description = "Tipo de documento (ej: VIABILIZACION, CRONOGRAMA, EVIDENCIA_1, etc.)") @PathVariable String tipoDocumento,
+            Authentication authentication);
 }

@@ -14,8 +14,14 @@ import com.proyecta.api_gestion.repository.DocumentoRepository;
 import com.proyecta.api_gestion.repository.DocumentoDinamicoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.config.TipoDocumentoConfigRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import org.springframework.security.core.Authentication;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +52,9 @@ public class DocumentoServiceImpl implements IDocumentoService {
     private final ProyectoRepository proyectoRepository;
     private final DocumentoDinamicoRepository documentoDinamicoRepository;
     private final TipoDocumentoConfigRepository tipoDocumentoConfigRepository;
+    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final NotificationEventPublisherPort notificationPublisher;
+    private final KeycloakIdentityExtractor identityExtractor;
     private final IStorageProvider storageProvider;
 
     public DocumentoServiceImpl(
@@ -53,11 +62,17 @@ public class DocumentoServiceImpl implements IDocumentoService {
             ProyectoRepository proyectoRepository,
             DocumentoDinamicoRepository documentoDinamicoRepository,
             TipoDocumentoConfigRepository tipoDocumentoConfigRepository,
+            SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+            NotificationEventPublisherPort notificationPublisher,
+            KeycloakIdentityExtractor identityExtractor,
             IStorageProvider storageProvider) {
         this.documentoRepository = documentoRepository;
         this.proyectoRepository = proyectoRepository;
         this.documentoDinamicoRepository = documentoDinamicoRepository;
         this.tipoDocumentoConfigRepository = tipoDocumentoConfigRepository;
+        this.usuarioProyectoRepository = usuarioProyectoRepository;
+        this.notificationPublisher = notificationPublisher;
+        this.identityExtractor = identityExtractor;
         this.storageProvider = storageProvider;
     }
 
@@ -76,13 +91,15 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
     @Override
     @Transactional
-    public DocumentoUploadResultDTO cargarDocumento(String proyectoId, String tipoDocumento, MultipartFile archivo) {
+    public DocumentoUploadResultDTO cargarDocumento(String proyectoId, String tipoDocumento, MultipartFile archivo, Authentication authentication) {
         validarExistenciaProyecto(proyectoId);
         storageProvider.validateFile(archivo, MAX_FILE_SIZE, ALLOWED_MIME_TYPES);
+        String actorUsername = identityExtractor.resolveUsername(authentication);
 
         Documento documentoExistente = documentoRepository
                 .findByProyectoIdAndTipoDocumentoConfigCodigo(proyectoId, tipoDocumento)
                 .orElse(null);
+        boolean reemplazo = documentoExistente != null;
 
         if (documentoExistente != null) {
             storageProvider.deleteFile(STORAGE_SUBDIR, documentoExistente.getNombreAlmacenado());
@@ -111,6 +128,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         documento.setUrlDescarga(construirUrlDescarga(proyectoId, tipoDocumento));
 
         Documento guardado = documentoRepository.save(documento);
+        notificarCambioDocumento(proyectoId, actorUsername, NotificationEventType.PROJECT_DOCUMENT_UPLOADED, guardado, reemplazo);
 
         return toUploadResultDTO(guardado);
     }
@@ -130,8 +148,9 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
     @Override
     @Transactional
-    public void eliminarDocumento(String proyectoId, String tipoDocumento) {
+    public void eliminarDocumento(String proyectoId, String tipoDocumento, Authentication authentication) {
         validarExistenciaProyecto(proyectoId);
+        String actorUsername = identityExtractor.resolveUsername(authentication);
 
         Documento documento = documentoRepository
                 .findByProyectoIdAndTipoDocumentoConfigCodigo(proyectoId, tipoDocumento)
@@ -140,6 +159,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         storageProvider.deleteFile(documento.getRutaAlmacenamiento(), documento.getNombreAlmacenado());
         documentoRepository.delete(documento);
+        notificarCambioDocumento(proyectoId, actorUsername, NotificationEventType.PROJECT_DOCUMENT_DELETED, documento, false);
     }
 
     private void validarExistenciaProyecto(String proyectoId) {
@@ -222,5 +242,37 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 doc.getUrlDescarga(),
                 doc.getFechaCarga().format(DATE_FORMATTER)
         );
+    }
+
+    private void notificarCambioDocumento(String proyectoId, String actorUsername, NotificationEventType eventType, Documento documento, boolean reemplazo) {
+        Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+        if (proyecto == null) {
+            return;
+        }
+
+        var recipients = usuarioProyectoRepository.findActivasByProyectoId(proyectoId).stream()
+                .map(item -> item.getUsuario())
+                .filter(usuario -> usuario != null)
+                .map(usuario -> usuario.getUsername())
+                .filter(username -> username != null && !username.isBlank())
+                .filter(username -> actorUsername == null || !username.equalsIgnoreCase(actorUsername))
+                .distinct()
+                .toList();
+
+        if (recipients.isEmpty()) {
+            return;
+        }
+
+        notificationPublisher.publish(new NotificationContext(
+                eventType,
+                proyectoId,
+                actorUsername,
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "documentType", documento.getTipoDocumentoCodigo(),
+                        "documentName", documento.getNombreOriginal(),
+                        "isReplacement", reemplazo,
+                        "recipients", recipients
+                )));
     }
 }

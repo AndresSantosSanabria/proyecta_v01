@@ -22,6 +22,7 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityCatalogCacheService;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -54,6 +56,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final PetiCatalogService petiCatalogService;
     private final IProgressCalculator progressCalculator;
     private final NotificationEventPublisherPort notificationPublisher;
+    private final KeycloakIdentityExtractor identityExtractor;
 
     public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
                                FuragRespuestaRepository furagRespuestaRepository,
@@ -62,7 +65,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                                SecurityCatalogCacheService securityCatalogCacheService,
                                PetiCatalogService petiCatalogService,
                                IProgressCalculator progressCalculator,
-                               NotificationEventPublisherPort notificationPublisher) {
+                               NotificationEventPublisherPort notificationPublisher,
+                               KeycloakIdentityExtractor identityExtractor) {
         this.proyectoRepository = proyectoRepository;
         this.furagRespuestaRepository = furagRespuestaRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -71,6 +75,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.petiCatalogService = petiCatalogService;
         this.progressCalculator = progressCalculator;
         this.notificationPublisher = notificationPublisher;
+        this.identityExtractor = identityExtractor;
     }
 
     @Override
@@ -357,10 +362,11 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     @Override
     @Transactional
-    public ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto) {
+    public ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto, Authentication authentication) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
 
         if (dto.nombre() != null) proyecto.setNombre(dto.nombre());
         if (dto.dependencia() != null) proyecto.setDependencia(dto.dependencia());
@@ -377,25 +383,26 @@ public class ProyectoServiceImpl implements ProyectoService {
         // ... (se puede implementar merge fino si es necesario)
 
         Proyecto actualizado = proyectoRepository.save(proyecto);
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.PROJECT_UPDATED,
-                actualizado.getId(),
-                "system",
-                Map.of(
-                        "projectName", actualizado.getNombre(),
-                        "state", actualizado.getEstadoCodigo(),
-                        "recipients", List.of(actualizado.getCorreoDirector())
-                )));
+        notificarCambioProyecto(actualizado, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
+                "projectName", actualizado.getNombre(),
+                "state", actualizado.getEstadoCodigo()
+        ));
         return mapToResponseDto(actualizado);
     }
 
     @Override
     @Transactional
-    public void eliminarProyecto(String id) {
+    public void eliminarProyecto(String id, Authentication authentication) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         proyectoRepository.delete(proyecto);
+        notificarCambioProyecto(proyecto, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
+                "projectName", proyecto.getNombre(),
+                "state", proyecto.getEstadoCodigo(),
+                "action", "deleted"
+        ));
     }
 
     @Override
@@ -725,6 +732,11 @@ public class ProyectoServiceImpl implements ProyectoService {
         );
     }
 
+    @Override
+    public String obtenerSiguienteCodigo() {
+        return generarCodigo();
+    }
+
     private synchronized String generarCodigo() {
         String yearPrefix = PROJECT_CODE_PREFIX + java.time.Year.now().getValue() + "-";
         int maxConsecutivo = proyectoRepository.findAll().stream()
@@ -1008,5 +1020,34 @@ public class ProyectoServiceImpl implements ProyectoService {
                 assignment.getUsuario().getNombre(),
                 assignment.getUsuario().getUsername()
         );
+    }
+
+    private void notificarCambioProyecto(Proyecto proyecto, String actorUsername, NotificationEventType eventType, Map<String, Object> extraAttributes) {
+        if (proyecto == null || proyecto.getId() == null) {
+            return;
+        }
+        List<String> recipients = usuarioProyectoRepository.findActivasByProyectoId(proyecto.getId()).stream()
+                .map(SeguridadUsuarioProyecto::getUsuario)
+                .filter(usuario -> usuario != null && usuario.getUsername() != null && !usuario.getUsername().isBlank())
+                .map(SeguridadUsuario::getUsername)
+                .filter(username -> actorUsername == null || !username.equalsIgnoreCase(actorUsername))
+                .distinct()
+                .toList();
+        if (recipients.isEmpty()) {
+            return;
+        }
+
+        Map<String, Object> attributes = new java.util.HashMap<>();
+        if (extraAttributes != null) {
+            attributes.putAll(extraAttributes);
+        }
+        attributes.put("recipients", recipients);
+
+        notificationPublisher.publish(new NotificationContext(
+                eventType,
+                proyecto.getId(),
+                actorUsername,
+                attributes
+        ));
     }
 }

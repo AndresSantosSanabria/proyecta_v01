@@ -10,10 +10,12 @@ import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.exception.UnprocessableEntityException;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.beneficioimpacto.ProyectoBeneficioImpacto;
+import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.model.enums.EstadoBeneficioImpacto;
 import com.proyecta.api_gestion.repository.ProyectoBeneficioImpactoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.ProyectoBeneficioImpactoService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
@@ -42,6 +44,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     private final ProyectoRepository proyectoRepository;
     private final ProyectoBeneficioImpactoRepository beneficioImpactoRepository;
     private final SeguridadUsuarioRepository usuarioRepository;
+    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final KeycloakIdentityExtractor identityExtractor;
     private final NotificationEventPublisherPort notificationPublisher;
@@ -50,6 +53,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     public ProyectoBeneficioImpactoServiceImpl(ProyectoRepository proyectoRepository,
                                                ProyectoBeneficioImpactoRepository beneficioImpactoRepository,
                                                SeguridadUsuarioRepository usuarioRepository,
+                                               SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
                                                LocalUserAuthorizationService localUserAuthorizationService,
                                                KeycloakIdentityExtractor identityExtractor,
                                                NotificationEventPublisherPort notificationPublisher,
@@ -57,6 +61,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         this.proyectoRepository = proyectoRepository;
         this.beneficioImpactoRepository = beneficioImpactoRepository;
         this.usuarioRepository = usuarioRepository;
+        this.usuarioProyectoRepository = usuarioProyectoRepository;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.identityExtractor = identityExtractor;
         this.notificationPublisher = notificationPublisher;
@@ -99,8 +104,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
             throw new UnprocessableEntityException("La informacion de beneficio e impacto ya fue aprobada y no puede modificarse.");
         }
 
-        boolean eraNuevo = record.getId() == null;
-        boolean eraPendiente = record.getEstado() == null || record.getEstado() == EstadoBeneficioImpacto.PENDIENTE;
+        boolean veniaObservado = record.getEstado() == EstadoBeneficioImpacto.OBSERVADO;
 
         record.setProyecto(proyecto);
         record.setEstado(EstadoBeneficioImpacto.DILIGENCIADO);
@@ -128,9 +132,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         record.setSnapshotJson(buildSnapshotJson(record));
 
         ProyectoBeneficioImpacto saved = beneficioImpactoRepository.save(record);
-        if (eraNuevo || eraPendiente) {
-            notificarSubmision(proyecto, saved, auth.username());
-        }
+        notificarSubmision(proyecto, saved, auth.username(), veniaObservado);
         return toResponse(saved, auth);
     }
 
@@ -313,10 +315,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     }
 
     private void notificarRequerimiento(Proyecto proyecto, String actorUsername) {
-        List<String> recipients = new ArrayList<>();
-        if (proyecto.getCorreoDirector() != null && !proyecto.getCorreoDirector().isBlank()) {
-            recipients.add(proyecto.getCorreoDirector().trim());
-        }
+        List<String> recipients = resolverRecipientesProyecto(proyecto, actorUsername);
 
         if (recipients.isEmpty()) {
             return;
@@ -334,29 +333,29 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
                 )));
     }
 
-    private void notificarSubmision(Proyecto proyecto, ProyectoBeneficioImpacto record, String actorUsername) {
-        List<String> recipients = resolverGestoresEmails();
+    private void notificarSubmision(Proyecto proyecto, ProyectoBeneficioImpacto record, String actorUsername, boolean resubmitted) {
+        List<String> recipients = resolverRecipientesProyecto(proyecto, actorUsername);
         if (recipients.isEmpty()) {
             return;
         }
 
         notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.PROJECT_BENEFIT_IMPACT_SUBMITTED,
+                resubmitted
+                        ? NotificationEventType.PROJECT_BENEFIT_IMPACT_RESUBMITTED
+                        : NotificationEventType.PROJECT_BENEFIT_IMPACT_SUBMITTED,
                 proyecto.getId(),
                 actorUsername,
                 Map.of(
                         "projectName", proyecto.getNombre(),
                         "state", record.getEstado() != null ? record.getEstado().name() : EstadoBeneficioImpacto.DILIGENCIADO.name(),
                         "reviewUrl", "/proyectos/" + proyecto.getId() + "/beneficio-impacto",
+                        "previousState", resubmitted ? EstadoBeneficioImpacto.OBSERVADO.name() : EstadoBeneficioImpacto.PENDIENTE.name(),
                         "recipients", recipients
                 )));
     }
 
     private void notificarRevision(Proyecto proyecto, ProyectoBeneficioImpacto record, String actorUsername, boolean aprobado, String observaciones) {
-        List<String> recipients = new ArrayList<>();
-        if (proyecto.getCorreoDirector() != null && !proyecto.getCorreoDirector().isBlank()) {
-            recipients.add(proyecto.getCorreoDirector().trim());
-        }
+        List<String> recipients = resolverRecipientesProyecto(proyecto, actorUsername);
         if (recipients.isEmpty()) return;
 
         Map<String, Object> attrs = new java.util.HashMap<>();
@@ -375,19 +374,50 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         ));
     }
 
-    private List<String> resolverGestoresEmails() {
-        List<String> recipients = new ArrayList<>();
+    private List<String> resolverRecipientesProyecto(Proyecto proyecto, String actorUsername) {
+        Set<String> recipients = new LinkedHashSet<>();
+
+        if (proyecto != null) {
+            addRecipient(recipients, proyecto.getCorreoDirector());
+            if (proyecto.getPatrocinador() != null) {
+                addRecipient(recipients, proyecto.getPatrocinador().getEntidad());
+            }
+
+            List<SeguridadUsuarioProyecto> asignaciones = usuarioProyectoRepository.findActivasByProyectoIdAndCargoIn(
+                    proyecto.getId(),
+                    List.of("director_proyecto", "gestor_tic", "gestor_proyectos", "lider_tecnico", "lider tecnico", "director_tecnico", "director tecnico")
+            );
+            for (SeguridadUsuarioProyecto asignacion : asignaciones) {
+                if (asignacion != null && asignacion.getUsuario() != null) {
+                    addRecipient(recipients, asignacion.getUsuario().getCorreo());
+                }
+            }
+        }
+
         usuarioRepository.findAll().stream()
                 .filter(usuario -> usuario.getActivo() == null || Boolean.TRUE.equals(usuario.getActivo()))
                 .filter(usuario -> {
                     String rol = normalize(usuario.getRolCodigo());
                     return rol != null && GESTOR_ROLES.contains(rol);
                 })
-                .map(usuario -> trimToNull(usuario.getCorreo()))
-                .filter(value -> value != null && !value.isBlank())
-                .distinct()
-                .forEach(recipients::add);
-        return recipients;
+                .map(usuario -> usuario.getCorreo())
+                .forEach(email -> addRecipient(recipients, email));
+
+        if (actorUsername != null) {
+            String normalizedActor = trimToNull(actorUsername);
+            if (normalizedActor != null) {
+                recipients.removeIf(value -> value.equalsIgnoreCase(normalizedActor));
+            }
+        }
+
+        return recipients.stream().toList();
+    }
+
+    private void addRecipient(Set<String> recipients, String value) {
+        String trimmed = trimToNull(value);
+        if (trimmed != null && trimmed.contains("@")) {
+            recipients.add(trimmed);
+        }
     }
 
     private String buildSnapshotJson(ProyectoBeneficioImpacto record) {

@@ -12,19 +12,19 @@ public interface ProjectHierarchyService {
     ProjectHierarchyDTO getProjectHierarchy(String proyectoId);
     
     // CRUD Fases
-    com.proyecta.api_gestion.model.Fase agregarFase(String proyectoId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto);
-    com.proyecta.api_gestion.model.Fase editarFase(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto);
-    void eliminarFase(String proyectoId, Integer faseId);
+    com.proyecta.api_gestion.model.Fase agregarFase(String proyectoId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication);
+    com.proyecta.api_gestion.model.Fase editarFase(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication);
+    void eliminarFase(String proyectoId, Integer faseId, Authentication authentication);
 
     // CRUD Hitos
-    com.proyecta.api_gestion.model.Hito agregarHito(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto);
-    com.proyecta.api_gestion.model.Hito editarHito(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto);
-    void eliminarHito(String proyectoId, Integer faseId, Integer hitoId);
+    com.proyecta.api_gestion.model.Hito agregarHito(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication);
+    com.proyecta.api_gestion.model.Hito editarHito(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication);
+    void eliminarHito(String proyectoId, Integer faseId, Integer hitoId, Authentication authentication);
 
     // CRUD Entregables
-    com.proyecta.api_gestion.model.Entregable agregarEntregable(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto);
-    com.proyecta.api_gestion.model.Entregable editarEntregable(String proyectoId, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto);
-    void eliminarEntregable(String proyectoId, Integer entregableId);
+    com.proyecta.api_gestion.model.Entregable agregarEntregable(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
+    com.proyecta.api_gestion.model.Entregable editarEntregable(String proyectoId, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
+    void eliminarEntregable(String proyectoId, Integer entregableId, Authentication authentication);
 
     List<com.proyecta.api_gestion.dto.project.EntregableHierarchyDTO> listarEntregablesProyecto(String proyectoId);
 

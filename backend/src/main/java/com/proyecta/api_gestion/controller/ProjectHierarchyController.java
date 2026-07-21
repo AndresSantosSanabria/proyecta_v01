@@ -48,43 +48,43 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> agregarFase(String id, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto) {
-        com.proyecta.api_gestion.model.Fase fase = projectHierarchyService.agregarFase(id, dto);
+    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> agregarFase(String id, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
+        com.proyecta.api_gestion.model.Fase fase = projectHierarchyService.agregarFase(id, dto, authentication);
         return ResponseEntity.ok(ApiResponse.success(new com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO(fase.getId(), fase.getNombre(), fase.getDescripcion(), fase.getPonderacion(), fase.getAvanceCalculado(), null), "Fase agregada"));
     }
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> editarFase(String id, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto) {
-        com.proyecta.api_gestion.model.Fase fase = projectHierarchyService.editarFase(id, faseId, dto);
+    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> editarFase(String id, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
+        com.proyecta.api_gestion.model.Fase fase = projectHierarchyService.editarFase(id, faseId, dto, authentication);
         return ResponseEntity.ok(ApiResponse.success(new com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO(fase.getId(), fase.getNombre(), fase.getDescripcion(), fase.getPonderacion(), fase.getAvanceCalculado(), null), "Fase editada"));
     }
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<Void> eliminarFase(String id, Integer faseId) {
-        projectHierarchyService.eliminarFase(id, faseId);
+    public ResponseEntity<Void> eliminarFase(String id, Integer faseId, Authentication authentication) {
+        projectHierarchyService.eliminarFase(id, faseId, authentication);
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> agregarHito(String id, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
-        com.proyecta.api_gestion.model.Hito hito = projectHierarchyService.agregarHito(id, faseId, dto);
+    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> agregarHito(String id, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
+        com.proyecta.api_gestion.model.Hito hito = projectHierarchyService.agregarHito(id, faseId, dto, authentication);
         return ResponseEntity.ok(ApiResponse.success(new com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO(hito.getId(), hito.getNombre(), hito.getDescripcion(), hito.getPonderacion(), hito.getAvanceCalculado(), null), "Hito agregado"));
     }
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> editarHito(String id, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
-        com.proyecta.api_gestion.model.Hito hito = projectHierarchyService.editarHito(id, faseId, hitoId, dto);
+    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> editarHito(String id, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
+        com.proyecta.api_gestion.model.Hito hito = projectHierarchyService.editarHito(id, faseId, hitoId, dto, authentication);
         return ResponseEntity.ok(ApiResponse.success(new com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO(hito.getId(), hito.getNombre(), hito.getDescripcion(), hito.getPonderacion(), hito.getAvanceCalculado(), null), "Hito editado"));
     }
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<Void> eliminarHito(String id, Integer faseId, Integer hitoId) {
-        projectHierarchyService.eliminarHito(id, faseId, hitoId);
+    public ResponseEntity<Void> eliminarHito(String id, Integer faseId, Integer hitoId, Authentication authentication) {
+        projectHierarchyService.eliminarHito(id, faseId, hitoId, authentication);
         return ResponseEntity.noContent().build();
     }
 
@@ -96,20 +96,20 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(String id, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
-        return ResponseEntity.ok(ApiResponse.success(projectHierarchyService.agregarEntregable(id, faseId, hitoId, dto), "Entregable agregado"));
+    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(String id, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(projectHierarchyService.agregarEntregable(id, faseId, hitoId, dto, authentication), "Entregable agregado"));
     }
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> editarEntregable(String id, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
-        return ResponseEntity.ok(ApiResponse.success(projectHierarchyService.editarEntregable(id, entregableId, dto), "Entregable editado"));
+    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> editarEntregable(String id, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(projectHierarchyService.editarEntregable(id, entregableId, dto, authentication), "Entregable editado"));
     }
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<Void> eliminarEntregable(String id, Integer entregableId) {
-        projectHierarchyService.eliminarEntregable(id, entregableId);
+    public ResponseEntity<Void> eliminarEntregable(String id, Integer entregableId, Authentication authentication) {
+        projectHierarchyService.eliminarEntregable(id, entregableId, authentication);
         return ResponseEntity.noContent().build();
     }
 

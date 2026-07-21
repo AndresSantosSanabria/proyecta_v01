@@ -85,6 +85,15 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
 
     @Override
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
+    public ResponseEntity<ApiResponse<String>> obtenerSiguienteCodigo() {
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.obtenerSiguienteCodigo(),
+                "Siguiente codigo generado"
+        ));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
     public ResponseEntity<ApiResponse<ProyectoCreatedDTO>> registrarProyectoInicial(
             @Valid @RequestBody ProyectoRegistroInicialDTO dto,
             Authentication authentication) {
@@ -131,8 +140,9 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
             @PathVariable String id,
-            @Valid @RequestBody ProyectoUpdateDTO dto) {
-        return ResponseEntity.ok(ApiResponse.success(proyectoService.actualizarProyecto(id, dto), "Proyecto actualizado exitosamente"));
+            @Valid @RequestBody ProyectoUpdateDTO dto,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.actualizarProyecto(id, dto, authentication), "Proyecto actualizado exitosamente"));
     }
 
     @Override
@@ -143,8 +153,8 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
 
     @Override
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
-    public ResponseEntity<Void> eliminarProyecto(String id) {
-        proyectoService.eliminarProyecto(id);
+    public ResponseEntity<Void> eliminarProyecto(String id, Authentication authentication) {
+        proyectoService.eliminarProyecto(id, authentication);
         return ResponseEntity.noContent().build();
     }
 

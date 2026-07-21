@@ -51,28 +51,28 @@ public interface IProjectHierarchyController {
     // Fases
     @Operation(summary = "Agregar fase", description = "Añade una nueva fase al proyecto.")
     @PostMapping("/{id}/fases")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> agregarFase(@PathVariable String id, @RequestBody com.proyecta.api_gestion.dto.proyecto.FaseDTO dto);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> agregarFase(@PathVariable String id, @RequestBody com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication);
 
     @Operation(summary = "Editar fase")
     @PutMapping("/{id}/fases/{faseId}")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> editarFase(@PathVariable String id, @PathVariable Integer faseId, @RequestBody com.proyecta.api_gestion.dto.proyecto.FaseDTO dto);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.FaseResponseDTO>> editarFase(@PathVariable String id, @PathVariable Integer faseId, @RequestBody com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication);
 
     @Operation(summary = "Eliminar fase")
     @DeleteMapping("/{id}/fases/{faseId}")
-    ResponseEntity<Void> eliminarFase(@PathVariable String id, @PathVariable Integer faseId);
+    ResponseEntity<Void> eliminarFase(@PathVariable String id, @PathVariable Integer faseId, Authentication authentication);
 
     // Hitos
     @Operation(summary = "Agregar hito")
     @PostMapping("/{id}/fases/{faseId}/hitos")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> agregarHito(@PathVariable String id, @PathVariable Integer faseId, @RequestBody com.proyecta.api_gestion.dto.proyecto.HitoDTO dto);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> agregarHito(@PathVariable String id, @PathVariable Integer faseId, @RequestBody com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication);
 
     @Operation(summary = "Editar hito")
     @PutMapping("/{id}/fases/{faseId}/hitos/{hitoId}")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> editarHito(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.HitoDTO dto);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> editarHito(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication);
 
     @Operation(summary = "Eliminar hito")
     @DeleteMapping("/{id}/fases/{faseId}/hitos/{hitoId}")
-    ResponseEntity<Void> eliminarHito(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId);
+    ResponseEntity<Void> eliminarHito(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, Authentication authentication);
 
     // Entregables
     @Operation(summary = "EP-ENTR-01 · Listar entregables de un proyecto", description = "Lista todos los entregables asociados a un proyecto.")
@@ -81,15 +81,15 @@ public interface IProjectHierarchyController {
 
     @Operation(summary = "EP-ENTR-02 · Agregar entregable")
     @PostMapping("/{id}/fases/{faseId}/hitos/{hitoId}/entregables")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
 
     @Operation(summary = "EP-ENTR-03 · Editar entregable")
     @PutMapping("/{id}/entregables/{entregableId}")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> editarEntregable(@PathVariable String id, @PathVariable Integer entregableId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> editarEntregable(@PathVariable String id, @PathVariable Integer entregableId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
 
     @Operation(summary = "EP-ENTR-05 · Eliminar entregable")
     @DeleteMapping("/{id}/entregables/{entregableId}")
-    ResponseEntity<Void> eliminarEntregable(@PathVariable String id, @PathVariable Integer entregableId);
+    ResponseEntity<Void> eliminarEntregable(@PathVariable String id, @PathVariable Integer entregableId, Authentication authentication);
 
     // Cambio de fecha limite
     @Operation(summary = "EP-ENTR-06 · Cambiar fecha limite con justificacion y PDF de soporte",

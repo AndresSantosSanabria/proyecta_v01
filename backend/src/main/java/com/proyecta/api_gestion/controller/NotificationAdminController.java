@@ -1,7 +1,14 @@
 package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.notification.*;
+import com.proyecta.api_gestion.dto.notification.NotificationEventCatalogDTO;
+import com.proyecta.api_gestion.dto.notification.NotificationPreferenceDTO;
+import com.proyecta.api_gestion.dto.notification.NotificationPreferenceUpdateRequest;
+import com.proyecta.api_gestion.dto.notification.NotificationTemplateDTO;
+import com.proyecta.api_gestion.dto.notification.NotificationTemplatePreviewRequest;
+import com.proyecta.api_gestion.dto.notification.NotificationTemplatePreviewResponse;
+import com.proyecta.api_gestion.dto.notification.NotificationTemplateUpdateRequest;
+import com.proyecta.api_gestion.dto.notification.NotificationTestSendRequest;
 import com.proyecta.api_gestion.model.notification.NotificationPreference;
 import com.proyecta.api_gestion.model.notification.NotificationTemplate;
 import com.proyecta.api_gestion.repository.notification.NotificationEventCatalogRepository;
@@ -17,9 +24,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/admin/notificaciones")
@@ -107,13 +121,18 @@ public class NotificationAdminController {
     }
 
     @PostMapping("/plantillas/test-send")
-    public ResponseEntity<ApiResponse<String>> testSend(@Valid @RequestBody NotificationTestSendRequest request,
-                                                        Authentication authentication) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testSend(@Valid @RequestBody NotificationTestSendRequest request,
+                                                                     Authentication authentication) {
         try {
             String username = identityExtractor.resolveUsername(authentication);
             var userOpt = usuarioRepository.findByUsernameIgnoreCase(username);
             if (userOpt.isEmpty() || userOpt.get().getCorreo() == null || userOpt.get().getCorreo().isBlank()) {
-                return ResponseEntity.badRequest().body(ApiResponse.success("No se encontró correo electrónico para el usuario " + username, "USER_NO_EMAIL"));
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("recipient", username);
+                payload.put("status", "FAILED");
+                payload.put("success", false);
+                payload.put("errorMessage", "No se encontró correo electrónico para el usuario");
+                return ResponseEntity.badRequest().body(ApiResponse.success(payload, "USER_NO_EMAIL"));
             }
 
             String recipientEmail = userOpt.get().getCorreo();
@@ -121,12 +140,22 @@ public class NotificationAdminController {
             var body = renderer.apply(request.bodyTemplate(), request.variables());
             var message = new com.proyecta.api_gestion.service.notification.NotificationMessage(subject, body, Boolean.TRUE.equals(request.htmlEnabled()));
 
-            notificationSender.send(recipientEmail, message);
+            var result = notificationSender.send(recipientEmail, message);
             log.info("Test notification email sent to {} (user: {})", recipientEmail, username);
-            return ResponseEntity.ok(ApiResponse.success("Correo de prueba enviado correctamente a " + recipientEmail));
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("recipient", recipientEmail);
+            payload.put("status", result.status().name());
+            payload.put("success", result.success());
+            payload.put("errorMessage", result.errorMessage());
+            return ResponseEntity.ok(ApiResponse.success(payload, "Correo de prueba procesado"));
         } catch (Exception e) {
             log.error("Failed to send test email: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(ApiResponse.success("Error al enviar el correo de prueba: " + e.getMessage(), "EMAIL_SEND_FAILED"));
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("status", "FAILED");
+            payload.put("success", false);
+            payload.put("errorMessage", e.getMessage());
+            return ResponseEntity.internalServerError().body(ApiResponse.success(payload, "EMAIL_SEND_FAILED"));
         }
     }
 

@@ -50,6 +50,15 @@ public interface SeguridadUsuarioProyectoRepository extends JpaRepository<Seguri
         JOIN FETCH up.usuario u
         WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
           AND up.activo = true
+        ORDER BY up.fechaAsignacion DESC
+    """)
+    List<SeguridadUsuarioProyecto> findActivasByProyectoId(@Param("proyectoId") String proyectoId);
+
+    @Query("""
+        SELECT up FROM SeguridadUsuarioProyecto up
+        JOIN FETCH up.usuario u
+        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
+          AND up.activo = true
           AND (
             LOWER(up.cargo) IN ('director_proyecto', 'director de proyecto', 'director_pro', 'lider_tecnico', 'lider tecnico', 'director_tecnico', 'director tecnico')
             OR LOWER(up.cargo) LIKE '%director%proyecto%'

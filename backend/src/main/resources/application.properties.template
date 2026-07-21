@@ -33,11 +33,20 @@ spring.flyway.enabled=true
 spring.flyway.locations=classpath:db/migration
 
 # Mail / Notifications
-spring.mail.host=${MAIL_HOST:}
+spring.mail.host=${MAIL_HOST:smtp.office365.com}
 spring.mail.port=${MAIL_PORT:587}
 spring.mail.username=${MAIL_USERNAME:}
 spring.mail.password=${MAIL_PASSWORD:}
+spring.mail.protocol=${MAIL_PROTOCOL:smtp}
 spring.mail.properties.mail.smtp.auth=${MAIL_SMTP_AUTH:true}
 spring.mail.properties.mail.smtp.starttls.enable=${MAIL_SMTP_STARTTLS_ENABLE:true}
+spring.mail.properties.mail.smtp.starttls.required=${MAIL_SMTP_STARTTLS_REQUIRED:true}
+spring.mail.properties.mail.smtp.ssl.trust=${MAIL_SMTP_SSL_TRUST:smtp.office365.com}
+spring.mail.properties.mail.smtp.ssl.protocols=${MAIL_SMTP_SSL_PROTOCOLS:TLSv1.2 TLSv1.3}
+spring.mail.properties.mail.smtp.connectiontimeout=${MAIL_SMTP_CONNECTION_TIMEOUT:30000}
+spring.mail.properties.mail.smtp.timeout=${MAIL_SMTP_TIMEOUT:30000}
+spring.mail.properties.mail.smtp.writetimeout=${MAIL_SMTP_WRITE_TIMEOUT:30000}
+spring.mail.properties.mail.smtp.quitwait=${MAIL_SMTP_QUITWAIT:false}
+spring.mail.properties.mail.smtp.auth.mechanisms=${MAIL_SMTP_AUTH_MECHANISMS:LOGIN}
 mail.from=${MAIL_FROM:}
 mail.notifications.enabled=${MAIL_NOTIFICATION_ENABLED:true}

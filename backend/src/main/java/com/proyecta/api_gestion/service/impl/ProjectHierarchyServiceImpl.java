@@ -8,11 +8,15 @@ import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.*;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.notification.NotificationOrchestratorService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
@@ -46,6 +50,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private final IStorageProvider storageProvider;
     private final KeycloakIdentityExtractor identityExtractor;
     private final NotificationOrchestratorService notificationOrchestrator;
+    private final NotificationEventPublisherPort notificationPublisher;
+    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
 
     private static final String DIAS_POR_VENCER_PARAM = "dias_por_vencer";
     private static final int DIAS_POR_VENCER_DEFAULT = 7;
@@ -62,7 +68,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                                         EntregableCambioFechaRepository cambioFechaRepository,
                                         IStorageProvider storageProvider,
                                         KeycloakIdentityExtractor identityExtractor,
-                                        NotificationOrchestratorService notificationOrchestrator) {
+                                        NotificationOrchestratorService notificationOrchestrator,
+                                        NotificationEventPublisherPort notificationPublisher,
+                                        SeguridadUsuarioProyectoRepository usuarioProyectoRepository) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
@@ -73,13 +81,16 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         this.storageProvider = storageProvider;
         this.identityExtractor = identityExtractor;
         this.notificationOrchestrator = notificationOrchestrator;
+        this.notificationPublisher = notificationPublisher;
+        this.usuarioProyectoRepository = usuarioProyectoRepository;
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Fase agregarFase(String proyectoId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto) {
+    public Fase agregarFase(String proyectoId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         validarFaseConHitos(dto, proyecto.getFechaInicio());
         validarPonderacionAlAgregarFase(proyectoId, dto.ponderacion());
         Fase fase = new Fase();
@@ -92,14 +103,16 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             crearHitoConEntregables(guardada, hitoDto);
         }
         avanceCalculatorService.calcularYActualizarAvanceProyecto(proyectoId);
+        notificarEstructura(proyecto, actorUsername, "FASE_CREADA", guardada.getNombre(), null, null);
         return guardada;
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Fase editarFase(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto) {
+    public Fase editarFase(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
         Fase fase = faseRepository.findById(faseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
         validarTexto(dto.nombre(), "El nombre de la fase es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion de la fase debe estar entre 1 y 100.");
@@ -109,36 +122,41 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         Fase actualizada = faseRepository.save(fase);
         avanceCalculatorService.calcularYActualizarAvanceProyecto(proyectoId);
+        notificarEstructura(fase.getProyecto(), actorUsername, "FASE_EDITADA", actualizada.getNombre(), null, null);
         return actualizada;
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public void eliminarFase(String proyectoId, Integer faseId) {
+    public void eliminarFase(String proyectoId, Integer faseId, Authentication authentication) {
         Fase fase = faseRepository.findById(faseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
         throw new BadRequestException("No se permite eliminar fases ya creadas. Solo se pueden modificar sus textos y ponderacion.");
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Hito agregarHito(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
+    public Hito agregarHito(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
         Fase fase = faseRepository.findById(faseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
         validarHitoConEntregables(dto, fase.getProyecto() != null ? fase.getProyecto().getFechaInicio() : null);
         validarPonderacionAlAgregarHito(faseId, dto.ponderacion());
         Hito guardado = crearHitoConEntregables(fase, dto);
         avanceCalculatorService.calcularYActualizarAvanceFase(faseId);
+        notificarEstructura(fase.getProyecto(), actorUsername, "HITO_CREADO", fase.getNombre(), guardado.getNombre(), null);
         return guardado;
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Hito editarHito(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
+    public Hito editarHito(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
         Hito hito = hitoRepository.findById(hitoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
         validarTexto(dto.nombre(), "El nombre del hito es obligatorio.");
@@ -149,14 +167,16 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         Hito actualizado = hitoRepository.save(hito);
         avanceCalculatorService.calcularYActualizarAvanceFase(hito.getFase().getId());
+        notificarEstructura(hito.getFase().getProyecto(), actorUsername, "HITO_EDITADO", hito.getFase().getNombre(), actualizado.getNombre(), null);
         return actualizado;
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public void eliminarHito(String proyectoId, Integer faseId, Integer hitoId) {
+    public void eliminarHito(String proyectoId, Integer faseId, Integer hitoId, Authentication authentication) {
         Hito hito = hitoRepository.findById(hitoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
         throw new BadRequestException("No se permite eliminar hitos ya creados. Solo se pueden modificar sus textos y ponderacion.");
@@ -164,9 +184,10 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Entregable agregarEntregable(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
+    public Entregable agregarEntregable(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
         Hito hito = hitoRepository.findById(hitoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
         validarEntregableNuevo(dto, hito.getFase() != null && hito.getFase().getProyecto() != null
@@ -181,14 +202,16 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         entregable.setHito(hito);
         Entregable guardado = entregableRepository.save(entregable);
         avanceCalculatorService.calcularYActualizarAvanceHito(hitoId);
+        notificarEstructura(hito.getFase().getProyecto(), actorUsername, "ENTREGABLE_CREADO", hito.getFase().getNombre(), hito.getNombre(), guardado.getNombre());
         return guardado;
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Entregable editarEntregable(String proyectoId, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
+    public Entregable editarEntregable(String proyectoId, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
         Entregable entregable = entregableRepository.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         validarTexto(dto.nombre(), "El nombre del entregable es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100.");
@@ -203,14 +226,16 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         Entregable actualizado = entregableRepository.save(entregable);
         avanceCalculatorService.calcularYActualizarAvanceHito(entregable.getHito().getId());
+        notificarEstructura(entregable.getHito().getFase().getProyecto(), actorUsername, "ENTREGABLE_EDITADO", entregable.getHito().getFase().getNombre(), entregable.getHito().getNombre(), actualizado.getNombre());
         return actualizado;
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public void eliminarEntregable(String proyectoId, Integer entregableId) {
+    public void eliminarEntregable(String proyectoId, Integer entregableId, Authentication authentication) {
         Entregable entregable = entregableRepository.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
+        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         throw new BadRequestException("No se permite eliminar entregables ya creados. Solo se pueden modificar sus textos y ponderacion.");
     }
@@ -687,5 +712,38 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         } catch (IOException e) {
             throw new BadRequestException("No se pudo leer el archivo para validar su formato.");
         }
+    }
+
+    private void notificarEstructura(Proyecto proyecto, String actorUsername, String action, String phaseName, String hitoName, String entregableName) {
+        if (proyecto == null || proyecto.getId() == null) {
+            return;
+        }
+
+        List<String> recipients = usuarioProyectoRepository.findActivasByProyectoId(proyecto.getId()).stream()
+                .map(SeguridadUsuarioProyecto::getUsuario)
+                .filter(usuario -> usuario != null && usuario.getUsername() != null && !usuario.getUsername().isBlank())
+                .map(SeguridadUsuario::getUsername)
+                .filter(username -> actorUsername == null || !username.equalsIgnoreCase(actorUsername))
+                .distinct()
+                .toList();
+
+        if (recipients.isEmpty()) {
+            return;
+        }
+
+        java.util.Map<String, Object> attributes = new java.util.HashMap<>();
+        attributes.put("projectName", proyecto.getNombre());
+        attributes.put("action", action);
+        attributes.put("phaseName", phaseName);
+        attributes.put("hitoName", hitoName);
+        attributes.put("deliverableName", entregableName);
+        attributes.put("recipients", recipients);
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_UPDATED,
+                proyecto.getId(),
+                actorUsername,
+                attributes
+        ));
     }
 }

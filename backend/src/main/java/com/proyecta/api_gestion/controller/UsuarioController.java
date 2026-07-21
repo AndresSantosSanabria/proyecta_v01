@@ -85,6 +85,7 @@ public class UsuarioController implements IUsuarioController {
             Authentication authentication) {
         String username = identityExtractor.resolveUsername(authentication);
         SeguridadUsuario segUsuario = seguridadUsuarioRepository.findByUsernameIgnoreCase(username)
+                .or(() -> seguridadUsuarioRepository.findByCorreoIgnoreCase(username))
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + username));
 
         Boolean newValue = Boolean.TRUE.equals(request.recibirNotificacionesGlobales());
@@ -99,6 +100,7 @@ public class UsuarioController implements IUsuarioController {
     private Boolean resolveGlobalNotificationsFlag(String username) {
         if (username == null || username.isBlank()) return false;
         return seguridadUsuarioRepository.findByUsernameIgnoreCase(username)
+                .or(() -> seguridadUsuarioRepository.findByCorreoIgnoreCase(username))
                 .map(SeguridadUsuario::getRecibirNotificacionesGlobales)
                 .orElse(false);
     }

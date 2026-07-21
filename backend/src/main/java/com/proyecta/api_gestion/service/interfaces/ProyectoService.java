@@ -5,6 +5,7 @@ import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
 import java.util.List;
 
 public interface ProyectoService {
@@ -14,10 +15,11 @@ public interface ProyectoService {
     ProyectoResponseDTO obtenerPorId(String id);
     ProyectoCreatedDTO crearProyecto(ProyectoCreateDTO dto);
     ProyectoCreatedDTO registrarProyectoInicial(ProyectoRegistroInicialDTO dto, String gestorUsername);
+    String obtenerSiguienteCodigo();
     ProyectoCompletionStatusDTO obtenerEstadoCompletitud(String id, String username);
     ProyectoResponseDTO completarInformacionInicial(String id, ProyectoCompletarInformacionDTO dto, String username);
-    ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto);
-    void eliminarProyecto(String id);
+    ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto, Authentication authentication);
+    void eliminarProyecto(String id, Authentication authentication);
     ProyectoResumenDTO obtenerResumen(String id);
     void cerrarProyecto(String id);
     DashboardDTO obtenerDashboard();

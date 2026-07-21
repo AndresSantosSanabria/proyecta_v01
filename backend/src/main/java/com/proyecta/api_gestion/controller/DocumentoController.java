@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -42,9 +43,10 @@ public class DocumentoController implements IDocumentoController {
     public ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumento(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento,
-            @RequestPart("archivo") MultipartFile archivo) {
+            @RequestPart("archivo") MultipartFile archivo,
+            Authentication authentication) {
         
-        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo);
+        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo, authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(response, "Documento cargado exitosamente"));
     }
@@ -69,9 +71,10 @@ public class DocumentoController implements IDocumentoController {
     @PreAuthorize("@proyectoSecurity.canAccessOperational('DOCUMENTO:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<Void>> eliminarDocumento(
             @PathVariable String proyectoId,
-            @PathVariable String tipoDocumento) {
+            @PathVariable String tipoDocumento,
+            Authentication authentication) {
         
-        documentoService.eliminarDocumento(proyectoId, tipoDocumento);
+        documentoService.eliminarDocumento(proyectoId, tipoDocumento, authentication);
         
         return ResponseEntity.ok(ApiResponse.success("Documento eliminado exitosamente"));
     }
@@ -82,8 +85,9 @@ public class DocumentoController implements IDocumentoController {
     public ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumentoDinamico(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento,
-            @RequestPart("archivo") MultipartFile archivo) {
-        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo);
+            @RequestPart("archivo") MultipartFile archivo,
+            Authentication authentication) {
+        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo, authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(response, "Documento cargado exitosamente"));
     }
@@ -105,8 +109,9 @@ public class DocumentoController implements IDocumentoController {
     @PreAuthorize("@proyectoSecurity.canAccessOperational('DOCUMENTO:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<Void>> eliminarDocumentoDinamico(
             @PathVariable String proyectoId,
-            @PathVariable String tipoDocumento) {
-        documentoService.eliminarDocumento(proyectoId, tipoDocumento);
+            @PathVariable String tipoDocumento,
+            Authentication authentication) {
+        documentoService.eliminarDocumento(proyectoId, tipoDocumento, authentication);
         return ResponseEntity.ok(ApiResponse.success("Documento eliminado exitosamente"));
     }
 }

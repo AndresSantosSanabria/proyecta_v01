@@ -43,6 +43,10 @@ public interface IProyectoController {
     @PostMapping
     ResponseEntity<ApiResponse<ProyectoCreatedDTO>> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto);
 
+    @Operation(summary = "EP-PROY-03A - Siguiente codigo", description = "Retorna el siguiente codigo auto-generado para un nuevo proyecto con formato IS-PROY-CUN-YYYY-NNN.")
+    @GetMapping("/siguiente-codigo")
+    ResponseEntity<ApiResponse<String>> obtenerSiguienteCodigo();
+
     @Operation(summary = "EP-PROY-03B - Registro inicial", description = "Crear el registro minimo del proyecto y dejarlo pendiente de completar por el Director asignado.")
     @PostMapping("/registro-inicial")
     ResponseEntity<ApiResponse<ProyectoCreatedDTO>> registrarProyectoInicial(
@@ -66,7 +70,8 @@ public interface IProyectoController {
     @PutMapping("/{id}")
     ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
             @PathVariable String id,
-            @Valid @RequestBody ProyectoUpdateDTO dto);
+            @Valid @RequestBody ProyectoUpdateDTO dto,
+            Authentication authentication);
 
     @Operation(summary = "EP-PROY-05 · Dashboard", description = "Métricas resumidas para el dashboard principal.")
     @GetMapping("/dashboard")
@@ -74,7 +79,7 @@ public interface IProyectoController {
 
     @Operation(summary = "EP-PROY-06 · Eliminar proyecto", description = "Eliminar un proyecto por ID.")
     @DeleteMapping("/{id}")
-    ResponseEntity<Void> eliminarProyecto(@PathVariable String id);
+    ResponseEntity<Void> eliminarProyecto(@PathVariable String id, Authentication authentication);
 
     @Operation(summary = "EP-PROY-07 · Resumen para cierre", description = "Obtener resumen ejecutivo para la pantalla de cierre.")
     @GetMapping("/{id}/resumen")
