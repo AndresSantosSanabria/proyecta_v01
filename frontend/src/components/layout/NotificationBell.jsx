@@ -3,18 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { BellRing, CheckCheck, LoaderCircle, X, FolderKanban, CheckCheckIcon } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
+import { formatDateTime } from '../../utils/locale';
 import './NotificationBell.css';
 
 const formatTime = (value) => {
   if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('es-CO', {
+  return formatDateTime(value, {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(date);
+  });
 };
 
 const extractProjectId = (title) => {
@@ -22,14 +21,14 @@ const extractProjectId = (title) => {
   return match ? match[0] : null;
 };
 
-const extractProjectName = (item) => {
-  return item?.projectName
-    || item?.projectNombre
-    || item?.proyectoNombre
-    || item?.project_name
-    || item?.proyecto_nombre
-    || null;
-};
+const extractProjectName = (item) => (
+  item?.projectName
+  || item?.projectNombre
+  || item?.proyectoNombre
+  || item?.project_name
+  || item?.proyecto_nombre
+  || null
+);
 
 const cleanTitle = (title) => {
   if (!title) return '';
@@ -114,9 +113,7 @@ const NotificationBell = () => {
     try {
       await securityService.markNotificationAsRead(item.id);
       await load();
-      if (item.targetUrl) {
-        navigate(item.targetUrl);
-      }
+      if (item.targetUrl) navigate(item.targetUrl);
     } catch {
       // keep panel open
     }

@@ -1,19 +1,22 @@
-const ROLES_EQUIPO = [
-  'Analista de Sistemas',
-  'Desarrollador Senior',
-  'Desarrollador Junior',
-  'Líder Técnico',
-  'Arquitecto de Software',
-  'Administrador de Base de Datos',
-  'Ingeniero de Infraestructura',
-  'Tester / QA',
-  'Scrum Master',
-  'Product Owner',
-  'Analista de Seguridad',
-  'Consultor Funcional',
-];
+import { useEffect, useState } from 'react';
+import configCatalogService from '../../../../services/configCatalogService';
 
 const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
+  const [rolesEquipo, setRolesEquipo] = useState([]);
+
+  useEffect(() => {
+    const loadRoles = async () => {
+      try {
+        const values = await configCatalogService.listarValoresParametrica('ROL_EQUIPO');
+        if (Array.isArray(values) && values.length > 0) {
+          setRolesEquipo(values);
+        }
+      } catch {
+        setRolesEquipo([]);
+      }
+    };
+    loadRoles();
+  }, []);
   const handlePatrocinador = (field, value) => {
     onChange({ patrocinador: { ...(data.patrocinador || {}), [field]: value } });
   };
@@ -129,7 +132,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
                 onChange={(e) => handleIntegranteChange(i, 'rol', e.target.value)}
               >
                 <option value="">Seleccione un rol</option>
-                {ROLES_EQUIPO.map((rol) => (
+                {rolesEquipo.map((rol) => (
                   <option key={rol} value={rol}>{rol}</option>
                 ))}
               </select>

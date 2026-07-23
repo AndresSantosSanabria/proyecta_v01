@@ -74,7 +74,7 @@ const ProgressKPIs = ({ progressData }) => {
         <div className="kpi-content">
           <h3 className="kpi-title">EFICACIA</h3>
           <div className="kpi-value success">{toDisplayPercent(eficacia).toFixed(1)}%</div>
-          <p className="kpi-detail lock-detail"><Percent size={12} /> entregados al corte / programados al corte</p>
+          <p className="kpi-detail lock-detail"><Percent size={12} /> entregados a fecha límite / programados a fecha límite</p>
         </div>
         <div className="kpi-progress-container">
           <div className="progress-bar-fill success-bg" style={{ width: `${Math.min(100, toDisplayPercent(eficacia))}%` }} />
@@ -87,7 +87,7 @@ const ProgressKPIs = ({ progressData }) => {
           <div className={`kpi-value ${eficiencia >= 0.8 ? 'success' : eficiencia >= 0.5 ? 'warning' : 'danger'}`}>
             {toDisplayPercent(eficiencia).toFixed(1)}%
           </div>
-          <p className="kpi-detail lock-detail"><TrendingDown size={12} /> entregados a tiempo / entregados al corte</p>
+          <p className="kpi-detail lock-detail"><TrendingDown size={12} /> entregados a tiempo / entregados a fecha límite</p>
         </div>
         <div className="kpi-progress-container">
           <div

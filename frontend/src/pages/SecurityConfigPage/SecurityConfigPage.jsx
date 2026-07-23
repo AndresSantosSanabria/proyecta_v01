@@ -6,6 +6,8 @@ import {
   Clock3,
   Briefcase,
   FileText,
+  FolderOpen,
+  List,
   ListTodo,
   Pencil,
   Plus,
@@ -23,6 +25,9 @@ import securityService from '../../services/securityService';
 import NotificationTemplatesPanel from '../../components/security/NotificationTemplatesPanel';
 import ClosureTemplatePanel from '../../components/security/ClosureTemplatePanel';
 import ClosureQuestionsPanel from '../../components/security/ClosureQuestionsPanel';
+import ListaParametricaPanel from '../../components/security/ListaParametricaPanel';
+import StorageConfigPanel from '../../components/security/StorageConfigPanel';
+import UserPermissionMatrix from '../../components/security/UserPermissionMatrix';
 import { decodeJwtPayload } from '../../utils/auth';
 import './SecurityConfigPage.css';
 
@@ -34,6 +39,9 @@ const SECURITY_TABS = {
   NOTIFICATIONS: 'notificaciones',
   CLOSURE_TEMPLATE: 'acta_cierre',
   CLOSURE_QUESTIONS: 'preguntas_cierre',
+  LISTAS_PARAMETRICAS: 'listas_parametricas',
+  STORAGE: 'almacenamiento',
+  USER_PERMISSIONS: 'permisos_usuario',
 };
 
 const emptyUserForm = {
@@ -51,12 +59,6 @@ const emptyRoleForm = {
   descripcion: '',
   transversal: false,
   activo: true,
-};
-
-const emptyParameterForm = {
-  key: '',
-  value: '',
-  descripcion: '',
 };
 
 const ACTION_ORDER = [
@@ -80,9 +82,9 @@ const ACTION_ORDER = [
 
 const roleLabels = {
   DASHBOARD: 'Dashboard',
-  PROYECTO: 'Gestion de Proyectos',
+  PROYECTO: 'Gestión de Proyectos',
   REPORTE: 'Reportes',
-  ANALITICA: 'Analiticas',
+  ANALITICA: 'Analíticas',
   ENTREGABLE: 'Entregables',
   AVANCE: 'Avance del Proyecto',
   EVIDENCIA: 'Evidencias',
@@ -341,21 +343,17 @@ const SecurityConfigPage = () => {
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [users, setUsers] = useState([]);
-  const [systemParameters, setSystemParameters] = useState([]);
   const [projects, setProjects] = useState([]);
   const [assignmentCargos, setAssignmentCargos] = useState([]);
   const [assignments, setAssignments] = useState([]);
-  const [assignmentCargoDraft, setAssignmentCargoDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [usersLoadError, setUsersLoadError] = useState('');
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [savingAssignment, setSavingAssignment] = useState(false);
-  const [savingAssignmentConfig, setSavingAssignmentConfig] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [roleSearch, setRoleSearch] = useState('');
-  const [parameterSearch, setParameterSearch] = useState('');
   const [assignmentForm, setAssignmentForm] = useState({
     username: '',
     proyectoId: '',
@@ -375,11 +373,6 @@ const SecurityConfigPage = () => {
   const [roleDraftPermissions, setRoleDraftPermissions] = useState(new Set());
   const [savingRole, setSavingRole] = useState(false);
   const [savingPermissions, setSavingPermissions] = useState(false);
-  const [selectedParameterKey, setSelectedParameterKey] = useState('');
-  const [creatingParameter, setCreatingParameter] = useState(false);
-  const [parameterEditorOpen, setParameterEditorOpen] = useState(false);
-  const [parameterForm, setParameterForm] = useState(emptyParameterForm);
-  const [savingParameter, setSavingParameter] = useState(false);
   const assignmentsSectionRef = useRef(null);
 
   const canConfigure = isAdminLocal
@@ -406,15 +399,9 @@ const SecurityConfigPage = () => {
     () => roles.find((role) => role.codigo === selectedRoleCode) || null,
     [roles, selectedRoleCode]
   );
-  const canManageSystemParameters = isAdminLocal || hasRole('ADMIN');
-  const selectedParameter = useMemo(
-    () => systemParameters.find((parameter) => parameter.key === selectedParameterKey) || null,
-    [systemParameters, selectedParameterKey]
-  );
 
   const permissionGroups = useMemo(() => groupPermissions(permissions), [permissions]);
   const isUserEditorOpen = Boolean(selectedUser) && !creatingUser;
-  const isParameterEditorOpen = parameterEditorOpen;
   const authenticatedTokenRoleCode = businessTokenRoles[0] || primaryRole || '';
   const authenticatedTokenRoleObject = authenticatedTokenRoleCode
     ? {
@@ -479,27 +466,17 @@ const SecurityConfigPage = () => {
     });
   }, [roles, roleSearch]);
 
-  const filteredParameters = useMemo(() => {
-    const query = parameterSearch.trim().toLowerCase();
-    if (!query) return systemParameters;
-    return systemParameters.filter((parameter) => {
-      const haystack = [parameter.key, parameter.value, parameter.descripcion].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [parameterSearch, systemParameters]);
-
   const loadData = async (search = '') => {
     try {
       setLoading(true);
       setError('');
 
-      const [rolesResult, permissionsResult, usersResult, projectsResult, cargosResult, parametersResult] = await Promise.allSettled([
+      const [rolesResult, permissionsResult, usersResult, projectsResult, cargosResult] = await Promise.allSettled([
         securityService.listRoles({ includeInactive: true }),
         securityService.listPermissions(),
         securityService.listUsers({ search, size: 100 }),
         projectService.getAllUnpaged(),
         securityService.listAssignmentCargos(),
-        securityService.listSystemParameters(),
       ]);
 
       const rolesData = rolesResult.status === 'fulfilled' ? extractCollection(rolesResult.value) : [];
@@ -509,7 +486,6 @@ const SecurityConfigPage = () => {
         ? projectsResult.value
         : [];
       const cargosData = cargosResult.status === 'fulfilled' ? normalizeAssignmentCargos(cargosResult.value) : [];
-      const parametersData = parametersResult.status === 'fulfilled' ? extractCollection(parametersResult.value) : [];
       const authenticatedUsernames = [
         authUser?.profile?.preferred_username,
         authUser?.profile?.username,
@@ -558,12 +534,8 @@ const SecurityConfigPage = () => {
       setRoles(rolesData);
       setPermissions(permissionsData);
       setUsers(resolvedUsersData);
-      setSystemParameters(parametersData);
       setProjects(projectsData);
       setAssignmentCargos(cargosData);
-      setAssignmentCargoDraft(
-        parametersData.find((parameter) => parameter.key === 'SEGURIDAD_CARGOS_ASIGNACION')?.value || ''
-      );
 
       if (!creatingRole) {
         const nextRole = (selectedRoleCode && rolesData.find((role) => role.codigo === selectedRoleCode))
@@ -598,33 +570,6 @@ const SecurityConfigPage = () => {
         } else {
           setSelectedUser(null);
           setUserForm(emptyUserForm);
-        }
-      }
-
-      if (!creatingParameter) {
-        const nextParameter = (selectedParameterKey && parametersData.find((parameter) => parameter.key === selectedParameterKey))
-          || parametersData[0]
-          || null;
-
-        if (nextParameter) {
-          setSelectedParameterKey(nextParameter.key);
-          setParameterForm({
-            key: nextParameter.key || '',
-            value: nextParameter.value || '',
-            descripcion: nextParameter.descripcion || '',
-          });
-        } else {
-          setSelectedParameterKey('');
-          setParameterForm(emptyParameterForm);
-        }
-      } else if (parameterForm.key) {
-        const draftParameter = parametersData.find((parameter) => parameter.key === parameterForm.key);
-        if (draftParameter) {
-          setParameterForm({
-            key: draftParameter.key || parameterForm.key,
-            value: draftParameter.value || parameterForm.value,
-            descripcion: draftParameter.descripcion || parameterForm.descripcion,
-          });
         }
       }
 
@@ -763,11 +708,6 @@ const SecurityConfigPage = () => {
     setRoleForm((current) => ({ ...current, [field]: value }));
   };
 
-  const handleParameterFieldChange = (field) => (event) => {
-    const value = event.target.value;
-    setParameterForm((current) => ({ ...current, [field]: value }));
-  };
-
   const handleAssignmentFieldChange = (field) => (event) => {
     const value = event.target.value;
     setAssignmentForm((current) => ({ ...current, [field]: value }));
@@ -875,37 +815,6 @@ const SecurityConfigPage = () => {
       setError('No fue posible guardar la asignacion de proyecto.');
     } finally {
       setSavingAssignment(false);
-    }
-  };
-
-  const handleSaveAssignmentConfig = async (event) => {
-    event.preventDefault();
-
-    if (!canManageSystemParameters) {
-      setError('No tienes permisos para modificar la configuracion de asignacion.');
-      return;
-    }
-
-    if (!assignmentCargoDraft.trim()) {
-      setError('Debes definir al menos un cargo para la asignacion.');
-      return;
-    }
-
-    try {
-      setSavingAssignmentConfig(true);
-      setError('');
-      await securityService.saveSystemParameter({
-        key: 'SEGURIDAD_CARGOS_ASIGNACION',
-        value: assignmentCargoDraft.trim(),
-        descripcion: 'Cargos habilitados para asignar usuarios a proyectos desde la interfaz',
-      });
-      setNotice('La configuracion de cargos de asignacion se actualizo correctamente.');
-      await loadData(userSearch);
-    } catch (configSaveError) {
-      console.error('Error guardando configuracion de asignacion:', configSaveError);
-      setError('No fue posible guardar la configuracion de cargos de asignacion.');
-    } finally {
-      setSavingAssignmentConfig(false);
     }
   };
 
@@ -1058,103 +967,6 @@ const SecurityConfigPage = () => {
     setRoleDraftPermissions(new Set());
   };
 
-  const handleSelectParameter = (parameter) => {
-    setCreatingParameter(false);
-    setParameterEditorOpen(true);
-    setSelectedParameterKey(parameter.key);
-    setParameterForm({
-      key: parameter.key || '',
-      value: parameter.value || '',
-      descripcion: parameter.descripcion || '',
-    });
-    setActiveSection(SECURITY_TABS.PARAMETERS);
-  };
-
-  const handleNewParameter = () => {
-    setCreatingParameter(true);
-    setParameterEditorOpen(true);
-    setSelectedParameterKey('');
-    setParameterForm(emptyParameterForm);
-    setActiveSection(SECURITY_TABS.PARAMETERS);
-  };
-
-  const handleCancelParameterEdit = () => {
-    setCreatingParameter(false);
-    setParameterEditorOpen(false);
-
-    if (selectedParameter) {
-      setParameterForm({
-        key: selectedParameter.key || '',
-        value: selectedParameter.value || '',
-        descripcion: selectedParameter.descripcion || '',
-      });
-      return;
-    }
-
-    setParameterForm(emptyParameterForm);
-  };
-
-  const handleSaveParameter = async (event) => {
-    event.preventDefault();
-
-    if (!canManageSystemParameters) {
-      setError('No tienes permisos para modificar parametros.');
-      return;
-    }
-
-    if (!parameterForm.key.trim() || !parameterForm.value.trim()) {
-      setError('La clave y el valor del parametro son obligatorios.');
-      return;
-    }
-
-    try {
-      setSavingParameter(true);
-      setError('');
-      await securityService.saveSystemParameter({
-        key: parameterForm.key.trim(),
-        value: parameterForm.value.trim(),
-        descripcion: parameterForm.descripcion.trim(),
-      });
-
-      setNotice(creatingParameter ? 'El parametro se creo correctamente.' : 'El parametro se actualizo correctamente.');
-      setCreatingParameter(false);
-      setParameterEditorOpen(false);
-      setSelectedParameterKey(parameterForm.key.trim());
-      await loadData(userSearch);
-    } catch (parameterSaveError) {
-      console.error('Error guardando parametro:', parameterSaveError);
-      setError('No fue posible guardar el parametro.');
-    } finally {
-      setSavingParameter(false);
-    }
-  };
-
-  const handleDeleteParameter = async () => {
-    if (!selectedParameterKey || creatingParameter) return;
-
-    if (!canManageSystemParameters) {
-      setError('No tienes permisos para eliminar parametros.');
-      return;
-    }
-
-    try {
-      setSavingParameter(true);
-      setError('');
-      await securityService.deleteSystemParameter(selectedParameterKey);
-      setNotice('El parametro se elimino correctamente.');
-      setCreatingParameter(false);
-      setParameterEditorOpen(false);
-      setSelectedParameterKey('');
-      setParameterForm(emptyParameterForm);
-      await loadData(userSearch);
-    } catch (parameterDeleteError) {
-      console.error('Error eliminando parametro:', parameterDeleteError);
-      setError('No fue posible eliminar el parametro.');
-    } finally {
-      setSavingParameter(false);
-    }
-  };
-
   const hasRoleEditorOpen = roleEditorOpen;
 
   const roleTypeLabel = (role) => (role?.transversal ? 'SISTEMA' : 'PERSONALIZADO');
@@ -1260,16 +1072,6 @@ const SecurityConfigPage = () => {
               <Users size={14} />
               Roles
             </button>
-            {canManageSystemParameters && (
-              <button
-                type="button"
-                className={`quick-action roles ${activeSection === SECURITY_TABS.PARAMETERS ? 'active' : ''}`}
-                onClick={() => setActiveSection(SECURITY_TABS.PARAMETERS)}
-              >
-                <ShieldCheck size={14} />
-                Parámetros
-              </button>
-            )}
             {canConfigure && (
               <button
                 type="button"
@@ -1313,6 +1115,36 @@ const SecurityConfigPage = () => {
               </button>
             )}
             {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.LISTAS_PARAMETRICAS ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.LISTAS_PARAMETRICAS)}
+              >
+                <List size={14} />
+                Listas
+              </button>
+            )}
+            {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.STORAGE ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.STORAGE)}
+              >
+                <FolderOpen size={14} />
+                Almacenamiento
+              </button>
+            )}
+            {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.USER_PERMISSIONS ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.USER_PERMISSIONS)}
+              >
+                <ShieldCheck size={14} />
+                Permisos
+              </button>
+            )}
+            {canConfigure && (
               <button type="button" className="quick-action create" onClick={handleNewUser}>
                 <Plus size={14} />
                 Crear Usuario
@@ -1347,7 +1179,7 @@ const SecurityConfigPage = () => {
         </div>
       )}
 
-      {[SECURITY_TABS.USERS, SECURITY_TABS.PARAMETERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS, SECURITY_TABS.CLOSURE_TEMPLATE, SECURITY_TABS.CLOSURE_QUESTIONS].includes(activeSection) && (
+      {[SECURITY_TABS.USERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS, SECURITY_TABS.CLOSURE_TEMPLATE, SECURITY_TABS.CLOSURE_QUESTIONS, SECURITY_TABS.LISTAS_PARAMETRICAS, SECURITY_TABS.STORAGE, SECURITY_TABS.USER_PERMISSIONS].includes(activeSection) && (
         <section className="security-workspace users-workspace">
           {activeSection === SECURITY_TABS.USERS && (
           <article className="panel panel-main users-panel">
@@ -1567,196 +1399,6 @@ const SecurityConfigPage = () => {
           </article>
           )}
 
-          {canManageSystemParameters && activeSection === SECURITY_TABS.PARAMETERS && !isParameterEditorOpen && (
-            <section className="security-workspace parameters-workspace">
-              <article className="panel panel-main parameters-panel">
-                <div className="panel-topbar parameters-topbar">
-                  <div className="roles-header-copy">
-                    <p className="security-eyebrow">PARAMETROS DEL SISTEMA</p>
-                    <h2>Gestión de Parámetros</h2>
-                    <p>Administra valores configurables desde la interfaz sin tocar el backend en cada ajuste operativo.</p>
-                  </div>
-
-                  <div className="panel-actions parameters-actions">
-                    <button type="button" className="btn-secondary" onClick={() => setActiveSection(SECURITY_TABS.USERS)}>
-                      <Users size={16} />
-                      Usuarios
-                    </button>
-                    <div className="inline-search">
-                      <Search size={15} />
-                      <input
-                        type="text"
-                        value={parameterSearch}
-                        onChange={(event) => setParameterSearch(event.target.value)}
-                        placeholder="Buscar parámetro"
-                      />
-                    </div>
-                    {canConfigure && (
-                      <button type="button" className="btn-primary" onClick={handleNewParameter} disabled={loading}>
-                        <Plus size={16} />
-                        Nuevo Parámetro
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="table-shell parameters-table-shell">
-                  <table className="data-table parameters-table">
-                    <thead>
-                      <tr>
-                        <th>Clave</th>
-                        <th>Valor</th>
-                        <th>Descripción</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loading ? (
-                        <tr>
-                          <td colSpan={4} className="table-empty-cell">Cargando parámetros...</td>
-                        </tr>
-                      ) : filteredParameters.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="table-empty-cell">
-                            {emptyMessage('No hay parámetros', 'Crea un parámetro para empezar a parametrizar el sistema.')}
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredParameters.map((parameter) => {
-                          const selected = parameter.key === selectedParameterKey;
-                          return (
-                            <tr key={parameter.key} className={selected ? 'selected-row' : ''} onClick={() => handleSelectParameter(parameter)}>
-                              <td>
-                                <div className="parameter-key-cell">
-                                  <strong>{parameter.key}</strong>
-                                </div>
-                              </td>
-                              <td className="parameter-value-cell">{parameter.value || 'Sin valor'}</td>
-                              <td className="parameter-description-cell">{parameter.descripcion || 'Sin descripción'}</td>
-                              <td>
-                                {canConfigure ? (
-                                  <div className="row-actions">
-                                    <button
-                                      type="button"
-                                      className="icon-button"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        handleSelectParameter(parameter);
-                                      }}
-                                      title="Editar parámetro"
-                                    >
-                                      <Pencil size={14} />
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </article>
-            </section>
-          )}
-
-          {canManageSystemParameters && activeSection === SECURITY_TABS.PARAMETERS && isParameterEditorOpen && (
-            <section className="security-workspace parameters-workspace">
-              <article className="panel panel-aside parameter-editor premium-role-editor">
-                <form className="editor-form role-editor-form" onSubmit={handleSaveParameter}>
-                  <div className="editor-head role-editor-head">
-                    <div>
-                      <div className="role-editor-title-row">
-                        <span className="role-editor-icon">
-                          <ShieldCheck size={18} />
-                        </span>
-                        <div>
-                          <h3>{creatingParameter ? 'Nuevo Parámetro' : 'Editar Parámetro'}</h3>
-                          <p>
-                            {creatingParameter
-                              ? 'Defina la clave y el valor que el sistema utilizará como configuración.'
-                              : `Modificando: ${selectedParameter?.key || 'Parámetro seleccionado'}`}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button type="button" className="btn-ghost-dark" onClick={handleCancelParameterEdit}>
-                      <span aria-hidden="true">←</span>
-                      Volver al Listado
-                    </button>
-                  </div>
-
-                  <div className="role-core-grid parameter-core-grid">
-                    <label className="span-full">
-                      <span>Clave del parámetro *</span>
-                      <input
-                        value={parameterForm.key}
-                        onChange={handleParameterFieldChange('key')}
-                        disabled={!canConfigure || (!creatingParameter && Boolean(selectedParameterKey))}
-                        placeholder="SEGURIDAD_CARGOS_ASIGNACION"
-                      />
-                    </label>
-
-                    <label className="span-full">
-                      <span>Valor *</span>
-                      <textarea
-                        value={parameterForm.value}
-                        onChange={handleParameterFieldChange('value')}
-                        disabled={!canConfigure}
-                        placeholder="DIRECTOR_PROYECTO, ANALISTA, LIDER_TECNICO"
-                        rows={3}
-                      />
-                    </label>
-
-                    <label className="span-full">
-                      <span>Descripción</span>
-                      <textarea
-                        value={parameterForm.descripcion}
-                        onChange={handleParameterFieldChange('descripcion')}
-                        disabled={!canConfigure}
-                        placeholder="Explica para qué se usa este parámetro"
-                        rows={2}
-                      />
-                    </label>
-                  </div>
-
-                  <section className="role-section-card">
-                    <div className="role-section-header">
-                      <div>
-                        <h4>Uso operativo</h4>
-                        <p>Este valor queda disponible para cualquier flujo que consulte los parámetros del sistema.</p>
-                      </div>
-                    </div>
-
-                    <div className="empty-state">
-                      <strong>Clave activa</strong>
-                      <span>{parameterForm.key || 'Sin definir'}</span>
-                    </div>
-                  </section>
-
-                  <div className="form-actions sticky-actions">
-                    <button type="button" className="btn-secondary" onClick={handleCancelParameterEdit} disabled={savingParameter}>
-                      Cancelar
-                    </button>
-                    {canConfigure && selectedParameter && !creatingParameter && (
-                      <button type="button" className="btn-ghost-danger" onClick={handleDeleteParameter} disabled={savingParameter}>
-                        <Ban size={16} />
-                        Eliminar
-                      </button>
-                    )}
-                    {canConfigure && (
-                      <button type="submit" className="btn-primary" disabled={savingParameter}>
-                        <Save size={16} />
-                        {savingParameter ? 'Guardando...' : creatingParameter ? 'Crear parámetro' : 'Guardar parámetro'}
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </article>
-            </section>
-          )}
           {canConfigure && activeSection === SECURITY_TABS.NOTIFICATIONS && (
             <NotificationTemplatesPanel />
           )}
@@ -1765,6 +1407,15 @@ const SecurityConfigPage = () => {
           )}
           {canConfigure && activeSection === SECURITY_TABS.CLOSURE_QUESTIONS && (
             <ClosureQuestionsPanel />
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.LISTAS_PARAMETRICAS && (
+            <ListaParametricaPanel />
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.STORAGE && (
+            <StorageConfigPanel />
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.USER_PERMISSIONS && (
+            <UserPermissionMatrix onClose={() => setActiveSection(SECURITY_TABS.USERS)} />
           )}
           {canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS && (
             <div
@@ -1787,7 +1438,7 @@ const SecurityConfigPage = () => {
                     <h2 id="assignments-modal-title">Asignación de Proyecto y Cargo</h2>
                     <p>
                       Administra aquí las asignaciones entre usuarios, proyectos y cargos. Este módulo va separado de la gestión
-                      de usuarios para mantener el flujo m?s claro.
+                      de usuarios para mantener el flujo más claro.
                     </p>
                     <p id="assignments-modal-description" className="assignments-modal-description">
                       El formulario y el listado quedan encapsulados en un modal para evitar que el panel crezca sobre la vista principal.
@@ -1813,31 +1464,6 @@ const SecurityConfigPage = () => {
                   <span className="soft-pill">{assignmentCargos.length} cargos</span>
                   <span className="soft-pill">{projectOptions.length} proyectos</span>
                 </div>
-
-                {canManageSystemParameters && (
-                  <form className="assignment-config" onSubmit={handleSaveAssignmentConfig}>
-                    <div className="assignment-config-copy">
-                      <strong>Par?metro editable desde la interfaz</strong>
-                      <span>
-                        Clave: <code>SEGURIDAD_CARGOS_ASIGNACION</code>. Edita los cargos separados por coma para cambiar el
-                        selector sin tocar c?digo.
-                      </span>
-                    </div>
-                    <div className="assignment-config-controls">
-                      <textarea
-                        value={assignmentCargoDraft}
-                        onChange={(event) => setAssignmentCargoDraft(event.target.value)}
-                        placeholder="DIRECTOR_PROYECTO, ANALISTA, LIDER_TECNICO"
-                        rows={2}
-                        disabled={!canConfigure}
-                      />
-                      <button type="submit" className="btn-primary" disabled={savingAssignmentConfig || loading}>
-                        <Save size={16} />
-                        {savingAssignmentConfig ? 'Guardando...' : 'Guardar cargos'}
-                      </button>
-                    </div>
-                  </form>
-                )}
 
                 <div className="assignment-grid">
                   <form className="assignment-form" onSubmit={handleSaveAssignment}>

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle, Eye, History } from 'lucide-react';
 import documentService from '../../services/documentService';
 import './ProjectInfoModal.css';
 
@@ -26,8 +26,239 @@ const Field = ({ label, value }) => (
   </div>
 );
 
+const detectPdfFromBlob = async (blob) => {
+  if (!blob) return false;
+  if (blob.type === 'application/pdf') return true;
+  try {
+    const buf = await blob.slice(0, 5).arrayBuffer();
+    const header = new Uint8Array(buf);
+    return header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46;
+  } catch {
+    return false;
+  }
+};
+
+const DocumentViewer = ({ blob, nombre, onClose }) => {
+  const [objectUrl, setObjectUrl] = useState(null);
+  const [isPdf, setIsPdf] = useState(false);
+
+  useEffect(() => {
+    let url = null;
+    if (blob) {
+      detectPdfFromBlob(blob).then((detected) => {
+        setIsPdf(detected);
+        const mimeType = detected ? 'application/pdf' : blob.type || 'application/octet-stream';
+        blob.arrayBuffer().then((buf) => {
+          const typedBlob = new Blob([buf], { type: mimeType });
+          url = URL.createObjectURL(typedBlob);
+          setObjectUrl(url);
+        });
+      });
+    }
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [blob]);
+
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  if (!blob) return null;
+
+  return (
+    <div className="pim-viewer-overlay" role="presentation" onClick={onClose}>
+      <div className="pim-viewer-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <header className="pim-viewer-header">
+          <div className="pim-viewer-title">
+            <FileText size={16} />
+            <span>{nombre || 'Documento'}</span>
+          </div>
+          <button type="button" className="pim-viewer-close" onClick={onClose} aria-label="Cerrar visor">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="pim-viewer-body">
+          {!isPdf && objectUrl ? (
+            <div className="pim-viewer-fallback-block">
+              <FileText size={48} strokeWidth={1} />
+              <p className="pim-viewer-fallback-title">Este tipo de archivo no se puede previsualizar</p>
+              <p className="pim-viewer-fallback-hint">{nombre}</p>
+              <a href={objectUrl} download={nombre} className="pim-viewer-fallback-download">
+                <Download size={14} /> Descargar archivo
+              </a>
+            </div>
+          ) : objectUrl ? (
+            <object data={objectUrl} type="application/pdf" className="pim-viewer-iframe">
+              <p className="pim-viewer-fallback">No se pudo previsualizar. <a href={objectUrl} target="_blank" rel="noreferrer">Abrir en nueva pestana</a></p>
+            </object>
+          ) : (
+            <div className="pim-viewer-loading">
+              <LoaderCircle size={24} className="animate-spin" />
+              <span>Cargando documento...</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClose }) => {
+  const [versiones, setVersiones] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [viewerBlob, setViewerBlob] = useState(null);
+  const [viewerNombre, setViewerNombre] = useState('');
+
+  useEffect(() => {
+    const fetchVersiones = async () => {
+      if (!proyectoId || !tipoDocumento) return;
+      try {
+        setLoading(true);
+        setError('');
+        const response = await documentService.listarVersiones(proyectoId, tipoDocumento);
+        const data = response?.data?.versiones || response?.versiones || [];
+        setVersiones(data);
+      } catch {
+        setError('Error al cargar el historial de versiones.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVersiones();
+  }, [proyectoId, tipoDocumento]);
+
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  const handleDownloadVersion = async (numeroVersion) => {
+    try {
+      const blob = await documentService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', v.nombreArchivo || `${tipoDocumento}_v${numeroVersion}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      console.error('Error descargando version');
+    }
+  };
+
+  const handleViewVersion = async (numeroVersion, nombre) => {
+    try {
+      const blob = await documentService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
+      setViewerBlob(blob);
+      setViewerNombre(`${nombre || tipoDocumento} - Version ${numeroVersion}`);
+    } catch {
+      console.error('Error cargando version para visor');
+    }
+  };
+
+  const handleCloseViewer = () => {
+    setViewerBlob(null);
+    setViewerNombre('');
+  };
+
+  return (
+    <div className="pim-viewer-overlay" role="presentation" onClick={onClose}>
+      <div className="pim-viewer-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <header className="pim-viewer-header">
+          <div className="pim-viewer-title">
+            <History size={16} />
+            <span>Historial - {nombreDocumento}</span>
+          </div>
+          <button type="button" className="pim-viewer-close" onClick={onClose} aria-label="Cerrar historial">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="pim-version-list">
+          {loading ? (
+            <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando historial...</p>
+          ) : error ? (
+            <p className="pim-empty pim-version-error">{error}</p>
+          ) : versiones.length === 0 ? (
+            <p className="pim-empty">No hay versiones registradas.</p>
+          ) : (
+            versiones.map((v) => (
+              <div key={v.id} className={`pim-version-item ${v.actual ? 'pim-version-item--actual' : ''}`}>
+                <div className="pim-version-info">
+                  <div className="pim-version-header-row">
+                    <span className="pim-version-number">v{v.numeroVersion}</span>
+                    {v.actual && <span className="pim-version-badge">Actual</span>}
+                    <span className="pim-version-date">{v.subidoEn}</span>
+                  </div>
+                  <span className="pim-version-filename">{v.nombreArchivo}</span>
+                  {v.observacion && (
+                    <span className="pim-version-observation">"{v.observacion}"</span>
+                  )}
+                  <span className="pim-version-meta">
+                    {v.subidoPor}{v.subidoRol ? ` · ${v.subidoRol}` : ''} · {v.tamanoFormateado}
+                  </span>
+                </div>
+                <div className="pim-version-actions">
+                  <button
+                    type="button"
+                    className="pim-version-btn"
+                    onClick={() => handleViewVersion(v.numeroVersion, v.nombreArchivo)}
+                    title="Ver documento"
+                  >
+                    <Eye size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="pim-version-btn"
+                    onClick={() => handleDownloadVersion(v.numeroVersion)}
+                    title="Descargar version"
+                  >
+                    <Download size={14} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      {viewerBlob && (
+        <DocumentViewer blob={viewerBlob} nombre={viewerNombre} onClose={handleCloseViewer} />
+      )}
+    </div>
+  );
+};
+
 const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
+  const inputRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
+  const [viewerBlob, setViewerBlob] = useState(null);
+  const [loadingViewer, setLoadingViewer] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [versionCount, setVersionCount] = useState(0);
+  const [showReplace, setShowReplace] = useState(false);
+  const [observacion, setObservacion] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      if (!proyectoId || !tipoDocumento) return;
+      try {
+        const response = await documentService.listarVersiones(proyectoId, tipoDocumento);
+        const data = response?.data?.versiones || response?.versiones || [];
+        setVersionCount(data.length);
+      } catch {
+        setVersionCount(0);
+      }
+    };
+    fetchCount();
+  }, [proyectoId, tipoDocumento, onUploaded]);
 
   const handleDownload = async () => {
     if (!proyectoId || !tipoDocumento) return;
@@ -49,27 +280,36 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
     }
   };
 
-  return (
-    <button type="button" className="pim-doc-link" onClick={handleDownload} disabled={downloading}>
-      <FileText size={14} />
-      <span>{nombre || tipoDocumento}</span>
-      {downloading ? <LoaderCircle size={14} className="animate-spin" /> : <Download size={14} />}
-    </button>
-  );
-};
+  const handleView = async () => {
+    if (!proyectoId || !tipoDocumento) return;
+    try {
+      setLoadingViewer(true);
+      const blob = await documentService.descargarDocumento(proyectoId, tipoDocumento);
+      setViewerBlob(blob);
+    } catch {
+      console.error('Error cargando documento para visor');
+    } finally {
+      setLoadingViewer(false);
+    }
+  };
 
-const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
-  const inputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
+  const handleCloseViewer = () => {
+    setViewerBlob(null);
+  };
 
-  const handleFile = async (e) => {
+  const handleReplaceFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!observacion.trim()) {
+      setError('La observacion es obligatoria al reemplazar un documento.');
+      return;
+    }
     try {
       setUploading(true);
       setError('');
-      await documentService.cargarDocumento(proyectoId, tipoDocumento, file);
+      await documentService.cargarDocumento(proyectoId, tipoDocumento, file, observacion.trim());
+      setObservacion('');
+      setShowReplace(false);
       onUploaded?.();
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error al cargar el archivo.';
@@ -80,19 +320,172 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
     }
   };
 
+  const handleCancelReplace = () => {
+    setShowReplace(false);
+    setObservacion('');
+    setError('');
+  };
+
+  return (
+    <>
+      <div className="pim-doc-link-row">
+        <button type="button" className="pim-doc-link" onClick={handleView} disabled={loadingViewer}>
+          <FileText size={14} />
+          <span>{nombre || tipoDocumento}</span>
+          {versionCount > 0 && (
+            <span className="pim-version-count" title={`${versionCount} version(es)`}>{versionCount}</span>
+          )}
+          {loadingViewer ? <LoaderCircle size={14} className="animate-spin" /> : <Eye size={14} />}
+        </button>
+        <button type="button" className="pim-doc-download-btn" onClick={handleDownload} disabled={downloading} title="Descargar">
+          {downloading ? <LoaderCircle size={14} className="animate-spin" /> : <Download size={14} />}
+        </button>
+        <button type="button" className="pim-doc-history-btn" onClick={() => setShowHistory(true)} title="Historial de versiones">
+          <History size={14} />
+        </button>
+      </div>
+      {showReplace && (
+        <div className="pim-observacion-form">
+          <label className="pim-observacion-label">
+            Motivo del cambio (obligatorio):
+            <textarea
+              className="pim-observacion-input"
+              value={observacion}
+              onChange={(e) => setObservacion(e.target.value)}
+              placeholder="Ingrese la razon por la cual se reemplaza el documento..."
+              rows={2}
+              maxLength={1000}
+            />
+          </label>
+          <div className="pim-observacion-actions">
+            <button type="button" className="pim-btn-cancel" onClick={handleCancelReplace} disabled={uploading}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="pim-btn-upload"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading || !observacion.trim()}
+            >
+              {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
+              <span>{uploading ? 'Cargando...' : 'Seleccionar archivo'}</span>
+            </button>
+          </div>
+          <input ref={inputRef} type="file" accept=".pdf" onChange={handleReplaceFile} hidden />
+          {error && <span className="pim-doc-upload-error">{error}</span>}
+        </div>
+      )}
+      {!showReplace && (
+        <button type="button" className="pim-doc-replace-btn" onClick={() => setShowReplace(true)}>
+          <Upload size={12} />
+          <span>Reemplazar</span>
+        </button>
+      )}
+      {viewerBlob && (
+        <DocumentViewer blob={viewerBlob} nombre={nombre} onClose={handleCloseViewer} />
+      )}
+      {showHistory && (
+        <VersionHistoryPanel
+          proyectoId={proyectoId}
+          tipoDocumento={tipoDocumento}
+          nombreDocumento={nombre}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+    </>
+  );
+};
+
+const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded, exists }) => {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [observacion, setObservacion] = useState('');
+  const [showObservacion, setShowObservacion] = useState(false);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (exists && !showObservacion) {
+      setShowObservacion(true);
+      return;
+    }
+    if (exists && (!observacion || !observacion.trim())) {
+      setError('La observacion es obligatoria al reemplazar un documento.');
+      return;
+    }
+    try {
+      setUploading(true);
+      setError('');
+      await documentService.cargarDocumento(proyectoId, tipoDocumento, file, observacion || null);
+      setObservacion('');
+      setShowObservacion(false);
+      onUploaded?.();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error al cargar el archivo.';
+      setError(detail);
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const handleCancelObservation = () => {
+    setShowObservacion(false);
+    setObservacion('');
+    setError('');
+  };
+
   return (
     <div className="pim-doc-upload-row">
-      <button
-        type="button"
-        className="pim-doc-upload"
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-      >
-        {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
-        <span>{nombre}</span>
-        <span className="pim-doc-upload-hint">Cargar archivo</span>
-      </button>
-      <input ref={inputRef} type="file" accept=".pdf,.doc,.docx" onChange={handleFile} hidden />
+      {showObservacion && exists && (
+        <div className="pim-observacion-form">
+          <label className="pim-observacion-label">
+            Motivo del cambio (obligatorio):
+            <textarea
+              className="pim-observacion-input"
+              value={observacion}
+              onChange={(e) => setObservacion(e.target.value)}
+              placeholder="Ingrese la razon por la cual se reemplaza el documento..."
+              rows={2}
+              maxLength={1000}
+            />
+          </label>
+          <div className="pim-observacion-actions">
+            <button type="button" className="pim-btn-cancel" onClick={handleCancelObservation} disabled={uploading}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="pim-btn-upload"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading || !observacion.trim()}
+            >
+              {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
+              <span>{uploading ? 'Cargando...' : 'Confirmar reemplazo'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+      {!showObservacion && (
+        <button
+          type="button"
+          className="pim-doc-upload"
+          onClick={() => {
+            if (exists) {
+              setShowObservacion(true);
+            } else {
+              inputRef.current?.click();
+            }
+          }}
+          disabled={uploading}
+        >
+          {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
+          <span>{nombre}</span>
+          <span className="pim-doc-upload-hint">{exists ? 'Reemplazar archivo' : 'Cargar archivo'}</span>
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept=".pdf" onChange={handleFile} hidden />
       {error && <span className="pim-doc-upload-error">{error}</span>}
     </div>
   );
@@ -278,6 +671,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                       tipoDocumento={doc.tipo}
                       nombre={doc.nombre}
                       onUploaded={handleDocumentUploaded}
+                      exists={false}
                     />
                   )
                 )

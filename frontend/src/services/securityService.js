@@ -68,21 +68,6 @@ const securityService = {
     return unwrap(response);
   },
 
-  listSystemParameters: async () => {
-    const response = await apiClient.get('/admin/configuracion/parametros');
-    return unwrap(response);
-  },
-
-  saveSystemParameter: async (payload) => {
-    const response = await apiClient.put('/admin/configuracion/parametros', payload);
-    return unwrap(response);
-  },
-
-  deleteSystemParameter: async (key) => {
-    const response = await apiClient.delete(`/admin/configuracion/parametros/${encodeURIComponent(key)}`);
-    return unwrap(response);
-  },
-
   saveRolePermissions: async (matrix) => {
     const response = await apiClient.put('/admin/configuracion/roles-permisos', {
       matriz: matrix,
@@ -134,6 +119,16 @@ const securityService = {
 
   testSendNotificationTemplate: async (payload) => {
     const response = await apiClient.post('/admin/notificaciones/plantillas/test-send', payload);
+    return unwrap(response);
+  },
+
+  getMailDiagnostic: async () => {
+    const response = await apiClient.get('/admin/notificaciones/diagnostico');
+    return unwrap(response);
+  },
+
+  getNotificationStats: async () => {
+    const response = await apiClient.get('/admin/notificaciones/estadisticas');
     return unwrap(response);
   },
 
@@ -227,6 +222,33 @@ const securityService = {
 
   getResolvedClosureTemplate: async (projectId) => {
     const response = await apiClient.get(`/admin/closure-questions/resolved-template/${encodeURIComponent(projectId)}`);
+    return unwrap(response);
+  },
+
+  getClosureDraftTemplate: async (projectId) => {
+    const response = await apiClient.get(`/admin/closure-questions/draft/${encodeURIComponent(projectId)}`);
+    return unwrap(response);
+  },
+
+  getMissingClosureQuestions: async (projectId) => {
+    const response = await apiClient.get(`/admin/closure-questions/missing/${encodeURIComponent(projectId)}`);
+    return unwrap(response);
+  },
+
+  testStoragePath: async (path) => {
+    const response = await apiClient.get('/admin/configuracion/storage-path/test', {
+      params: { path },
+    });
+    return response?.data?.data ?? unwrap(response);
+  },
+
+  getUserPermissionMatrix: async (usuarioId) => {
+    const response = await apiClient.get(`/admin/configuracion/permisos-usuario/${encodeURIComponent(usuarioId)}`);
+    return unwrap(response);
+  },
+
+  saveUserPermissionMatrix: async (payload) => {
+    const response = await apiClient.put('/admin/configuracion/permisos-usuario', payload);
     return unwrap(response);
   },
 };

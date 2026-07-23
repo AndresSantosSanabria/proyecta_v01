@@ -6,6 +6,7 @@ import {
   Building2,
   Calendar,
   ChevronRight,
+  Download,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -224,6 +225,28 @@ const AnalyticsPage = () => {
     }
   };
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    try {
+      setDownloadingPdf(true);
+      const blob = await analyticsService.downloadPortfolioPdf();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'analitica-portafolio.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error descargando PDF:', err);
+      setError('No fue posible generar el reporte PDF.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAnalytics();
@@ -415,6 +438,10 @@ const AnalyticsPage = () => {
           <button className="analytics-refresh" onClick={loadAnalytics} disabled={loading}>
             <RefreshCw size={18} />
             {loading ? 'Actualizando…' : 'Actualizar'}
+          </button>
+          <button className="analytics-refresh analytics-refresh--download" onClick={handleDownloadPdf} disabled={downloadingPdf || loading}>
+            <Download size={18} />
+            {downloadingPdf ? 'Generando…' : 'Descargar'}
           </button>
           <button className="analytics-refresh analytics-refresh--secondary" onClick={resetFilters}>
             <X size={18} /> Limpiar filtros

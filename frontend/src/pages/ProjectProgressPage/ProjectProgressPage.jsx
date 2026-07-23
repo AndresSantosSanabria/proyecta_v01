@@ -9,6 +9,7 @@ import ProgressTreeTable from '../../components/features/progress/ProgressTreeTa
 import ProjectBenefitImpactPanel from '../../components/projects/ProjectBenefitImpactPanel';
 import BenefitImpactReviewModal from '../../components/projects/BenefitImpactReviewModal';
 import ProjectInfoModal from '../../components/projects/ProjectInfoModal';
+import { formatDate } from '../../utils/locale';
 import './ProjectProgressPage.css';
 
 const normalizeProgressPayload = (payload, fallbackCode) => {
@@ -264,7 +265,7 @@ const ProjectProgressPage = () => {
         nombre={progressData.nombre}
         dependencia={progressData.dependencia || projectInfo?.dependencia}
         estado={progressData.estado}
-        corte={progressData.corte ? new Date(progressData.corte).toLocaleDateString('es-CO') : new Date().toLocaleDateString('es-CO')}
+        corte={formatDate(progressData.corte) || formatDate(new Date())}
       />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -320,8 +321,8 @@ const ProjectProgressPage = () => {
             <strong className="summary-clamp-two">{resumenExcel.dependencia}</strong>
           </article>
           <article>
-            <span>Corte</span>
-            <strong>{progressData.corte ? new Date(progressData.corte).toLocaleDateString('es-CO') : 'Sin corte'}</strong>
+            <span>Fecha límite</span>
+            <strong>{formatDate(progressData.corte) || 'Sin fecha'}</strong>
           </article>
           <article>
             <span>Estado</span>
@@ -345,9 +346,9 @@ const ProjectProgressPage = () => {
           >
             <div className="project-summary-modal-header">
               <div>
-                <span className="excel-kicker">Indicadores al corte</span>
+<span className="excel-kicker">Indicadores a fecha límite</span>
                 <h3 id="project-summary-modal-title">{progressData.codigo} · {progressData.nombre}</h3>
-                <p>Detalle completo del corte con los indicadores calculados por el sistema.</p>
+                <p>Detalle completo a fecha límite con los indicadores calculados por el sistema.</p>
               </div>
               <button
                 type="button"
@@ -385,11 +386,11 @@ const ProjectProgressPage = () => {
                 <strong>{resumenExcel.totalEntregables}</strong>
               </section>
               <section className="project-summary-modal-block">
-                <span>Programados al corte</span>
+                <span>Programados a fecha límite</span>
                 <strong>{resumenExcel.programadosAlCorte}</strong>
               </section>
               <section className="project-summary-modal-block">
-                <span>Entregados al corte</span>
+                <span>Entregados a fecha límite</span>
                 <strong>{resumenExcel.entregadosAlCorte}</strong>
               </section>
               <section className="project-summary-modal-block">

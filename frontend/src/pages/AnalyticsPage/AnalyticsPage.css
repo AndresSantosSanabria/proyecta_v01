@@ -75,6 +75,13 @@
 .analytics-refresh:hover { transform: translateY(-1px); }
 .analytics-refresh:disabled { opacity: 0.7; cursor: wait; }
 .analytics-refresh--secondary { background: color-mix(in srgb, var(--bg-card) 86%, transparent); }
+.analytics-refresh--download {
+  background: color-mix(in srgb, var(--success) 15%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--success) 22%, var(--border-color));
+}
+.analytics-refresh--download:hover {
+  background: color-mix(in srgb, var(--success) 25%, var(--bg-card));
+}
 
 /* ── Error ── */
 .analytics-alert {

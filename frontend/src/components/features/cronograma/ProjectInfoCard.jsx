@@ -20,8 +20,8 @@ const ProjectInfoCard = ({ displayResumen, expanded, onToggleExpanded }) => {
     { label: 'Meta', value: displayResumen.meta },
     { label: 'Dependencia', value: displayResumen.dependencia },
     { label: 'Programado', value: displayResumen.programado },
-    { label: 'Programados al corte', value: displayResumen.programadosAlCorte },
-    { label: 'Entregados al corte', value: displayResumen.entregadosAlCorte },
+    { label: 'Programados a fecha límite', value: displayResumen.programadosAlCorte },
+    { label: 'Entregados a fecha límite', value: displayResumen.entregadosAlCorte },
     { label: 'Eficacia', value: formatPercent(displayResumen.eficacia) },
     { label: 'Eficiencia', value: formatPercent(displayResumen.eficiencia) },
   ];

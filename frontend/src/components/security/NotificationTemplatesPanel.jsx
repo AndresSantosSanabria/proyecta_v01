@@ -149,6 +149,7 @@ const NotificationTemplatesPanel = () => {
   const [showInactive, setShowInactive] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('BUSINESS');
   const [globalNotifCheck, setGlobalNotifCheck] = useState(false);
+  const [notifStats, setNotifStats] = useState(null);
 
   const preferenceUsername = authUser?.profile?.preferred_username
     || authUser?.profile?.username
@@ -161,11 +162,12 @@ const NotificationTemplatesPanel = () => {
     try {
       setLoading(true);
       setError('');
-      const [eventsResult, templatesResult, preferencesResult, profileResult] = await Promise.allSettled([
+      const [eventsResult, templatesResult, preferencesResult, profileResult, statsResult] = await Promise.allSettled([
         securityService.listNotificationEvents(),
         securityService.listNotificationTemplates(),
         securityService.listNotificationPreferences(),
         securityService.getCurrentProfile(),
+        securityService.getNotificationStats(),
       ]);
 
       const eventData = eventsResult.status === 'fulfilled' ? (eventsResult.value?.data || eventsResult.value || []) : [];
@@ -181,6 +183,11 @@ const NotificationTemplatesPanel = () => {
       setEvents(mergedEvents);
       setTemplates(Array.isArray(templateData) ? templateData : []);
       setPreferences(Array.isArray(preferenceData) ? preferenceData : []);
+
+      if (statsResult.status === 'fulfilled') {
+        const statsData = statsResult.value?.data?.data || statsResult.value?.data || statsResult.value || null;
+        setNotifStats(statsData);
+      }
 
       if (profileResult.status === 'fulfilled') {
         const profile = profileResult.value?.data?.data || profileResult.value?.data || profileResult.value || {};
@@ -300,17 +307,16 @@ const NotificationTemplatesPanel = () => {
   }, [events, selectedCode, templates]);
 
   const stats = useMemo(() => {
-    const activeTemplates = templates.filter((template) => template?.enabled !== false).length;
-    const activeEvents = rows.filter(({ enabled }) => enabled).length;
-    const totalEvents = events.length;
-    const totalPreferences = preferences.length;
-    return {
-      activeTemplates,
-      activeEvents,
-      totalEvents,
-      totalPreferences,
-    };
-  }, [events, rows, templates.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    const totalEvents = notifStats?.totalEvents ?? events.length;
+    const totalSent = notifStats?.totalSent ?? 0;
+    const totalFailed = notifStats?.totalFailed ?? 0;
+    const inAppSent = notifStats?.inAppSent ?? 0;
+    const inAppFailed = notifStats?.inAppFailed ?? 0;
+    const usersWithEmail = notifStats?.usersWithEmail ?? 0;
+    const usersWithGlobalNotifs = notifStats?.usersWithGlobalNotifs ?? 0;
+    const activeTemplates = notifStats?.activeTemplates ?? templates.filter((t) => t?.enabled !== false).length;
+    return { totalEvents, totalSent, totalFailed, inAppSent, inAppFailed, usersWithEmail, usersWithGlobalNotifs, activeTemplates };
+  }, [events, notifStats, templates.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.code === selectedCode) || null,
@@ -515,20 +521,14 @@ const NotificationTemplatesPanel = () => {
 
           <section className="templates-stats">
             <article className="templates-stat dark">
-              <span>Eventos del catálogo</span>
-              <strong>{stats.totalEvents}</strong>
-              <small>Eventos reales cargados desde backend</small>
+              <span>Notificaciones enviadas</span>
+              <strong>{stats.totalSent + stats.inAppSent}</strong>
+              <small>{stats.totalSent} email · {stats.inAppSent} in-app</small>
             </article>
-            <article className="templates-stat light">
-              <span>Plantillas configuradas</span>
-              <strong>{templates.length}</strong>
-              <small>Plantillas persistidas en base de datos</small>
-            </article>
-            <article className="templates-stat light">
-              <span>Plantillas activas</span>
-              <strong>{stats.activeTemplates} / {stats.totalEvents}</strong>
-              <small>{stats.totalPreferences} preferencias guardadas</small>
-              <div className="progress-bar"><span style={{ width: `${stats.totalEvents ? Math.round((stats.activeTemplates / stats.totalEvents) * 100) : 0}%` }} /></div>
+            <article className={`templates-stat ${stats.totalFailed + stats.inAppFailed > 0 ? 'danger' : 'light'}`}>
+              <span>Notificaciones fallidas</span>
+              <strong>{stats.totalFailed + stats.inAppFailed}</strong>
+              <small>{stats.totalFailed} email · {stats.inAppFailed} in-app</small>
             </article>
           </section>
 

@@ -211,7 +211,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
           </button>
           <button
             className="logout-btn"
-            title="Cerrar Sesion"
+            title="Cerrar Sesión"
             onClick={handleLogout}
             disabled={isLoggingOut}
             aria-busy={isLoggingOut}

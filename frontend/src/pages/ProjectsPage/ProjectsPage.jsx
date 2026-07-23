@@ -197,7 +197,7 @@ const ProjectsPage = () => {
           <p className="subtitle">
             {shouldUseAssignedProjects
               ? 'Solo se muestran los proyectos asignados a tu usuario.'
-              : 'Gestion y seguimiento de todos los proyectos'}
+              : 'Gestión y seguimiento de todos los proyectos'}
           </p>
         </div>
       </header>

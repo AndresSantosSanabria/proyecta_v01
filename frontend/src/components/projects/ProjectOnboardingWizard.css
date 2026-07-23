@@ -834,6 +834,26 @@
   transform: translateY(-1px);
 }
 
+.project-onboarding .form-input-code {
+  color: color-mix(in srgb, var(--text-main) 58%, var(--text-muted));
+  background: color-mix(in srgb, var(--bg-surface) 74%, var(--border-color));
+  border-color: color-mix(in srgb, var(--border-color) 70%, var(--text-muted));
+  cursor: not-allowed;
+  user-select: none;
+}
+
+.project-onboarding .form-input-code[readonly] {
+  -webkit-text-fill-color: color-mix(in srgb, var(--text-main) 58%, var(--text-muted));
+  opacity: 1;
+}
+
+.project-onboarding .form-input-code:hover,
+.project-onboarding .form-input-code:focus {
+  transform: none;
+  border-color: color-mix(in srgb, var(--border-color) 70%, var(--text-muted));
+  box-shadow: none;
+}
+
 .project-onboarding .array-field-row {
   padding: 8px;
   border-radius: 14px;

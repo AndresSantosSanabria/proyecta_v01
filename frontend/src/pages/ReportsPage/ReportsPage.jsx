@@ -442,10 +442,21 @@ const ReportsPage = () => {
       const delayRows = Array.isArray(reportData) ? reportData : [];
       const total = delayRows.length;
       const totalAtrasos = delayRows.reduce((sum, item) => sum + Number(item.entregablesAtrasados || 0), 0);
+      
+      const depCount = {};
+      delayRows.forEach((item) => {
+        const dep = item.dependencia || 'Sin dependencia';
+        depCount[dep] = (depCount[dep] || 0) + 1;
+      });
+      const topDeps = Object.entries(depCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([dep, count]) => ({ dependencia: dep, count }));
+
       return [
         { label: 'Proyectos con retrasos', value: total, tone: 'danger' },
         { label: 'Atrasos acumulados', value: totalAtrasos, tone: 'warning' },
-        { label: 'Dependencia afectada', value: total > 0 ? delayRows[0].dependencia : 'No aplica', tone: 'neutral' },
+        { label: 'Top Dependencias', value: 'top3', tone: 'neutral', topDeps },
         { label: 'Proyectos revisados', value: projects.length, tone: 'primary' },
       ];
     }
@@ -753,10 +764,25 @@ const ReportsPage = () => {
           {reportCards.length > 0 && (
             <section className="reports-page__metrics">
               {reportCards.map((card) => (
-                <article key={card.label} className={`reports-page__metric-card tone-${card.tone}`}>
-                  <span>{card.label}</span>
-                  <strong>{card.value}</strong>
-                </article>
+                card.topDeps ? (
+                  <article key={card.label} className={`reports-page__metric-card tone-${card.tone} reports-page__metric-card--top3`}>
+                    <span>{card.label}</span>
+                    <div className="reports-page__top3-list">
+                      {card.topDeps.length > 0 ? card.topDeps.map((dep, idx) => (
+                        <div key={dep.dependencia} className="reports-page__top3-item">
+                          <span className="reports-page__top3-rank">{idx + 1}</span>
+                          <span className="reports-page__top3-dep">{dep.dependencia}</span>
+                          <strong className="reports-page__top3-count">{dep.count}</strong>
+                        </div>
+                      )) : <span className="reports-page__top3-empty">Sin datos</span>}
+                    </div>
+                  </article>
+                ) : (
+                  <article key={card.label} className={`reports-page__metric-card tone-${card.tone}`}>
+                    <span>{card.label}</span>
+                    <strong>{card.value}</strong>
+                  </article>
+                )
               ))}
             </section>
           )}

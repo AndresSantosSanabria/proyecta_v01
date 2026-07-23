@@ -6,9 +6,12 @@ const documentService = {
     return data;
   },
 
-  cargarDocumento: async (proyectoId, tipoDocumento, file, onUploadProgress) => {
+  cargarDocumento: async (proyectoId, tipoDocumento, file, observacion, onUploadProgress) => {
     const formData = new FormData();
     formData.append('archivo', file);
+    if (observacion) {
+      formData.append('observacion', observacion);
+    }
 
     const { data } = await apiClient.post(
       `/proyectos/${proyectoId}/documentos/${tipoDocumento}`,
@@ -34,11 +37,19 @@ const documentService = {
     return response.data;
   },
 
-  eliminarDocumento: async (proyectoId, tipoDocumento) => {
-    const { data } = await apiClient.delete(
-      `/proyectos/${proyectoId}/documentos/${tipoDocumento}`
+  listarVersiones: async (proyectoId, tipoDocumento) => {
+    const { data } = await apiClient.get(
+      `/proyectos/${proyectoId}/documentos/${tipoDocumento}/versiones`
     );
     return data;
+  },
+
+  descargarVersion: async (proyectoId, tipoDocumento, numeroVersion) => {
+    const response = await apiClient.get(
+      `/proyectos/${proyectoId}/documentos/${tipoDocumento}/versiones/${numeroVersion}/archivo`,
+      { responseType: 'blob' }
+    );
+    return response.data;
   },
 };
 

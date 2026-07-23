@@ -35,6 +35,7 @@ const ProjectClosurePage = () => {
   const [successMsg, setSuccessMsg] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [downloadingActa, setDownloadingActa] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [actaFileName, setActaFileName] = useState(null);
   const [requestingClosure, setRequestingClosure] = useState(false);
   const [userRole, setUserRole] = useState(null);
@@ -66,6 +67,7 @@ const ProjectClosurePage = () => {
   const [answers, setAnswers] = useState({});
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [resolvedTemplate, setResolvedTemplate] = useState(null);
+  const [missingQuestions, setMissingQuestions] = useState([]);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -122,13 +124,11 @@ const ProjectClosurePage = () => {
     const fetchQuestionsAndAnswers = async () => {
       try {
         setQuestionsLoading(true);
-        const [qRes, aRes, tRes] = await Promise.all([
-          securityService.listActiveClosureQuestions().catch(() => ({ data: [] })),
+        const [aRes, tRes, missingRes] = await Promise.all([
           securityService.getClosureAnswers(id).catch(() => ({ data: [] })),
-          securityService.getResolvedClosureTemplate(id).catch(() => ({ data: null })),
+          securityService.getClosureDraftTemplate(id).catch(() => ({ data: null })),
+          securityService.getMissingClosureQuestions(id).catch(() => ({ data: [] })),
         ]);
-        const qData = qRes?.data?.data ?? qRes?.data ?? qRes;
-        setQuestions(Array.isArray(qData) ? qData : []);
 
         const aData = aRes?.data?.data ?? aRes?.data ?? aRes;
         if (Array.isArray(aData)) {
@@ -144,6 +144,9 @@ const ProjectClosurePage = () => {
             setResolvedTemplate(parsed);
           } catch { setResolvedTemplate(null); }
         }
+
+        const missingData = missingRes?.data?.data ?? missingRes?.data ?? missingRes;
+        setMissingQuestions(Array.isArray(missingData) ? missingData : []);
       } catch (err) {
         console.error('Error loading questions/answers:', err);
       } finally {
@@ -160,6 +163,9 @@ const ProjectClosurePage = () => {
   const handleDownloadActa = async () => {
     try {
       setDownloadingActa(true);
+      setError(null);
+      await saveAnswersIfDynamic();
+      await saveClosureDraft();
       const downloadResponse = await projectService.downloadClosureActa(id);
       const blob = downloadResponse.data;
       const disposition = downloadResponse.headers?.['content-disposition'];
@@ -169,7 +175,9 @@ const ProjectClosurePage = () => {
       setActaFileName(fileName);
     } catch (downloadError) {
       console.error('Error descargando acta de cierre:', downloadError);
-      setError('No se pudo descargar el acta de cierre.');
+      const errData = downloadError.response?.data;
+      const backendMsg = typeof errData === 'string' ? errData : errData?.message || errData?.errorBanner;
+      setError(backendMsg || 'No se pudo descargar el acta de cierre. Verifique que la plantilla este configurada y las respuestas esten completas.');
     } finally {
       setDownloadingActa(false);
     }
@@ -200,12 +208,35 @@ const ProjectClosurePage = () => {
   };
 
   const saveAnswersIfDynamic = async () => {
-    if (questions.length === 0) return;
-    const payload = questions.map((q) => ({
+    if (missingQuestions.length === 0) return;
+    const payload = missingQuestions.map((q) => ({
       questionId: q.id,
       respuesta: answers[q.id] || '',
     }));
     await securityService.saveClosureAnswers(id, payload);
+  };
+
+  const saveClosureDraft = async () => {
+    const payload = {
+      fields: answers,
+    };
+    await securityService.saveClosureRecord(id, JSON.stringify(payload));
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      setSavingDraft(true);
+      setError(null);
+      await saveAnswersIfDynamic();
+      await saveClosureDraft();
+      setSuccessMsg('Borrador del acta guardado correctamente.');
+    } catch (err) {
+      console.error('Error saving closure draft:', err);
+      const errData = err.response?.data;
+      setError(errData?.errorBanner || errData?.message || 'No se pudo guardar el borrador del acta.');
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -216,6 +247,7 @@ const ProjectClosurePage = () => {
       setSubmitting(true);
       setError(null);
       await saveAnswersIfDynamic();
+      await saveClosureDraft();
 
       const closurePayload = {};
       const response = await projectService.closeProject(id, closurePayload);
@@ -266,6 +298,61 @@ const ProjectClosurePage = () => {
   const isGestorOrAdmin = roles.some(r => r.includes('gestor') || r.includes('administrador'));
   const canRequestClosure = isDirector && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && !cierreSolicitado;
   const canCloseProject = isGestorOrAdmin && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado;
+  const missingQuestionIds = new Set((missingQuestions || []).map((q) => q.id));
+
+  const isEditableClosureField = (campo) => {
+    if (!campo || campo.activo === false) return false;
+    if (campo.readonly) return false;
+    if (campo.resolvedValue !== undefined && campo.resolvedValue !== null && `${campo.resolvedValue}`.trim() !== '') return false;
+    if (campo.questionId && !missingQuestionIds.has(campo.questionId)) return false;
+    return true;
+  };
+
+  const visibleSections = Array.isArray(resolvedTemplate?.secciones)
+    ? resolvedTemplate.secciones
+        .map((seccion) => {
+          const campos = Array.isArray(seccion.campos)
+            ? seccion.campos.filter(isEditableClosureField)
+            : [];
+          return { ...seccion, campos };
+        })
+        .filter((seccion) => seccion.campos.length > 0)
+    : [];
+
+  const renderPreviewField = (campo) => {
+    const value = answers[campo.questionId] || '';
+    const isLinked = !!campo.questionId;
+
+    return (
+      <div key={campo.id} className="closure-preview-field">
+        <label className="closure-preview-label">
+          {campo.label}
+          {isLinked && <span className="closure-dyn-linked-badge closure-dyn-linked-badge--readonly">EDITABLE</span>}
+        </label>
+        {campo.tipo_input === 'texto_largo' ? (
+          <textarea
+            className="closure-preview-input closure-preview-textarea"
+            value={value}
+            onChange={(e) => {
+              if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
+            }}
+            disabled={isDisabled}
+            rows={4}
+          />
+        ) : (
+          <input
+            type={campo.tipo_input === 'fecha' ? 'date' : 'text'}
+            className="closure-preview-input"
+            value={value}
+            onChange={(e) => {
+              if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
+            }}
+            disabled={isDisabled}
+          />
+        )}
+      </div>
+    );
+  };
 
   const renderQuestion = (q) => {
     const value = answers[q.id] || '';
@@ -337,6 +424,15 @@ const ProjectClosurePage = () => {
           <h1>Cierre del Proyecto</h1>
           <p className="subtitle">{summaryData.id} - {summaryData.nombre || 'Proyecto'}</p>
         </div>
+        <div className="closure-header-actions">
+          <button type="button" className="btn-secondary-closure" onClick={handleSaveDraft} disabled={savingDraft || isDisabled}>
+            {savingDraft ? 'Guardando...' : 'Guardar borrador'}
+          </button>
+          <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa}>
+            <Download size={16} style={{ marginRight: '8px' }} />
+            {downloadingActa ? 'Descargando acta...' : 'Descargar acta'}
+          </button>
+        </div>
       </header>
 
       {successMsg && (
@@ -385,28 +481,19 @@ const ProjectClosurePage = () => {
           <span className={`status-badge ${summaryData.estado.toLowerCase()}`}>{summaryData.estado}</span>
         </div>
 
-        <div className="form-group">
-          <label>Informacion base del acta</label>
-          <div className="deliverables-container-readonly">
-            <p><strong>Patrocinador:</strong> {summaryData.patrocinadorNombre || 'No registrado'} {summaryData.patrocinadorCargo ? `- ${summaryData.patrocinadorCargo}` : ''} {summaryData.patrocinadorEntidad ? `- ${summaryData.patrocinadorEntidad}` : ''}</p>
-            <p><strong>Director:</strong> {summaryData.director || 'No registrado'} {summaryData.directorCargo ? `- ${summaryData.directorCargo}` : ''} {summaryData.directorEntidad ? `- ${summaryData.directorEntidad}` : ''}</p>
-            <p><strong>Objetivo general:</strong> {summaryData.objetivoGeneral || 'No registrado'}</p>
-            <p><strong>Objetivos especificos:</strong> {Array.isArray(summaryData.objetivosEspecificos) ? summaryData.objetivosEspecificos.length : 0}</p>
-          </div>
-        </div>
-
+        <div className="closure-layout">
         <form onSubmit={handleSubmit} className="closure-form">
           {questionsLoading ? (
             <div className="closure-dyn-loading"><span>Cargando preguntas...</span></div>
-          ) : resolvedTemplate?.secciones ? (
+          ) : visibleSections.length > 0 ? (
             <div className="closure-dyn-questions">
-              {resolvedTemplate.secciones.map((seccion) => (
+              {visibleSections.map((seccion) => (
                 <div key={seccion.id || seccion.titulo} className="closure-dyn-section">
                   <h3 className="closure-dyn-section-title">{seccion.titulo}</h3>
                   {seccion.tipo_seccion === 'formulario' && seccion.campos?.map((campo) => {
-                    if (campo.activo === false) return null;
-                    const value = campo.resolvedValue || answers[campo.questionId] || '';
+                    const value = answers[campo.questionId] || '';
                     const isLinked = !!campo.questionId;
+
                     return (
                       <div key={campo.id} className="closure-dyn-field">
                         <label className="closure-dyn-label">
@@ -416,15 +503,15 @@ const ProjectClosurePage = () => {
                         {campo.tipo_input === 'texto_largo' ? (
                           <textarea className="closure-dyn-textarea" value={value} onChange={(e) => {
                             if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
-                          }} disabled={isDisabled || isLinked} maxLength={2000} rows={4} />
+                          }} disabled={isDisabled} maxLength={2000} rows={4} />
                         ) : campo.tipo_input === 'fecha' ? (
                           <input type="date" className="closure-dyn-input" value={value} onChange={(e) => {
                             if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
-                          }} disabled={isDisabled || isLinked} />
+                          }} disabled={isDisabled} />
                         ) : (
                           <input type="text" className="closure-dyn-input" value={value} onChange={(e) => {
                             if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
-                          }} disabled={isDisabled || isLinked} maxLength={500} />
+                          }} disabled={isDisabled} maxLength={500} />
                         )}
                         {isLinked && !value && <span className="closure-dyn-empty-hint">Sin respuesta en el banco de preguntas</span>}
                       </div>
@@ -433,6 +520,10 @@ const ProjectClosurePage = () => {
                 </div>
               ))}
             </div>
+          ) : missingQuestions.length > 0 ? (
+            <div className="closure-dyn-questions">
+              {missingQuestions.map(renderQuestion)}
+            </div>
           ) : questions.length > 0 ? (
             <div className="closure-dyn-questions">
               {questions.map(renderQuestion)}
@@ -440,36 +531,6 @@ const ProjectClosurePage = () => {
           ) : (
             <div className="closure-dyn-empty"><p>No hay preguntas configuradas para el acta de cierre.</p></div>
           )}
-
-          <div className="form-group">
-            <label>
-              <ListTodo size={16} className="label-icon" />
-              Lista de Entregables Clave
-            </label>
-            <div className="deliverables-container-readonly" id="deliverables-list">
-              {summaryData.entregables && summaryData.entregables.length > 0 ? (
-                summaryData.entregables.map((entregable, index) => (
-                  <div key={index} className="deliverable-item">
-                    <span className="bullet">&bull;</span>
-                    <span className="deliverable-text">{entregable}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="no-deliverables">No hay entregables clave registrados en este proyecto.</p>
-              )}
-            </div>
-            <p className="field-hint">Esta lista se obtiene automaticamente del cronograma del proyecto.</p>
-          </div>
-
-          <div className="form-control-row">
-            <div className="form-group col-half">
-              <label htmlFor="avance-final">Avance Final (calculado)</label>
-              <div className="input-with-icon disabled-input-wrapper">
-                <Lock size={16} className="input-icon locked-icon" />
-                <input type="text" id="avance-final" value={`${summaryData.avanceTotal}% - calculado automaticamente`} disabled />
-              </div>
-            </div>
-          </div>
 
           {summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado && !isGestorOrAdmin && (
             <div className="form-actions">
@@ -521,6 +582,32 @@ const ProjectClosurePage = () => {
             </div>
           )}
         </form>
+        <aside className="closure-preview-panel">
+          <div className="closure-preview-card">
+            <div className="closure-preview-header">
+              <div>
+                <span className="closure-preview-kicker">Vista previa</span>
+                <h3>Documento editable</h3>
+              </div>
+              <span className="closure-preview-pill">{visibleSections.length > 0 ? 'Plantilla activa' : 'Sin plantilla'}</span>
+            </div>
+            <div className="closure-preview-body">
+              {visibleSections.length > 0 ? visibleSections.map((seccion) => (
+                <section key={seccion.id || seccion.titulo} className="closure-preview-section">
+                  <h4>{seccion.titulo}</h4>
+                  {seccion.tipo_seccion === 'formulario'
+                    ? seccion.campos?.map(renderPreviewField)
+                    : (
+                      <p className="closure-preview-note">Esta sección se completa desde una tabla dinámica en la plantilla.</p>
+                    )}
+                </section>
+              )) : (
+                <p className="closure-preview-empty">No hay plantilla cargada para mostrar la vista previa.</p>
+              )}
+            </div>
+          </div>
+        </aside>
+        </div>
       </div>
     </div>
   );

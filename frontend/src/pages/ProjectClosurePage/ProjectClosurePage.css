@@ -9,9 +9,20 @@
 
 /* Page Header */
 .closure-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
   margin-bottom: 2rem;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 1.5rem;
+}
+
+.closure-header-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .closure-header h1 {
@@ -467,6 +478,136 @@
   box-shadow: none;
 }
 
+.btn-secondary-closure {
+  background: transparent;
+  color: var(--text-main);
+  padding: 0.8rem 1.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary-closure:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.btn-secondary-closure:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.closure-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.closure-preview-panel {
+  position: sticky;
+  top: 1.5rem;
+}
+
+.closure-preview-card {
+  background: linear-gradient(180deg, rgba(14, 25, 41, 0.98), rgba(8, 14, 24, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 1rem;
+  box-shadow: var(--shadow-premium);
+}
+
+.closure-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.closure-preview-kicker {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.closure-preview-header h3 {
+  font-size: 1.05rem;
+  color: var(--text-main);
+}
+
+.closure-preview-pill {
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.closure-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 70vh;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.closure-preview-section {
+  padding: 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.closure-preview-section h4 {
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.closure-preview-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+}
+
+.closure-preview-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.closure-preview-input {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: rgba(2, 6, 23, 0.7);
+  color: var(--text-main);
+}
+
+.closure-preview-textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.closure-preview-note,
+.closure-preview-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 /* Approve Button (green) */
 .btn-approve-closure {
   display: inline-flex;
@@ -745,6 +886,19 @@
     width: 100%;
     justify-content: center;
   }
+
+  .closure-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .closure-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .closure-preview-panel {
+    position: static;
+  }
 }
 
 /* ── DYNAMIC FORM (TEMPLATE-BASED) ─────────────── */
@@ -788,6 +942,10 @@
   gap: 6px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.closure-dyn-field--readonly {
+  background: rgba(15, 23, 42, 0.025);
 }
 
 .closure-dyn-field:last-child {
@@ -996,6 +1154,21 @@
   letter-spacing: 0.5px;
   margin-left: 6px;
   vertical-align: middle;
+}
+
+.closure-dyn-linked-badge--readonly {
+  background: var(--success);
+}
+
+.closure-dyn-static-value {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .closure-dyn-empty-hint {

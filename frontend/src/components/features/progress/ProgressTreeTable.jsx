@@ -157,9 +157,6 @@ const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '') => {
   }
 
   fases.forEach((fase, fIndex) => {
-    if (!String(fase.nombre || '').trim()) {
-      errors[`fase_${fIndex}_nombre`] = 'El nombre de la fase es obligatorio.';
-    }
     if (toHierarchyNumber(fase.ponderacion) <= 0) {
       errors[`fase_${fIndex}_ponderacion`] = 'La ponderacion de la fase debe ser mayor a 0.';
     }
@@ -173,9 +170,6 @@ const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '') => {
     }
 
     (fase.hitos || []).forEach((hito, hIndex) => {
-      if (!String(hito.nombre || '').trim()) {
-        errors[`hito_${fIndex}_${hIndex}_nombre`] = 'El nombre del hito es obligatorio.';
-      }
       if (toHierarchyNumber(hito.ponderacion) <= 0) {
         errors[`hito_${fIndex}_${hIndex}_ponderacion`] = 'La ponderacion del hito debe ser mayor a 0.';
       }
@@ -189,9 +183,6 @@ const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '') => {
       }
 
       (hito.entregables || []).forEach((entregable, eIndex) => {
-        if (!String(entregable.nombre || '').trim()) {
-          errors[`ent_${fIndex}_${hIndex}_${eIndex}_nombre`] = 'El nombre del entregable es obligatorio.';
-        }
         if (toHierarchyNumber(entregable.ponderacion) <= 0) {
           errors[`ent_${fIndex}_${hIndex}_${eIndex}_ponderacion`] = 'La ponderacion del entregable debe ser mayor a 0.';
         }
@@ -1199,7 +1190,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
             <span className={`status-badge ${progressData.estado === 'ATRASO' ? 'danger' : 'success'}`}>
               {progressData.estado || 'EN_TIEMPO'}
             </span>
-            <span className="corte-date">Corte: {corte}</span>
+            <span className="corte-date">Fecha límite: {corte}</span>
           </div>
         </div>
         <div className="header-actions">
@@ -1231,8 +1222,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
               <th className="col-avance">Diferencia <Lock size={12} /></th>
               <th className="col-estado">Estado <Lock size={12} /></th>
               <th className="col-avance">Total entregables <Lock size={12} /></th>
-              <th className="col-fecha">Programados al corte <Lock size={12} /></th>
-              <th className="col-fecha">Entregados al corte <Lock size={12} /></th>
+              <th className="col-fecha">Programados a fecha límite <Lock size={12} /></th>
+              <th className="col-fecha">Entregados a fecha límite <Lock size={12} /></th>
               <th className="col-avance">Eficacia <Lock size={12} /></th>
               <th className="col-avance">Eficiencia <Lock size={12} /></th>
               <th className="col-fecha">Dependencia <Lock size={12} /></th>

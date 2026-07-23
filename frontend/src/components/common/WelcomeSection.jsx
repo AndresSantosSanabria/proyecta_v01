@@ -37,7 +37,7 @@ function WelcomeSection() {
         borderRadius: '8px',
         marginBottom: '20px'
       }}>
-        <h3>Informacion del Usuario:</h3>
+        <h3>Información del Usuario:</h3>
         <p><strong>Email:</strong> {user?.profile?.email}</p>
         <p><strong>Nombre:</strong> {user?.profile?.name}</p>
         <p><strong>Usuario:</strong> {user?.profile?.preferred_username}</p>
@@ -82,7 +82,7 @@ function WelcomeSection() {
           fontSize: '16px'
         }}
       >
-        Cerrar Sesion
+        Cerrar Sesión
       </button>
     </div>
   );

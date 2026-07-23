@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, LockKeyhole, Save } from 'lucide-react';
+import { useAuthContext } from '../../context/AuthContext';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
 import Paso4PetiComunicaciones from '../features/wizard/steps/Paso4PetiComunicaciones';
@@ -8,19 +9,6 @@ import Paso6GestionDocumental from '../features/wizard/steps/Paso6GestionDocumen
 import configCatalogService from '../../services/configCatalogService';
 import '../../pages/NewProjectPage/NewProjectPage.css';
 import './ProjectOnboardingWizard.css';
-
-const DEPENDENCIAS = [
-  'Infraestructura',
-  'Atencion al Ciudadano',
-  'Finanzas',
-  'Prensa y Comunicaciones',
-  'Seguridad de la Informacion',
-  'Innovacion y Tecnologia',
-  'Calidad de Software',
-  'Planeacion',
-  'Juridica',
-  'Talento Humano',
-];
 
 const STEPS = [
   { id: 1, label: 'Datos complementarios' },
@@ -33,7 +21,7 @@ const STEPS = [
 
 const initialForm = (project) => ({
   dependencia: project?.dependencia || '',
-  fechaInicio: project?.fechaInicio || '',
+  fechaInicio: project?.fechaInicio || new Date().toISOString().slice(0, 10),
   alcanceDetallado: project?.alcanceDetallado || project?.alcanceDetalle || project?.alcance || '',
   presupuestoEstimado: project?.presupuestoEstimado ?? project?.presupuesto ?? '',
   objetivosEspecificos: Array.isArray(project?.objetivosEspecificos) ? project.objetivosEspecificos : [],
@@ -117,12 +105,31 @@ const ProjectOnboardingWizard = ({
   error = '',
   onComplete,
 }) => {
+  const { hasRole, isAdminLocal, transversal } = useAuthContext();
+  const canEditFechaRegistro = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
   const [savedState] = useState(() => loadSavedState(project));
   const [step, setStep] = useState(savedState?.step || 1);
   const [form, setForm] = useState(() => savedState?.form || initialForm(project));
   const [errors, setErrors] = useState({});
   const [petiCatalog, setPetiCatalog] = useState(null);
   const [petiCatalogLoading, setPetiCatalogLoading] = useState(false);
+  const [dependencias, setDependencias] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    const loadDependencias = async () => {
+      try {
+        const data = await configCatalogService.listarValoresParametrica('DEPENDENCIA');
+        if (active && Array.isArray(data)) {
+          setDependencias(data);
+        }
+      } catch {
+        if (active) setDependencias([]);
+      }
+    };
+    loadDependencias();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     saveState(project, step, form);
@@ -198,7 +205,6 @@ const ProjectOnboardingWizard = ({
 
     if (targetStep === 1) {
       if (!source.dependencia) nextErrors.dependencia = 'Seleccione una dependencia.';
-      if (!source.fechaInicio) nextErrors.fechaInicio = 'La fecha de inicio es obligatoria.';
       if (!String(source.alcanceDetallado || '').trim()) nextErrors.alcanceDetallado = 'El alcance detallado es obligatorio.';
       if (source.presupuestoEstimado === '' || source.presupuestoEstimado == null) {
         nextErrors.presupuestoEstimado = 'El presupuesto estimado es obligatorio.';
@@ -280,7 +286,10 @@ const ProjectOnboardingWizard = ({
     }
 
     if (targetStep === 5) {
-      ['infraestructuraDatos', 'interoperabilidad', 'digitalizacionAutomatizacion', 'contratacionPublica', 'serviciosNube', 'sandbox', 'tecnologiasEmergentes'].forEach((key) => {
+      const furagKeys = (petiCatalog?.furagPreguntas || []).map((p) => p.key);
+      const defaultKeys = ['infraestructuraDatos', 'interoperabilidad', 'digitalizacionAutomatizacion', 'contratacionPublica', 'serviciosNube', 'sandbox', 'tecnologiasEmergentes'];
+      const keysToValidate = furagKeys.length > 0 ? furagKeys : defaultKeys;
+      keysToValidate.forEach((key) => {
         if (!source.furag?.[key]) nextErrors[`furag_${key}`] = 'Debe seleccionar una respuesta.';
       });
     }
@@ -343,15 +352,14 @@ const ProjectOnboardingWizard = ({
     vigenciaPeti: form.peti === true ? form.vigenciaPeti : null,
     estrategiaPeti: form.peti === true ? form.estrategiaPeti : null,
     tienePlanComunicaciones: form.tienePlanComunicaciones,
-    furag: {
-      infraestructuraDatos: form.furag?.infraestructuraDatos || null,
-      interoperabilidad: form.furag?.interoperabilidad || null,
-      digitalizacionAutomatizacion: form.furag?.digitalizacionAutomatizacion || null,
-      contratacionPublica: form.furag?.contratacionPublica || null,
-      serviciosNube: form.furag?.serviciosNube || null,
-      sandbox: form.furag?.sandbox || null,
-      tecnologiasEmergentes: form.furag?.tecnologiasEmergentes || null,
-    },
+    furag: (() => {
+      const furagKeys = (petiCatalog?.furagPreguntas || []).map((p) => p.key);
+      const defaultKeys = ['infraestructuraDatos', 'interoperabilidad', 'digitalizacionAutomatizacion', 'contratacionPublica', 'serviciosNube', 'sandbox', 'tecnologiasEmergentes'];
+      const keys = furagKeys.length > 0 ? furagKeys : defaultKeys;
+      const result = {};
+      keys.forEach((key) => { result[key] = form.furag?.[key] || null; });
+      return result;
+    })(),
   });
 
   const handleSubmit = (event) => {
@@ -383,14 +391,14 @@ const ProjectOnboardingWizard = ({
           <h3 className="step-title">Datos complementarios</h3>
           <div className="form-grid">
             <div className="form-group">
-              <label className="form-label">Dependencia Responsable *</label>
+              <label className="form-label">Dependencia y/o Secretaria Responsable *</label>
               <select
                 className={`form-input ${errors.dependencia ? 'input-error' : ''}`}
                 value={form.dependencia || ''}
                 onChange={(event) => handleChange({ dependencia: event.target.value })}
               >
                 <option value="">Seleccione una dependencia</option>
-                {DEPENDENCIAS.map((dependencia) => (
+                {dependencias.map((dependencia) => (
                   <option key={dependencia} value={dependencia}>{dependencia}</option>
                 ))}
               </select>
@@ -398,26 +406,29 @@ const ProjectOnboardingWizard = ({
             </div>
 
             <div className="form-group">
-              <label className="form-label">Fecha de Inicio *</label>
+              <label className="form-label">Fecha de Registro</label>
               <input
                 type="date"
-                className={`form-input ${errors.fechaInicio ? 'input-error' : ''}`}
+                className={`form-input ${canEditFechaRegistro ? '' : 'form-input-muted'}`}
                 value={form.fechaInicio || ''}
-                onChange={(event) => handleChange({ fechaInicio: event.target.value })}
+                readOnly={!canEditFechaRegistro}
+                onChange={canEditFechaRegistro ? (event) => handleChange({ fechaInicio: event.target.value }) : undefined}
               />
-              {errors.fechaInicio && <span className="error-text">{errors.fechaInicio}</span>}
             </div>
 
             <div className="form-group">
               <label className="form-label">Presupuesto estimado *</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 min="0"
-                max="9999999999999999.99"
-                step="0.01"
                 className={`form-input ${errors.presupuestoEstimado ? 'input-error' : ''}`}
                 value={form.presupuestoEstimado}
-                onChange={(event) => handleChange({ presupuestoEstimado: event.target.value })}
+                onChange={(event) => {
+                  const onlyDigits = event.target.value.replace(/[^0-9]/g, '');
+                  handleChange({ presupuestoEstimado: onlyDigits });
+                }}
                 placeholder="0"
               />
               {errors.presupuestoEstimado && <span className="error-text">{errors.presupuestoEstimado}</span>}
@@ -487,7 +498,7 @@ const ProjectOnboardingWizard = ({
     }
 
     if (step === 5) {
-      return <Paso5Furag data={form} onChange={handleChange} errors={errors} />;
+      return <Paso5Furag data={form} onChange={handleChange} errors={errors} preguntas={petiCatalog?.furagPreguntas} />;
     }
 
     return <Paso6GestionDocumental data={form} onChange={handleChange} errors={errors} />;

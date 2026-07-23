@@ -274,6 +274,7 @@
   padding: 10px 12px;
   background: var(--primary-soft);
   cursor: pointer;
+  flex-wrap: wrap;
 }
 
 .ctp-section-drag {
@@ -399,6 +400,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ctp-field-label-input {
@@ -489,6 +491,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   background: var(--bg-card);
+  flex-wrap: wrap;
 }
 
 .ctp-col-chip-input {
@@ -525,6 +528,35 @@
 }
 
 .ctp-col-add:hover { background: var(--primary-soft); }
+
+.ctp-toggle-inline,
+.ctp-col-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ctp-toggle-inline input,
+.ctp-col-toggle input {
+  accent-color: var(--primary);
+}
+
+.ctp-block-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
 
 /* ── SIGNATURE EDITOR ──────────────────────────── */
 .ctp-signature-editor {
@@ -574,4 +606,243 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── PREVIEW MODAL ────────────────────────────── */
+.ctp-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  z-index: 9999;
+  padding: 0;
+}
+
+.ctp-preview-modal {
+  background: var(--bg-elevated, #1a1a2e);
+  border: 1px solid var(--border-color, #333);
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.ctp-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-color, #333);
+  flex-shrink: 0;
+}
+
+.ctp-preview-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-main, #fff);
+}
+
+.ctp-preview-close {
+  background: none;
+  border: none;
+  color: var(--text-main, #fff);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.ctp-preview-body {
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  flex: 1;
+  background: #eef2f7;
+}
+
+/* ── PDF Document page ─────────────────────────── */
+.ctp-preview-doc {
+  width: min(100%, 900px);
+  min-height: calc(100vh - 120px);
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 4px;
+  padding: 48px 52px;
+  font-family: 'Helvetica', Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+}
+
+/* Header: logo + code + title (matches PDF .header) */
+.preview-header {
+  text-align: center;
+  margin-bottom: 20pt;
+  border-bottom: 2pt solid #16a34a;
+  padding-bottom: 12pt;
+}
+
+.preview-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8pt;
+}
+
+.preview-codigo {
+  font-size: 9pt;
+  color: #555;
+}
+
+.preview-version {
+  font-size: 9pt;
+  color: #555;
+}
+
+.preview-doc-title {
+  font-size: 16pt;
+  color: #16a34a;
+  margin-top: 6pt;
+  font-weight: 700;
+}
+
+/* Sections (matches PDF .section h2) */
+.preview-section {
+  margin-bottom: 16pt;
+  page-break-inside: avoid;
+}
+
+.preview-section h2 {
+  font-size: 12pt;
+  color: #16a34a;
+  border-bottom: 1pt solid #d1d5db;
+  padding-bottom: 4pt;
+  margin-bottom: 8pt;
+}
+
+/* Form fields (matches PDF .field) */
+.preview-field {
+  margin-bottom: 4pt;
+}
+
+.preview-field label {
+  font-weight: bold;
+  font-size: 9pt;
+  color: #374151;
+  display: block;
+  margin-bottom: 2pt;
+}
+
+.preview-text-inline {
+  font-size: 10pt;
+  color: #1a1a1a;
+  border-bottom: 0.5pt solid #e5e7eb;
+  padding-bottom: 2pt;
+}
+
+.preview-text-block {
+  font-size: 10pt;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  min-height: 14pt;
+  border-bottom: 0.5pt solid #e5e7eb;
+  padding-bottom: 2pt;
+}
+
+/* Tables (matches PDF .data-table) */
+.preview-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6pt;
+  font-size: 9pt;
+}
+
+.preview-data-table th {
+  background: #f3f4f6;
+  border: 1pt solid #d1d5db;
+  padding: 4pt 6pt;
+  text-align: left;
+  font-weight: bold;
+}
+
+.preview-data-table td {
+  border: 1pt solid #d1d5db;
+  padding: 4pt 6pt;
+}
+
+.preview-data-table tr:nth-child(even) td {
+  background: #f9fafb;
+}
+
+/* Footer (matches PDF .footer) */
+.preview-footer {
+  margin-top: 30pt;
+  border-top: 1pt solid #d1d5db;
+  padding-top: 12pt;
+}
+
+.preview-signatures {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20pt;
+}
+
+.preview-sig-block {
+  text-align: center;
+  width: 30%;
+}
+
+.preview-sig-line {
+  border-top: 1pt solid #1a1a1a;
+  margin-bottom: 4pt;
+  margin-top: 40pt;
+}
+
+.preview-sig-block span {
+  font-size: 8pt;
+  color: #555;
+}
+
+.preview-footer-text {
+  text-align: center;
+  font-size: 8pt;
+  color: #9ca3af;
+  margin-top: 12pt;
+}
+
+.preview-empty {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 32px 0;
+}
+
+@media (max-width: 900px) {
+  .ctp-preview-doc {
+    width: 100%;
+    min-height: auto;
+    padding: 36px 24px;
+  }
+
+  .ctp-preview-body {
+    padding: 12px;
+  }
+
+  .preview-signatures {
+    flex-direction: column;
+    align-items: center;
+    gap: 20pt;
+  }
+
+  .preview-sig-block {
+    width: 80%;
+  }
 }

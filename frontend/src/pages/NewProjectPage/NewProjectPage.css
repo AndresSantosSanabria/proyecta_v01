@@ -386,9 +386,12 @@
   box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.12);
 }
 
-.form-input-muted {
+.form-input-muted,
+.form-input-muted:disabled {
   color: var(--text-muted);
   background: var(--bg-elevated);
+  opacity: 0.8;
+  cursor: not-allowed;
 }
 
 .form-textarea {

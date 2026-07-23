@@ -33,7 +33,7 @@ const EvidenceUpload = ({ proyectoId, entregableId, mode = 'cargar', onClose, on
   const submitLabel = isCorrectionMode ? 'Cargar Subsanacion' : 'Subir Evidencia';
   const successMessage = isCorrectionMode
     ? 'Subsanacion cargada exitosamente. Queda nuevamente en revision del gestor.'
-    : 'Evidencia cargada exitosamente. Queda pendiente de aprobacion del gestor.';
+    : 'Evidencia cargada exitosamente. Queda pendiente de aprobación del gestor.';
 
   const validateFile = (file) => {
     if (!file) return 'No se seleccionó ningún archivo.';

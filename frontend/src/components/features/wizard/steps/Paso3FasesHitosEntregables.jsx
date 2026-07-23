@@ -9,19 +9,38 @@ const getRemainingWeight = (items) => {
   return Number.isInteger(remaining) ? String(remaining) : remaining.toFixed(2);
 };
 
-const createEntregable = (ponderacion = '100') => ({ nombre: '', ponderacion, fechaInicio: '', fechaLimite: '' });
-const createHito = (ponderacion = '100') => ({
-  nombre: '',
+const createEntregable = (ponderacion = '100', numero = 1) => ({
+  nombre: `E${String(numero).padStart(2, '0')}`,
+  ponderacion,
+  fechaInicio: '',
+  fechaLimite: '',
+});
+const createHito = (ponderacion = '100', numero = 1) => ({
+  nombre: `H${String(numero).padStart(2, '0')}`,
   descripcion: '',
   ponderacion,
   entregables: [createEntregable()],
 });
-const createFase = (ponderacion = '100') => ({
-  nombre: '',
+const createFase = (ponderacion = '100', numero = 1) => ({
+  nombre: `F${String(numero).padStart(2, '0')}`,
   descripcion: '',
   ponderacion,
   hitos: [createHito()],
 });
+
+const normalizeHierarchyNames = (fases = []) =>
+  (fases || []).map((fase, faseIndex) => ({
+    ...fase,
+    nombre: `F${String(faseIndex + 1).padStart(2, '0')}`,
+    hitos: (fase.hitos || []).map((hito, hitoIndex) => ({
+      ...hito,
+      nombre: `H${String(hitoIndex + 1).padStart(2, '0')}`,
+      entregables: (hito.entregables || []).map((entregable, entregableIndex) => ({
+        ...entregable,
+        nombre: `E${String(entregableIndex + 1).padStart(2, '0')}`,
+      })),
+    })),
+  }));
 
 const getProjectStartDate = (data) => data?.fechaInicioProyecto || data?.fechaInicio || data?.projectStartDate || '';
 
@@ -43,7 +62,7 @@ const Paso3FasesHitosEntregables = ({
   protectExistingItems = false,
   allowEmpty = true,
 }) => {
-  const fases = data.fases || [];
+  const fases = normalizeHierarchyNames(data.fases || []);
   const projectStartDate = getProjectStartDate(data);
 
   const updateFase = (fIndex, field, value) => {
@@ -53,7 +72,7 @@ const Paso3FasesHitosEntregables = ({
   };
 
   const addFase = () => {
-    onChange({ fases: [...fases, createFase(getRemainingWeight(fases))] });
+    onChange({ fases: [...fases, createFase(getRemainingWeight(fases), fases.length + 1)] });
   };
 
   const removeFase = (fIndex) => {
@@ -66,7 +85,7 @@ const Paso3FasesHitosEntregables = ({
     const hitosActuales = nuevas[fIndex].hitos || [];
     nuevas[fIndex] = {
       ...nuevas[fIndex],
-      hitos: [...hitosActuales, createHito(getRemainingWeight(hitosActuales))],
+      hitos: [...hitosActuales, createHito(getRemainingWeight(hitosActuales), hitosActuales.length + 1)],
     };
     onChange({ fases: nuevas });
   };
@@ -96,7 +115,7 @@ const Paso3FasesHitosEntregables = ({
     const entregablesActuales = hitos[hIndex].entregables || [];
     hitos[hIndex] = {
       ...hitos[hIndex],
-      entregables: [...entregablesActuales, createEntregable(getRemainingWeight(entregablesActuales))],
+      entregables: [...entregablesActuales, createEntregable(getRemainingWeight(entregablesActuales), entregablesActuales.length + 1)],
     };
     nuevas[fIndex] = { ...nuevas[fIndex], hitos };
     onChange({ fases: nuevas });
@@ -192,10 +211,10 @@ const Paso3FasesHitosEntregables = ({
               <div className="form-group">
                 <label className="form-label">Nombre de la Fase *</label>
                 <input
-                  className={`form-input ${errors[`fase_${fIndex}_nombre`] ? 'input-error' : ''}`}
+                  className={`form-input form-input-muted form-input-code ${errors[`fase_${fIndex}_nombre`] ? 'input-error' : ''}`}
                   value={fase.nombre || ''}
-                  onChange={(e) => updateFase(fIndex, 'nombre', e.target.value)}
-                  placeholder="Ej: Planeacion"
+                  readOnly
+                  aria-readonly="true"
                 />
               </div>
               <div className="form-group">
@@ -241,10 +260,10 @@ const Paso3FasesHitosEntregables = ({
                     <div className="form-group">
                       <label className="form-label">Nombre del Hito *</label>
                       <input
-                        className={`form-input ${errors[`hito_${fIndex}_${hIndex}_nombre`] ? 'input-error' : ''}`}
+                        className={`form-input form-input-muted form-input-code ${errors[`hito_${fIndex}_${hIndex}_nombre`] ? 'input-error' : ''}`}
                         value={hito.nombre || ''}
-                        onChange={(e) => updateHito(fIndex, hIndex, 'nombre', e.target.value)}
-                        placeholder="Ej: Cierre de planeacion"
+                        readOnly
+                        aria-readonly="true"
                       />
                     </div>
                     <div className="form-group">
@@ -287,10 +306,10 @@ const Paso3FasesHitosEntregables = ({
                           <div className="form-group">
                             <label className="form-label">Nombre *</label>
                             <input
-                              className={`form-input ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_nombre`] ? 'input-error' : ''}`}
+                              className={`form-input form-input-muted form-input-code ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_nombre`] ? 'input-error' : ''}`}
                               value={ent.nombre || ''}
-                              onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'nombre', e.target.value)}
-                              placeholder="Ej: Acta de inicio"
+                              readOnly
+                              aria-readonly="true"
                             />
                           </div>
                           <div className="form-group">
@@ -321,7 +340,7 @@ const Paso3FasesHitosEntregables = ({
                             )}
                           </div>
                           <div className="form-group">
-                            <label className="form-label">Fecha vencimiento *</label>
+                            <label className="form-label">Fecha límite *</label>
                             <input
                               type="date"
                               className={`form-input ${dateLocked ? 'form-input-muted' : ''} ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] ? 'input-error' : ''}`}

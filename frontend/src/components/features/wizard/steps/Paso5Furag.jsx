@@ -1,4 +1,4 @@
-const PREGUNTAS_FURAG = [
+const PREGUNTAS_FURAG_DEFAULT = [
   { key: 'infraestructuraDatos', label: '¿El proyecto incluye uso de infraestructura de datos (datos abiertos, big data, analytics)?' },
   { key: 'interoperabilidad', label: '¿El proyecto requiere interoperabilidad con otros sistemas de la entidad o del Estado?' },
   { key: 'digitalizacionAutomatizacion', label: '¿El proyecto contempla digitalización o automatización de procesos?' },
@@ -14,8 +14,11 @@ const OPCIONES = [
   { value: 'NA', label: 'No aplica' },
 ];
 
-const Paso5Furag = ({ data, onChange, errors }) => {
+const Paso5Furag = ({ data, onChange, errors, preguntas }) => {
   const furag = data.furag || {};
+  const PREGUNTAS_FURAG = Array.isArray(preguntas) && preguntas.length > 0
+    ? preguntas.map((p) => ({ key: p.key, label: p.label }))
+    : PREGUNTAS_FURAG_DEFAULT;
 
   const handleRespuesta = (key, value) => {
     onChange({ furag: { ...furag, [key]: value } });

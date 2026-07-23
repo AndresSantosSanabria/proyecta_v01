@@ -1058,64 +1058,6 @@
   justify-content: flex-end;
 }
 
-.assignment-config {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
-  background: color-mix(in srgb, var(--bg-main) 62%, var(--bg-card));
-}
-
-.assignment-config-copy {
-  display: grid;
-  gap: 4px;
-}
-
-.assignment-config-copy strong {
-  color: var(--text-main);
-  font-size: 0.95rem;
-}
-
-.assignment-config-copy span {
-  color: var(--text-muted);
-  font-size: 0.84rem;
-  line-height: 1.5;
-}
-
-.assignment-config-copy code {
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-card) 90%, var(--bg-card));
-  color: var(--primary);
-  font-size: 0.8rem;
-}
-
-.assignment-config-controls {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-
-.assignment-config textarea {
-  flex: 1 1 340px;
-  min-height: 72px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
-  color: var(--text-main);
-  outline: none;
-  resize: vertical;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
-}
-
-.assignment-config textarea:focus {
-  border-color: color-mix(in srgb, var(--primary) 64%, var(--border-color));
-  box-shadow: 0 0 0 4px var(--primary-soft), 0 12px 22px rgba(59, 130, 246, 0.08);
-}
-
 .assignment-grid {
   display: grid;
   gap: 18px;
@@ -1248,62 +1190,6 @@
 .assignment-project-cell span {
   font-size: 0.78rem;
   color: var(--text-muted);
-}
-
-.parameters-panel {
-  display: grid;
-  gap: 18px;
-}
-
-.parameters-topbar {
-  padding-bottom: 16px;
-}
-
-.parameters-actions {
-  align-items: center;
-}
-
-.parameters-table-shell {
-  border-radius: 22px;
-  overflow: hidden;
-}
-
-.parameters-table {
-  min-width: 980px;
-}
-
-.parameter-key-cell strong {
-  display: block;
-  font-size: 0.92rem;
-  color: var(--text-main);
-}
-
-.parameter-value-cell,
-.parameter-description-cell {
-  color: var(--text-muted);
-  line-height: 1.45;
-}
-
-.parameter-core-grid {
-  grid-template-columns: 1fr;
-}
-
-.parameter-core-grid textarea {
-  width: 100%;
-  min-height: 90px;
-  padding: 13px 16px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
-  color: var(--text-main);
-  outline: none;
-  resize: vertical;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
-}
-
-.parameter-core-grid textarea:focus {
-  border-color: color-mix(in srgb, var(--primary) 64%, var(--border-color));
-  box-shadow: 0 0 0 4px var(--primary-soft), 0 12px 22px rgba(59, 130, 246, 0.08);
 }
 
 .role-section-header h4 {
@@ -1832,10 +1718,6 @@
     grid-template-columns: 1fr;
   }
 
-  .assignment-config-controls {
-    align-items: stretch;
-  }
-
   .create-user-header,
   .panel-topbar,
   .security-header {
@@ -1855,10 +1737,6 @@
   }
 
   .assignment-table {
-    min-width: 680px;
-  }
-
-  .parameters-table {
     min-width: 680px;
   }
 }

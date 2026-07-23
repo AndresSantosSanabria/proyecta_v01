@@ -88,7 +88,7 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
               ))}
             </select>
             {errors.vigenciaPeti && <span className="error-text">{errors.vigenciaPeti}</span>}
-            <p className="help-text">Opciones administradas desde Configuración Seguridad &gt; Parámetros: peti_vigencias.</p>
+            <p className="help-text">Opciones administradas desde Configuracion Seguridad &gt; Listas: VIGENCIA_PETI.</p>
           </div>
 
           <div className="form-group">
@@ -105,7 +105,7 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
               ))}
             </select>
             {errors.estrategiaPeti && <span className="error-text">{errors.estrategiaPeti}</span>}
-            <p className="help-text">Opciones administradas desde Configuración Seguridad &gt; Parámetros: peti_estrategias.</p>
+            <p className="help-text">Opciones administradas desde Configuracion Seguridad &gt; Listas: ESTRATEGIA_PETI.</p>
           </div>
         </div>
       )}

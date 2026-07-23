@@ -14,15 +14,9 @@ const STATE = {
 
 const MAX_SIZE_MB = 20;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.xls', '.xlsx'];
+const ALLOWED_EXTENSIONS = ['.pdf'];
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
-  'image/png',
-  'image/jpeg',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 
 const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) => {

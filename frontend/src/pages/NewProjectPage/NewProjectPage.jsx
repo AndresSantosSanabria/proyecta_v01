@@ -291,7 +291,7 @@ const NewProjectPage = () => {
             </div>
 
             <div className="locked-next-card">
-              <span>Informacion que queda para el Director</span>
+              <span>Información que queda para el Director</span>
               <div className="locked-next-grid">
                 <small>Fechas</small>
                 <small>Alcance</small>
@@ -315,7 +315,7 @@ const NewProjectPage = () => {
             <div className="step-form">
               <div className="form-card-heading">
                 <span>Datos obligatorios</span>
-                <h3 className="step-title">Informacion permitida en creacion</h3>
+                <h3 className="step-title">Información permitida en creación</h3>
                 <p>Estos campos quedan protegidos para el Director y no se editan en el asistente de completitud.</p>
               </div>
 

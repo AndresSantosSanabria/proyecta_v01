@@ -26,7 +26,7 @@ apiProyecta.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.warn('Sesion invalida, redirigiendo al login de Keycloak...');
+      console.warn('Sesión inválida, redirigiendo al login de Keycloak...');
       startLoginRedirect().catch((redirectError) => {
         console.error('No se pudo redirigir al login:', redirectError);
       });

@@ -2029,8 +2029,8 @@
   .tree-table td:nth-child(5)::before { content: 'Diferencia'; }
   .tree-table td:nth-child(6)::before { content: 'Estado'; }
   .tree-table td:nth-child(7)::before { content: 'Total entregables'; }
-  .tree-table td:nth-child(8)::before { content: 'Programados al corte'; }
-  .tree-table td:nth-child(9)::before { content: 'Entregados al corte'; }
+  .tree-table td:nth-child(8)::before { content: 'Programados a fecha límite'; }
+  .tree-table td:nth-child(9)::before { content: 'Entregados a fecha límite'; }
   .tree-table td:nth-child(10)::before { content: 'Eficacia'; }
   .tree-table td:nth-child(11)::before { content: 'Eficiencia'; }
   .tree-table td:nth-child(12)::before { content: 'Dependencia'; }
