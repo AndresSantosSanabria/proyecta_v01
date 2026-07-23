@@ -9,6 +9,7 @@ public final class SecurityRoleCatalog {
 
     public static final Set<String> PROTECTED_ROLE_CODES = Set.of(
             "admin",
+            "usuario",
             "gestor_tic",
             "gestor_proyectos",
             "director_proyecto",

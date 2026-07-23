@@ -1,6 +1,8 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
@@ -15,6 +17,8 @@ import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.ActaCierreRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.closure.ProjectClosureRecordRepository;
+import com.proyecta.api_gestion.repository.closure.ClosureAnswerRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
@@ -25,6 +29,7 @@ import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
 import com.proyecta.api_gestion.service.closure.DynamicClosurePdfService;
 import com.proyecta.api_gestion.service.closure.ClosureTemplateService;
+import com.proyecta.api_gestion.service.closure.TemplateResolver;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.core.io.Resource;
@@ -62,6 +67,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final KeycloakIdentityExtractor identityExtractor;
     private final DynamicClosurePdfService dynamicPdfService;
     private final ClosureTemplateService templateService;
+    private final ClosureAnswerRepository closureAnswerRepository;
+    private final ProjectClosureRecordRepository closureRecordRepository;
+    private final TemplateResolver templateResolver;
 
     public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
                                      ActaCierreRepository actaCierreRepository,
@@ -75,7 +83,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      NotificationEventPublisherPort notificationPublisher,
                                      KeycloakIdentityExtractor identityExtractor,
                                      DynamicClosurePdfService dynamicPdfService,
-                                     ClosureTemplateService templateService) {
+                                     ClosureTemplateService templateService,
+                                     ClosureAnswerRepository closureAnswerRepository,
+                                     ProjectClosureRecordRepository closureRecordRepository,
+                                     TemplateResolver templateResolver) {
         this.proyectoRepository = proyectoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -89,6 +100,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.identityExtractor = identityExtractor;
         this.dynamicPdfService = dynamicPdfService;
         this.templateService = templateService;
+        this.closureAnswerRepository = closureAnswerRepository;
+        this.closureRecordRepository = closureRecordRepository;
+        this.templateResolver = templateResolver;
     }
 
     @Override
@@ -141,7 +155,15 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         if (request.formData() != null && !request.formData().isBlank()) {
             String templateJson = templateService.getActiveTemplateJson();
             templateService.validarFormData(templateJson, request.formData());
-            pdfBytes = dynamicPdfService.generatePdf(templateJson, request.formData(),
+            java.util.Map<Long, String> answerMap = closureAnswerRepository.findByProyectoIdOrderByQuestion_OrdenAsc(projectId).stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            a -> a.getQuestion().getId(),
+                            a -> a.getRespuesta() != null ? a.getRespuesta() : "",
+                            (a, b) -> b
+                    ));
+            String resolvedTemplateJson = templateResolver.resolveTemplateForProject(templateJson, proyecto, answerMap);
+            String mergedFormData = mergeProjectValuesIntoFormData(proyecto, request.formData());
+            pdfBytes = dynamicPdfService.generatePdf(resolvedTemplateJson, mergedFormData,
                     "A-GT-FR-004", 1, "Acta de Cierre del Proyecto");
         } else {
             List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
@@ -375,14 +397,68 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Override
     @Transactional(readOnly = true)
     public Resource descargarActaCierre(String projectId) {
-        ActaCierre acta = actaCierreRepository.findByProyectoId(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("No existe un acta de cierre para el proyecto: " + projectId));
-
-        if (acta.getArchivoPdf() == null || acta.getRutaArchivoPdf() == null) {
-            throw new ResourceNotFoundException("El acta de cierre no tiene un archivo PDF asociado.");
+        var editablePdf = generarPdfEditableSiExiste(projectId);
+        if (editablePdf != null) {
+            return editablePdf;
         }
 
-        return storageProvider.loadFileAsResource(acta.getRutaArchivoPdf(), acta.getArchivoPdf());
+        ActaCierre acta = actaCierreRepository.findByProyectoId(projectId)
+                .orElse(null);
+
+        if (acta != null && acta.getArchivoPdf() != null && acta.getRutaArchivoPdf() != null) {
+            return storageProvider.loadFileAsResource(acta.getRutaArchivoPdf(), acta.getArchivoPdf());
+        }
+
+        throw new ResourceNotFoundException(
+                "No se pudo generar el acta de cierre. Asegurese de que la plantilla este configurada y el borrador guardado antes de descargar.");
+    }
+
+    private Resource generarPdfEditableSiExiste(String projectId) {
+        var recordOpt = closureRecordRepository.findByProyectoId(projectId);
+        if (recordOpt.isEmpty()) {
+            return null;
+        }
+
+        var record = recordOpt.get();
+        if (record.getTemplateSnapshot() == null || record.getFormData() == null) {
+            return null;
+        }
+
+        Proyecto proyecto = proyectoRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+
+        try {
+            java.util.Map<Long, String> answerMap = closureAnswerRepository.findByProyectoIdOrderByQuestion_OrdenAsc(projectId).stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            a -> a.getQuestion().getId(),
+                            a -> a.getRespuesta() != null ? a.getRespuesta() : "",
+                            (a, b) -> b
+                    ));
+
+            String resolvedTemplateJson = templateResolver.resolveTemplateForProject(
+                    record.getTemplateSnapshot(),
+                    proyecto,
+                    answerMap
+            );
+            String mergedFormData = mergeProjectValuesIntoFormData(proyecto, record.getFormData());
+            byte[] pdfBytes = dynamicPdfService.generatePdf(
+                    resolvedTemplateJson,
+                    mergedFormData,
+                    "A-GT-FR-004",
+                    1,
+                    "Acta de Cierre del Proyecto"
+            );
+
+            return new org.springframework.core.io.ByteArrayResource(pdfBytes) {
+                @Override
+                public String getFilename() {
+                    return "acta-cierre-" + projectId + ".pdf";
+                }
+            };
+        } catch (Exception ex) {
+            log.warn("No se pudo generar PDF dinamico para proyecto {}: {}", projectId, ex.getMessage(), ex);
+            return null;
+        }
     }
 
     private List<ActaCierrePdfGenerator.EntregableActaItem> construirEntregablesActa(Proyecto proyecto, LocalDate corteCalculo) {
@@ -463,5 +539,50 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             return second;
         }
         return null;
+    }
+
+    private String mergeProjectValuesIntoFormData(Proyecto proyecto, String formDataJson) {
+        try {
+            JsonNode parsed = (formDataJson == null || formDataJson.isBlank())
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.readTree(formDataJson);
+            ObjectNode root = parsed.isObject() ? (ObjectNode) parsed : objectMapper.createObjectNode();
+            ObjectNode fields = root.has("fields") && root.get("fields").isObject()
+                    ? (ObjectNode) root.get("fields")
+                    : objectMapper.createObjectNode();
+
+            putIfMissing(root, "codigo_proyecto", proyecto.getId());
+            putIfMissing(root, "nombre_proyecto", proyecto.getNombre());
+            putIfMissing(root, "patrocinador", proyecto.getPatrocinador() != null ? proyecto.getPatrocinador().getNombre() : null);
+            putIfMissing(root, "director", proyecto.getDirector());
+            putIfMissing(root, "fecha_inicio", proyecto.getFechaInicio() != null ? proyecto.getFechaInicio().toString() : null);
+            putIfMissing(root, "objetivo_general", proyecto.getObjetivoGeneral());
+
+            copyToFields(fields, "codigo_proyecto", proyecto.getId());
+            copyToFields(fields, "nombre_proyecto", proyecto.getNombre());
+            copyToFields(fields, "patrocinador", proyecto.getPatrocinador() != null ? proyecto.getPatrocinador().getNombre() : null);
+            copyToFields(fields, "director", proyecto.getDirector());
+            copyToFields(fields, "fecha_inicio", proyecto.getFechaInicio() != null ? proyecto.getFechaInicio().toString() : null);
+            copyToFields(fields, "objetivo_general", proyecto.getObjetivoGeneral());
+
+            root.set("fields", fields);
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception ex) {
+            return formDataJson;
+        }
+    }
+
+    private void putIfMissing(ObjectNode root, String key, String value) {
+        if (value == null || value.isBlank() || root.hasNonNull(key)) {
+            return;
+        }
+        root.put(key, value);
+    }
+
+    private void copyToFields(ObjectNode fields, String key, String value) {
+        if (value == null || value.isBlank() || fields.hasNonNull(key)) {
+            return;
+        }
+        fields.put(key, value);
     }
 }

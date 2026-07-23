@@ -1,10 +1,13 @@
 package com.proyecta.api_gestion.service.config;
 
 import com.proyecta.api_gestion.dto.config.CatalogOptionDTO;
+import com.proyecta.api_gestion.dto.config.FuragPreguntaDTO;
 import com.proyecta.api_gestion.dto.config.PetiCatalogDTO;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
+import com.proyecta.api_gestion.model.config.ListaParametricaConfig;
 import com.proyecta.api_gestion.repository.config.EstrategiaPetiConfigRepository;
+import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,28 +25,62 @@ public class PetiCatalogService {
             "TRANSFORMACION_DIGITAL:Transformacion Digital|" +
             "CIUDADES_TERRITORIOS_INTELIGENTES:Ciudades y Territorios Inteligentes|" +
             "GOBIERNO_DIGITAL:Gobierno Digital";
+    private static final List<FuragPreguntaDTO> DEFAULT_FURAG_PREGUNTAS = List.of(
+            new FuragPreguntaDTO("infraestructuraDatos", "¿El proyecto incluye uso de infraestructura de datos (datos abiertos, big data, analytics)?"),
+            new FuragPreguntaDTO("interoperabilidad", "¿El proyecto requiere interoperabilidad con otros sistemas de la entidad o del Estado?"),
+            new FuragPreguntaDTO("digitalizacionAutomatizacion", "¿El proyecto contempla digitalización o automatización de procesos?"),
+            new FuragPreguntaDTO("contratacionPublica", "¿El proyecto está relacionado con contratación pública electrónica?"),
+            new FuragPreguntaDTO("serviciosNube", "¿El proyecto utilizará servicios en la nube (IaaS, PaaS, SaaS)?"),
+            new FuragPreguntaDTO("sandbox", "¿El proyecto requiere un entorno Sandbox regulatorio para pruebas?"),
+            new FuragPreguntaDTO("tecnologiasEmergentes", "¿El proyecto hace uso de tecnologías emergentes (IA, Blockchain, IoT)?")
+    );
 
     private final SystemParameterService systemParameterService;
     private final EstrategiaPetiConfigRepository estrategiaRepository;
+    private final ListaParametricaConfigRepository listaParametricaRepository;
 
     public PetiCatalogService(SystemParameterService systemParameterService,
-                              EstrategiaPetiConfigRepository estrategiaRepository) {
+                              EstrategiaPetiConfigRepository estrategiaRepository,
+                              ListaParametricaConfigRepository listaParametricaRepository) {
         this.systemParameterService = systemParameterService;
         this.estrategiaRepository = estrategiaRepository;
+        this.listaParametricaRepository = listaParametricaRepository;
     }
 
     @Transactional(readOnly = true)
     public PetiCatalogDTO getCatalog() {
-        return new PetiCatalogDTO(getVigencias(), getEstrategias());
+        return new PetiCatalogDTO(getVigencias(), getEstrategias(), getFuragPreguntas());
+    }
+
+    @Transactional(readOnly = true)
+    public List<FuragPreguntaDTO> getFuragPreguntas() {
+        List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("FURAG_PREGUNTAS");
+        if (!items.isEmpty()) {
+            return items.stream()
+                    .map(item -> new FuragPreguntaDTO(item.getItemCodigo().toLowerCase(), item.getItemNombre()))
+                    .toList();
+        }
+        return DEFAULT_FURAG_PREGUNTAS;
     }
 
     @Transactional(readOnly = true)
     public List<String> getVigencias() {
+        List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("VIGENCIA_PETI");
+        if (!items.isEmpty()) {
+            return items.stream().map(ListaParametricaConfig::getItemCodigo).toList();
+        }
         return systemParameterService.getCsv(SystemParameterKeys.PETI_VIGENCIAS, DEFAULT_VIGENCIAS);
     }
 
     @Transactional(readOnly = true)
     public List<CatalogOptionDTO> getEstrategias() {
+        List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("ESTRATEGIA_PETI");
+        if (!items.isEmpty()) {
+            return items.stream()
+                    .map(item -> new CatalogOptionDTO(item.getItemCodigo(), item.getItemNombre()))
+                    .toList();
+        }
+
         String configured = systemParameterService.getString(SystemParameterKeys.PETI_ESTRATEGIAS, DEFAULT_ESTRATEGIAS);
         List<CatalogOptionDTO> fromParameter = parseStrategies(configured);
         if (!fromParameter.isEmpty()) {

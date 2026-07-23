@@ -9,6 +9,7 @@ import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ public class SpringMailNotificationSenderAdapter implements NotificationSenderPo
     private final JavaMailSender javaMailSender;
     private final NotificationMailDispatchTracker tracker;
 
-    @Value("${mail.from:${spring.mail.username}}")
+    @Value("${mail.from:}")
     private String fromEmail;
 
     @Value("${mail.notifications.enabled:true}")
@@ -80,11 +81,24 @@ public class SpringMailNotificationSenderAdapter implements NotificationSenderPo
     private void doSend(String to, NotificationMessage message) throws MessagingException {
         MimeMessage mimeMessage = javaMailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-        helper.setFrom(fromEmail);
+        helper.setFrom(resolveFromEmail());
         helper.setTo(to);
         helper.setSubject(message.subject());
         helper.setText(message.body(), message.html());
         javaMailSender.send(mimeMessage);
+    }
+
+    private String resolveFromEmail() {
+        if (fromEmail != null && !fromEmail.isBlank()) {
+            return fromEmail;
+        }
+        if (javaMailSender instanceof JavaMailSenderImpl mailSender) {
+            String username = mailSender.getUsername();
+            if (username != null && !username.isBlank()) {
+                return username;
+            }
+        }
+        return "no-reply@localhost";
     }
 
     private String safeMessage(Exception e) {

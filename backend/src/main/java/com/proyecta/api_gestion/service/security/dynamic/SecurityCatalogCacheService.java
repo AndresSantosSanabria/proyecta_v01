@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.service.security.dynamic;
 import com.proyecta.api_gestion.model.security.SeguridadPermiso;
 import com.proyecta.api_gestion.model.security.SeguridadRolPermiso;
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
+import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 public class SecurityCatalogCacheService {
 
     private final SeguridadRolPermisoRepository rolPermisoRepository;
+    private final SeguridadPermisoRepository permisoRepository;
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
 
     private final Map<String, Set<String>> permissionsByRoleCache = new ConcurrentHashMap<>();
@@ -27,8 +29,10 @@ public class SecurityCatalogCacheService {
 
     public SecurityCatalogCacheService(
             SeguridadRolPermisoRepository rolPermisoRepository,
+            SeguridadPermisoRepository permisoRepository,
             SeguridadUsuarioProyectoRepository usuarioProyectoRepository) {
         this.rolPermisoRepository = rolPermisoRepository;
+        this.permisoRepository = permisoRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
     }
 
@@ -90,6 +94,14 @@ public class SecurityCatalogCacheService {
                 .distinct()
                 .sorted(String::compareToIgnoreCase)
                 .toList();
+    }
+
+    public Set<String> getPermissionsForAllRoles() {
+        return permisoRepository.findAllByActivoTrueOrderByCodigoAsc().stream()
+                .map(SeguridadPermiso::getCodigo)
+                .filter(codigo -> codigo != null && !codigo.isBlank())
+                .map(codigo -> codigo.trim().toUpperCase(Locale.ROOT))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public void evictAll() {

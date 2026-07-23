@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.controller.interfaces.IDocumentoController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoVersionHistorialResponseDTO;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.InputStreamResource;
@@ -44,9 +45,10 @@ public class DocumentoController implements IDocumentoController {
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento,
             @RequestPart("archivo") MultipartFile archivo,
+            @RequestPart(value = "observacion", required = false) String observacion,
             Authentication authentication) {
-        
-        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo, authentication);
+
+        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo, observacion, authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(response, "Documento cargado exitosamente"));
     }
@@ -57,7 +59,7 @@ public class DocumentoController implements IDocumentoController {
     public ResponseEntity<Resource> descargarDocumento(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento) {
-        
+
         Resource resource = documentoService.descargarDocumento(proyectoId, tipoDocumento);
 
         return ResponseEntity.ok()
@@ -67,51 +69,28 @@ public class DocumentoController implements IDocumentoController {
     }
 
     @Override
-    @DeleteMapping("/{proyectoId}/documentos/{tipoDocumento}")
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('DOCUMENTO:CARGAR', #proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<Void>> eliminarDocumento(
-            @PathVariable String proyectoId,
-            @PathVariable String tipoDocumento,
-            Authentication authentication) {
-        
-        documentoService.eliminarDocumento(proyectoId, tipoDocumento, authentication);
-        
-        return ResponseEntity.ok(ApiResponse.success("Documento eliminado exitosamente"));
-    }
-
-    // Endpoints alternativos para tipos de documento dinámicos (ej: evidencias)
-    @PostMapping(value = "/{proyectoId}/documentos/dynamic/{tipoDocumento}", consumes = {"multipart/form-data"})
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('DOCUMENTO:CARGAR', #proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumentoDinamico(
-            @PathVariable String proyectoId,
-            @PathVariable String tipoDocumento,
-            @RequestPart("archivo") MultipartFile archivo,
-            Authentication authentication) {
-        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo, authentication);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(response, "Documento cargado exitosamente"));
-    }
-
-    @GetMapping(value = "/{proyectoId}/documentos/dynamic/{tipoDocumento}/descargar")
+    @GetMapping("/{proyectoId}/documentos/{tipoDocumento}/versiones")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<Resource> descargarDocumentoDinamico(
+    public ResponseEntity<ApiResponse<DocumentoVersionHistorialResponseDTO>> listarVersiones(
             @PathVariable String proyectoId,
             @PathVariable String tipoDocumento) {
-        Resource resource = documentoService.descargarDocumento(proyectoId, tipoDocumento);
+        DocumentoVersionHistorialResponseDTO response = documentoService.listarVersiones(proyectoId, tipoDocumento);
+        return ResponseEntity.ok(ApiResponse.success(response, "Historial de versiones obtenido exitosamente"));
+    }
+
+    @Override
+    @GetMapping(value = "/{proyectoId}/documentos/{tipoDocumento}/versiones/{numeroVersion}/archivo")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<Resource> descargarVersion(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento,
+            @PathVariable Integer numeroVersion) {
+
+        Resource resource = documentoService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
-    }
-
-    @DeleteMapping("/{proyectoId}/documentos/dynamic/{tipoDocumento}")
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('DOCUMENTO:CARGAR', #proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<Void>> eliminarDocumentoDinamico(
-            @PathVariable String proyectoId,
-            @PathVariable String tipoDocumento,
-            Authentication authentication) {
-        documentoService.eliminarDocumento(proyectoId, tipoDocumento, authentication);
-        return ResponseEntity.ok(ApiResponse.success("Documento eliminado exitosamente"));
     }
 }

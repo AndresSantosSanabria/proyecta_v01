@@ -20,6 +20,9 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
 
     private static final Logger logger = LoggerFactory.getLogger(DynamicJwtAuthoritiesConverter.class);
 
+    private static final String KEYCLOAK_ADMIN_ROLE = "admin";
+    private static final String KEYCLOAK_USUARIO_ROLE = "usuario";
+
     private final List<String> resourceClientIds;
     private final SecurityCatalogCacheService catalogCacheService;
     private final KeycloakIdentityExtractor identityExtractor;
@@ -43,17 +46,25 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
     public Collection<GrantedAuthority> convert(Jwt jwt) {
         Set<GrantedAuthority> authorities = new LinkedHashSet<>();
 
-        Set<String> roles = identityExtractor.resolveRealmAndClientRoles(authenticationFrom(jwt), resourceClientIds).stream()
-                .map(roleAliasService::normalize)
-                .filter(role -> role != null && !role.isBlank())
+        Set<String> keycloakRoles = identityExtractor.resolveRealmAndClientRoles(authenticationFrom(jwt), resourceClientIds).stream()
+                .map(role -> role.trim().toLowerCase(Locale.ROOT))
+                .filter(role -> !role.isBlank())
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        roles.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase(Locale.ROOT))));
 
-        try {
-            catalogCacheService.getPermissionsForRoles(roles).forEach(permission ->
-                    authorities.add(new SimpleGrantedAuthority("PERM_" + permission.toUpperCase(Locale.ROOT))));
-        } catch (RuntimeException ex) {
-            logger.warn("No se pudieron resolver permisos del catálogo de seguridad. Se continuó con roles del JWT: {}", ex.getMessage());
+        boolean isAdmin = keycloakRoles.stream()
+                .anyMatch(role -> role.equals(KEYCLOAK_ADMIN_ROLE) || role.equals("administrador"));
+
+        if (isAdmin) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + KEYCLOAK_ADMIN_ROLE));
+
+            try {
+                catalogCacheService.getPermissionsForAllRoles().forEach(permission ->
+                        authorities.add(new SimpleGrantedAuthority("PERM_" + permission.toUpperCase(Locale.ROOT))));
+            } catch (RuntimeException ex) {
+                logger.warn("No se pudieron resolver permisos del catalogo de seguridad para ADMIN. Se continuo con rol ADMIN del JWT: {}", ex.getMessage());
+            }
+        } else {
+            logger.debug("Usuario USUARIO detectado en JWT. Los permisos se resuelven desde la BD interna.");
         }
 
         addScopes(jwt.getClaimAsString("scope"), authorities);

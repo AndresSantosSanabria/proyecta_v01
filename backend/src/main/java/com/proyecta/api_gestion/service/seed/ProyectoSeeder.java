@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.seed;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.*;
@@ -302,12 +303,65 @@ public class ProyectoSeeder {
                 }
 
                 String json = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-                ProyectoCreateDTO dto = objectMapper.readValue(json, ProyectoCreateDTO.class);
+                ProyectoCreateDTO dto = objectMapper.readValue(normalizarProyectoRealistaJson(json), ProyectoCreateDTO.class);
                 proyectoService.crearProyecto(dto);
                 logger.debug("Proyecto realista sembrado desde examples/proyecto-realista.json");
             }
         } catch (Exception ex) {
             logger.error("No fue posible sembrar el proyecto realista de ejemplo", ex);
+        }
+    }
+
+    private String normalizarProyectoRealistaJson(String json) {
+        try {
+            var root = objectMapper.readTree(json);
+            LocalDate fechaInicio = root.hasNonNull("fechaInicio")
+                    ? LocalDate.parse(root.get("fechaInicio").asText())
+                    : LocalDate.now().plusMonths(6);
+
+            var fases = root.path("fases");
+            if (fases.isArray()) {
+                int faseIndex = 0;
+                for (JsonNode fase : fases) {
+                    var hitos = fase.path("hitos");
+                    if (!hitos.isArray()) continue;
+                    int hitoIndex = 0;
+                    for (JsonNode hito : hitos) {
+                        var entregables = hito.path("entregables");
+                        if (!entregables.isArray()) continue;
+                        int entregableIndex = 0;
+                        for (JsonNode entregable : entregables) {
+                            if (entregable.isObject()) {
+                                var obj = (com.fasterxml.jackson.databind.node.ObjectNode) entregable;
+                                LocalDate fechaLimite = obj.hasNonNull("fechaLimite")
+                                        ? LocalDate.parse(obj.get("fechaLimite").asText())
+                                        : fechaInicio.plusMonths(1);
+                                LocalDate fechaInicioEntregable = obj.hasNonNull("fechaInicio")
+                                        ? LocalDate.parse(obj.get("fechaInicio").asText())
+                                        : fechaLimite.minusDays(7L + entregableIndex);
+                                if (fechaInicioEntregable.isBefore(fechaInicio)) {
+                                    fechaInicioEntregable = fechaInicio;
+                                }
+                                if (fechaInicioEntregable.isAfter(fechaLimite)) {
+                                    fechaInicioEntregable = fechaLimite.minusDays(1);
+                                }
+                                obj.put("fechaInicio", fechaInicioEntregable.toString());
+                                if (!obj.hasNonNull("fechaLimite")) {
+                                    obj.put("fechaLimite", fechaLimite.toString());
+                                }
+                            }
+                            entregableIndex++;
+                        }
+                        hitoIndex++;
+                    }
+                    faseIndex++;
+                }
+            }
+
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception ex) {
+            logger.warn("No fue posible normalizar el JSON del proyecto realista, se usara original: {}", ex.getMessage());
+            return json;
         }
     }
 

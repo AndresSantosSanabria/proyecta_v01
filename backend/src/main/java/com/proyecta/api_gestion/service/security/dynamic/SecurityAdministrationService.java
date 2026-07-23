@@ -9,8 +9,6 @@ import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioProyectoDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioProyectoRequest;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioUpdateRequest;
-import com.proyecta.api_gestion.dto.security.SystemParameterDTO;
-import com.proyecta.api_gestion.dto.security.SystemParameterUpsertRequest;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
@@ -28,7 +26,7 @@ import com.proyecta.api_gestion.repository.security.SeguridadRolRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.SystemParameterRepository;
+import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
@@ -64,8 +62,8 @@ public class SecurityAdministrationService {
     private final SeguridadRolPermisoRepository rolPermisoRepository;
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
     private final ProyectoRepository proyectoRepository;
-    private final SystemParameterRepository systemParameterRepository;
     private final SystemParameterService systemParameterService;
+    private final ListaParametricaConfigRepository listaParametricaRepository;
     private final SecurityCatalogCacheService catalogCacheService;
     private final KeycloakIdentityExtractor identityExtractor;
     private final LocalUserAuthorizationService localUserAuthorizationService;
@@ -78,8 +76,8 @@ public class SecurityAdministrationService {
             SeguridadRolPermisoRepository rolPermisoRepository,
             SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
             ProyectoRepository proyectoRepository,
-            SystemParameterRepository systemParameterRepository,
             SystemParameterService systemParameterService,
+            ListaParametricaConfigRepository listaParametricaRepository,
             SecurityCatalogCacheService catalogCacheService,
             KeycloakIdentityExtractor identityExtractor,
             LocalUserAuthorizationService localUserAuthorizationService,
@@ -90,8 +88,8 @@ public class SecurityAdministrationService {
         this.rolPermisoRepository = rolPermisoRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
         this.proyectoRepository = proyectoRepository;
-        this.systemParameterRepository = systemParameterRepository;
         this.systemParameterService = systemParameterService;
+        this.listaParametricaRepository = listaParametricaRepository;
         this.catalogCacheService = catalogCacheService;
         this.identityExtractor = identityExtractor;
         this.localUserAuthorizationService = localUserAuthorizationService;
@@ -114,65 +112,94 @@ public class SecurityAdministrationService {
             throw new ForbiddenException("No fue posible resolver el usuario autenticado.");
         }
 
-        SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
-                .orElseGet(() -> {
-                    SeguridadUsuario nuevo = new SeguridadUsuario();
-                    nuevo.setUsername(username);
-                    nuevo.setKeycloakSub(keycloakSub != null ? keycloakSub : username);
-                    nuevo.setNombre(displayName != null ? displayName : username);
-                    nuevo.setCorreo(email != null ? email : username);
-                    nuevo.setDependencia(identityExtractor.resolveDependencia(authentication));
-                    nuevo.setActivo(true);
-                    return nuevo;
-                });
+        boolean isAdminFromJwt = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
 
-        boolean shouldSave = false;
-        if (keycloakSub != null && !keycloakSub.equalsIgnoreCase(normalizeText(usuario.getKeycloakSub()))) {
-            usuario.setKeycloakSub(keycloakSub);
-            shouldSave = true;
-        }
-        if (displayName != null && !displayName.equalsIgnoreCase(normalizeText(usuario.getNombre()))) {
-            usuario.setNombre(displayName);
-            shouldSave = true;
-        }
-        if (email != null && !email.equalsIgnoreCase(normalizeText(usuario.getCorreo()))) {
-            usuario.setCorreo(email);
-            shouldSave = true;
-        }
+        SeguridadUsuario usuario = findExistingUser(keycloakSub, email, username);
 
-        String dependencia = normalizeText(identityExtractor.resolveDependencia(authentication));
-        if (dependencia != null && !dependencia.equalsIgnoreCase(normalizeText(usuario.getDependencia()))) {
-            usuario.setDependencia(dependencia);
-            shouldSave = true;
-        }
-
-        if (usuario.getActivo() == null) {
+        boolean isNewUser = usuario == null;
+        if (isNewUser) {
+            usuario = new SeguridadUsuario();
+            usuario.setUsername(username);
+            usuario.setKeycloakSub(keycloakSub != null ? keycloakSub : username);
+            usuario.setNombre(displayName != null ? displayName : username);
+            usuario.setCorreo(email != null ? email : username);
+            usuario.setDependencia(identityExtractor.resolveDependencia(authentication));
             usuario.setActivo(true);
-            shouldSave = true;
+        } else {
+            boolean shouldSave = false;
+
+            if (keycloakSub != null && !keycloakSub.equalsIgnoreCase(normalizeText(usuario.getKeycloakSub()))) {
+                usuario.setKeycloakSub(keycloakSub);
+                shouldSave = true;
+            }
+            if (displayName != null && !displayName.equalsIgnoreCase(normalizeText(usuario.getNombre()))) {
+                usuario.setNombre(displayName);
+                shouldSave = true;
+            }
+            if (email != null && !email.equalsIgnoreCase(normalizeText(usuario.getCorreo()))) {
+                usuario.setCorreo(email);
+                shouldSave = true;
+            }
+            if (!username.equalsIgnoreCase(normalizeText(usuario.getUsername()))) {
+                usuario.setUsername(username);
+                shouldSave = true;
+            }
+
+            String dependencia = normalizeText(identityExtractor.resolveDependencia(authentication));
+            if (dependencia != null && !dependencia.equalsIgnoreCase(normalizeText(usuario.getDependencia()))) {
+                usuario.setDependencia(dependencia);
+                shouldSave = true;
+            }
+
+            if (usuario.getActivo() == null) {
+                usuario.setActivo(true);
+                shouldSave = true;
+            }
+
+            if (!shouldSave) {
+                return usuario;
+            }
         }
 
-        Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(
-                usuario,
-                authentication,
-                true);
-
-        if (resolvedRole.isPresent()) {
-            SeguridadRol rol = resolvedRole.get();
-            if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
+        if (isAdminFromJwt) {
+            Optional<SeguridadRol> adminRole = rolRepository.findByCodigoIgnoreCase("admin");
+            if (adminRole.isPresent()) {
+                SeguridadRol rol = adminRole.get();
+                if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
+                    usuario.setRolCodigo(rol.getCodigo());
+                    usuario.setRolNombre(rol.getNombre());
+                }
+            }
+        } else if (isNewUser || usuario.getRolCodigo() == null || usuario.getRolCodigo().isBlank()) {
+            Optional<SeguridadRol> consultaRole = rolRepository.findByCodigoIgnoreCase("consulta");
+            if (consultaRole.isPresent()) {
+                SeguridadRol rol = consultaRole.get();
                 usuario.setRolCodigo(rol.getCodigo());
-                shouldSave = true;
-            }
-            if (!rol.getNombre().equalsIgnoreCase(normalizeText(usuario.getRolNombre()))) {
                 usuario.setRolNombre(rol.getNombre());
-                shouldSave = true;
             }
         }
 
-        if (shouldSave || usuario.getId() == null) {
-            usuario = usuarioRepository.save(usuario);
+        return usuarioRepository.save(usuario);
+    }
+
+    private SeguridadUsuario findExistingUser(String keycloakSub, String email, String username) {
+        if (keycloakSub != null && !keycloakSub.isBlank()) {
+            SeguridadUsuario bySub = usuarioRepository.findByKeycloakSubIgnoreCase(keycloakSub).orElse(null);
+            if (bySub != null) return bySub;
         }
 
-        return usuario;
+        if (email != null && !email.isBlank()) {
+            SeguridadUsuario byEmail = usuarioRepository.findByCorreoIgnoreCase(email).orElse(null);
+            if (byEmail != null) return byEmail;
+        }
+
+        if (username != null && !username.isBlank()) {
+            SeguridadUsuario byUsername = usuarioRepository.findByUsernameIgnoreCase(username).orElse(null);
+            if (byUsername != null) return byUsername;
+        }
+
+        return null;
     }
 
     @Transactional
@@ -450,54 +477,12 @@ public class SecurityAdministrationService {
     }
 
     public List<String> listarCargosAsignacion() {
-        return systemParameterService.getCsv(
-                        SystemParameterKeys.SEGURIDAD_CARGOS_ASIGNACION,
-                        List.of())
+        return listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("CARGO_ASIGNACION")
                 .stream()
-                .map(value -> value == null ? null : value.trim())
+                .map(item -> item.getItemCodigo() == null ? null : item.getItemCodigo().trim())
                 .filter(value -> value != null && !value.isBlank())
                 .distinct()
                 .toList();
-    }
-
-    public List<SystemParameterDTO> listarParametrosSistema() {
-        return systemParameterRepository.findAll(Sort.by(Sort.Direction.ASC, "key")).stream()
-                .map(param -> new SystemParameterDTO(param.getKey(), param.getValue(), param.getDescripcion()))
-                .toList();
-    }
-
-    @Transactional
-    public SystemParameterDTO guardarParametroSistema(SystemParameterUpsertRequest request) {
-        if (request == null || normalizeText(request.key()) == null || normalizeText(request.value()) == null) {
-            throw new BadRequestException("La clave y el valor del parametro son obligatorios.");
-        }
-
-        String key = normalizeText(request.key());
-        String value = normalizeText(request.value());
-        String descripcion = normalizeText(request.descripcion());
-
-        com.proyecta.api_gestion.model.SystemParameter parameter = systemParameterRepository.findByKey(key)
-                .orElseGet(com.proyecta.api_gestion.model.SystemParameter::new);
-        parameter.setKey(key);
-        parameter.setValue(value);
-        parameter.setDescripcion(descripcion);
-        com.proyecta.api_gestion.model.SystemParameter saved = systemParameterRepository.save(parameter);
-
-        return new SystemParameterDTO(saved.getKey(), saved.getValue(), saved.getDescripcion());
-    }
-
-    @Transactional
-    public void eliminarParametroSistema(String key) {
-        String normalized = normalizeText(key);
-        if (normalized == null) {
-            throw new BadRequestException("La clave del parametro es obligatoria.");
-        }
-
-        if (!systemParameterRepository.existsById(normalized)) {
-            throw new ResourceNotFoundException("Parametro no encontrado: " + normalized);
-        }
-
-        systemParameterRepository.deleteById(normalized);
     }
 
     public SeguridadAutorizacionMeDTO getAuthorizationFor(Authentication authentication) {
@@ -508,34 +493,37 @@ public class SecurityAdministrationService {
 
         Jwt jwt = identityExtractor.resolveJwt(authentication);
         String nombre = identityExtractor.resolveDisplayName(authentication);
-        Set<String> roleCodes = authentication.getAuthorities().stream()
-                .map(authority -> authority.getAuthority())
-                .filter(value -> value != null && value.startsWith("ROLE_"))
-                .map(SecurityRoleCatalog::normalize)
-                .filter(value -> value != null && !value.isBlank())
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        Set<String> permissions = authentication.getAuthorities().stream()
-                .map(authority -> authority.getAuthority())
-                .filter(value -> value != null && value.startsWith("PERM_"))
-                .map(value -> value.substring(5).toUpperCase(Locale.ROOT))
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        boolean isAdminFromJwt = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
+
+        SeguridadUsuario usuario = sincronizarUsuarioAutenticado(authentication);
+
+        Set<String> roleCodes = new LinkedHashSet<>();
+        Set<String> permissions = new LinkedHashSet<>();
+
+        if (isAdminFromJwt) {
+            roleCodes.add("admin");
+            permissions.addAll(catalogCacheService.getPermissionsForAllRoles());
+        } else {
+            String dbRoleCode = usuario.getRolCodigo();
+            if (dbRoleCode != null && !dbRoleCode.isBlank()) {
+                roleCodes.add(dbRoleCode.trim().toLowerCase(Locale.ROOT));
+                permissions.addAll(catalogCacheService.getPermissionsForRoles(roleCodes));
+            }
+        }
 
         boolean transversal = roleCodes.stream().anyMatch(SecurityRoleCatalog::isTransversal);
-        boolean administradorLocal = false;
+        boolean administradorLocal = isAdminFromJwt;
 
-        if (jwt != null) {
-            SeguridadUsuario usuario = sincronizarUsuarioAutenticado(authentication);
-            administradorLocal = roleCodes.contains("admin");
-            usuario.setUltimoAcceso(LocalDateTime.now());
-            usuarioRepository.save(usuario);
-        }
+        usuario.setUltimoAcceso(LocalDateTime.now());
+        usuarioRepository.save(usuario);
 
         List<String> projects = catalogCacheService.getProjectsForUser(username);
         try {
             Usuario localUser = localUserAuthorizationService.requireLocalUser(authentication);
             administradorLocal = administradorLocal || localUser.esAdministrador();
         } catch (RuntimeException ignored) {
-            // Si no existe usuario local valido, se conserva la evaluacion previa.
         }
 
         return new SeguridadAutorizacionMeDTO(

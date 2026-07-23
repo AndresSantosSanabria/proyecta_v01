@@ -211,24 +211,30 @@ public class ProyectoServiceImpl implements ProyectoService {
         // Fases / Hitos / Entregables. La jerarquia inicial es opcional.
         List<FaseDTO> fasesDto = dto.fases() == null ? List.of() : dto.fases();
         if (!fasesDto.isEmpty()) {
+            final int[] faseIndex = {0};
             proyecto.setFases(fasesDto.stream().map(fDto -> {
+            faseIndex[0]++;
             Fase fase = new Fase();
-            fase.setNombre(fDto.nombre());
+            fase.setNombre(String.format("F%02d", faseIndex[0]));
             fase.setDescripcion(fDto.descripcion());
             fase.setPonderacion(BigDecimal.valueOf(fDto.ponderacion()));
             fase.setProyecto(proyecto);
             
+            final int[] hitoIndex = {0};
             fase.setHitos(fDto.hitos().stream().map(hDto -> {
+                hitoIndex[0]++;
                 Hito hito = new Hito();
-                hito.setNombre(hDto.nombre());
+                hito.setNombre(String.format("H%02d", hitoIndex[0]));
                 hito.setDescripcion(hDto.descripcion());
                 hito.setPonderacion(BigDecimal.valueOf(hDto.ponderacion()));
                 hito.setFase(fase);
                 
+                final int[] entIndex = {0};
                 hito.setEntregables(hDto.entregables().stream().map(eDto -> {
+                    entIndex[0]++;
                     validarFechasEntregableNuevo(eDto, dto.fechaInicio());
                     Entregable ent = new Entregable();
-                    ent.setNombre(eDto.nombre());
+                    ent.setNombre(String.format("E%02d", entIndex[0]));
                     ent.setPonderacion(BigDecimal.valueOf(eDto.ponderacion()));
                     ent.setFechaInicio(eDto.fechaInicio());
                     ent.setFechaLimite(eDto.fechaLimite());
@@ -585,8 +591,9 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         if (dto.fases() != null) {
             proyecto.getFases().clear();
+            final int[] faseIdx = {0};
             dto.fases().stream()
-                    .map(faseDto -> buildFase(faseDto, proyecto, dto.fechaInicio()))
+                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, dto.fechaInicio(), faseIdx[0]); })
                     .forEach(proyecto.getFases()::add);
         }
     }
@@ -619,38 +626,40 @@ public class ProyectoServiceImpl implements ProyectoService {
         return furag;
     }
 
-    private Fase buildFase(FaseDTO fDto, Proyecto proyecto, LocalDate fechaInicioProyecto) {
+    private Fase buildFase(FaseDTO fDto, Proyecto proyecto, LocalDate fechaInicioProyecto, int faseNumero) {
         Fase fase = new Fase();
-        fase.setNombre(fDto.nombre());
+        fase.setNombre(String.format("F%02d", faseNumero));
         fase.setDescripcion(fDto.descripcion());
         fase.setPonderacion(BigDecimal.valueOf(fDto.ponderacion()));
         fase.setProyecto(proyecto);
 
+        final int[] hitoIdx = {0};
         List<Hito> hitos = fDto.hitos().stream()
-                .map(hDto -> buildHito(hDto, fase, fechaInicioProyecto))
+                .map(hDto -> { hitoIdx[0]++; return buildHito(hDto, fase, fechaInicioProyecto, hitoIdx[0]); })
                 .collect(Collectors.toList());
         fase.setHitos(hitos);
         return fase;
     }
 
-    private Hito buildHito(HitoDTO hDto, Fase fase, LocalDate fechaInicioProyecto) {
+    private Hito buildHito(HitoDTO hDto, Fase fase, LocalDate fechaInicioProyecto, int hitoNumero) {
         Hito hito = new Hito();
-        hito.setNombre(hDto.nombre());
+        hito.setNombre(String.format("H%02d", hitoNumero));
         hito.setDescripcion(hDto.descripcion());
         hito.setPonderacion(BigDecimal.valueOf(hDto.ponderacion()));
         hito.setFase(fase);
 
+        final int[] entIdx = {0};
         List<Entregable> entregables = hDto.entregables().stream()
-                .map(eDto -> buildEntregable(eDto, hito, fechaInicioProyecto))
+                .map(eDto -> { entIdx[0]++; return buildEntregable(eDto, hito, fechaInicioProyecto, entIdx[0]); })
                 .collect(Collectors.toList());
         hito.setEntregables(entregables);
         return hito;
     }
 
-    private Entregable buildEntregable(EntregableDTO eDto, Hito hito, LocalDate fechaInicioProyecto) {
+    private Entregable buildEntregable(EntregableDTO eDto, Hito hito, LocalDate fechaInicioProyecto, int entNumero) {
         validarFechasEntregableNuevo(eDto, fechaInicioProyecto);
         Entregable ent = new Entregable();
-        ent.setNombre(eDto.nombre());
+        ent.setNombre(String.format("E%02d", entNumero));
         ent.setPonderacion(BigDecimal.valueOf(eDto.ponderacion()));
         ent.setFechaInicio(eDto.fechaInicio());
         ent.setFechaLimite(eDto.fechaLimite());
@@ -784,11 +793,8 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         int sumFases = 0;
         for (FaseDTO fase : fases) {
-            if (fase.nombre() == null || fase.nombre().isBlank()) {
-                throw new BadRequestException("El nombre de la fase es obligatorio");
-            }
             if (fase.ponderacion() == null || fase.ponderacion() < 1 || fase.ponderacion() > 100) {
-                throw new BadRequestException("La ponderacion de la fase '" + fase.nombre() + "' debe estar entre 1 y 100");
+                throw new BadRequestException("La ponderacion de la fase debe estar entre 1 y 100");
             }
             sumFases += fase.ponderacion();
         }
@@ -798,41 +804,35 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         for (FaseDTO fase : fases) {
             if (fase.hitos() == null || fase.hitos().isEmpty()) {
-                throw new BadRequestException("La fase '" + fase.nombre() + "' debe tener al menos un hito");
+                throw new BadRequestException("Una fase debe tener al menos un hito");
             }
 
             int sumHitos = 0;
             for (HitoDTO hito : fase.hitos()) {
-                if (hito.nombre() == null || hito.nombre().isBlank()) {
-                    throw new BadRequestException("El nombre del hito es obligatorio");
-                }
                 if (hito.ponderacion() == null || hito.ponderacion() < 1 || hito.ponderacion() > 100) {
-                    throw new BadRequestException("La ponderacion del hito '" + hito.nombre() + "' debe estar entre 1 y 100");
+                    throw new BadRequestException("La ponderacion del hito debe estar entre 1 y 100");
                 }
                 sumHitos += hito.ponderacion();
             }
             if (sumHitos != 100) {
-                throw new BadRequestException("La suma de ponderaciones de hitos en la fase '" + fase.nombre() + "' debe ser exactamente 100");
+                throw new BadRequestException("La suma de ponderaciones de hitos en una fase debe ser exactamente 100");
             }
 
             for (HitoDTO hito : fase.hitos()) {
                 if (hito.entregables() == null || hito.entregables().isEmpty()) {
-                    throw new BadRequestException("El hito '" + hito.nombre() + "' debe tener al menos un entregable");
+                    throw new BadRequestException("Un hito debe tener al menos un entregable");
                 }
 
                 int sumEntregables = 0;
                 for (EntregableDTO entregable : hito.entregables()) {
-                    if (entregable.nombre() == null || entregable.nombre().isBlank()) {
-                        throw new BadRequestException("El nombre del entregable es obligatorio");
-                    }
                     if (entregable.ponderacion() == null || entregable.ponderacion() < 1 || entregable.ponderacion() > 100) {
-                        throw new BadRequestException("La ponderacion del entregable '" + entregable.nombre() + "' debe estar entre 1 y 100");
+                        throw new BadRequestException("La ponderacion del entregable debe estar entre 1 y 100");
                     }
                     validarFechasEntregableNuevo(entregable, null);
                     sumEntregables += entregable.ponderacion();
                 }
                 if (sumEntregables != 100) {
-                    throw new BadRequestException("La suma de ponderaciones de entregables en el hito '" + hito.nombre() + "' debe ser exactamente 100");
+                    throw new BadRequestException("La suma de ponderaciones de entregables en un hito debe ser exactamente 100");
                 }
             }
         }
@@ -840,16 +840,16 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     private void validarFechasEntregableNuevo(EntregableDTO entregable, LocalDate fechaInicioProyecto) {
         if (entregable.fechaInicio() == null) {
-            throw new BadRequestException("La fecha de inicio del entregable '" + entregable.nombre() + "' es obligatoria");
+            throw new BadRequestException("La fecha de inicio del entregable es obligatoria");
         }
         if (entregable.fechaLimite() == null) {
-            throw new BadRequestException("La fecha limite del entregable '" + entregable.nombre() + "' es obligatoria");
+            throw new BadRequestException("La fecha limite del entregable es obligatoria");
         }
         if (fechaInicioProyecto != null && entregable.fechaInicio().isBefore(fechaInicioProyecto)) {
-            throw new BadRequestException("La fecha de inicio del entregable '" + entregable.nombre() + "' debe ser mayor o igual a la fecha de inicio del proyecto");
+            throw new BadRequestException("La fecha de inicio del entregable debe ser mayor o igual a la fecha de inicio del proyecto");
         }
         if (entregable.fechaLimite().isBefore(entregable.fechaInicio())) {
-            throw new BadRequestException("La fecha limite del entregable '" + entregable.nombre() + "' debe ser mayor o igual a la fecha de inicio del entregable");
+            throw new BadRequestException("La fecha limite del entregable debe ser mayor o igual a la fecha de inicio del entregable");
         }
     }
 

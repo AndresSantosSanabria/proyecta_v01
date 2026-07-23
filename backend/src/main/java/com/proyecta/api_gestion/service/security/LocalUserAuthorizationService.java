@@ -8,6 +8,8 @@ import com.proyecta.api_gestion.repository.config.RolConfigRepository;
 import com.proyecta.api_gestion.repository.UsuarioRepository;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +24,8 @@ import java.util.Locale;
 
 @Service("localUserAuthorization")
 public class LocalUserAuthorizationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(LocalUserAuthorizationService.class);
 
     private final UsuarioRepository usuarioRepository;
     private final RolConfigRepository rolConfigRepository;
@@ -74,7 +78,7 @@ public class LocalUserAuthorizationService {
         boolean hasLocalRole = usuario.getRolConfig() != null || usuario.getRol() != null;
 
         if (!hasFunctionalRole && !hasLocalRole) {
-            throw new ForbiddenException("El usuario no tiene un rol funcional válido en Proyecta.");
+            throw new ForbiddenException("El usuario no tiene un rol funcional valido en Proyecta.");
         }
 
         return true;
@@ -98,7 +102,7 @@ public class LocalUserAuthorizationService {
                 .anyMatch(rolCodigo::equals);
 
         if (!allowed) {
-            throw new ForbiddenException("El usuario autenticado no tiene permisos para esta acción.");
+            throw new ForbiddenException("El usuario autenticado no tiene permisos para esta accion.");
         }
 
         return true;
@@ -138,10 +142,11 @@ public class LocalUserAuthorizationService {
             usuario.setKeycloakSub(keycloakSub);
             usuario.setNombre(firstNonBlank(displayName, username, email, keycloakSub));
             usuario.setCorreo(firstNonBlank(email, username, keycloakSub));
-            applyLocalRole(authentication, usuario, keycloakSub, email, username);
+            applyDefaultRole(usuario);
             usuario.setActivo(true);
             usuario.setUltimoAcceso(LocalDateTime.now());
             usuario = usuarioRepository.save(usuario);
+            logger.info("Usuario auto-provisionado con rol VISUALIZADOR: {}", usuario.getCorreo());
         }
 
         boolean shouldSave = false;
@@ -150,15 +155,13 @@ public class LocalUserAuthorizationService {
             shouldSave = true;
         }
 
-        shouldSave = applyLocalRole(authentication, usuario, keycloakSub, email, username) || shouldSave;
-
         if (Boolean.FALSE.equals(usuario.getActivo())) {
-            throw new ForbiddenException("El usuario autenticado está inactivo en la base local de Proyecta.");
+            throw new ForbiddenException("El usuario autenticado esta inactivo en la base local de Proyecta.");
         }
 
         RolConfig rolConfig = usuario.getRolConfig();
         if (rolConfig != null && Boolean.FALSE.equals(rolConfig.getActivo())) {
-            throw new ForbiddenException("El rol asignado al usuario está inactivo en la base local de Proyecta.");
+            throw new ForbiddenException("El rol asignado al usuario esta inactivo en la base local de Proyecta.");
         }
 
         if (shouldSave) {
@@ -168,37 +171,19 @@ public class LocalUserAuthorizationService {
         return usuario;
     }
 
-    private boolean applyLocalRole(Authentication authentication, Usuario usuario, String keycloakSub, String email, String username) {
-        if (usuario == null || authentication == null) {
-            return false;
-        }
-
-        boolean isAdmin = hasAdminAuthority(authentication);
-
-        boolean bootstrapAdmin = isBootstrapAdminIdentity(keycloakSub, email, username);
-        boolean shouldBeAdmin = isAdmin || bootstrapAdmin;
-
-        if (!shouldBeAdmin) {
-            return false;
-        }
-
-        if (usuario.getRolConfig() != null && usuario.getRolConfig().esAdministrador()) {
-            return false;
-        }
-
-        RolConfig adminRole = rolConfigRepository.findByCodigo("ADMINISTRADOR").orElseGet(() -> {
+    private void applyDefaultRole(Usuario usuario) {
+        RolConfig viewerRole = rolConfigRepository.findByCodigo("VISUALIZADOR").orElseGet(() -> {
             RolConfig nuevo = new RolConfig();
-            nuevo.setCodigo("ADMINISTRADOR");
-            nuevo.setNombre("Administrador");
-            nuevo.setDescripcion("Acceso administrativo transversal");
-            nuevo.setNivelAcceso(100);
+            nuevo.setCodigo("VISUALIZADOR");
+            nuevo.setNombre("Visualizador");
+            nuevo.setDescripcion("Acceso de solo lectura por defecto");
+            nuevo.setNivelAcceso(10);
             nuevo.setActivo(true);
             return rolConfigRepository.save(nuevo);
         });
 
-        usuario.setRolConfig(adminRole);
+        usuario.setRolConfig(viewerRole);
         usuario.setRol(null);
-        return true;
     }
 
     public boolean hasAdminAuthority(Authentication authentication) {
@@ -210,17 +195,6 @@ public class LocalUserAuthorizationService {
                 .map(GrantedAuthority::getAuthority)
                 .map(SecurityRoleCatalog::normalize)
                 .anyMatch(role -> "admin".equals(role));
-    }
-
-    private boolean isBootstrapAdminIdentity(String keycloakSub, String email, String username) {
-        return matchesBootstrapAdmin(keycloakSub)
-                || matchesBootstrapAdmin(email)
-                || matchesBootstrapAdmin(username);
-    }
-
-    private boolean matchesBootstrapAdmin(String value) {
-        String normalized = clean(value);
-        return normalized != null && bootstrapAdminEmails.contains(normalized.toLowerCase(Locale.ROOT));
     }
 
     private String firstNonBlank(String... values) {

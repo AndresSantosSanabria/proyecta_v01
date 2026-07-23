@@ -9,19 +9,30 @@ import com.proyecta.api_gestion.dto.notification.NotificationTemplatePreviewRequ
 import com.proyecta.api_gestion.dto.notification.NotificationTemplatePreviewResponse;
 import com.proyecta.api_gestion.dto.notification.NotificationTemplateUpdateRequest;
 import com.proyecta.api_gestion.dto.notification.NotificationTestSendRequest;
+import com.proyecta.api_gestion.model.notification.NotificationAudit;
+import com.proyecta.api_gestion.model.notification.NotificationMailDispatchLog;
 import com.proyecta.api_gestion.model.notification.NotificationPreference;
 import com.proyecta.api_gestion.model.notification.NotificationTemplate;
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.repository.notification.NotificationAuditRepository;
 import com.proyecta.api_gestion.repository.notification.NotificationEventCatalogRepository;
+import com.proyecta.api_gestion.repository.notification.NotificationMailDispatchLogRepository;
+import com.proyecta.api_gestion.repository.notification.NotificationTemplateRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.notification.NotificationPreferenceService;
 import com.proyecta.api_gestion.service.notification.NotificationSenderPort;
 import com.proyecta.api_gestion.service.notification.NotificationTemplateRenderer;
 import com.proyecta.api_gestion.service.notification.NotificationTemplateService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import jakarta.mail.internet.MimeMessage;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,6 +59,22 @@ public class NotificationAdminController {
     private final NotificationSenderPort notificationSender;
     private final SeguridadUsuarioRepository usuarioRepository;
     private final KeycloakIdentityExtractor identityExtractor;
+    private final JavaMailSender javaMailSender;
+    private final NotificationMailDispatchLogRepository mailDispatchLogRepository;
+    private final NotificationAuditRepository auditRepository;
+    private final NotificationTemplateRepository templateRepository;
+
+    @Value("${mail.notifications.enabled:true}")
+    private boolean notificationsEnabled;
+
+    @Value("${spring.mail.host:}")
+    private String smtpHost;
+
+    @Value("${spring.mail.port:0}")
+    private int smtpPort;
+
+    @Value("${spring.mail.username:}")
+    private String smtpUsername;
 
     public NotificationAdminController(NotificationEventCatalogRepository eventCatalogRepository,
                                        NotificationTemplateService templateService,
@@ -55,7 +82,11 @@ public class NotificationAdminController {
                                        NotificationTemplateRenderer renderer,
                                        NotificationSenderPort notificationSender,
                                        SeguridadUsuarioRepository usuarioRepository,
-                                       KeycloakIdentityExtractor identityExtractor) {
+                                       KeycloakIdentityExtractor identityExtractor,
+                                       JavaMailSender javaMailSender,
+                                       NotificationMailDispatchLogRepository mailDispatchLogRepository,
+                                       NotificationAuditRepository auditRepository,
+                                       NotificationTemplateRepository templateRepository) {
         this.eventCatalogRepository = eventCatalogRepository;
         this.templateService = templateService;
         this.preferenceService = preferenceService;
@@ -63,6 +94,10 @@ public class NotificationAdminController {
         this.notificationSender = notificationSender;
         this.usuarioRepository = usuarioRepository;
         this.identityExtractor = identityExtractor;
+        this.javaMailSender = javaMailSender;
+        this.mailDispatchLogRepository = mailDispatchLogRepository;
+        this.auditRepository = auditRepository;
+        this.templateRepository = templateRepository;
     }
 
     @GetMapping("/eventos")
@@ -157,6 +192,119 @@ public class NotificationAdminController {
             payload.put("errorMessage", e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.success(payload, "EMAIL_SEND_FAILED"));
         }
+    }
+
+    @GetMapping("/estadisticas")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> estadisticas() {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        long totalSent = auditRepository.countByChannelAndStatus("EMAIL", "SENT");
+        long totalFailed = auditRepository.countByChannelAndStatus("EMAIL", "FAILED");
+        long totalInApp = auditRepository.countByChannelAndStatus("IN_APP", "SENT");
+        long totalInAppFailed = auditRepository.countByChannelAndStatus("IN_APP", "FAILED");
+
+        long activeTemplates = templateRepository.countByEnabledTrue();
+        long totalEvents = eventCatalogRepository.count();
+
+        List<SeguridadUsuario> users = usuarioRepository.findAll();
+        long usersWithEmail = users.stream()
+                .filter(u -> u.getActivo() != null && u.getActivo())
+                .filter(u -> u.getCorreo() != null && !u.getCorreo().isBlank())
+                .count();
+        long usersWithGlobalNotifs = users.stream()
+                .filter(u -> u.getActivo() != null && u.getActivo())
+                .filter(u -> Boolean.TRUE.equals(u.getRecibirNotificacionesGlobales()))
+                .count();
+
+        result.put("totalDispatched", totalSent + totalFailed + totalInApp + totalInAppFailed);
+        result.put("totalSent", totalSent);
+        result.put("totalFailed", totalFailed);
+        result.put("inAppSent", totalInApp);
+        result.put("inAppFailed", totalInAppFailed);
+        result.put("activeTemplates", activeTemplates);
+        result.put("totalEvents", totalEvents);
+        result.put("totalUsers", users.size());
+        result.put("usersWithEmail", usersWithEmail);
+        result.put("usersWithGlobalNotifs", usersWithGlobalNotifs);
+
+        return ResponseEntity.ok(ApiResponse.success(result, "Estadisticas de notificaciones"));
+    }
+
+    @GetMapping("/diagnostico")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> diagnostico() {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        result.put("smtpEnabled", notificationsEnabled);
+        result.put("smtpHost", smtpHost);
+        result.put("smtpPort", smtpPort);
+        result.put("smtpUsername", smtpUsername != null && !smtpUsername.isBlank() ? maskEmail(smtpUsername) : "(no configurado)");
+
+        try {
+            var mimeMessage = javaMailSender.createMimeMessage();
+            var helper = new MimeMessageHelper(mimeMessage, false, "UTF-8");
+            helper.setTo("test@test.com");
+            helper.setSubject("Test");
+            helper.setText("Test");
+            javaMailSender.createMimeMessage();
+            result.put("smtpConnection", "OK - JavaMailSender instanciado correctamente");
+        } catch (Exception e) {
+            result.put("smtpConnection", "ERROR - " + e.getMessage());
+        }
+
+        List<NotificationMailDispatchLog> recentLogs = mailDispatchLogRepository.findAll(
+                PageRequest.of(
+                        0,
+                        10,
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+                )
+        ).getContent();
+
+        List<Map<String, Object>> logEntries = recentLogs.stream().map(logEntry -> {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("recipient", logEntry.getRecipient());
+            entry.put("subject", logEntry.getSubject());
+            entry.put("status", logEntry.getStatus());
+            entry.put("detail", logEntry.getDetail());
+            entry.put("createdAt", logEntry.getCreatedAt() != null ? logEntry.getCreatedAt().toString() : null);
+            return entry;
+        }).toList();
+        result.put("recentDispatchLogs", logEntries);
+
+        long totalSent = auditRepository.countByChannelAndStatus("EMAIL", "SENT");
+        long totalFailed = auditRepository.countByChannelAndStatus("EMAIL", "FAILED");
+        result.put("emailStats", Map.of("sent", totalSent, "failed", totalFailed));
+
+        List<NotificationTemplate> templates = templateRepository.findAll();
+        List<Map<String, Object>> templateStatus = templates.stream().map(t -> {
+            Map<String, Object> ts = new LinkedHashMap<>();
+            ts.put("eventCode", t.getEventCode());
+            ts.put("enabled", t.getEnabled());
+            ts.put("htmlEnabled", t.getHtmlEnabled());
+            return ts;
+        }).toList();
+        result.put("templates", templateStatus);
+
+        List<SeguridadUsuario> users = usuarioRepository.findAll();
+        List<Map<String, Object>> userInfo = users.stream().map(u -> {
+            Map<String, Object> ui = new LinkedHashMap<>();
+            ui.put("username", u.getUsername());
+            ui.put("correo", u.getCorreo() != null ? maskEmail(u.getCorreo()) : "(null)");
+            ui.put("globalNotifications", u.getRecibirNotificacionesGlobales());
+            ui.put("activo", u.getActivo());
+            return ui;
+        }).toList();
+        result.put("users", userInfo);
+
+        return ResponseEntity.ok(ApiResponse.success(result, "Diagnostico del sistema de correo"));
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        int atIndex = email.indexOf('@');
+        String local = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+        if (local.length() <= 2) return "**" + domain;
+        return local.substring(0, 2) + "**" + domain;
     }
 
     private NotificationTemplateDTO toDto(NotificationTemplate template) {

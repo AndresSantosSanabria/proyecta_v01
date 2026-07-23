@@ -14,4 +14,5 @@ public final class SystemParameterKeys {
     public static final String RIESGO_PROBABILIDADES = "riesgo_probabilidades";
     public static final String RIESGO_IMPACTOS = "riesgo_impactos";
     public static final String RIESGO_NIVELES = "riesgo_niveles";
+    public static final String STORAGE_BASE_PATH = "storage_base_path";
 }

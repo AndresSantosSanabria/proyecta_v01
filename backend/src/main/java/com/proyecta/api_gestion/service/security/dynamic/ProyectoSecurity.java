@@ -46,6 +46,7 @@ public class ProyectoSecurity {
     private final KeycloakIdentityExtractor identityExtractor;
     private final SecurityCatalogCacheService catalogCacheService;
     private final LocalUserAuthorizationService localUserAuthorizationService;
+    private final PermisoUsuarioService permisoUsuarioService;
     private final ProyectoRepository proyectoRepository;
     private final ProyectoBeneficioImpactoRepository beneficioImpactoRepository;
 
@@ -53,11 +54,13 @@ public class ProyectoSecurity {
             KeycloakIdentityExtractor identityExtractor,
             SecurityCatalogCacheService catalogCacheService,
             LocalUserAuthorizationService localUserAuthorizationService,
+            PermisoUsuarioService permisoUsuarioService,
             ProyectoRepository proyectoRepository,
             ProyectoBeneficioImpactoRepository beneficioImpactoRepository) {
         this.identityExtractor = identityExtractor;
         this.catalogCacheService = catalogCacheService;
         this.localUserAuthorizationService = localUserAuthorizationService;
+        this.permisoUsuarioService = permisoUsuarioService;
         this.proyectoRepository = proyectoRepository;
         this.beneficioImpactoRepository = beneficioImpactoRepository;
     }
@@ -82,7 +85,8 @@ public class ProyectoSecurity {
             throw new ForbiddenException("El Director de Proyecto solo puede cargar, reemplazar y subsanar evidencias de sus proyectos asignados.");
         }
 
-        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
                 .anyMatch(normalizedPermission::equals);
 
@@ -99,7 +103,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no está asignado al proyecto solicitado.");
+            throw new ForbiddenException("El usuario no est\u00e1 asignado al proyecto solicitado.");
         }
 
         return true;
@@ -120,7 +124,9 @@ public class ProyectoSecurity {
             throw new ForbiddenException("El acceso global solo esta permitido para roles transversales.");
         }
 
-        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+        String username = identityExtractor.resolveUsername(authentication);
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
                 .anyMatch(normalizedPermission::equals);
 
@@ -148,7 +154,8 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
                 .anyMatch("BENEFICIO_IMPACTO:VER"::equals);
 
@@ -191,7 +198,8 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
                 .anyMatch("BENEFICIO_IMPACTO:EDITAR"::equals);
 
@@ -258,8 +266,9 @@ public class ProyectoSecurity {
             throw new ForbiddenException("Solo el Gestor de Proyectos puede aprobar u observar evidencias.");
         }
 
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         String normalizedPermission = normalize("ENTREGABLE:APROBAR");
-        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+        boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
                 .anyMatch(normalizedPermission::equals);
 
@@ -330,8 +339,9 @@ public class ProyectoSecurity {
             throw new ForbiddenException("Solo el Gestor TIC, el Gestor de Proyectos o el Director asignado pueden modificar la estructura del proyecto.");
         }
 
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         String normalizedPermission = normalize("PROYECTO:EDITAR");
-        boolean hasPermission = catalogCacheService.getPermissionsForRoles(roleCodes).stream()
+        boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
                 .anyMatch(normalizedPermission::equals);
         boolean isAssignedDirector = roleCodes.contains("director_proyecto") && !isTransversal(roleCodes);

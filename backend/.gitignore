@@ -62,6 +62,12 @@ src/main/resources/application.properties
 target/
 **/target/
 
+# Eclipse output folder
+bin/
+
+# Bundled Maven distribution (use mvnw instead)
+apache-maven-3.9.14/
+
 # User uploads (documents, evidence)
 uploads/
 

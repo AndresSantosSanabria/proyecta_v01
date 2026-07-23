@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.closure.ClosureAnswerDTO;
 import com.proyecta.api_gestion.dto.closure.ClosureQuestionDTO;
 import com.proyecta.api_gestion.dto.closure.ClosureQuestionRequest;
+import com.proyecta.api_gestion.service.closure.ClosureDraftService;
 import com.proyecta.api_gestion.service.closure.ClosureQuestionService;
 import com.proyecta.api_gestion.service.closure.ClosureTemplateService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
@@ -24,13 +25,16 @@ public class ClosureQuestionController {
 
     private final ClosureQuestionService service;
     private final ClosureTemplateService templateService;
+    private final ClosureDraftService draftService;
     private final KeycloakIdentityExtractor identityExtractor;
 
     public ClosureQuestionController(ClosureQuestionService service,
                                       ClosureTemplateService templateService,
+                                      ClosureDraftService draftService,
                                       KeycloakIdentityExtractor identityExtractor) {
         this.service = service;
         this.templateService = templateService;
+        this.draftService = draftService;
         this.identityExtractor = identityExtractor;
     }
 
@@ -112,5 +116,19 @@ public class ClosureQuestionController {
         Map<Long, String> answerMap = service.getAnswersMapByProject(projectId);
         String resolved = templateService.getActiveTemplateJsonResolved(answerMap);
         return ResponseEntity.ok(ApiResponse.success(resolved, "Plantilla resuelta"));
+    }
+
+    @GetMapping("/draft/{projectId}")
+    public ResponseEntity<ApiResponse<String>> getDraftTemplate(@PathVariable String projectId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                draftService.getResolvedTemplateJson(projectId),
+                "Plantilla de cierre resuelta con datos existentes"));
+    }
+
+    @GetMapping("/missing/{projectId}")
+    public ResponseEntity<ApiResponse<List<ClosureQuestionDTO>>> getMissingQuestions(@PathVariable String projectId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                draftService.getMissingQuestions(projectId),
+                "Preguntas faltantes"));
     }
 }

@@ -18,6 +18,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 @Service
 public class DynamicClosurePdfService {
@@ -58,8 +61,11 @@ public class DynamicClosurePdfService {
 
         JsonNode secciones = template.get("secciones");
         if (secciones != null && secciones.isArray()) {
+            List<JsonNode> orderedSections = new ArrayList<>();
+            secciones.forEach(orderedSections::add);
+            orderedSections.sort(Comparator.comparingInt(n -> n.path("orden").asInt(Integer.MAX_VALUE)));
             int sectionCounter = 0;
-            for (JsonNode seccion : secciones) {
+            for (JsonNode seccion : orderedSections) {
                 if (!isSectionActive(seccion)) {
                     continue;
                 }
@@ -165,8 +171,12 @@ public class DynamicClosurePdfService {
         JsonNode campos = seccion.get("campos");
         if (campos == null || !campos.isArray()) return sb.toString();
 
+        List<JsonNode> orderedFields = new ArrayList<>();
+        campos.forEach(orderedFields::add);
+        orderedFields.sort(Comparator.comparingInt(n -> n.path("orden").asInt(Integer.MAX_VALUE)));
+
         sb.append("<div class='form-fields'>");
-        for (JsonNode campo : campos) {
+        for (JsonNode campo : orderedFields) {
             if (!isFieldActive(campo)) {
                 continue;
             }
@@ -219,6 +229,7 @@ public class DynamicClosurePdfService {
                 activeColumns.add(col);
             }
         }
+        activeColumns.sort(Comparator.comparingInt(n -> n.path("orden").asInt(Integer.MAX_VALUE)));
         if (activeColumns.isEmpty()) return sb.toString();
 
         sb.append("<table class='data-table'>");

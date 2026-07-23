@@ -36,6 +36,8 @@ public class UsuarioSeeder {
     }
 
     public void seedUsuarios() {
+        seedDefaultRoles();
+
         if (configuredUsers.isEmpty()) {
             logger.info("No hay usuarios semilla configurados en gob.seed.users.");
             return;
@@ -44,6 +46,28 @@ public class UsuarioSeeder {
         logger.info("Cargando {} usuarios semilla configurados...", configuredUsers.size());
         configuredUsers.forEach(this::upsertUsuario);
         logger.info("Usuarios semilla cargados desde configuracion");
+    }
+
+    private void seedDefaultRoles() {
+        rolConfigRepository.findByCodigo("ADMINISTRADOR").orElseGet(() -> {
+            RolConfig nuevo = new RolConfig();
+            nuevo.setCodigo("ADMINISTRADOR");
+            nuevo.setNombre("Administrador");
+            nuevo.setDescripcion("Acceso total al sistema");
+            nuevo.setNivelAcceso(100);
+            nuevo.setActivo(true);
+            return rolConfigRepository.save(nuevo);
+        });
+
+        rolConfigRepository.findByCodigo("VISUALIZADOR").orElseGet(() -> {
+            RolConfig nuevo = new RolConfig();
+            nuevo.setCodigo("VISUALIZADOR");
+            nuevo.setNombre("Visualizador");
+            nuevo.setDescripcion("Acceso de solo lectura por defecto");
+            nuevo.setNivelAcceso(10);
+            nuevo.setActivo(true);
+            return rolConfigRepository.save(nuevo);
+        });
     }
 
     private void upsertUsuario(UsuarioSeed seed) {

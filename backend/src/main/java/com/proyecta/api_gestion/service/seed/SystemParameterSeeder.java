@@ -91,6 +91,12 @@ public class SystemParameterSeeder {
             "Catálogo de niveles de riesgo"
         );
 
+        crearParametroSiNoExiste(
+            SystemParameterKeys.STORAGE_BASE_PATH,
+            "",
+            "Ruta padre de almacenamiento de archivos. Si esta vacia se usa la ruta por defecto del servidor."
+        );
+
         logger.info("Parametros del sistema cargados");
     }
 

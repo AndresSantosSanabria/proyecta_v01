@@ -94,7 +94,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         validarFaseConHitos(dto, proyecto.getFechaInicio());
         validarPonderacionAlAgregarFase(proyectoId, dto.ponderacion());
         Fase fase = new Fase();
-        fase.setNombre(dto.nombre());
+        fase.setNombre(generarNombreFase(proyectoId));
         fase.setDescripcion(dto.descripcion());
         fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         fase.setProyecto(proyecto);
@@ -114,10 +114,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
-        validarTexto(dto.nombre(), "El nombre de la fase es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion de la fase debe estar entre 1 y 100.");
         validarPonderacionAlEditarFase(proyectoId, fase, dto.ponderacion());
-        fase.setNombre(dto.nombre());
         fase.setDescripcion(dto.descripcion());
         fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         Fase actualizada = faseRepository.save(fase);
@@ -159,10 +157,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
-        validarTexto(dto.nombre(), "El nombre del hito es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion del hito debe estar entre 1 y 100.");
         validarPonderacionAlEditarHito(faseId, hito, dto.ponderacion());
-        hito.setNombre(dto.nombre());
         hito.setDescripcion(dto.descripcion());
         hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         Hito actualizado = hitoRepository.save(hito);
@@ -195,7 +191,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 : null);
         validarPonderacionAlAgregarEntregable(hitoId, dto.ponderacion());
         Entregable entregable = new Entregable();
-        entregable.setNombre(dto.nombre());
+        entregable.setNombre(generarNombreEntregable(hitoId));
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         entregable.setFechaInicio(dto.fechaInicio());
         entregable.setFechaLimite(dto.fechaLimite());
@@ -213,7 +209,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
-        validarTexto(dto.nombre(), "El nombre del entregable es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100.");
         if (dto.fechaInicio() != null && !dto.fechaInicio().equals(entregable.getFechaInicio())) {
             throw new BadRequestException("La fecha de inicio de un entregable existente no se puede editar.");
@@ -222,7 +217,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             throw new BadRequestException("La fecha limite de un entregable existente no se puede editar.");
         }
         validarPonderacionAlEditarEntregable(entregable, dto.ponderacion());
-        entregable.setNombre(dto.nombre());
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         Entregable actualizado = entregableRepository.save(entregable);
         avanceCalculatorService.calcularYActualizarAvanceHito(entregable.getHito().getId());
@@ -240,8 +234,22 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         throw new BadRequestException("No se permite eliminar entregables ya creados. Solo se pueden modificar sus textos y ponderacion.");
     }
 
+    private String generarNombreFase(String proyectoId) {
+        long count = faseRepository.findByProyectoId(proyectoId).size();
+        return String.format("F%02d", count + 1);
+    }
+
+    private String generarNombreHito(Integer faseId) {
+        long count = hitoRepository.findByFaseId(faseId).size();
+        return String.format("H%02d", count + 1);
+    }
+
+    private String generarNombreEntregable(Integer hitoId) {
+        long count = entregableRepository.findByHitoId(hitoId).size();
+        return String.format("E%02d", count + 1);
+    }
+
     private void validarFaseConHitos(com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, LocalDate fechaInicioProyecto) {
-        validarTexto(dto.nombre(), "El nombre de la fase es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion de la fase debe estar entre 1 y 100.");
         if (dto.hitos() == null || dto.hitos().isEmpty()) {
             throw new BadRequestException("Una fase debe crearse con al menos un hito.");
@@ -253,7 +261,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private void validarHitoConEntregables(com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, LocalDate fechaInicioProyecto) {
-        validarTexto(dto.nombre(), "El nombre del hito es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion del hito debe estar entre 1 y 100.");
         if (dto.entregables() == null || dto.entregables().isEmpty()) {
             throw new BadRequestException("Un hito debe crearse con al menos un entregable.");
@@ -265,7 +272,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private void validarEntregableNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, LocalDate fechaInicioProyecto) {
-        validarTexto(dto.nombre(), "El nombre del entregable es obligatorio.");
         validarPonderacion(dto.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100.");
         validarFechasNuevo(dto, fechaInicioProyecto);
     }
@@ -381,7 +387,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private Hito crearHitoConEntregables(Fase fase, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
         Hito hito = new Hito();
-        hito.setNombre(dto.nombre());
+        hito.setNombre(generarNombreHito(fase.getId()));
         hito.setDescripcion(dto.descripcion());
         hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         hito.setFase(fase);
@@ -397,7 +403,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private Entregable crearEntregableParaHito(Hito hito, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
         Entregable entregable = new Entregable();
-        entregable.setNombre(dto.nombre());
+        entregable.setNombre(generarNombreEntregable(hito.getId()));
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         entregable.setFechaInicio(dto.fechaInicio());
         entregable.setFechaLimite(dto.fechaLimite());
@@ -460,8 +466,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
         return new FaseHierarchyDTO(
                 fase.getId(),
-                null, // numero field removed from model
+                null,
                 fase.getNombre(),
+                fase.getDescripcion(),
                 fase.getPonderacion(),
                 fase.getAvanceCalculado(),
                 hitosDTO
@@ -481,8 +488,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
         return new HitoHierarchyDTO(
                 hito.getId(),
-                null, // numero field removed from model
+                null,
                 hito.getNombre(),
+                hito.getDescripcion(),
                 hito.getPonderacion(),
                 hito.getAvanceCalculado(),
                 entregablesDTO

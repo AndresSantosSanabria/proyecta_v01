@@ -1,7 +1,6 @@
 package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.security.SeguridadAutorizacionMeDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadMatrizPermisosUpdateRequest;
 import com.proyecta.api_gestion.dto.security.SeguridadPermisoDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadRolDTO;
@@ -10,8 +9,7 @@ import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioProyectoDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioProyectoRequest;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioUpdateRequest;
-import com.proyecta.api_gestion.dto.security.SystemParameterDTO;
-import com.proyecta.api_gestion.dto.security.SystemParameterUpsertRequest;
+import com.proyecta.api_gestion.service.impl.FileStorageServiceImpl;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityAdministrationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,9 +35,12 @@ import java.util.List;
 public class AdminConfiguracionController {
 
     private final SecurityAdministrationService securityAdministrationService;
+    private final FileStorageServiceImpl fileStorageService;
 
-    public AdminConfiguracionController(SecurityAdministrationService securityAdministrationService) {
+    public AdminConfiguracionController(SecurityAdministrationService securityAdministrationService,
+                                         FileStorageServiceImpl fileStorageService) {
         this.securityAdministrationService = securityAdministrationService;
+        this.fileStorageService = fileStorageService;
     }
 
     @GetMapping("/usuarios")
@@ -123,29 +124,6 @@ public class AdminConfiguracionController {
                 "Cargos de asignacion listados correctamente"));
     }
 
-    @GetMapping("/parametros")
-    public ResponseEntity<ApiResponse<List<SystemParameterDTO>>> listarParametrosSistema() {
-        return ResponseEntity.ok(ApiResponse.success(
-                securityAdministrationService.listarParametrosSistema(),
-                "Parametros del sistema listados correctamente"));
-    }
-
-    @PutMapping("/parametros")
-    @Transactional
-    public ResponseEntity<ApiResponse<SystemParameterDTO>> guardarParametroSistema(
-            @RequestBody SystemParameterUpsertRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                securityAdministrationService.guardarParametroSistema(request),
-                "Parametro del sistema guardado correctamente"));
-    }
-
-    @DeleteMapping("/parametros/{key}")
-    @Transactional
-    public ResponseEntity<ApiResponse<Void>> eliminarParametroSistema(@PathVariable String key) {
-        securityAdministrationService.eliminarParametroSistema(key);
-        return ResponseEntity.ok(ApiResponse.success("Parametro del sistema eliminado correctamente"));
-    }
-
     @PutMapping("/roles-permisos")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> actualizarMatriz(@RequestBody SeguridadMatrizPermisosUpdateRequest request) {
@@ -168,5 +146,14 @@ public class AdminConfiguracionController {
         return ResponseEntity.ok(ApiResponse.success(
                 securityAdministrationService.listarAsignaciones(username),
                 "Asignaciones del usuario listadas correctamente"));
+    }
+
+    @GetMapping("/storage-path/test")
+    public ResponseEntity<ApiResponse<FileStorageServiceImpl.StoragePathInfo>> testStoragePath(
+            @RequestParam String path) {
+        FileStorageServiceImpl.StoragePathInfo info = fileStorageService.testStoragePath(path);
+        return ResponseEntity.ok(ApiResponse.success(info, info.valid()
+                ? "Ruta de almacenamiento validada correctamente"
+                : "La ruta de almacenamiento no es valida"));
     }
 }

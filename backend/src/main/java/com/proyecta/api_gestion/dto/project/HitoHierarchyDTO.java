@@ -8,6 +8,7 @@ import java.util.List;
 public class HitoHierarchyDTO {
     private Integer id;
     private Short numero;
+    private String nombre;
     private String descripcion;
     private BigDecimal ponderacion;
     private BigDecimal avanceCalculado;
@@ -15,10 +16,11 @@ public class HitoHierarchyDTO {
 
     public HitoHierarchyDTO() {}
 
-    public HitoHierarchyDTO(Integer id, Short numero, String descripcion, BigDecimal ponderacion,
+    public HitoHierarchyDTO(Integer id, Short numero, String nombre, String descripcion, BigDecimal ponderacion,
                             BigDecimal avanceCalculado, List<EntregableHierarchyDTO> entregables) {
         this.id = id;
         this.numero = numero;
+        this.nombre = nombre;
         this.descripcion = descripcion;
         this.ponderacion = ponderacion;
         this.avanceCalculado = avanceCalculado;
@@ -30,6 +32,8 @@ public class HitoHierarchyDTO {
     public void setId(Integer id) { this.id = id; }
     public Short getNumero() { return numero; }
     public void setNumero(Short numero) { this.numero = numero; }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
     public String getDescripcion() { return descripcion; }
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
     public BigDecimal getPonderacion() { return ponderacion; }

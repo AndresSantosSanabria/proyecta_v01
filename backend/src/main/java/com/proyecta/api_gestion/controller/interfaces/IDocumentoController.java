@@ -4,7 +4,7 @@ import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
-import com.proyecta.api_gestion.model.enums.TipoDocumento;
+import com.proyecta.api_gestion.dto.document.DocumentoVersionHistorialResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -17,10 +17,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@Tag(name = "Módulo 6 — Documentos", description = "Endpoints para la gestión de documentos del proyecto")
+@Tag(name = "Modulo 6 - Documentos", description = "Endpoints para la gestion de documentos del proyecto con control de versiones")
 public interface IDocumentoController {
 
-    @Operation(summary = "EP-DOC-01 · Listar todos los documentos cargados al proyecto")
+    @Operation(summary = "EP-DOC-01 - Listar todos los documentos cargados al proyecto")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
@@ -33,7 +33,7 @@ public interface IDocumentoController {
     ResponseEntity<ApiResponse<DocumentoListadoResponseDTO>> listarDocumentos(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId);
 
-    @Operation(summary = "EP-DOC-02 · Cargar o reemplazar un documento del proyecto")
+    @Operation(summary = "EP-DOC-02 - Cargar o reemplazar un documento del proyecto (requiere observacion al reemplazar)")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "201",
@@ -45,11 +45,12 @@ public interface IDocumentoController {
     @PostMapping(value = "/{proyectoId}/documentos/{tipoDocumento}", consumes = {"multipart/form-data"})
     ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumento(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Parameter(description = "Tipo de documento (ej: VIABILIZACION, CRONOGRAMA, EVIDENCIA_1, etc.)") @PathVariable String tipoDocumento,
+            @Parameter(description = "Tipo de documento (VIABILIZACION, ACTA_CONSTITUCION, CRONOGRAMA, PLAN_COMUNICACIONES)") @PathVariable String tipoDocumento,
             @Parameter(description = "Archivo a subir") @RequestPart("archivo") MultipartFile archivo,
+            @Parameter(description = "Observacion del cambio (obligatoria al reemplazar)") @RequestPart(value = "observacion", required = false) String observacion,
             Authentication authentication);
 
-    @Operation(summary = "EP-DOC-03 · Descargar un documento del proyecto")
+    @Operation(summary = "EP-DOC-03 - Descargar el documento actual del proyecto")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
@@ -61,19 +62,34 @@ public interface IDocumentoController {
     @GetMapping(value = "/{proyectoId}/documentos/{tipoDocumento}/descargar")
     ResponseEntity<Resource> descargarDocumento(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Parameter(description = "Tipo de documento (ej: VIABILIZACION, CRONOGRAMA, EVIDENCIA_1, etc.)") @PathVariable String tipoDocumento);
+            @Parameter(description = "Tipo de documento") @PathVariable String tipoDocumento);
 
-    @Operation(summary = "EP-DOC-04 · Eliminar un documento del proyecto")
+    @Operation(summary = "EP-DOC-04 - Listar historial de versiones de un documento")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
-            description = "Documento eliminado exitosamente"
+            description = "Historial obtenido correctamente",
+            content = @Content(schema = @Schema(implementation = DocumentoVersionHistorialResponseDTO.class))
         )
     })
     @StandardApiResponses
-    @DeleteMapping("/{proyectoId}/documentos/{tipoDocumento}")
-    ResponseEntity<ApiResponse<Void>> eliminarDocumento(
+    @GetMapping("/{proyectoId}/documentos/{tipoDocumento}/versiones")
+    ResponseEntity<ApiResponse<DocumentoVersionHistorialResponseDTO>> listarVersiones(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Parameter(description = "Tipo de documento (ej: VIABILIZACION, CRONOGRAMA, EVIDENCIA_1, etc.)") @PathVariable String tipoDocumento,
-            Authentication authentication);
+            @Parameter(description = "Tipo de documento") @PathVariable String tipoDocumento);
+
+    @Operation(summary = "EP-DOC-05 - Descargar una version especifica de un documento")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Archivo descargado correctamente",
+            content = @Content(mediaType = "application/octet-stream")
+        )
+    })
+    @StandardApiResponses
+    @GetMapping(value = "/{proyectoId}/documentos/{tipoDocumento}/versiones/{numeroVersion}/archivo")
+    ResponseEntity<Resource> descargarVersion(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "Tipo de documento") @PathVariable String tipoDocumento,
+            @Parameter(description = "Numero de version") @PathVariable Integer numeroVersion);
 }
