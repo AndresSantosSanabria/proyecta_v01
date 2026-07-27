@@ -13,7 +13,8 @@ public class ActaCierrePdfGenerator {
             String nombre,
             String fechaEntrega,
             String evidencia,
-            String estado
+            String estado,
+            String descripcion
     ) {
     }
 

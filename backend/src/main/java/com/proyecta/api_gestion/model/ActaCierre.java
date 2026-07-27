@@ -54,6 +54,12 @@ public class ActaCierre {
     @Column(name = "ruta_archivo_pdf", length = 255)
     private String rutaArchivoPdf;
 
+    @Column(name = "archivo_docx", length = 255)
+    private String archivoDocx;
+
+    @Column(name = "ruta_archivo_docx", length = 255)
+    private String rutaArchivoDocx;
+
     public ActaCierre() {
     }
 
@@ -175,5 +181,21 @@ public class ActaCierre {
 
     public void setRutaArchivoPdf(String rutaArchivoPdf) {
         this.rutaArchivoPdf = rutaArchivoPdf;
+    }
+
+    public String getArchivoDocx() {
+        return archivoDocx;
+    }
+
+    public void setArchivoDocx(String archivoDocx) {
+        this.archivoDocx = archivoDocx;
+    }
+
+    public String getRutaArchivoDocx() {
+        return rutaArchivoDocx;
+    }
+
+    public void setRutaArchivoDocx(String rutaArchivoDocx) {
+        this.rutaArchivoDocx = rutaArchivoDocx;
     }
 }

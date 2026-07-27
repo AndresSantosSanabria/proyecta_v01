@@ -390,12 +390,29 @@ public class ProyectoSecurity {
             return true;
         }
 
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
         if (isTransversal(roleCodes)) {
             return true;
         }
 
         if (roleCodes.contains("director_proyecto")) {
+            return true;
+        }
+
+        if (roleCodes.contains("consulta")) {
+            return true;
+        }
+
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean canViewProjects = effectivePermissions.stream()
+                .map(this::normalize)
+                .anyMatch("PROYECTO:VER"::equals);
+        if (canViewProjects) {
             return true;
         }
 

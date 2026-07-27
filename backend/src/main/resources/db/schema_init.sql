@@ -260,6 +260,8 @@ CREATE TABLE IF NOT EXISTS actas_cierre (
     snapshot_json       TEXT,
     archivo_pdf         VARCHAR(255),
     ruta_archivo_pdf    VARCHAR(255),
+    archivo_docx        VARCHAR(255),
+    ruta_archivo_docx   VARCHAR(255),
 
     CONSTRAINT fk_actas_cierre_proyecto
         FOREIGN KEY (proyecto_id)

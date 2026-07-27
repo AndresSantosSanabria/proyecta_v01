@@ -65,7 +65,7 @@ public interface IProjectClosureController {
 
     @Operation(
             summary = "Descargar acta de cierre",
-            description = "Descarga el PDF institucional generado al cerrar el proyecto."
+            description = "Descarga el documento Word institucional generado al cerrar el proyecto."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -77,7 +77,7 @@ public interface IProjectClosureController {
                     description = "No existe acta generada para el proyecto"
             )
     })
-    @GetMapping(value = "/{id}/cierre/descargar", produces = MediaType.APPLICATION_PDF_VALUE)
+    @GetMapping(value = "/{id}/cierre/descargar", produces = "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     ResponseEntity<Resource> descargarActaCierre(@PathVariable String id);
 
     @Operation(

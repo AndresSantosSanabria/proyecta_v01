@@ -73,14 +73,14 @@ public class ProjectClosureController implements IProjectClosureController {
     }
 
     @Override
-    @GetMapping(value = "/{id}/cierre/descargar", produces = MediaType.APPLICATION_PDF_VALUE)
+    @GetMapping(value = "/{id}/cierre/descargar", produces = "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<Resource> descargarActaCierre(@PathVariable String id) {
         Resource resource = closureService.descargarActaCierre(id);
-        String fileName = resource.getFilename() != null ? resource.getFilename() : "acta-cierre.pdf";
+        String fileName = resource.getFilename() != null ? resource.getFilename() : "acta-cierre.docx";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 .body(resource);
     }
 }

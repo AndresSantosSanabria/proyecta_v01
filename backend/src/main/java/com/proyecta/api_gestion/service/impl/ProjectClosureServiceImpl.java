@@ -27,11 +27,14 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
+import com.proyecta.api_gestion.service.report.ActaCierreDocxGenerator;
 import com.proyecta.api_gestion.service.closure.DynamicClosurePdfService;
 import com.proyecta.api_gestion.service.closure.ClosureTemplateService;
 import com.proyecta.api_gestion.service.closure.TemplateResolver;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -50,6 +53,7 @@ import java.util.Objects;
 @Service
 public class ProjectClosureServiceImpl implements ProjectClosureService {
 
+    private static final Logger log = LoggerFactory.getLogger(ProjectClosureServiceImpl.class);
     private static final String STORAGE_SUBDIR = "actas_cierre";
     private static final DateTimeFormatter UI_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
@@ -61,6 +65,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final ProjectClosureValidator closureValidator;
     private final ProjectProgressMetricsService metricsService;
     private final ActaCierrePdfGenerator pdfGenerator;
+    private final ActaCierreDocxGenerator docxGenerator;
     private final IStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
     private final NotificationEventPublisherPort notificationPublisher;
@@ -78,6 +83,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      ProjectClosureValidator closureValidator,
                                      ProjectProgressMetricsService metricsService,
                                      ActaCierrePdfGenerator pdfGenerator,
+                                     ActaCierreDocxGenerator docxGenerator,
                                      IStorageProvider storageProvider,
                                      ObjectMapper objectMapper,
                                      NotificationEventPublisherPort notificationPublisher,
@@ -94,6 +100,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.closureValidator = closureValidator;
         this.metricsService = metricsService;
         this.pdfGenerator = pdfGenerator;
+        this.docxGenerator = docxGenerator;
         this.storageProvider = storageProvider;
         this.objectMapper = objectMapper;
         this.notificationPublisher = notificationPublisher;
@@ -151,59 +158,43 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 .sorted(Comparator.comparing(ObjetivoEspecifico::getOrden, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
-        byte[] pdfBytes;
-        if (request.formData() != null && !request.formData().isBlank()) {
-            String templateJson = templateService.getActiveTemplateJson();
-            templateService.validarFormData(templateJson, request.formData());
-            java.util.Map<Long, String> answerMap = closureAnswerRepository.findByProyectoIdOrderByQuestion_OrdenAsc(projectId).stream()
-                    .collect(java.util.stream.Collectors.toMap(
-                            a -> a.getQuestion().getId(),
-                            a -> a.getRespuesta() != null ? a.getRespuesta() : "",
-                            (a, b) -> b
-                    ));
-            String resolvedTemplateJson = templateResolver.resolveTemplateForProject(templateJson, proyecto, answerMap);
-            String mergedFormData = mergeProjectValuesIntoFormData(proyecto, request.formData());
-            pdfBytes = dynamicPdfService.generatePdf(resolvedTemplateJson, mergedFormData,
-                    "A-GT-FR-004", 1, "Acta de Cierre del Proyecto");
-        } else {
-            List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
-            ActaCierrePdfGenerator.ActaCierrePdfData pdfData = new ActaCierrePdfGenerator.ActaCierrePdfData(
-                    proyecto.getId(),
-                    proyecto.getNombre(),
-                    patrocinador != null ? patrocinador.getNombre() : null,
-                    patrocinador != null ? patrocinador.getCargo() : null,
-                    patrocinadorEntidad,
-                    directorAsignado.getUsuario() != null ? directorAsignado.getUsuario().getNombre() : proyecto.getDirector(),
-                    directorAsignado.getCargo(),
-                    directorEntidad,
-                    formatDate(proyecto.getFechaInicio()),
-                    formatDate(corteCalculo),
-                    calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
-                    proyecto.getObjetivoGeneral(),
-                    objetivosEspecificos.stream()
-                            .map(ObjetivoEspecifico::getDescripcion)
-                            .filter(value -> value != null && !value.isBlank())
-                            .toList(),
-                    request.resumenEjecutivo(),
-                    request.leccionesPositivas(),
-                    request.leccionesMejorar(),
-                    request.recomendaciones(),
-                    request.transferenciaActividad(),
-                    formatDate(transferenciaFecha),
-                    request.transferenciaUbicacionEvidencia(),
-                    formatPercent(avanceFinal),
-                    formatPercent(snapshot.progresoProgramado()),
-                    formatPercent(snapshot.progresoEjecutado()),
-                    formatPercent(snapshot.diferencia()),
-                    formatRatio(snapshot.eficacia()),
-                    snapshot.estado(),
-                    entregables
-            );
-            pdfBytes = pdfGenerator.build(pdfData);
-        }
-        String nombreArchivo = buildActaFileName(projectId, fechaCierre);
+        List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
+        ActaCierrePdfGenerator.ActaCierrePdfData actaData = new ActaCierrePdfGenerator.ActaCierrePdfData(
+                proyecto.getId(),
+                proyecto.getNombre(),
+                patrocinador != null ? patrocinador.getNombre() : null,
+                patrocinador != null ? patrocinador.getCargo() : null,
+                patrocinadorEntidad,
+                directorAsignado.getUsuario() != null ? directorAsignado.getUsuario().getNombre() : proyecto.getDirector(),
+                directorAsignado.getCargo(),
+                directorEntidad,
+                formatDate(proyecto.getFechaInicio()),
+                formatDate(corteCalculo),
+                calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
+                proyecto.getObjetivoGeneral(),
+                objetivosEspecificos.stream()
+                        .map(ObjetivoEspecifico::getDescripcion)
+                        .filter(value -> value != null && !value.isBlank())
+                        .toList(),
+                request.resumenEjecutivo(),
+                request.leccionesPositivas(),
+                request.leccionesMejorar(),
+                request.recomendaciones(),
+                request.transferenciaActividad(),
+                formatDate(transferenciaFecha),
+                request.transferenciaUbicacionEvidencia(),
+                formatPercent(avanceFinal),
+                formatPercent(snapshot.progresoProgramado()),
+                formatPercent(snapshot.progresoEjecutado()),
+                formatPercent(snapshot.diferencia()),
+                formatRatio(snapshot.eficacia()),
+                snapshot.estado(),
+                entregables
+        );
+        byte[] docxBytes = docxGenerator.build(actaData);
+        String nombreArchivo = buildActaFileName(projectId, fechaCierre, ".docx");
         String rutaArchivo = STORAGE_SUBDIR;
-        String storedFileName = storageProvider.storeBytes(pdfBytes, rutaArchivo, nombreArchivo);
+        String storedFileName = storageProvider.storeBytes(docxBytes, rutaArchivo, nombreArchivo);
 
         try {
             ActaCierre acta = new ActaCierre(
@@ -219,8 +210,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             acta.setEstadoFinal(snapshot.estado());
             acta.setCorteCalculo(snapshot.corte());
             acta.setSnapshotJson(snapshotJson);
-            acta.setArchivoPdf(storedFileName);
-            acta.setRutaArchivoPdf(rutaArchivo);
+            acta.setArchivoDocx(storedFileName);
+            acta.setRutaArchivoDocx(rutaArchivo);
 
             actaCierreRepository.save(acta);
 
@@ -397,20 +388,18 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Override
     @Transactional(readOnly = true)
     public Resource descargarActaCierre(String projectId) {
-        var editablePdf = generarPdfEditableSiExiste(projectId);
-        if (editablePdf != null) {
-            return editablePdf;
+        ActaCierre acta = actaCierreRepository.findByProyectoId(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe un acta de cierre para el proyecto: " + projectId));
+
+        if (acta.getArchivoDocx() != null && acta.getRutaArchivoDocx() != null) {
+            return storageProvider.loadFileAsResource(acta.getRutaArchivoDocx(), acta.getArchivoDocx());
         }
 
-        ActaCierre acta = actaCierreRepository.findByProyectoId(projectId)
-                .orElse(null);
-
-        if (acta != null && acta.getArchivoPdf() != null && acta.getRutaArchivoPdf() != null) {
+        if (acta.getArchivoPdf() != null && acta.getRutaArchivoPdf() != null) {
             return storageProvider.loadFileAsResource(acta.getRutaArchivoPdf(), acta.getArchivoPdf());
         }
 
-        throw new ResourceNotFoundException(
-                "No se pudo generar el acta de cierre. Asegurese de que la plantilla este configurada y el borrador guardado antes de descargar.");
+        throw new ResourceNotFoundException("El acta de cierre no tiene un archivo asociado para descarga.");
     }
 
     private Resource generarPdfEditableSiExiste(String projectId) {
@@ -482,7 +471,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                                 entregable.getNombre(),
                                                 formatDate(entregable.getFechaEntregaReal() != null ? entregable.getFechaEntregaReal() : entregable.getFechaLimite()),
                                                 entregable.getArchivoPdf() != null ? "Si" : "No",
-                                                construirEstadoEntregable(entregable, corteCalculo)
+                                                construirEstadoEntregable(entregable, corteCalculo),
+                                                entregable.getDescripcion()
                                         )));
                             });
                 });
@@ -500,8 +490,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         return "Pendiente";
     }
 
-    private String buildActaFileName(String projectId, LocalDateTime fechaCierre) {
-        return "acta_cierre_" + projectId + "_" + fechaCierre.format(FILE_DATE_FORMAT) + ".pdf";
+    private String buildActaFileName(String projectId, LocalDateTime fechaCierre, String extension) {
+        return "acta_cierre_" + projectId + "_" + fechaCierre.format(FILE_DATE_FORMAT) + extension;
     }
 
     private String formatDate(LocalDate date) {

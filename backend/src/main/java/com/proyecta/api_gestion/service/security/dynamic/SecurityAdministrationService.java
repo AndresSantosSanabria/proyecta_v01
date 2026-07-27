@@ -112,10 +112,8 @@ public class SecurityAdministrationService {
             throw new ForbiddenException("No fue posible resolver el usuario autenticado.");
         }
 
-        boolean isAdminFromJwt = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
-
         SeguridadUsuario usuario = findExistingUser(keycloakSub, email, username);
+        boolean shouldSave = false;
 
         boolean isNewUser = usuario == null;
         if (isNewUser) {
@@ -127,8 +125,6 @@ public class SecurityAdministrationService {
             usuario.setDependencia(identityExtractor.resolveDependencia(authentication));
             usuario.setActivo(true);
         } else {
-            boolean shouldSave = false;
-
             if (keycloakSub != null && !keycloakSub.equalsIgnoreCase(normalizeText(usuario.getKeycloakSub()))) {
                 usuario.setKeycloakSub(keycloakSub);
                 shouldSave = true;
@@ -162,25 +158,21 @@ public class SecurityAdministrationService {
             }
         }
 
-        if (isAdminFromJwt) {
-            Optional<SeguridadRol> adminRole = rolRepository.findByCodigoIgnoreCase("admin");
-            if (adminRole.isPresent()) {
-                SeguridadRol rol = adminRole.get();
-                if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
-                    usuario.setRolCodigo(rol.getCodigo());
-                    usuario.setRolNombre(rol.getNombre());
-                }
-            }
-        } else if (isNewUser || usuario.getRolCodigo() == null || usuario.getRolCodigo().isBlank()) {
-            Optional<SeguridadRol> consultaRole = rolRepository.findByCodigoIgnoreCase("consulta");
-            if (consultaRole.isPresent()) {
-                SeguridadRol rol = consultaRole.get();
+        Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(usuario, authentication, true);
+        if (resolvedRole.isEmpty() && (isNewUser || usuario.getRolCodigo() == null || usuario.getRolCodigo().isBlank())) {
+            resolvedRole = rolRepository.findByCodigoIgnoreCase("consulta");
+        }
+
+        if (resolvedRole.isPresent()) {
+            SeguridadRol rol = resolvedRole.get();
+            if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
                 usuario.setRolCodigo(rol.getCodigo());
                 usuario.setRolNombre(rol.getNombre());
+                shouldSave = true;
             }
         }
 
-        return usuarioRepository.save(usuario);
+        return shouldSave ? usuarioRepository.save(usuario) : usuario;
     }
 
     private SeguridadUsuario findExistingUser(String keycloakSub, String email, String username) {

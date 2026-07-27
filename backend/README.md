@@ -13,13 +13,10 @@ Sistema de gestion de proyectos y dashboard analitico desarrollado con Spring Bo
 
 ## Configuracion
 
-1. Copia `src/main/resources/application.properties.template` a `src/main/resources/application.properties`.
-2. Ajusta la conexion a base de datos.
-3. Verifica las variables de Keycloak:
-   - `KEYCLOAK_ISSUER_URI`
-   - `KEYCLOAK_JWKS_URI`
-   - `GOB_RESOURCE_CLIENT_IDS`
-   - `GOB_CORS_ORIGINS`
+1. Ajusta la conexion a base de datos directamente en `src/main/resources/application.properties`.
+2. Verifica las propiedades de Keycloak, correo y CORS en ese mismo archivo.
+3. Si prefieres usar un perfil manual, copia `src/main/resources/application.properties.template` como referencia.
+4. La contraseña de PostgreSQL se define en `spring.datasource.password` dentro de ese archivo.
 
 ## Laragon / PostgreSQL
 
