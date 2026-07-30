@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Download, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Upload, Download, Eye, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import documentService from '../../../services/documentService';
 import { usePermission } from '../../../hooks/usePermission';
 import './DocumentUpload.css';
@@ -185,6 +185,17 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
     }
   }, [proyectoId, tipoDocumento, uploadedFile]);
 
+  const handlePreview = useCallback(async () => {
+    try {
+      const blob = await documentService.descargarDocumento(proyectoId, tipoDocumento);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setState(STATE.ERROR);
+      setErrorMessage('Error al visualizar el documento.');
+    }
+  }, [proyectoId, tipoDocumento]);
+
   const handleReset = useCallback(() => {
     setState(STATE.IDLE);
     setProgress(0);
@@ -289,6 +300,9 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
             </p>
           </div>
           <div className="upload-success-actions">
+            <button className="btn-preview" onClick={handlePreview} title="Visualizar">
+              <Eye size={16} />
+            </button>
             <button className="btn-download" onClick={handleDownload} title="Descargar">
               <Download size={16} />
             </button>

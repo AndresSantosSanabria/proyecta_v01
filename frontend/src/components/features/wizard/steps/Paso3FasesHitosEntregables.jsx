@@ -11,6 +11,7 @@ const getRemainingWeight = (items) => {
 
 const createEntregable = (ponderacion = '100', numero = 1) => ({
   nombre: `E${String(numero).padStart(2, '0')}`,
+  descripcion: '',
   ponderacion,
   fechaInicio: '',
   fechaLimite: '',
@@ -28,19 +29,29 @@ const createFase = (ponderacion = '100', numero = 1) => ({
   hitos: [createHito()],
 });
 
-const normalizeHierarchyNames = (fases = []) =>
-  (fases || []).map((fase, faseIndex) => ({
+const normalizeHierarchyNames = (fases = []) => {
+  let hitoCounter = 0;
+  let entregableCounter = 0;
+  return (fases || []).map((fase, faseIndex) => ({
     ...fase,
     nombre: `F${String(faseIndex + 1).padStart(2, '0')}`,
-    hitos: (fase.hitos || []).map((hito, hitoIndex) => ({
-      ...hito,
-      nombre: `H${String(hitoIndex + 1).padStart(2, '0')}`,
-      entregables: (hito.entregables || []).map((entregable, entregableIndex) => ({
-        ...entregable,
-        nombre: `E${String(entregableIndex + 1).padStart(2, '0')}`,
-      })),
-    })),
+    hitos: (fase.hitos || []).map((hito) => {
+      hitoCounter += 1;
+      const entregables = (hito.entregables || []).map((entregable) => {
+        entregableCounter += 1;
+        return {
+          ...entregable,
+          nombre: `E${String(entregableCounter).padStart(2, '0')}`,
+        };
+      });
+      return {
+        ...hito,
+        nombre: `H${String(hitoCounter).padStart(2, '0')}`,
+        entregables,
+      };
+    }),
   }));
+};
 
 const getProjectStartDate = (data) => data?.fechaInicioProyecto || data?.fechaInicio || data?.projectStartDate || '';
 
@@ -83,9 +94,10 @@ const Paso3FasesHitosEntregables = ({
   const addHito = (fIndex) => {
     const nuevas = [...fases];
     const hitosActuales = nuevas[fIndex].hitos || [];
+    const totalHitos = nuevas.reduce((sum, f) => sum + (f.hitos || []).length, 0);
     nuevas[fIndex] = {
       ...nuevas[fIndex],
-      hitos: [...hitosActuales, createHito(getRemainingWeight(hitosActuales), hitosActuales.length + 1)],
+      hitos: [...hitosActuales, createHito(getRemainingWeight(hitosActuales), totalHitos + 1)],
     };
     onChange({ fases: nuevas });
   };
@@ -113,9 +125,11 @@ const Paso3FasesHitosEntregables = ({
     const nuevas = [...fases];
     const hitos = [...(nuevas[fIndex].hitos || [])];
     const entregablesActuales = hitos[hIndex].entregables || [];
+    const totalEntregables = nuevas.reduce((sum, f) =>
+      sum + (f.hitos || []).reduce((s, h) => s + (h.entregables || []).length, 0), 0);
     hitos[hIndex] = {
       ...hitos[hIndex],
-      entregables: [...entregablesActuales, createEntregable(getRemainingWeight(entregablesActuales), entregablesActuales.length + 1)],
+      entregables: [...entregablesActuales, createEntregable(getRemainingWeight(entregablesActuales), totalEntregables + 1)],
     };
     nuevas[fIndex] = { ...nuevas[fIndex], hitos };
     onChange({ fases: nuevas });
@@ -352,6 +366,15 @@ const Paso3FasesHitosEntregables = ({
                             {dateLocked && (
                               <span className="field-help">Las fechas no se pueden editar en entregables existentes.</span>
                             )}
+                          </div>
+                          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label className="form-label">Descripcion</label>
+                            <input
+                              className="form-input"
+                              value={ent.descripcion || ''}
+                              onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'descripcion', e.target.value)}
+                              placeholder="Descripcion opcional del entregable"
+                            />
                           </div>
                         </div>
                       </div>

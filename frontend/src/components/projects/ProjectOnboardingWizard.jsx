@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, LockKeyhole, Save } from 'lucide-react';
-import { useAuthContext } from '../../context/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
 import Paso4PetiComunicaciones from '../features/wizard/steps/Paso4PetiComunicaciones';
@@ -105,8 +105,7 @@ const ProjectOnboardingWizard = ({
   error = '',
   onComplete,
 }) => {
-  const { hasRole, isAdminLocal, transversal } = useAuthContext();
-  const canEditFechaRegistro = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
+  const canEditFechaRegistro = usePermission('PROYECTO:EDITAR_FECHA_REGISTRO');
   const [savedState] = useState(() => loadSavedState(project));
   const [step, setStep] = useState(savedState?.step || 1);
   const [form, setForm] = useState(() => savedState?.form || initialForm(project));

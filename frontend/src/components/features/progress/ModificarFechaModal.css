@@ -1,7 +1,7 @@
 .modal-backdrop {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: var(--modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,13 +9,15 @@
 }
 
 .mfm-modal {
-  background: var(--card-bg, #fff);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   width: 500px;
   max-width: 95vw;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-main);
 }
 
 .mfm-header {
@@ -23,7 +25,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border, #e2e8f0);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .mfm-header h3 {
@@ -32,19 +34,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-primary, #1e293b);
+  color: var(--text-main);
 }
 
 .mfm-close {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-muted);
   padding: 4px;
   border-radius: 4px;
 }
 
-.mfm-close:hover { background: var(--hover-bg, #f1f5f9); }
+.mfm-close:hover { background: var(--bg-elevated); }
 
 .mfm-body {
   padding: 20px;
@@ -54,8 +56,8 @@
 }
 
 .mfm-info {
-  background: var(--info-bg, #f8fafc);
-  border: 1px solid var(--border, #e2e8f0);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 12px;
   font-size: 13px;
@@ -64,7 +66,7 @@
   gap: 4px;
 }
 
-.mfm-info strong { color: var(--text-primary, #1e293b); }
+.mfm-info strong { color: var(--text-main); }
 
 .mfm-field {
   display: flex;
@@ -75,7 +77,7 @@
 .mfm-field label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #475569);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -83,25 +85,25 @@
 .mfm-field input[type="date"],
 .mfm-field textarea {
   padding: 10px 12px;
-  border: 1px solid var(--border, #e2e8f0);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
-  background: var(--input-bg, #fff);
-  color: var(--text-primary, #1e293b);
+  background: var(--bg-panel);
+  color: var(--text-main);
   outline: none;
   transition: border-color 0.2s;
 }
 
 .mfm-field input[type="date"]:focus,
 .mfm-field textarea:focus {
-  border-color: var(--primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.16);
 }
 
 .mfm-field textarea { resize: vertical; min-height: 80px; }
 
 .mfm-hint { font-size: 11px; }
-.mfm-hint--warn { color: var(--danger, #ef4444); }
+.mfm-hint--warn { color: var(--danger); }
 
 .mfm-file-input input[type="file"] { display: none; }
 
@@ -110,23 +112,23 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 2px dashed var(--border, #e2e8f0);
+  border: 2px dashed var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--text-secondary, #64748b);
-  transition: border-color 0.2s;
+  color: var(--text-muted);
+  transition: border-color 0.2s, color 0.2s;
 }
 
 .mfm-file-label:hover {
-  border-color: var(--primary, #3b82f6);
-  color: var(--primary, #3b82f6);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .mfm-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: var(--danger-soft);
+  border: 1px solid rgba(239, 100, 100, 0.16);
+  color: var(--danger);
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
@@ -140,7 +142,7 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid var(--border, #e2e8f0);
+  border-top: 1px solid var(--border-color);
 }
 
 .mfm-btn {
@@ -157,18 +159,19 @@
 }
 
 .mfm-btn--cancel {
-  background: var(--bg-secondary, #f1f5f9);
-  color: var(--text-secondary, #475569);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
 }
 
-.mfm-btn--cancel:hover { background: var(--hover-bg, #e2e8f0); }
+.mfm-btn--cancel:hover { background: var(--bg-muted); }
 
 .mfm-btn--save {
-  background: var(--primary, #3b82f6);
+  background: var(--primary);
   color: #fff;
 }
 
-.mfm-btn--save:hover:not(:disabled) { background: var(--primary-hover, #2563eb); }
+.mfm-btn--save:hover:not(:disabled) { background: var(--primary-hover); }
 .mfm-btn--save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .spin { animation: spin 1s linear infinite; }

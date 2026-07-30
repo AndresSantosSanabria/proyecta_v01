@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertTriangle, Calendar, CheckCircle2, Download, FileText, ListTodo, Lock, Send, ShieldAlert, Clock } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Download, FileText, ListTodo, Lock, Send, ShieldAlert, Clock, XCircle, X } from 'lucide-react';
 import projectService from '../../services/projectService';
 import authzService from '../../services/authzService';
 import securityService from '../../services/securityService';
+import { usePermission } from '../../hooks/usePermission';
 import './ProjectClosurePage.css';
 
 const triggerBlobDownload = (blob, fileName) => {
@@ -38,8 +39,13 @@ const ProjectClosurePage = () => {
   const [savingDraft, setSavingDraft] = useState(false);
   const [actaFileName, setActaFileName] = useState(null);
   const [requestingClosure, setRequestingClosure] = useState(false);
-  const [userRole, setUserRole] = useState(null);
   const [cierreSolicitado, setCierreSolicitado] = useState(false);
+  const [cierreEstado, setCierreEstado] = useState(null);
+  const [cierreObservaciones, setCierreObservaciones] = useState(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectObservaciones, setRejectObservaciones] = useState('');
+  const [rejectingClosure, setRejectingClosure] = useState(false);
+  const [approvingClosure, setApprovingClosure] = useState(false);
 
   const [summaryData, setSummaryData] = useState({
     id,
@@ -103,11 +109,8 @@ const ProjectClosurePage = () => {
             entregables: apiData.entregables || [],
           });
           setCierreSolicitado(apiData.cierre_solicitado || false);
-        }
-
-        if (meData) {
-          const roles = meData.roles || [];
-          setUserRole(roles);
+          setCierreEstado(apiData.cierre_estado || null);
+          setCierreObservaciones(apiData.cierre_observaciones || null);
         }
       } catch (err) {
         console.error('Error fetching project summary:', err);
@@ -169,7 +172,7 @@ const ProjectClosurePage = () => {
       const downloadResponse = await projectService.downloadClosureActa(id);
       const blob = downloadResponse.data;
       const disposition = downloadResponse.headers?.['content-disposition'];
-      const fallbackName = actaFileName || `acta_cierre_${id}.pdf`;
+      const fallbackName = actaFileName || `acta_cierre_${id}.docx`;
       const fileName = getFilenameFromDisposition(disposition, fallbackName);
       triggerBlobDownload(blob, fileName);
       setActaFileName(fileName);
@@ -194,6 +197,8 @@ const ProjectClosurePage = () => {
 
       if (response.success) {
         setCierreSolicitado(true);
+        setCierreEstado('PENDIENTE');
+        setCierreObservaciones(null);
         setSuccessMsg(response.message || 'Solicitud de cierre enviada exitosamente al Gestor.');
       } else {
         setError(response.errorBanner || response.message || 'No se pudo enviar la solicitud de cierre.');
@@ -204,6 +209,59 @@ const ProjectClosurePage = () => {
       setError(errData?.errorBanner || errData?.message || 'No se pudo enviar la solicitud de cierre.');
     } finally {
       setRequestingClosure(false);
+    }
+  };
+
+  const handleAprobarCierre = async () => {
+    if (!window.confirm('Esta seguro que desea aprobar el cierre del proyecto?')) return;
+
+    try {
+      setApprovingClosure(true);
+      setError(null);
+      const response = await projectService.aprobarCierre(id);
+
+      if (response.success) {
+        setCierreEstado('APROBADO');
+        setSuccessMsg(response.message || 'Cierre aprobado exitosamente.');
+      } else {
+        setError(response.errorBanner || response.message || 'No se pudo aprobar el cierre.');
+      }
+    } catch (err) {
+      console.error('Error approving closure:', err);
+      const errData = err.response?.data;
+      setError(errData?.errorBanner || errData?.message || 'No se pudo aprobar el cierre.');
+    } finally {
+      setApprovingClosure(false);
+    }
+  };
+
+  const handleRechazarCierre = async () => {
+    if (!rejectObservaciones.trim()) {
+      setError('Debe ingresar un motivo o observacion del rechazo.');
+      return;
+    }
+
+    try {
+      setRejectingClosure(true);
+      setError(null);
+      const response = await projectService.rechazarCierre(id, rejectObservaciones.trim());
+
+      if (response.success) {
+        setCierreSolicitado(false);
+        setCierreEstado('RECHAZADO');
+        setCierreObservaciones(rejectObservaciones.trim());
+        setShowRejectModal(false);
+        setRejectObservaciones('');
+        setSuccessMsg(response.message || 'Solicitud de cierre rechazada. El Director sera notificado.');
+      } else {
+        setError(response.errorBanner || response.message || 'No se pudo rechazar el cierre.');
+      }
+    } catch (err) {
+      console.error('Error rejecting closure:', err);
+      const errData = err.response?.data;
+      setError(errData?.errorBanner || errData?.message || 'No se pudo rechazar el cierre.');
+    } finally {
+      setRejectingClosure(false);
     }
   };
 
@@ -262,7 +320,7 @@ const ProjectClosurePage = () => {
           const downloadResponse = await projectService.downloadClosureActa(id);
           const blob = downloadResponse.data;
           const disposition = downloadResponse.headers?.['content-disposition'];
-          const fallbackName = response.archivoPdf || `acta_cierre_${id}.pdf`;
+          const fallbackName = response.archivoPdf || `acta_cierre_${id}.docx`;
           const fileName = getFilenameFromDisposition(disposition, fallbackName);
           triggerBlobDownload(blob, fileName);
           setActaFileName(fileName);
@@ -293,11 +351,10 @@ const ProjectClosurePage = () => {
   }
 
   const isDisabled = !summaryData.puedeCerrar || summaryData.estado === 'CERRADO' || submitting;
-  const roles = Array.isArray(userRole) ? userRole.map(r => r.toLowerCase()) : [];
-  const isDirector = roles.some(r => r.includes('director'));
-  const isGestorOrAdmin = roles.some(r => r.includes('gestor') || r.includes('administrador'));
-  const canRequestClosure = isDirector && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && !cierreSolicitado;
-  const canCloseProject = isGestorOrAdmin && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado;
+  const canRequestClosure = usePermission('CIERRE:SOLICITAR') && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && !cierreSolicitado;
+  const canReviewClosure = usePermission('CIERRE:APROBAR') && cierreSolicitado && cierreEstado === 'PENDIENTE' && summaryData.estado !== 'CERRADO';
+  const isRechazado = cierreEstado === 'RECHAZADO';
+  const isAprobado = cierreEstado === 'APROBADO';
   const missingQuestionIds = new Set((missingQuestions || []).map((q) => q.id));
 
   const isEditableClosureField = (campo) => {
@@ -318,41 +375,6 @@ const ProjectClosurePage = () => {
         })
         .filter((seccion) => seccion.campos.length > 0)
     : [];
-
-  const renderPreviewField = (campo) => {
-    const value = answers[campo.questionId] || '';
-    const isLinked = !!campo.questionId;
-
-    return (
-      <div key={campo.id} className="closure-preview-field">
-        <label className="closure-preview-label">
-          {campo.label}
-          {isLinked && <span className="closure-dyn-linked-badge closure-dyn-linked-badge--readonly">EDITABLE</span>}
-        </label>
-        {campo.tipo_input === 'texto_largo' ? (
-          <textarea
-            className="closure-preview-input closure-preview-textarea"
-            value={value}
-            onChange={(e) => {
-              if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
-            }}
-            disabled={isDisabled}
-            rows={4}
-          />
-        ) : (
-          <input
-            type={campo.tipo_input === 'fecha' ? 'date' : 'text'}
-            className="closure-preview-input"
-            value={value}
-            onChange={(e) => {
-              if (campo.questionId) updateAnswer(campo.questionId, e.target.value);
-            }}
-            disabled={isDisabled}
-          />
-        )}
-      </div>
-    );
-  };
 
   const renderQuestion = (q) => {
     const value = answers[q.id] || '';
@@ -481,7 +503,7 @@ const ProjectClosurePage = () => {
           <span className={`status-badge ${summaryData.estado.toLowerCase()}`}>{summaryData.estado}</span>
         </div>
 
-        <div className="closure-layout">
+        <div>
         <form onSubmit={handleSubmit} className="closure-form">
           {questionsLoading ? (
             <div className="closure-dyn-loading"><span>Cargando preguntas...</span></div>
@@ -532,7 +554,20 @@ const ProjectClosurePage = () => {
             <div className="closure-dyn-empty"><p>No hay preguntas configuradas para el acta de cierre.</p></div>
           )}
 
-          {summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado && !isGestorOrAdmin && (
+          {isRechazado && !cierreSolicitado && (
+            <div className="rejection-banner">
+              <XCircle className="rejection-icon" size={22} />
+              <div className="banner-content">
+                <p><strong>La solicitud de cierre fue rechazada.</strong> Revise las observaciones del Gestor y corrija lo indicado para poder solicitar nuevamente el cierre.</p>
+                {cierreObservaciones && (
+                  <div className="rejection-observaciones">"{cierreObservaciones}"</div>
+                )}
+                <p className="rejection-hint">Complete o corrija la informacion del acta de cierre y vuelva a enviar la solicitud.</p>
+              </div>
+            </div>
+          )}
+
+          {summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado && !canReviewClosure && !isAprobado && (
             <div className="form-actions">
               <div className="closure-ready-note">
                 <Clock size={18} />
@@ -545,7 +580,7 @@ const ProjectClosurePage = () => {
             <div className="form-actions">
               <div className="closure-ready-note">
                 <CheckCircle2 size={18} />
-                <span>El proyecto esta listo para solicitar cierre.</span>
+                <span>{isRechazado ? 'Puede volver a enviar la solicitud de cierre despues de corregir las observaciones.' : 'El proyecto esta listo para solicitar cierre.'}</span>
               </div>
               <button type="button" className="btn-primary-closure" onClick={handleSolicitarCierre} disabled={requestingClosure}>
                 <Send size={16} style={{ marginRight: '8px' }} />
@@ -554,11 +589,39 @@ const ProjectClosurePage = () => {
             </div>
           )}
 
-          {canCloseProject && (
+          {!cierreSolicitado && !canRequestClosure && !isRechazado && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
+            <div className="form-actions">
+              <div className="closure-pending-note">
+                <Clock size={18} />
+                <span>El Director de Proyecto aun no ha realizado la solicitud de cierre para este proyecto.</span>
+              </div>
+            </div>
+          )}
+
+          {canReviewClosure && (
             <div className="form-actions">
               <div className="closure-ready-note">
                 <CheckCircle2 size={18} />
-                <span>El Director ha solicitado el cierre. Puede proceder a cerrar el proyecto.</span>
+                <span>El Director ha solicitado el cierre. Apruebe o rechace la solicitud.</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button type="button" className="btn-approve-closure" onClick={handleAprobarCierre} disabled={approvingClosure}>
+                  <CheckCircle2 size={16} style={{ marginRight: '4px' }} />
+                  {approvingClosure ? 'Aprobando...' : 'Aprobar y Cerrar Proyecto'}
+                </button>
+                <button type="button" className="btn-reject-closure" onClick={() => setShowRejectModal(true)} disabled={rejectingClosure}>
+                  <XCircle size={16} style={{ marginRight: '4px' }} />
+                  Rechazar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isAprobado && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
+            <div className="form-actions">
+              <div className="closure-ready-note">
+                <CheckCircle2 size={18} />
+                <span>La solicitud de cierre fue aprobada. Puede proceder a cerrar el proyecto formalmente.</span>
               </div>
               <button type="submit" className="btn-primary-closure" disabled={submitting}>
                 {submitting ? 'Procesando cierre...' : 'Cerrar Proyecto'}
@@ -582,33 +645,49 @@ const ProjectClosurePage = () => {
             </div>
           )}
         </form>
-        <aside className="closure-preview-panel">
-          <div className="closure-preview-card">
-            <div className="closure-preview-header">
-              <div>
-                <span className="closure-preview-kicker">Vista previa</span>
-                <h3>Documento editable</h3>
-              </div>
-              <span className="closure-preview-pill">{visibleSections.length > 0 ? 'Plantilla activa' : 'Sin plantilla'}</span>
-            </div>
-            <div className="closure-preview-body">
-              {visibleSections.length > 0 ? visibleSections.map((seccion) => (
-                <section key={seccion.id || seccion.titulo} className="closure-preview-section">
-                  <h4>{seccion.titulo}</h4>
-                  {seccion.tipo_seccion === 'formulario'
-                    ? seccion.campos?.map(renderPreviewField)
-                    : (
-                      <p className="closure-preview-note">Esta sección se completa desde una tabla dinámica en la plantilla.</p>
-                    )}
-                </section>
-              )) : (
-                <p className="closure-preview-empty">No hay plantilla cargada para mostrar la vista previa.</p>
-              )}
-            </div>
-          </div>
-        </aside>
         </div>
       </div>
+
+      {showRejectModal && (
+        <div className="closure-confirm-overlay" onClick={() => { if (!rejectingClosure) { setShowRejectModal(false); setRejectObservaciones(''); setError(null); } }}>
+          <div className="closure-confirm-modal closure-reject-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="reject-modal-header">
+              <div className="closure-confirm-icon-wrapper reject-icon-wrapper">
+                <XCircle size={24} />
+              </div>
+              <button className="reject-modal-close" onClick={() => { setShowRejectModal(false); setRejectObservaciones(''); setError(null); }} disabled={rejectingClosure}>
+                <X size={20} />
+              </button>
+            </div>
+            <h3>Rechazar solicitud de cierre</h3>
+            <p>Indique el motivo por el cual rechaza la solicitud de cierre. Esta informacion sera notificada al <strong>Director de Proyecto</strong> para que realice las correcciones necesarias.</p>
+            <textarea
+              className="reject-observaciones-textarea"
+              placeholder="Describa las razones del rechazo y las correcciones requeridas..."
+              value={rejectObservaciones}
+              onChange={(e) => setRejectObservaciones(e.target.value)}
+              rows={5}
+              maxLength={2000}
+              disabled={rejectingClosure}
+            />
+            <div className="reject-char-count">{rejectObservaciones.length}/2000</div>
+            {error && (
+              <div className="error-message-box" style={{ marginBottom: '1rem' }}>
+                <ShieldAlert size={18} />
+                <span>{error}</span>
+              </div>
+            )}
+            <div className="closure-confirm-actions">
+              <button className="closure-confirm-btn-cancel" onClick={() => { setShowRejectModal(false); setRejectObservaciones(''); setError(null); }} disabled={rejectingClosure}>
+                Cancelar
+              </button>
+              <button className="btn-reject-closure-modal" onClick={handleRechazarCierre} disabled={rejectingClosure || !rejectObservaciones.trim()}>
+                {rejectingClosure ? 'Rechazando...' : 'Rechazar solicitud'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

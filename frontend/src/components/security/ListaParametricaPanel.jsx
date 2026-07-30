@@ -28,7 +28,7 @@ const ListaParametricaPanel = () => {
     try {
       setLoading(true);
       setError(null);
-      const listasConocidas = ['DEPENDENCIA', 'ROL_EQUIPO', 'VIGENCIA_PETI', 'ESTRATEGIA_PETI', 'FURAG_PREGUNTAS', 'CARGO_ASIGNACION'];
+      const listasConocidas = ['DEPENDENCIA', 'ROL_EQUIPO', 'ROL_USUARIO', 'VIGENCIA_PETI', 'ESTRATEGIA_PETI', 'FURAG_PREGUNTAS', 'CARGO_ASIGNACION'];
       const results = [];
       for (const clave of listasConocidas) {
         try {

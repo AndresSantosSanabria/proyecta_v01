@@ -29,32 +29,22 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
-  const { user, roles, primaryRole, logout, isAdminLocal, transversal, hasRole, assignedProjects } = useAuthContext();
-  const isDirectorProjectRole = hasRole('DIRECTOR_PROYECTO');
-  const canViewDashboardPermission = usePermission('DASHBOARD:VER');
-  const canViewDashboard = !isDirectorProjectRole && (isAdminLocal || transversal || hasRole('ADMIN') || canViewDashboardPermission);
+  const { user, roles, primaryRole, logout, assignedProjects } = useAuthContext();
+  const canViewDashboard = usePermission('DASHBOARD:VER');
   const canViewProjects = usePermission('PROYECTO:VER')
-    || isDirectorProjectRole
     || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
   const canCloseProject = usePermission('PROYECTO:CERRAR');
   const canViewReports = usePermission('REPORTE:VER');
   const canViewAnalytics = usePermission('ANALITICA:VER');
-  const canConfigureByConfigPermission = usePermission('CONFIGURACION:VER');
-  const canConfigureBySystemPermission = usePermission('SISTEMA:CONFIGURAR');
-  const canConfigureByPermission = canConfigureByConfigPermission || canConfigureBySystemPermission;
-  const canConfigure = isAdminLocal || transversal || hasRole('ADMIN') || canConfigureByPermission;
-  const isAdminLike = isAdminLocal
-    || transversal
-    || hasRole('ADMIN')
-    || canConfigureByPermission;
-  const isDirectorLimited = isDirectorProjectRole && !isAdminLike;
+  const canConfigure = usePermission('CONFIGURACION:VER') || usePermission('SISTEMA:CONFIGURAR');
+  const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
 
   const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
 
   useEffect(() => {
     const fetchVisibleProjectCount = async () => {
-      if (isDirectorProjectRole && !isAdminLike) {
+      if (!canViewAllProjects) {
         setVisibleProjectCount(Array.isArray(assignedProjects) ? assignedProjects.length : 0);
         return;
       }
@@ -70,7 +60,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     };
 
     fetchVisibleProjectCount();
-  }, [assignedProjects, isAdminLike, isDirectorProjectRole]);
+  }, [assignedProjects, canViewAllProjects]);
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);

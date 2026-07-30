@@ -143,7 +143,7 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', v.nombreArchivo || `${tipoDocumento}_v${numeroVersion}.pdf`);
+      link.setAttribute('download', `${tipoDocumento}_v${numeroVersion}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
@@ -498,6 +498,13 @@ const DOC_TYPES = [
   { key: 'planComunicacionesPdf', tipo: 'PLAN_COMUNICACIONES', nombre: 'Plan de comunicaciones' },
 ];
 
+const mapFuragValue = (val) => {
+  if (val === 'SI') return 'Sí';
+  if (val === 'NO') return 'No';
+  if (val === 'NA' || val === 'NO_APLICA') return 'No aplica';
+  return val;
+};
+
 const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const [existingDocs, setExistingDocs] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -641,13 +648,13 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
 
           <Section title="FURAG" icon={Target} defaultOpen={false}>
             <div className="pim-grid">
-              <Field label="Infraestructura de datos" value={furag.infraestructuraDatos} />
-              <Field label="Interoperabilidad" value={furag.interoperabilidad} />
-              <Field label="Digitalizacion/Automatizacion" value={furag.digitalizacionAutomatizacion} />
-              <Field label="Contratacion publica" value={furag.contratacionPublica} />
-              <Field label="Servicios en la nube" value={furag.serviciosNube} />
-              <Field label="Sandbox regulatorio" value={furag.sandbox} />
-              <Field label="Tecnologias emergentes" value={furag.tecnologiasEmergentes} />
+              <Field label="Infraestructura de datos" value={mapFuragValue(furag.infraestructuraDatos)} />
+              <Field label="Interoperabilidad" value={mapFuragValue(furag.interoperabilidad)} />
+              <Field label="Digitalizacion/Automatizacion" value={mapFuragValue(furag.digitalizacionAutomatizacion)} />
+              <Field label="Contratacion publica" value={mapFuragValue(furag.contratacionPublica)} />
+              <Field label="Servicios en la nube" value={mapFuragValue(furag.serviciosNube)} />
+              <Field label="Sandbox regulatorio" value={mapFuragValue(furag.sandbox)} />
+              <Field label="Tecnologias emergentes" value={mapFuragValue(furag.tecnologiasEmergentes)} />
             </div>
           </Section>
 
@@ -663,6 +670,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                       proyectoId={proyectoId}
                       tipoDocumento={doc.tipo}
                       nombre={doc.nombre}
+                      onUploaded={handleDocumentUploaded}
                     />
                   ) : (
                     <DocumentUpload

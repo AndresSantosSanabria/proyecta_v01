@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BellRing, CheckCircle2, Clock3, LoaderCircle } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
 import projectService from '../../services/projectService';
 import './NotificationsPage.css';
 
 const normalize = (value) => String(value || '').trim().toUpperCase();
 
 const NotificationsPage = () => {
-  const { assignedProjects, hasRole, isAdminLocal, transversal } = useAuthContext();
+  const { assignedProjects } = useAuthContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -77,7 +78,7 @@ const NotificationsPage = () => {
     return notifications;
   }, [assignedProjects, projects]);
 
-  const isAdminLike = isAdminLocal || transversal || hasRole('ADMIN');
+  const canViewAllNotifications = usePermission('NOTIFICACION:VER_TODAS');
 
   return (
     <div className="compact-page notifications-page">
@@ -86,7 +87,7 @@ const NotificationsPage = () => {
           <h1 className="page-title">Notificaciones</h1>
           <p className="page-subtitle">Alertas operativas compactas para el flujo diario del proyecto.</p>
         </div>
-        <span className="soft-pill">{isAdminLike ? 'Vista transversal' : 'Vista asignada'}</span>
+        <span className="soft-pill">{canViewAllNotifications ? 'Vista transversal' : 'Vista asignada'}</span>
       </header>
 
       {loading ? (

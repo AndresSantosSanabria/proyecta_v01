@@ -25,8 +25,8 @@ import EvidenceUpload from '../../common/EvidenceUpload';
 import Paso3FasesHitosEntregables from '../wizard/steps/Paso3FasesHitosEntregables';
 import apiClient from '../../../api/axiosConfig';
 import projectService from '../../../services/projectService';
-import { usePermission, useProjectAccess } from '../../../hooks/usePermission';
-import { useAuthContext } from '../../../context/AuthContext';
+import { usePermission } from '../../../hooks/usePermission';
+
 import ModificarFechaModal from './ModificarFechaModal';
 import HistorialCambiosFecha from './HistorialCambiosFecha';
 
@@ -279,36 +279,7 @@ const NodeMetric = ({ value, suffix = '%' }) => (
   </span>
 );
 
-const useEvidenceReviewPermission = () => {
-  const { hasPermission, hasRole, isAdminLocal, transversal } = useAuthContext();
-  const isAdmin = isAdminLocal || hasRole('ADMIN') || hasRole('ADMINISTRADOR');
-  const isProjectManager = hasRole('GESTOR_TIC')
-    || hasRole('GESTOR_PROYECTOS')
-    || hasRole('GESTOR_PROYECTO')
-    || hasRole('GESTOR_PRO')
-    || hasRole('GESTOR_DE_PROYECTOS')
-    || hasRole('GESTOR_PROYECTOS_TI');
-  const isDirectorOnly = hasRole('DIRECTOR_PROYECTO') && !isProjectManager && !isAdmin;
 
-  if (isDirectorOnly) {
-    return false;
-  }
-
-  if (isAdmin || transversal) {
-    return true;
-  }
-
-  return isProjectManager && hasPermission('ENTREGABLE:APROBAR');
-};
-
-const useDocumentHistoryPermission = () => {
-  const { isAdminLocal, hasRole } = useAuthContext();
-  return isAdminLocal
-    || hasRole('ADMIN')
-    || hasRole('ADMINISTRADOR')
-    || hasRole('GESTOR_PROYECTOS')
-    || hasRole('GESTOR_DE_PROYECTOS');
-};
 
 const TreeTableRow = ({
   fase,
@@ -324,10 +295,9 @@ const TreeTableRow = ({
   onVerHistorialFechas,
 }) => {
   const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
-  const canReviewEvidence = useEvidenceReviewPermission();
-  const canViewDocumentHistory = useDocumentHistoryPermission();
-  const { hasRole, isAdminLocal } = useAuthContext();
-  const canModificarFecha = isAdminLocal || hasRole('ADMIN') || hasRole('GESTOR_TIC') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR');
+  const canReviewEvidence = usePermission('ENTREGABLE:APROBAR');
+  const canViewDocumentHistory = usePermission('DOCUMENTO:HISTORIAL');
+  const canModificarFecha = usePermission('ENTREGABLE:CAMBIAR_FECHA');
   const ponderacionFase = toNumber(fase.ponderacion);
   const programadoFase = toNumber(fase.progresoProgramado ?? fase.avanceProgramado ?? fase.avance ?? 0);
   const ejecutadoFase = toNumber(fase.progresoEjecutado ?? fase.avance ?? 0);
@@ -591,9 +561,7 @@ const TreeTableRow = ({
 const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded, toggleNode, proyectoId, onEvidenceUploaded }) => {
   const [showEvidenceModal, setShowEvidenceModal] = React.useState(null);
   const canEditProject = usePermission('PROYECTO:EDITAR');
-  const hasProjectAccess = useProjectAccess(proyectoId);
-  const { hasRole } = useAuthContext();
-  const canManageHierarchy = canEditProject || (hasRole('DIRECTOR_PROYECTO') && hasProjectAccess);
+  const canManageHierarchy = canEditProject || usePermission('PROYECTO:EDITAR_ESTRUCTURA');
   const canGenerateReport = usePermission('REPORTE:VER');
   const [reviewModal, setReviewModal] = React.useState({
     open: false,

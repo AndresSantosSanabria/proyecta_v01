@@ -1,24 +1,53 @@
 import { useEffect, useState } from 'react';
 import configCatalogService from '../../../../services/configCatalogService';
+import projectService from '../../../../services/projectService';
 
 const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
   const [rolesEquipo, setRolesEquipo] = useState([]);
+  const [patrocinadores, setPatrocinadores] = useState([]);
 
   useEffect(() => {
     const loadRoles = async () => {
       try {
         const values = await configCatalogService.listarValoresParametrica('ROL_EQUIPO');
-        if (Array.isArray(values) && values.length > 0) {
-          setRolesEquipo(values);
-        }
+        if (Array.isArray(values) && values.length > 0) setRolesEquipo(values);
       } catch {
         setRolesEquipo([]);
       }
     };
+    const loadPatrocinadores = async () => {
+      try {
+        const list = await projectService.getPatrocinadores();
+        setPatrocinadores(list);
+      } catch {
+        setPatrocinadores([]);
+      }
+    };
     loadRoles();
+    loadPatrocinadores();
   }, []);
+
   const handlePatrocinador = (field, value) => {
     onChange({ patrocinador: { ...(data.patrocinador || {}), [field]: value } });
+  };
+
+  const handleNombrePatrocinador = (value) => {
+    const encontrado = patrocinadores.find(
+      (p) => p.nombre?.toLowerCase() === value.toLowerCase()
+    );
+    if (encontrado) {
+      onChange({
+        patrocinador: {
+          nombre: encontrado.nombre,
+          cargo: encontrado.cargo || '',
+          entidad: encontrado.entidad || '',
+          procesoSigc: encontrado.procesoSigc || '',
+          procedimientoSigc: encontrado.procedimientoSigc || '',
+        },
+      });
+    } else {
+      handlePatrocinador('nombre', value);
+    }
   };
 
   const handleIntegranteChange = (index, field, value) => {
@@ -28,18 +57,22 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
   };
 
   const handleIntegranteAdd = () => {
-    const nuevos = [...(data.equipoTrabajo || []), { nombre: '', cargo: '', rol: '' }];
-    onChange({ equipoTrabajo: nuevos });
+    onChange({ equipoTrabajo: [...(data.equipoTrabajo || []), { nombre: '', cargo: '', rol: '' }] });
   };
 
   const handleIntegranteRemove = (index) => {
-    const nuevos = (data.equipoTrabajo || []).filter((_, i) => i !== index);
-    onChange({ equipoTrabajo: nuevos });
+    onChange({ equipoTrabajo: (data.equipoTrabajo || []).filter((_, i) => i !== index) });
   };
 
   return (
     <div className="step-form">
       <h3 className="step-title">Patrocinador del Proyecto</h3>
+
+      <datalist id="patrocinadores-list">
+        {patrocinadores.map((p, i) => (
+          <option key={i} value={p.nombre} />
+        ))}
+      </datalist>
 
       <div className="form-grid">
         <div className="form-group">
@@ -47,8 +80,9 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
           <input
             className={`form-input ${errors.patrocinadorNombre ? 'input-error' : ''}`}
             value={data.patrocinador?.nombre || ''}
-            onChange={(e) => handlePatrocinador('nombre', e.target.value)}
+            onChange={(e) => handleNombrePatrocinador(e.target.value)}
             placeholder="Nombre completo"
+            list="patrocinadores-list"
           />
           {errors.patrocinadorNombre && <span className="error-text">{errors.patrocinadorNombre}</span>}
         </div>
@@ -76,22 +110,20 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Proceso SIG</label>
+          <label className="form-label">Proceso SIGC</label>
           <input
             className="form-input"
             value={data.patrocinador?.procesoSigc || ''}
             onChange={(e) => handlePatrocinador('procesoSigc', e.target.value)}
-            placeholder="Código del proceso SIG"
           />
         </div>
 
         <div className="form-group">
-          <label className="form-label">Procedimiento SIG</label>
+          <label className="form-label">Procedimiento SIGC</label>
           <input
             className="form-input"
             value={data.patrocinador?.procedimientoSigc || ''}
             onChange={(e) => handlePatrocinador('procedimientoSigc', e.target.value)}
-            placeholder="Código del procedimiento SIG"
           />
         </div>
       </div>

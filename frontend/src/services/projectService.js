@@ -32,7 +32,7 @@ const projectService = {
         ...params,
         page,
         size: pageSize,
-        sort: 'id,asc',
+        sort: 'id,desc',
       });
 
       const payload = response?.data?.data ?? response?.data;
@@ -74,6 +74,13 @@ const projectService = {
     if (Array.isArray(payload?.content)) return payload.content;
     if (Array.isArray(payload?.items)) return payload.items;
     if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  },
+
+  getPatrocinadores: async () => {
+    const { data } = await apiClient.get('/patrocinadores');
+    const payload = data?.data ?? data;
+    if (Array.isArray(payload)) return payload;
     return [];
   },
 

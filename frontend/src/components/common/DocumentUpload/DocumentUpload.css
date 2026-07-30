@@ -175,7 +175,8 @@
 }
 
 .btn-download,
-.btn-reset {
+.btn-reset,
+.btn-preview {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -187,6 +188,12 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.btn-preview:hover {
+  background: #0891b2;
+  color: white;
+  border-color: #0891b2;
 }
 
 .btn-download:hover {

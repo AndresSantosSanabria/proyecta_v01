@@ -92,6 +92,8 @@ const ProjectLifecycleGuard = () => {
       planComunicacionesPdf: 'PLAN_COMUNICACIONES',
     };
 
+    const uploadErrors = [];
+
     for (const [key, file] of Object.entries(documents)) {
       if (!file) continue;
       const tipo = tipoMap[key];
@@ -99,8 +101,17 @@ const ProjectLifecycleGuard = () => {
       try {
         await documentService.cargarDocumento(projectId, tipo, file);
       } catch (docError) {
+        const detail = docError?.response?.data?.detail
+          || docError?.response?.data?.message
+          || docError?.message
+          || `Error desconocido subiendo ${tipo}`;
         console.error(`Error subiendo ${tipo}:`, docError);
+        uploadErrors.push(`${tipo}: ${detail}`);
       }
+    }
+
+    if (uploadErrors.length > 0) {
+      throw new Error(`Error al cargar documentos: ${uploadErrors.join('; ')}`);
     }
   };
 
@@ -111,10 +122,10 @@ const ProjectLifecycleGuard = () => {
     setError('');
 
     try {
+      await uploadDocuments(projectId, documents);
+
       const response = await projectService.completeInitialInfo(projectId, payload);
       setProject(unwrapPayload(response));
-
-      await uploadDocuments(projectId, documents);
 
       setCompletionStatus((current) => ({
         ...(current || {}),

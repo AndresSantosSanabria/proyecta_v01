@@ -34,7 +34,7 @@ const extractProjects = (value) => {
 };
 
 const ProjectsPage = () => {
-  const { hasRole, hasPermission, isAdminLocal, transversal, assignedProjects } = useAuthContext();
+  const { assignedProjects } = useAuthContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -42,15 +42,10 @@ const ProjectsPage = () => {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const canCreateProject = usePermission('PROYECTO:CREAR');
   const canEditProject = usePermission('PROYECTO:EDITAR');
+  const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
   const navigate = useNavigate();
-  const isDirectorProjectRole = hasRole('DIRECTOR_PROYECTO');
   const hasAssignedProjects = Array.isArray(assignedProjects) && assignedProjects.length > 0;
-  const isAdminLike = isAdminLocal
-    || transversal
-    || hasRole('ADMIN')
-    || hasRole('GESTOR_TIC')
-    || hasPermission('SISTEMA:CONFIGURAR');
-  const shouldUseAssignedProjects = (isDirectorProjectRole || hasAssignedProjects) && !isAdminLike;
+  const shouldUseAssignedProjects = !canViewAllProjects;
 
   const loadProjects = async () => {
     try {

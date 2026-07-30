@@ -20,8 +20,10 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
 import projectService from '../../services/projectService';
 import securityService from '../../services/securityService';
+import configCatalogService from '../../services/configCatalogService';
 import NotificationTemplatesPanel from '../../components/security/NotificationTemplatesPanel';
 import ClosureTemplatePanel from '../../components/security/ClosureTemplatePanel';
 import ClosureQuestionsPanel from '../../components/security/ClosureQuestionsPanel';
@@ -337,10 +339,11 @@ const getProjectId = (project) => project?.codigo || project?.id || project?.pro
 const getProjectName = (project) => project?.nombre || project?.nombreProyecto || project?.name || getProjectId(project);
 
 const SecurityConfigPage = () => {
-  const { permissions: authPermissions, isAdminLocal, transversal, hasRole, user: authUser, accessToken, businessTokenRoles, primaryRole } = useAuthContext();
+  const { user: authUser, accessToken, businessTokenRoles, primaryRole } = useAuthContext();
 
   const [activeSection, setActiveSection] = useState(SECURITY_TABS.USERS);
   const [roles, setRoles] = useState([]);
+  const [parametricRoles, setParametricRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -375,11 +378,7 @@ const SecurityConfigPage = () => {
   const [savingPermissions, setSavingPermissions] = useState(false);
   const assignmentsSectionRef = useRef(null);
 
-  const canConfigure = isAdminLocal
-    || transversal
-    || hasRole('ADMIN')
-    || authPermissions.includes('CONFIGURACION:VER')
-    || authPermissions.includes('SISTEMA:CONFIGURAR');
+  const canConfigure = usePermission('CONFIGURACION:VER') || usePermission('SISTEMA:CONFIGURAR');
   const tokenPayload = useMemo(() => decodeJwtPayload(accessToken), [accessToken]);
   const tokenUsername = [
     tokenPayload?.preferred_username,
@@ -471,12 +470,13 @@ const SecurityConfigPage = () => {
       setLoading(true);
       setError('');
 
-      const [rolesResult, permissionsResult, usersResult, projectsResult, cargosResult] = await Promise.allSettled([
+      const [rolesResult, permissionsResult, usersResult, projectsResult, cargosResult, parametricRolesResult] = await Promise.allSettled([
         securityService.listRoles({ includeInactive: true }),
         securityService.listPermissions(),
         securityService.listUsers({ search, size: 100 }),
         projectService.getAllUnpaged(),
         securityService.listAssignmentCargos(),
+        configCatalogService.listarParametrica('ROL_USUARIO', true),
       ]);
 
       const rolesData = rolesResult.status === 'fulfilled' ? extractCollection(rolesResult.value) : [];
@@ -486,6 +486,9 @@ const SecurityConfigPage = () => {
         ? projectsResult.value
         : [];
       const cargosData = cargosResult.status === 'fulfilled' ? normalizeAssignmentCargos(cargosResult.value) : [];
+      const parametricRolesData = parametricRolesResult.status === 'fulfilled'
+        ? (Array.isArray(parametricRolesResult.value) ? parametricRolesResult.value : [])
+        : [];
       const authenticatedUsernames = [
         authUser?.profile?.preferred_username,
         authUser?.profile?.username,
@@ -532,6 +535,7 @@ const SecurityConfigPage = () => {
       );
 
       setRoles(rolesData);
+      setParametricRoles(parametricRolesData);
       setPermissions(permissionsData);
       setUsers(resolvedUsersData);
       setProjects(projectsData);
@@ -728,7 +732,7 @@ const SecurityConfigPage = () => {
     setSelectedUser(null);
     setUserForm({
       ...emptyUserForm,
-      rol: roles[0]?.codigo || '',
+      rol: parametricRoles[0]?.itemCodigo || '',
     });
     setActiveSection(SECURITY_TABS.USERS);
   };
@@ -1246,11 +1250,11 @@ const SecurityConfigPage = () => {
 
                     <label>
                       <span>Rol asignado *</span>
-                      <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || roles.length === 0}>
-                        <option value="">{roles.length === 0 ? 'Sin roles disponibles' : '-- Seleccione un rol --'}</option>
-                        {roles.map((role) => (
-                          <option key={role.codigo} value={role.codigo}>
-                            {role.nombre} - {role.codigo}
+                      <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || parametricRoles.length === 0}>
+                        <option value="">{parametricRoles.length === 0 ? 'Sin roles disponibles' : '-- Seleccione un rol --'}</option>
+                        {parametricRoles.map((item) => (
+                          <option key={item.itemCodigo} value={item.itemCodigo}>
+                            {item.itemNombre} - {item.itemCodigo}
                           </option>
                         ))}
                       </select>
