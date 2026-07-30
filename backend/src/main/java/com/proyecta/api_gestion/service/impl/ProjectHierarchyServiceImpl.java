@@ -94,7 +94,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         validarFaseConHitos(dto, proyecto.getFechaInicio());
         validarPonderacionAlAgregarFase(proyectoId, dto.ponderacion());
         Fase fase = new Fase();
-        fase.setNombre(generarNombreFase(proyectoId));
+        int faseCount = (int) faseRepository.findByProyectoId(proyectoId).size() + 1;
+        fase.setNombre(String.format("F%02d", faseCount));
         fase.setDescripcion(dto.descripcion());
         fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         fase.setProyecto(proyecto);
@@ -191,7 +192,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 : null);
         validarPonderacionAlAgregarEntregable(hitoId, dto.ponderacion());
         Entregable entregable = new Entregable();
-        entregable.setNombre(generarNombreEntregable(hitoId));
+        int eCount = (int) entregableRepository.findByProyectoId(hito.getFase().getProyecto().getId()).size() + 1;
+        entregable.setNombre(String.format("E%02d", eCount));
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         entregable.setFechaInicio(dto.fechaInicio());
         entregable.setFechaLimite(dto.fechaLimite());
@@ -232,21 +234,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         throw new BadRequestException("No se permite eliminar entregables ya creados. Solo se pueden modificar sus textos y ponderacion.");
-    }
-
-    private String generarNombreFase(String proyectoId) {
-        long count = faseRepository.findByProyectoId(proyectoId).size();
-        return String.format("F%02d", count + 1);
-    }
-
-    private String generarNombreHito(Integer faseId) {
-        long count = hitoRepository.findByFaseId(faseId).size();
-        return String.format("H%02d", count + 1);
-    }
-
-    private String generarNombreEntregable(Integer hitoId) {
-        long count = entregableRepository.findByHitoId(hitoId).size();
-        return String.format("E%02d", count + 1);
     }
 
     private void validarFaseConHitos(com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, LocalDate fechaInicioProyecto) {
@@ -386,29 +373,28 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private Hito crearHitoConEntregables(Fase fase, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
+        String proyectoId = fase.getProyecto().getId();
+
         Hito hito = new Hito();
-        hito.setNombre(generarNombreHito(fase.getId()));
+        int hitoCount = (int) hitoRepository.findByProyectoId(proyectoId).size() + 1;
+        hito.setNombre(String.format("H%02d", hitoCount));
         hito.setDescripcion(dto.descripcion());
         hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         hito.setFase(fase);
+        hito = hitoRepository.save(hito);
 
-        List<Entregable> entregables = new ArrayList<>();
         for (com.proyecta.api_gestion.dto.proyecto.EntregableDTO entregableDto : dto.entregables()) {
-            entregables.add(crearEntregableParaHito(hito, entregableDto));
+            int eCount = (int) entregableRepository.findByHitoId(hito.getId()).size() + 1;
+            Entregable e = new Entregable();
+            e.setNombre(String.format("E%02d", eCount));
+            e.setPonderacion(java.math.BigDecimal.valueOf(entregableDto.ponderacion()));
+            e.setFechaInicio(entregableDto.fechaInicio());
+            e.setFechaLimite(entregableDto.fechaLimite());
+            e.setHito(hito);
+            entregableRepository.save(e);
+            hito.getEntregables().add(e);
         }
-        hito.setEntregables(entregables);
-
-        return hitoRepository.save(hito);
-    }
-
-    private Entregable crearEntregableParaHito(Hito hito, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
-        Entregable entregable = new Entregable();
-        entregable.setNombre(generarNombreEntregable(hito.getId()));
-        entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
-        entregable.setFechaInicio(dto.fechaInicio());
-        entregable.setFechaLimite(dto.fechaLimite());
-        entregable.setHito(hito);
-        return entregable;
+        return hito;
     }
 
     private void asegurarPerteneceAlProyecto(String proyectoEsperadoId, String proyectoActualId) {
@@ -442,7 +428,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 
-        List<Fase> fases = faseRepository.findByProyectoId(proyectoId);
+        List<Fase> fases = faseRepository.findByProyectoId(proyectoId).stream()
+                .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
+                .toList();
         List<FaseHierarchyDTO> fasesDTO = new ArrayList<>();
 
         for (Fase fase : fases) {
@@ -455,7 +443,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private FaseHierarchyDTO buildFaseDTO(Fase fase) {
         List<Hito> hitos = hitoRepository.findByFaseId(fase.getId()).stream()
-                .sorted(ProjectHierarchyOrdering.HITOS_BY_SEQUENCE)
+                .sorted(ProjectHierarchyOrdering.HITOS_BY_ORDEN)
                 .toList();
         List<HitoHierarchyDTO> hitosDTO = new ArrayList<>();
 
@@ -477,7 +465,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private HitoHierarchyDTO buildHitoDTO(Hito hito) {
         List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId()).stream()
-                .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE)
+                .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                 .toList();
         List<EntregableHierarchyDTO> entregablesDTO = new ArrayList<>();
 
@@ -578,7 +566,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     public List<EntregableHierarchyDTO> listarEntregablesProyecto(String proyectoId) {
         List<Entregable> entregables = entregableRepository.findByProyectoId(proyectoId);
         return entregables.stream()
-                .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE)
+                .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                 .map(this::buildEntregableDTO)
                 .collect(java.util.stream.Collectors.toList());
     }

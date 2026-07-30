@@ -6,6 +6,7 @@ import java.time.LocalDate;
 public record EntregableResponseDTO(
     Integer id,
     String nombre,
+    String descripcion,
     BigDecimal ponderacion,
     String estado,
     Boolean conforme,

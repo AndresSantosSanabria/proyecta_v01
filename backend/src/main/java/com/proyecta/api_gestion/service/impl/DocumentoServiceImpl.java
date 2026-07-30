@@ -99,6 +99,10 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Transactional
     public DocumentoUploadResultDTO cargarDocumento(String proyectoId, String tipoDocumento, MultipartFile archivo, String observacion, Authentication authentication) {
         validarExistenciaProyecto(proyectoId);
+        if (tipoDocumento == null || tipoDocumento.isBlank()) {
+            throw new BadRequestException("El tipo de documento es obligatorio.");
+        }
+        tipoDocumento = tipoDocumento.trim().toUpperCase();
         storageProvider.validateFile(archivo, MAX_FILE_SIZE, ALLOWED_MIME_TYPES);
         ActorContext actor = actorContext(authentication);
 

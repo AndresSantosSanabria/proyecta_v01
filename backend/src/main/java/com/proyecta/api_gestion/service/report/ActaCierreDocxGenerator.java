@@ -1,6 +1,5 @@
 package com.proyecta.api_gestion.service.report;
 
-import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -21,15 +20,13 @@ import java.util.Objects;
 public class ActaCierreDocxGenerator {
 
     private static final String TEMPLATE_RESOURCE = "templates/acta_cierre_template.docx";
-    private static final String BODY_FONT = "Arial";
-    private static final String HEADER_FONT = "Tahoma";
 
     public byte[] build(ActaCierrePdfGenerator.ActaCierrePdfData data) {
         try (InputStream inputStream = openTemplate();
              XWPFDocument doc = new XWPFDocument(inputStream);
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-            fillHeader(doc);
+            fillHeader(doc, data);
             fillGeneralInformation(doc, data);
             fillObjectiveSections(doc, data);
             fillDeliverables(doc, data);
@@ -53,35 +50,31 @@ public class ActaCierreDocxGenerator {
         return resource.getInputStream();
     }
 
-    private void fillHeader(XWPFDocument doc) {
+    private void fillHeader(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
         XWPFTable header = doc.getHeaderList().isEmpty() ? null : doc.getHeaderList().get(0).getTables().get(0);
         if (header == null) {
             throw new IllegalStateException("La plantilla no contiene el encabezado institucional esperado.");
         }
-
-        setCellText(header.getRow(0).getCell(1), "PROCESO DE GESTION TECNOLOGICA", true, HEADER_FONT, 10, ParagraphAlignment.CENTER);
-        setCellText(header.getRow(0).getCell(2), "CODIGO:  A-GT-FR-004", true, HEADER_FONT, 9, ParagraphAlignment.RIGHT);
-        setCellText(header.getRow(1).getCell(1), "ACTA DE CIERRE DE PROYECTO", true, HEADER_FONT, 10, ParagraphAlignment.CENTER);
-        setCellText(header.getRow(1).getCell(2), "VERSION: 5", true, HEADER_FONT, 9, ParagraphAlignment.RIGHT);
-        setCellText(header.getRow(2).getCell(2), "FECHA APROBACION: 04/03/2025", true, HEADER_FONT, 9, ParagraphAlignment.RIGHT);
+        // Solo actualizamos la fecha de aprobación preservando el estilo existente en la celda
+        setCellTextPreservingStyle(header.getRow(2).getCell(2), "FECHA APROBACION: " + safe(data.fechaCierre()));
     }
 
     private void fillGeneralInformation(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
         XWPFTable table = bodyTable(doc, 0);
-        addValueParagraph(table.getRow(1).getCell(0), safe(data.codigoProyecto()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(2).getCell(0), safe(data.nombreProyecto()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(4).getCell(0), sponsorLine(data.patrocinadorNombre(), data.patrocinadorCargo()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(5).getCell(0), safe(data.patrocinadorEntidad()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(8).getCell(0), directorLine(data.directorNombre(), data.directorCargo()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(9).getCell(0), safe(data.directorEntidad()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(11).getCell(0), safe(data.fechaInicio()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(12).getCell(0), safe(data.fechaCierre()), ParagraphAlignment.LEFT, false, 10);
-        addValueParagraph(table.getRow(13).getCell(0), safe(data.duracionTotalMeses()) + " meses", ParagraphAlignment.LEFT, false, 10);
+        setCellTextPreservingStyle(table.getRow(1).getCell(0), safe(data.codigoProyecto()));
+        setCellTextPreservingStyle(table.getRow(2).getCell(0), safe(data.nombreProyecto()));
+        setCellTextPreservingStyle(table.getRow(4).getCell(0), sponsorLine(data.patrocinadorNombre(), data.patrocinadorCargo()));
+        setCellTextPreservingStyle(table.getRow(5).getCell(0), safe(data.patrocinadorEntidad()));
+        setCellTextPreservingStyle(table.getRow(8).getCell(0), directorLine(data.directorNombre(), data.directorCargo()));
+        setCellTextPreservingStyle(table.getRow(9).getCell(0), safe(data.directorEntidad()));
+        setCellTextPreservingStyle(table.getRow(11).getCell(0), safe(data.fechaInicio()));
+        setCellTextPreservingStyle(table.getRow(12).getCell(0), safe(data.fechaCierre()));
+        setCellTextPreservingStyle(table.getRow(13).getCell(0), safe(data.duracionTotalMeses()) + " meses");
     }
 
     private void fillObjectiveSections(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
         XWPFTable objective = bodyTable(doc, 1);
-        addValueParagraph(objective.getRow(0).getCell(0), safe(data.objetivoGeneral()), ParagraphAlignment.BOTH, false, 10);
+        setCellTextPreservingStyle(objective.getRow(0).getCell(0), safe(data.objetivoGeneral()));
 
         XWPFTable objectives = bodyTable(doc, 2);
         StringBuilder sb = new StringBuilder();
@@ -96,10 +89,10 @@ public class ActaCierreDocxGenerator {
             }
             sb.append(i + 1).append(". ").append(objetivo.trim());
         }
-        addValueParagraph(objectives.getRow(0).getCell(0), sb.length() == 0 ? "No registrado" : sb.toString(), ParagraphAlignment.BOTH, false, 10);
+        setCellTextPreservingStyle(objectives.getRow(0).getCell(0), sb.length() == 0 ? "No registrado" : sb.toString());
 
         XWPFTable summary = bodyTable(doc, 3);
-        addValueParagraph(summary.getRow(0).getCell(0), safe(data.resumenEjecutivo()), ParagraphAlignment.BOTH, false, 10);
+        setCellTextPreservingStyle(summary.getRow(0).getCell(0), safe(data.resumenEjecutivo()));
     }
 
     private void fillDeliverables(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
@@ -112,14 +105,14 @@ public class ActaCierreDocxGenerator {
             XWPFTableRow row = table.getRow(i + 1);
             if (i < entregables.size()) {
                 ActaCierrePdfGenerator.EntregableActaItem item = entregables.get(i);
-                setCellText(row.getCell(0), String.valueOf(i + 1), false, BODY_FONT, 9, ParagraphAlignment.CENTER);
-                setCellText(row.getCell(1), safe(item.nombre()), false, BODY_FONT, 9, ParagraphAlignment.LEFT);
-                setCellText(row.getCell(2), safe(item.fechaEntrega()), false, BODY_FONT, 9, ParagraphAlignment.CENTER);
-                setCellText(row.getCell(3), safe(item.descripcion()), false, BODY_FONT, 9, ParagraphAlignment.LEFT);
-                setCellText(row.getCell(4), safe(item.evidencia()), false, BODY_FONT, 9, ParagraphAlignment.LEFT);
+                setCellTextPreservingStyle(row.getCell(0), String.valueOf(i + 1));
+                setCellTextPreservingStyle(row.getCell(1), safe(item.nombre()));
+                setCellTextPreservingStyle(row.getCell(2), safe(item.fechaEntrega()));
+                setCellTextPreservingStyle(row.getCell(3), safe(item.descripcion()));
+                setCellTextPreservingStyle(row.getCell(4), safe(item.evidencia()));
             } else {
                 for (int c = 0; c < 5; c++) {
-                    setCellText(row.getCell(c), "", false, BODY_FONT, 9, ParagraphAlignment.LEFT);
+                    setCellTextPreservingStyle(row.getCell(c), "");
                 }
             }
         }
@@ -127,9 +120,9 @@ public class ActaCierreDocxGenerator {
 
     private void fillLessons(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
         XWPFTable table = bodyTable(doc, 5);
-        setBodyCellValue(table.getRow(1).getCell(0), "ASPECTOS POSITIVOS (qué funcionó bien):", safe(data.leccionesPositivas()));
-        setBodyCellValue(table.getRow(2).getCell(0), "ASPECTOS A MEJORAR (qué no funcionó):", safe(data.leccionesMejorar()));
-        setBodyCellValue(table.getRow(3).getCell(0), "RECOMENDACIONES PARA FUTUROS PROYECTOS:", safe(data.recomendaciones()));
+        setBodyCellValuePreservingStyle(table.getRow(1).getCell(0), "ASPECTOS POSITIVOS (qué funcionó bien):", safe(data.leccionesPositivas()));
+        setBodyCellValuePreservingStyle(table.getRow(2).getCell(0), "ASPECTOS A MEJORAR (qué no funcionó):", safe(data.leccionesMejorar()));
+        setBodyCellValuePreservingStyle(table.getRow(3).getCell(0), "RECOMENDACIONES PARA FUTUROS PROYECTOS:", safe(data.recomendaciones()));
     }
 
     private void fillAlignmentAndValue(XWPFDocument doc) {
@@ -140,32 +133,32 @@ public class ActaCierreDocxGenerator {
                 + "concentrar la informacion en una sola plataforma, facilitar la consulta de evidencias y aumentar la calidad del servicio prestado a ciudadanos y equipos internos.";
 
         XWPFTable alignmentTable = bodyTable(doc, 6);
-        addValueParagraph(alignmentTable.getRow(0).getCell(0), alignment, ParagraphAlignment.BOTH, false, 10);
+        setCellTextPreservingStyle(alignmentTable.getRow(0).getCell(0), alignment);
 
         XWPFTable valueTable = bodyTable(doc, 7);
-        addValueParagraph(valueTable.getRow(0).getCell(0), publicValue, ParagraphAlignment.BOTH, false, 10);
+        setCellTextPreservingStyle(valueTable.getRow(0).getCell(0), publicValue);
     }
 
     private void fillTransfer(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
         XWPFTable table = bodyTable(doc, 8);
-        setCellText(table.getRow(1).getCell(0), safe(data.transferenciaActividad()), false, BODY_FONT, 9, ParagraphAlignment.LEFT);
-        setCellText(table.getRow(1).getCell(1), safe(data.transferenciaFecha()), false, BODY_FONT, 9, ParagraphAlignment.CENTER);
-        setCellText(table.getRow(1).getCell(2), safe(data.transferenciaUbicacionEvidencia()), false, BODY_FONT, 9, ParagraphAlignment.LEFT);
+        setCellTextPreservingStyle(table.getRow(1).getCell(0), safe(data.transferenciaActividad()));
+        setCellTextPreservingStyle(table.getRow(1).getCell(1), safe(data.transferenciaFecha()));
+        setCellTextPreservingStyle(table.getRow(1).getCell(2), safe(data.transferenciaUbicacionEvidencia()));
 
-        setCellText(table.getRow(2).getCell(0), "", false, BODY_FONT, 9, ParagraphAlignment.LEFT);
-        setCellText(table.getRow(2).getCell(1), "", false, BODY_FONT, 9, ParagraphAlignment.LEFT);
-        setCellText(table.getRow(2).getCell(2), "", false, BODY_FONT, 9, ParagraphAlignment.LEFT);
+        setCellTextPreservingStyle(table.getRow(2).getCell(0), "");
+        setCellTextPreservingStyle(table.getRow(2).getCell(1), "");
+        setCellTextPreservingStyle(table.getRow(2).getCell(2), "");
     }
 
     private void fillApproval(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
         XWPFTable table = bodyTable(doc, 10);
-        setBodyCellValue(table.getRow(1).getCell(0), "Nombre del director del Proyecto:", safe(data.directorNombre()));
-        setBodyCellValue(table.getRow(1).getCell(1), "Nombre del patrocinador del proyecto:", safe(data.patrocinadorNombre()));
+        setBodyCellValuePreservingStyle(table.getRow(1).getCell(0), "Nombre del director del Proyecto:", safe(data.directorNombre()));
+        setBodyCellValuePreservingStyle(table.getRow(1).getCell(1), "Nombre del patrocinador del proyecto:", safe(data.patrocinadorNombre()));
 
-        setBodyCellValue(table.getRow(2).getCell(0), "Firma del director del Proyecto:", "________________________________");
-        setBodyCellValue(table.getRow(2).getCell(1), "Firma del patrocinador del proyecto:", "________________________________");
+        setBodyCellValuePreservingStyle(table.getRow(2).getCell(0), "Firma del director del Proyecto:", "________________________________");
+        setBodyCellValuePreservingStyle(table.getRow(2).getCell(1), "Firma del patrocinador del proyecto:", "________________________________");
 
-        setBodyCellValue(table.getRow(3).getCell(0), "Fecha:", safe(data.fechaCierre()));
+        setBodyCellValuePreservingStyle(table.getRow(3).getCell(0), "Fecha:", safe(data.fechaCierre()));
         replaceText(doc, "[xxxx]", safe(data.nombreProyecto()));
     }
 
@@ -177,71 +170,105 @@ public class ActaCierreDocxGenerator {
         return tables.get(index);
     }
 
-    private void setBodyCellValue(XWPFTableCell cell, String label, String value) {
-        XWPFParagraph labelParagraph = ensureParagraph(cell, 0);
-        setParagraphText(labelParagraph, label, true, BODY_FONT, 9, ParagraphAlignment.LEFT);
+    private void setBodyCellValuePreservingStyle(XWPFTableCell cell, String label, String value) {
+        if (cell == null) return;
+        
+        // Asume que la celda tiene una estructura de label (título) y valor
+        XWPFParagraph labelParagraph = cell.getParagraphs().isEmpty() ? cell.addParagraph() : cell.getParagraphArray(0);
+        
+        // Conservamos los estilos del label, típicamente en negrita
+        StyleConfig labelStyle = extractStyle(labelParagraph);
+        applyTextToParagraph(labelParagraph, label, labelStyle);
+        
+        // El valor estará en un párrafo separado
         XWPFParagraph valueParagraph;
         if (cell.getParagraphs().size() > 1) {
             valueParagraph = cell.getParagraphs().get(1);
         } else {
             valueParagraph = cell.addParagraph();
         }
-        setParagraphText(valueParagraph, value, false, BODY_FONT, 10, ParagraphAlignment.LEFT);
+        
+        StyleConfig valueStyle = extractStyle(valueParagraph);
+        if (valueStyle.fontFamily == null && labelStyle.fontFamily != null) {
+            // Si el valor no tenia formato, copiamos el del label pero sin negrita
+            valueStyle.fontFamily = labelStyle.fontFamily;
+            valueStyle.fontSize = labelStyle.fontSize;
+            valueStyle.bold = false;
+        }
+        
+        applyTextToParagraph(valueParagraph, value, valueStyle);
+        
+        // Eliminamos párrafos sobrantes
         while (cell.getParagraphs().size() > 2) {
             cell.removeParagraph(cell.getParagraphs().size() - 1);
         }
-        cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
     }
 
-    private void setCellText(XWPFTableCell cell, String text, boolean bold, String fontFamily, int size, ParagraphAlignment alignment) {
-        XWPFParagraph paragraph = ensureParagraph(cell, 0);
-        setParagraphText(paragraph, text, bold, fontFamily, size, alignment);
-        removeExtraParagraphs(cell, 1);
-        cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
-    }
+    private void setCellTextPreservingStyle(XWPFTableCell cell, String text) {
+        if (cell == null) return;
 
-    private void addValueParagraph(XWPFTableCell cell, String text, ParagraphAlignment alignment, boolean bold, int size) {
-        while (!cell.getParagraphs().isEmpty()) {
-            cell.removeParagraph(0);
-        }
-        XWPFParagraph paragraph = cell.addParagraph();
-        setParagraphText(paragraph, text, bold, BODY_FONT, size, alignment);
-        cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
-    }
+        XWPFParagraph paragraph = cell.getParagraphs().isEmpty() ? cell.addParagraph() : cell.getParagraphArray(0);
+        StyleConfig style = extractStyle(paragraph);
 
-    private XWPFParagraph ensureParagraph(XWPFTableCell cell, int index) {
-        while (cell.getParagraphs().size() <= index) {
-            cell.addParagraph();
-        }
-        return cell.getParagraphs().get(index);
-    }
-
-    private void removeExtraParagraphs(XWPFTableCell cell, int keepCount) {
-        while (cell.getParagraphs().size() > keepCount) {
-            cell.removeParagraph(cell.getParagraphs().size() - 1);
-        }
-    }
-
-    private void setParagraphText(XWPFParagraph paragraph,
-                                  String text,
-                                  boolean bold,
-                                  String fontFamily,
-                                  int size,
-                                  ParagraphAlignment alignment) {
-        while (!paragraph.getRuns().isEmpty()) {
-            paragraph.removeRun(0);
+        // Limpiar párrafos adicionales que existieran en la plantilla de prueba
+        while (cell.getParagraphs().size() > 1) {
+            cell.removeParagraph(1);
         }
 
-        XWPFRun run = paragraph.createRun();
-        run.setText(text == null ? "" : text);
-        run.setBold(bold);
-        run.setFontFamily(fontFamily);
-        run.setFontSize(size);
+        applyTextToParagraph(paragraph, text, style);
+    }
 
-        paragraph.setAlignment(alignment);
-        paragraph.setSpacingBefore(0);
-        paragraph.setSpacingAfter(0);
-        paragraph.setSpacingBetween(1.0);
+    private void applyTextToParagraph(XWPFParagraph paragraph, String text, StyleConfig style) {
+        // Limpiar contenido existente del párrafo
+        for (int i = paragraph.getRuns().size() - 1; i >= 0; i--) {
+            paragraph.removeRun(i);
+        }
+
+        String safeText = text == null ? "" : text;
+        String[] lines = safeText.split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            XWPFRun run = paragraph.createRun();
+            if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
+            if (style.fontSize != null) run.setFontSize(style.fontSize);
+            if (style.bold != null) run.setBold(style.bold);
+            if (style.color != null) run.setColor(style.color);
+            if (style.italic != null) run.setItalic(style.italic);
+            
+            run.setText(lines[i]);
+            if (i < lines.length - 1) {
+                run.addBreak();
+            }
+        }
+        
+        if (style.alignment != null) {
+            paragraph.setAlignment(style.alignment);
+        }
+    }
+
+    private static class StyleConfig {
+        String fontFamily;
+        Integer fontSize;
+        Boolean bold;
+        Boolean italic;
+        String color;
+        ParagraphAlignment alignment;
+    }
+
+    private StyleConfig extractStyle(XWPFParagraph paragraph) {
+        StyleConfig config = new StyleConfig();
+        config.alignment = paragraph.getAlignment();
+        
+        if (!paragraph.getRuns().isEmpty()) {
+            XWPFRun firstRun = paragraph.getRuns().get(0);
+            config.fontFamily = firstRun.getFontFamily();
+            if (firstRun.getFontSizeAsDouble() != null) {
+                config.fontSize = firstRun.getFontSizeAsDouble().intValue();
+            }
+            config.bold = firstRun.isBold();
+            config.italic = firstRun.isItalic();
+            config.color = firstRun.getColor();
+        }
+        return config;
     }
 
     private String sponsorLine(String nombre, String cargo) {
@@ -274,10 +301,19 @@ public class ActaCierreDocxGenerator {
             return;
         }
 
-        while (!paragraph.getRuns().isEmpty()) {
-            paragraph.removeRun(0);
+        StyleConfig style = extractStyle(paragraph);
+        
+        for (int i = paragraph.getRuns().size() - 1; i >= 0; i--) {
+            paragraph.removeRun(i);
         }
+        
         XWPFRun run = paragraph.createRun();
+        if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
+        if (style.fontSize != null) run.setFontSize(style.fontSize);
+        if (style.bold != null) run.setBold(style.bold);
+        if (style.color != null) run.setColor(style.color);
+        if (style.italic != null) run.setItalic(style.italic);
+        
         run.setText(fullText.replace(placeholder, replacement));
     }
 

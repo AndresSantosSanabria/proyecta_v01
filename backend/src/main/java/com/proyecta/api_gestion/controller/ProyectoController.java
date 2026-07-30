@@ -22,6 +22,7 @@ import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -57,7 +58,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
     public ResponseEntity<ApiResponse<Page<ProyectoListDTO>>> listarProyectos(
             String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti,
-            @ParameterObject @PageableDefault(size = 10, sort = "id") Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<ProyectoListDTO> page = proyectoService.listarProyectos(nombre, codigo, dependencia, estado, peti, pageable);
         return ResponseEntity.ok(ApiResponse.success(page, "Proyectos listados con éxito"));
     }

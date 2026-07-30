@@ -77,7 +77,7 @@ public interface IProjectClosureController {
                     description = "No existe acta generada para el proyecto"
             )
     })
-    @GetMapping(value = "/{id}/cierre/descargar", produces = "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    @GetMapping("/{id}/cierre/descargar")
     ResponseEntity<Resource> descargarActaCierre(@PathVariable String id);
 
     @Operation(

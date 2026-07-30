@@ -118,7 +118,7 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
     // -----------------------------------------------------------------------
 
     @Override
-    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    @PreAuthorize("@proyectoSecurity.canChangeDeadline(#id, authentication)")
     public ResponseEntity<ApiResponse<CambioFechaResponse>> cambiarFecha(
             String id, Integer entregableId,
             CambioFechaRequest request,
@@ -129,14 +129,14 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
     }
 
     @Override
-    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    @PreAuthorize("@proyectoSecurity.canChangeDeadline(#id, authentication)")
     public ResponseEntity<ApiResponse<List<CambioFechaResponse>>> historialFechas(String id, Integer entregableId) {
         List<CambioFechaResponse> historial = projectHierarchyService.obtenerHistorialFechas(entregableId);
         return ResponseEntity.ok(ApiResponse.success(historial, "Historial de cambios de fecha"));
     }
 
     @Override
-    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    @PreAuthorize("@proyectoSecurity.canChangeDeadline(#id, authentication)")
     public ResponseEntity<Resource> descargarPdfCambioFecha(String id, Long cambioId) {
         EntregableCambioFecha registro = cambioFechaRepository.findById(cambioId)
                 .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException("Registro de cambio de fecha no encontrado: " + cambioId));

@@ -7,6 +7,7 @@ import java.time.LocalDate;
 
 public record EntregableDTO(
     String nombre,
+    String descripcion,
     @NotNull @Min(1) @Max(100) Integer ponderacion,
     LocalDate fechaInicio,
     LocalDate fechaLimite

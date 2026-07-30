@@ -11,8 +11,10 @@ import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
 import com.proyecta.api_gestion.model.enums.RespuestaFurag;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
+import com.proyecta.api_gestion.repository.DocumentoProyectoVersionRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
 import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
@@ -57,6 +59,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final IProgressCalculator progressCalculator;
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
+    private final DocumentoProyectoVersionRepository documentoVersionRepository;
 
     public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
                                FuragRespuestaRepository furagRespuestaRepository,
@@ -66,7 +69,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                                PetiCatalogService petiCatalogService,
                                IProgressCalculator progressCalculator,
                                NotificationEventPublisherPort notificationPublisher,
-                               KeycloakIdentityExtractor identityExtractor) {
+                               KeycloakIdentityExtractor identityExtractor,
+                               DocumentoProyectoVersionRepository documentoVersionRepository) {
         this.proyectoRepository = proyectoRepository;
         this.furagRespuestaRepository = furagRespuestaRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -76,6 +80,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.progressCalculator = progressCalculator;
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
+        this.documentoVersionRepository = documentoVersionRepository;
     }
 
     @Override
@@ -122,7 +127,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
 
         Specification<Proyecto> spec = (root, query, cb) -> root.get("id").in(proyectoIds);
-        return proyectoRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "nombre")).stream()
+        return proyectoRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "id")).stream()
                 .map(this::mapToListDto)
                 .toList();
     }
@@ -212,6 +217,8 @@ public class ProyectoServiceImpl implements ProyectoService {
         List<FaseDTO> fasesDto = dto.fases() == null ? List.of() : dto.fases();
         if (!fasesDto.isEmpty()) {
             final int[] faseIndex = {0};
+            final int[] hitoIndex = {0};
+            final int[] entIndex = {0};
             proyecto.setFases(fasesDto.stream().map(fDto -> {
             faseIndex[0]++;
             Fase fase = new Fase();
@@ -220,7 +227,6 @@ public class ProyectoServiceImpl implements ProyectoService {
             fase.setPonderacion(BigDecimal.valueOf(fDto.ponderacion()));
             fase.setProyecto(proyecto);
             
-            final int[] hitoIndex = {0};
             fase.setHitos(fDto.hitos().stream().map(hDto -> {
                 hitoIndex[0]++;
                 Hito hito = new Hito();
@@ -229,7 +235,6 @@ public class ProyectoServiceImpl implements ProyectoService {
                 hito.setPonderacion(BigDecimal.valueOf(hDto.ponderacion()));
                 hito.setFase(fase);
                 
-                final int[] entIndex = {0};
                 hito.setEntregables(hDto.entregables().stream().map(eDto -> {
                     entIndex[0]++;
                     validarFechasEntregableNuevo(eDto, dto.fechaInicio());
@@ -347,6 +352,16 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
         if (!esDirectorAsignado(proyecto, username)) {
             throw new BadRequestException("Solo el Director asignado puede completar la informacion inicial del proyecto.");
+        }
+        if (Boolean.TRUE.equals(dto.tienePlanComunicaciones())) {
+            boolean existePlan = documentoVersionRepository
+                    .findByProyectoIdAndTipoDocumentoAndEstado(
+                            normalizedId, "PLAN_COMUNICACIONES", DocumentoProyectoVersionEstado.ACTUAL)
+                    .isPresent();
+            if (!existePlan) {
+                throw new BadRequestException(
+                        "Debe cargar el documento del Plan de Comunicaciones en la gestion documental antes de completar el proyecto.");
+            }
         }
 
         aplicarInformacionComplementaria(proyecto, dto);
@@ -592,8 +607,10 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (dto.fases() != null) {
             proyecto.getFases().clear();
             final int[] faseIdx = {0};
+            final int[] hitoIdx = {0};
+            final int[] entIdx = {0};
             dto.fases().stream()
-                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, dto.fechaInicio(), faseIdx[0]); })
+                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, dto.fechaInicio(), faseIdx[0], hitoIdx, entIdx); })
                     .forEach(proyecto.getFases()::add);
         }
     }
@@ -626,29 +643,27 @@ public class ProyectoServiceImpl implements ProyectoService {
         return furag;
     }
 
-    private Fase buildFase(FaseDTO fDto, Proyecto proyecto, LocalDate fechaInicioProyecto, int faseNumero) {
+    private Fase buildFase(FaseDTO fDto, Proyecto proyecto, LocalDate fechaInicioProyecto, int faseNumero, int[] hitoIdx, int[] entIdx) {
         Fase fase = new Fase();
         fase.setNombre(String.format("F%02d", faseNumero));
         fase.setDescripcion(fDto.descripcion());
         fase.setPonderacion(BigDecimal.valueOf(fDto.ponderacion()));
         fase.setProyecto(proyecto);
 
-        final int[] hitoIdx = {0};
         List<Hito> hitos = fDto.hitos().stream()
-                .map(hDto -> { hitoIdx[0]++; return buildHito(hDto, fase, fechaInicioProyecto, hitoIdx[0]); })
+                .map(hDto -> { hitoIdx[0]++; return buildHito(hDto, fase, fechaInicioProyecto, hitoIdx[0], entIdx); })
                 .collect(Collectors.toList());
         fase.setHitos(hitos);
         return fase;
     }
 
-    private Hito buildHito(HitoDTO hDto, Fase fase, LocalDate fechaInicioProyecto, int hitoNumero) {
+    private Hito buildHito(HitoDTO hDto, Fase fase, LocalDate fechaInicioProyecto, int hitoNumero, int[] entIdx) {
         Hito hito = new Hito();
         hito.setNombre(String.format("H%02d", hitoNumero));
         hito.setDescripcion(hDto.descripcion());
         hito.setPonderacion(BigDecimal.valueOf(hDto.ponderacion()));
         hito.setFase(fase);
 
-        final int[] entIdx = {0};
         List<Entregable> entregables = hDto.entregables().stream()
                 .map(eDto -> { entIdx[0]++; return buildEntregable(eDto, hito, fechaInicioProyecto, entIdx[0]); })
                 .collect(Collectors.toList());
@@ -660,6 +675,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         validarFechasEntregableNuevo(eDto, fechaInicioProyecto);
         Entregable ent = new Entregable();
         ent.setNombre(String.format("E%02d", entNumero));
+        ent.setDescripcion(eDto.descripcion());
         ent.setPonderacion(BigDecimal.valueOf(eDto.ponderacion()));
         ent.setFechaInicio(eDto.fechaInicio());
         ent.setFechaLimite(eDto.fechaLimite());
@@ -930,16 +946,18 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getEntidad(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
                 p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol())).collect(Collectors.toList()),
                 p.getFurag() != null ? new FuragDTO(p.getFurag().getInfraestructuraDatos(), p.getFurag().getInteroperabilidad(), p.getFurag().getDigitalizacionAutomatizacion(), p.getFurag().getContratacionPublica(), p.getFurag().getServiciosNube(), p.getFurag().getSandbox(), p.getFurag().getTecnologiasEmergentes()) : null,
-                p.getFases().stream().map(f -> new FaseResponseDTO(
+                p.getFases().stream()
+                        .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
+                        .map(f -> new FaseResponseDTO(
                         f.getId(), f.getNombre(), f.getDescripcion(), f.getPonderacion(), f.getAvanceCalculado(),
                         f.getHitos().stream()
-                                .sorted(ProjectHierarchyOrdering.HITOS_BY_SEQUENCE)
+                                .sorted(ProjectHierarchyOrdering.HITOS_BY_ORDEN)
                                 .map(h -> new HitoResponseDTO(
                                 h.getId(), h.getNombre(), h.getDescripcion(), h.getPonderacion(), h.getAvanceCalculado(),
                                 h.getEntregables().stream()
-                                        .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE)
+                                        .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                                         .map(e -> new EntregableResponseDTO(
-                                        e.getId(), e.getNombre(), e.getPonderacion(), e.getEstadoCodigo(), e.esConforme(), e.getFechaInicio(), e.getFechaLimite()
+                                        e.getId(), e.getNombre(), e.getDescripcion(), e.getPonderacion(), e.getEstadoCodigo(), e.esConforme(), e.getFechaInicio(), e.getFechaLimite()
                                 )).collect(Collectors.toList())
                         )).collect(Collectors.toList())
                 )).collect(Collectors.toList())

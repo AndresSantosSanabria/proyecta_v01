@@ -32,6 +32,7 @@ import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
@@ -67,6 +68,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     private final KeycloakIdentityExtractor identityExtractor;
     private final NotificationEventPublisherPort notificationPublisher;
     private final ProyectoBeneficioImpactoService beneficioImpactoService;
+    private final PublicEvidenceAccessService publicEvidenceAccessService;
 
     public ProjectAdvanceServiceImpl(ProyectoRepository proyectoRepository,
                                      EntregableRepository entregableRepository,
@@ -81,7 +83,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                                      LocalUserAuthorizationService localUserAuthorizationService,
                                      KeycloakIdentityExtractor identityExtractor,
                                      NotificationEventPublisherPort notificationPublisher,
-                                     ProyectoBeneficioImpactoService beneficioImpactoService) {
+                                     ProyectoBeneficioImpactoService beneficioImpactoService,
+                                     PublicEvidenceAccessService publicEvidenceAccessService) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.progressCalculator = progressCalculator;
@@ -96,6 +99,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         this.identityExtractor = identityExtractor;
         this.notificationPublisher = notificationPublisher;
         this.beneficioImpactoService = beneficioImpactoService;
+        this.publicEvidenceAccessService = publicEvidenceAccessService;
     }
 
     @Override
@@ -180,6 +184,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 marcarObservacionesSubsanadas(entregable, actor, "Nueva version cargada para subsanar observaciones.");
             }
             auditar(entregable, nuevaVersion, null, "UPLOAD", actor, "version=" + nuevaVersion.getNumeroVersion());
+            publicEvidenceAccessService.getOrCreateToken(entregable, actor.username());
             entityManager.flush();
 
             Integer hitoId = entregable.getHito().getId();

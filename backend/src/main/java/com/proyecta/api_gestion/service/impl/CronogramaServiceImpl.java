@@ -64,21 +64,23 @@ public class CronogramaServiceImpl implements CronogramaService {
         Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
 
-        List<Fase> fases = faseRepository.findByProyectoId(normalizedProjectId);
+        List<Fase> fases = faseRepository.findByProyectoId(normalizedProjectId).stream()
+                .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
+                .toList();
         List<FaseGanttDTO> vistaGantt = new ArrayList<>();
         
         int totalHitos = 0;
 
         for (Fase fase : fases) {
             List<Hito> hitos = hitoRepository.findByFaseId(fase.getId());
-            hitos.sort(ProjectHierarchyOrdering.HITOS_BY_SEQUENCE);
+            hitos.sort(ProjectHierarchyOrdering.HITOS_BY_ORDEN);
             
             List<HitoGanttDTO> hitosGantt = new ArrayList<>();
 
             for (Hito hito : hitos) {
                 totalHitos++;
                 List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId());
-                entregables.sort(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE);
+                entregables.sort(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN);
                 List<EntregableGanttDTO> entregablesGantt = entregables.stream()
                         .map(entregable -> new EntregableGanttDTO(
                                 entregable.getId(),

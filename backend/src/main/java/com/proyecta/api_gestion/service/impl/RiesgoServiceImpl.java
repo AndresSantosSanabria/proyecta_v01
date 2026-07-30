@@ -247,6 +247,11 @@ public class RiesgoServiceImpl implements IRiesgoService {
             resultado.add(toSolutionDto(guardado));
         }
 
+        if (riesgo.getEstado() == null || riesgo.getEstado() == EstadoRiesgo.PENDIENTE) {
+            riesgo.setEstado(EstadoRiesgo.TRATADO);
+            riesgoRepository.save(riesgo);
+        }
+
         return resultado;
     }
 

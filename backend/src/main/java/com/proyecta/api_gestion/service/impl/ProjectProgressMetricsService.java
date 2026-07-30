@@ -131,7 +131,7 @@ public class ProjectProgressMetricsService {
     private FaseAvanceDTO construirFase(Fase fase, LocalDate corte) {
         List<Hito> hitosFase = hitosSeguros(fase).stream()
                 .filter(Objects::nonNull)
-                .sorted(ProjectHierarchyOrdering.HITOS_BY_SEQUENCE)
+                .sorted(ProjectHierarchyOrdering.HITOS_BY_ORDEN)
                 .toList();
 
         List<HitoAvanceDTO> hitos = hitosFase.stream()
@@ -161,7 +161,7 @@ public class ProjectProgressMetricsService {
     private HitoAvanceDTO construirHito(Hito hito, LocalDate corte) {
         List<Entregable> entregablesHito = entregablesSeguros(hito).stream()
                 .filter(Objects::nonNull)
-                .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE)
+                .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                 .toList();
 
         List<EntregableAvanceDTO> entregables = entregablesHito.stream()

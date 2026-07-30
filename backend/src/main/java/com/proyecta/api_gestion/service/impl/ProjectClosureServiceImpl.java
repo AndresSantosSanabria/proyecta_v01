@@ -31,6 +31,7 @@ import com.proyecta.api_gestion.service.report.ActaCierreDocxGenerator;
 import com.proyecta.api_gestion.service.closure.DynamicClosurePdfService;
 import com.proyecta.api_gestion.service.closure.ClosureTemplateService;
 import com.proyecta.api_gestion.service.closure.TemplateResolver;
+import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.slf4j.Logger;
@@ -75,6 +76,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final ClosureAnswerRepository closureAnswerRepository;
     private final ProjectClosureRecordRepository closureRecordRepository;
     private final TemplateResolver templateResolver;
+    private final PublicEvidenceAccessService publicEvidenceAccessService;
 
     public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
                                      ActaCierreRepository actaCierreRepository,
@@ -92,7 +94,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      ClosureTemplateService templateService,
                                      ClosureAnswerRepository closureAnswerRepository,
                                      ProjectClosureRecordRepository closureRecordRepository,
-                                     TemplateResolver templateResolver) {
+                                     TemplateResolver templateResolver,
+                                     PublicEvidenceAccessService publicEvidenceAccessService) {
         this.proyectoRepository = proyectoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -110,6 +113,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.closureAnswerRepository = closureAnswerRepository;
         this.closureRecordRepository = closureRecordRepository;
         this.templateResolver = templateResolver;
+        this.publicEvidenceAccessService = publicEvidenceAccessService;
     }
 
     @Override
@@ -388,66 +392,203 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Override
     @Transactional(readOnly = true)
     public Resource descargarActaCierre(String projectId) {
-        ActaCierre acta = actaCierreRepository.findByProyectoId(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("No existe un acta de cierre para el proyecto: " + projectId));
+        ActaCierre acta = actaCierreRepository.findByProyectoId(projectId).orElse(null);
 
-        if (acta.getArchivoDocx() != null && acta.getRutaArchivoDocx() != null) {
-            return storageProvider.loadFileAsResource(acta.getRutaArchivoDocx(), acta.getArchivoDocx());
+        if (acta != null) {
+            if (acta.getArchivoDocx() != null && acta.getRutaArchivoDocx() != null) {
+                try {
+                    return storageProvider.loadFileAsResource(acta.getRutaArchivoDocx(), acta.getArchivoDocx());
+                } catch (Exception ex) {
+                    log.warn("No se pudo cargar el DOCX almacenado para proyecto {}: {}", projectId, ex.getMessage());
+                }
+            }
+
+            if (acta.getArchivoPdf() != null && acta.getRutaArchivoPdf() != null) {
+                try {
+                    return storageProvider.loadFileAsResource(acta.getRutaArchivoPdf(), acta.getArchivoPdf());
+                } catch (Exception ex) {
+                    log.warn("No se pudo cargar el PDF almacenado para proyecto {}: {}", projectId, ex.getMessage());
+                }
+            }
         }
 
-        if (acta.getArchivoPdf() != null && acta.getRutaArchivoPdf() != null) {
-            return storageProvider.loadFileAsResource(acta.getRutaArchivoPdf(), acta.getArchivoPdf());
+        Resource draftDocx = generarBorradorDocxSiExiste(projectId);
+        if (draftDocx != null) {
+            return draftDocx;
+        }
+
+        if (acta == null) {
+            throw new ResourceNotFoundException("No existe un acta de cierre para el proyecto: " + projectId
+                    + ". Verifique que la plantilla este configurada y las respuestas esten completas.");
         }
 
         throw new ResourceNotFoundException("El acta de cierre no tiene un archivo asociado para descarga.");
     }
 
-    private Resource generarPdfEditableSiExiste(String projectId) {
-        var recordOpt = closureRecordRepository.findByProyectoId(projectId);
-        if (recordOpt.isEmpty()) {
-            return null;
-        }
-
-        var record = recordOpt.get();
-        if (record.getTemplateSnapshot() == null || record.getFormData() == null) {
-            return null;
-        }
-
+    private Resource generarBorradorDocxSiExiste(String projectId) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
 
+        String borradorJson = proyecto.getCierreBorradorJson();
+        CierreProyectoRequest request = null;
+        if (borradorJson != null && !borradorJson.isBlank()) {
+            try {
+                request = objectMapper.readValue(borradorJson, CierreProyectoRequest.class);
+            } catch (Exception ex) {
+                log.warn("No se pudo leer el json del borrador para {}: {}", projectId, ex.getMessage());
+            }
+        }
+
+        LocalDate corteCalculo = LocalDate.now();
+        LocalDate transferenciaFecha = (request != null && request.transferenciaFecha() != null) 
+                ? request.transferenciaFecha() : corteCalculo;
+
+        SeguridadUsuarioProyecto directorAsignado = usuarioProyectoRepository
+                .findActiveDirectorAssignmentsByProyectoId(projectId)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        Patrocinador patrocinador = proyecto.getPatrocinador();
+        String directorEntidad = null;
+        String directorCargo = null;
+        String directorNombre = proyecto.getDirector();
+        if (directorAsignado != null) {
+            directorCargo = directorAsignado.getCargo();
+            if (directorAsignado.getUsuario() != null) {
+                directorNombre = directorAsignado.getUsuario().getNombre();
+                directorEntidad = firstNonBlank(directorAsignado.getUsuario().getDependencia(), proyecto.getDependencia());
+            } else {
+                directorEntidad = proyecto.getDependencia();
+            }
+        }
+        String patrocinadorEntidad = patrocinador != null ? patrocinador.getEntidad() : null;
+
+        List<ObjetivoEspecifico> objetivosEspecificos = proyecto.getObjetivosEspecificos() == null
+                ? List.of()
+                : proyecto.getObjetivosEspecificos().stream()
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(ObjetivoEspecifico::getOrden, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+
+        List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
+
+        ProyectoAvanceResponseDTO snapshot = null;
         try {
-            java.util.Map<Long, String> answerMap = closureAnswerRepository.findByProyectoIdOrderByQuestion_OrdenAsc(projectId).stream()
-                    .collect(java.util.stream.Collectors.toMap(
-                            a -> a.getQuestion().getId(),
-                            a -> a.getRespuesta() != null ? a.getRespuesta() : "",
-                            (a, b) -> b
-                    ));
+            snapshot = metricsService.construir(proyecto, corteCalculo);
+        } catch (Exception e) {
+            log.warn("Error construyendo metricas en borrador: {}", e.getMessage());
+        }
+        
+        BigDecimal avanceTotal = proyecto.getAvanceTotal() != null ? proyecto.getAvanceTotal() : BigDecimal.ZERO;
+        BigDecimal pProg = snapshot != null ? snapshot.progresoProgramado() : BigDecimal.ZERO;
+        BigDecimal pEjec = snapshot != null ? snapshot.progresoEjecutado() : BigDecimal.ZERO;
+        BigDecimal diff = snapshot != null ? snapshot.diferencia() : BigDecimal.ZERO;
+        BigDecimal ef = snapshot != null ? snapshot.eficacia() : BigDecimal.ZERO;
+        String estado = snapshot != null ? snapshot.estado() : "SIN_DATOS";
 
-            String resolvedTemplateJson = templateResolver.resolveTemplateForProject(
-                    record.getTemplateSnapshot(),
-                    proyecto,
-                    answerMap
-            );
-            String mergedFormData = mergeProjectValuesIntoFormData(proyecto, record.getFormData());
-            byte[] pdfBytes = dynamicPdfService.generatePdf(
-                    resolvedTemplateJson,
-                    mergedFormData,
-                    "A-GT-FR-004",
-                    1,
-                    "Acta de Cierre del Proyecto"
-            );
+        ActaCierrePdfGenerator.ActaCierrePdfData actaData = new ActaCierrePdfGenerator.ActaCierrePdfData(
+                proyecto.getId(),
+                proyecto.getNombre(),
+                patrocinador != null ? patrocinador.getNombre() : null,
+                patrocinador != null ? patrocinador.getCargo() : null,
+                patrocinadorEntidad,
+                directorNombre,
+                directorCargo,
+                directorEntidad,
+                formatDate(proyecto.getFechaInicio()),
+                formatDate(corteCalculo),
+                calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
+                proyecto.getObjetivoGeneral(),
+                objetivosEspecificos.stream()
+                        .map(ObjetivoEspecifico::getDescripcion)
+                        .filter(value -> value != null && !value.isBlank())
+                        .toList(),
+                request != null ? request.resumenEjecutivo() : null,
+                request != null ? request.leccionesPositivas() : null,
+                request != null ? request.leccionesMejorar() : null,
+                request != null ? request.recomendaciones() : null,
+                request != null ? request.transferenciaActividad() : null,
+                formatDate(transferenciaFecha),
+                request != null ? request.transferenciaUbicacionEvidencia() : null,
+                formatPercent(avanceTotal),
+                formatPercent(pProg),
+                formatPercent(pEjec),
+                formatPercent(diff),
+                formatRatio(ef),
+                estado,
+                entregables
+        );
 
-            return new org.springframework.core.io.ByteArrayResource(pdfBytes) {
+        try {
+            byte[] docxBytes = docxGenerator.build(actaData);
+            return new org.springframework.core.io.ByteArrayResource(docxBytes) {
                 @Override
                 public String getFilename() {
-                    return "acta-cierre-" + projectId + ".pdf";
+                    return "acta_cierre_" + projectId + ".docx";
                 }
             };
         } catch (Exception ex) {
-            log.warn("No se pudo generar PDF dinamico para proyecto {}: {}", projectId, ex.getMessage(), ex);
+            log.error("Error generando DOCX borrador: {}", ex.getMessage());
             return null;
         }
+    }
+
+    private String injectEvidencePublicUrls(String projectId, String formDataJson) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(formDataJson);
+            com.fasterxml.jackson.databind.JsonNode entregables = root.get("entregables");
+            if (entregables == null || !entregables.isArray()) {
+                return formDataJson;
+            }
+
+            Proyecto proyecto = proyectoRepository.findById(projectId).orElse(null);
+            if (proyecto == null) return formDataJson;
+
+            java.util.Map<String, String> evidenciaTokens = new java.util.HashMap<>();
+            collectEntregableTokens(proyecto, evidenciaTokens);
+
+            com.fasterxml.jackson.databind.node.ArrayNode arrayNode = (com.fasterxml.jackson.databind.node.ArrayNode) entregables;
+            for (com.fasterxml.jackson.databind.JsonNode row : arrayNode) {
+                if (row instanceof com.fasterxml.jackson.databind.node.ObjectNode rowNode) {
+                    String nombreEntregable = rowNode.has("nombre_entregable") ? rowNode.get("nombre_entregable").asText("") : "";
+                    String evidenciaActual = rowNode.has("evidencia") ? rowNode.get("evidencia").asText("") : "";
+                    if (!evidenciaActual.startsWith("http")) {
+                        for (var entry : evidenciaTokens.entrySet()) {
+                            if (nombreEntregable.equalsIgnoreCase(entry.getKey())) {
+                                rowNode.put("evidencia", buildPublicEvidenceUrl(entry.getValue()));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception ex) {
+            log.warn("No se pudieron inyectar URLs publicas de evidencia: {}", ex.getMessage());
+            return formDataJson;
+        }
+    }
+
+    private void collectEntregableTokens(Proyecto proyecto, java.util.Map<String, String> map) {
+        if (proyecto.getFases() == null) return;
+        for (var fase : proyecto.getFases()) {
+            if (fase == null || fase.getHitos() == null) continue;
+            for (var hito : fase.getHitos()) {
+                if (hito == null || hito.getEntregables() == null) continue;
+                for (var entregable : hito.getEntregables()) {
+                    if (entregable != null && entregable.getArchivoPdf() != null && !entregable.getArchivoPdf().isBlank()) {
+                        String token = publicEvidenceAccessService.getOrCreateToken(entregable, "system");
+                        map.put(entregable.getNombre(), token);
+                    }
+                }
+            }
+        }
+    }
+
+    private String buildPublicEvidenceUrl(String token) {
+        return "http://localhost:8082/api/v1/public/evidencia/" + token;
     }
 
     private List<ActaCierrePdfGenerator.EntregableActaItem> construirEntregablesActa(Proyecto proyecto, LocalDate corteCalculo) {
@@ -456,17 +597,17 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         List<Fase> fases = proyecto.getFases() == null ? List.of() : proyecto.getFases();
         fases.stream()
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(Fase::getNombre, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
                 .forEach(fase -> {
                     List<Hito> hitos = fase.getHitos() == null ? List.of() : fase.getHitos();
                     hitos.stream()
                             .filter(Objects::nonNull)
-                            .sorted(ProjectHierarchyOrdering.HITOS_BY_SEQUENCE)
+                            .sorted(ProjectHierarchyOrdering.HITOS_BY_ORDEN)
                             .forEach(hito -> {
                                 List<Entregable> items = hito.getEntregables() == null ? List.of() : hito.getEntregables();
                                 items.stream()
                                         .filter(Objects::nonNull)
-                                        .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_SCHEDULE)
+                                        .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                                         .forEach(entregable -> entregables.add(new ActaCierrePdfGenerator.EntregableActaItem(
                                                 entregable.getNombre(),
                                                 formatDate(entregable.getFechaEntregaReal() != null ? entregable.getFechaEntregaReal() : entregable.getFechaLimite()),

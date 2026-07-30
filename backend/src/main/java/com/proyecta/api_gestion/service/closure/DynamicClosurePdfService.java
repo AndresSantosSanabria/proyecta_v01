@@ -247,7 +247,11 @@ public class DynamicClosurePdfService {
                 for (JsonNode col : activeColumns) {
                     String colId = col.has("id_campo") ? col.get("id_campo").asText() : col.get("id").asText();
                     String val = row.has(colId) ? row.get(colId).asText("") : "";
-                    sb.append("<td>").append(escapeHtml(val)).append("</td>");
+                    if ("evidencia".equals(colId) && !val.isBlank() && val.startsWith("http")) {
+                        sb.append("<td><a href='").append(escapeHtml(val)).append("'>Ver evidencia</a></td>");
+                    } else {
+                        sb.append("<td>").append(escapeHtml(val)).append("</td>");
+                    }
                 }
                 sb.append("</tr>");
             }
@@ -309,6 +313,7 @@ public class DynamicClosurePdfService {
             .data-table td { border: 1pt solid #d1d5db; padding: 4pt 6pt; }
             .data-table tr:nth-child(even) td { background: #f9fafb; }
             .empty-row { text-align: center; color: #9ca3af; font-style: italic; }
+            .data-table td a { color: #2563eb; text-decoration: underline; font-size: 9pt; }
             .footer { margin-top: 30pt; border-top: 1pt solid #d1d5db; padding-top: 12pt; }
             .signature-lines { display: flex; justify-content: space-around; margin-top: 20pt; }
             .sig-block { text-align: center; width: 30%%; }

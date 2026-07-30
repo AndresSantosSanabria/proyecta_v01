@@ -41,6 +41,7 @@ public class SecurityCatalogSeeder {
             new PermissionSeed("ENTREGABLE:CREAR", "Crear entregable", "Permite registrar entregables nuevos"),
             new PermissionSeed("ENTREGABLE:EDITAR", "Editar entregable", "Permite modificar entregables existentes"),
             new PermissionSeed("ENTREGABLE:APROBAR", "Aprobar entregable", "Permite marcar entregables como conformes"),
+            new PermissionSeed("ENTREGABLE:CAMBIAR_FECHA", "Cambiar fecha limite", "Permite modificar la fecha limite de un entregable existente con justificacion y soporte"),
             new PermissionSeed("AVANCE:VER", "Ver avance", "Permite consultar el avance consolidado del proyecto"),
             new PermissionSeed("AVANCE:EDITAR", "Editar avance", "Permite registrar y actualizar avances del proyecto"),
             new PermissionSeed("AVANCE:APROBAR", "Aprobar avance", "Permite validar avances enviados por el Director de Proyecto"),
@@ -72,7 +73,7 @@ public class SecurityCatalogSeeder {
             "admin", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
                     "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
-                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
+                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
                     "AVANCE:VER", "AVANCE:EDITAR", "AVANCE:APROBAR",
                     "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
                     "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR", "DOCUMENTO:HISTORIAL", "DOCUMENTO:REVERTIR",
@@ -83,7 +84,7 @@ public class SecurityCatalogSeeder {
             "gestor_tic", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
                     "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
-                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
+                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
                     "AVANCE:VER", "AVANCE:EDITAR", "AVANCE:APROBAR",
                     "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
                     "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
@@ -94,7 +95,7 @@ public class SecurityCatalogSeeder {
             "gestor_proyectos", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
                     "REPORTE:VER", "ANALITICA:VER",
-                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR",
+                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
                     "AVANCE:VER", "AVANCE:EDITAR",
                     "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
                     "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR", "DOCUMENTO:HISTORIAL", "DOCUMENTO:REVERTIR",

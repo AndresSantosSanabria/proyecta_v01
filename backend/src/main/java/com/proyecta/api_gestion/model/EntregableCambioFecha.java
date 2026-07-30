@@ -22,10 +22,10 @@ public class EntregableCambioFecha {
     @Column(name = "fecha_nueva", nullable = false)
     private LocalDate fechaNueva;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String justificacion;
 
-    @Column(name = "archivo_pdf", length = 300, nullable = false)
+    @Column(name = "archivo_pdf", columnDefinition = "TEXT", nullable = false)
     private String archivoPdf;
 
     @Column(name = "nombre_original", length = 300)
@@ -34,7 +34,7 @@ public class EntregableCambioFecha {
     @Column(nullable = false, length = 100)
     private String usuario;
 
-    @Column(name = "usuario_rol", length = 50)
+    @Column(name = "usuario_rol", length = 100)
     private String usuarioRol;
 
     @Column(name = "creado_en", nullable = false, updatable = false)

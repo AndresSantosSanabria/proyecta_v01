@@ -21,12 +21,14 @@ public class ProyectoSecurity {
     private static final Set<String> DOCUMENT_HISTORY_ROLE_CODES = Set.of("gestor_proyectos");
     private static final Set<String> PROJECT_STRUCTURE_MANAGER_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
     private static final Set<String> PROJECT_STRUCTURE_EDITOR_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos", "director_proyecto");
+    private static final Set<String> CHANGE_DEADLINE_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
     private static final Set<String> DIRECTOR_BLOCKED_PERMISSIONS = Set.of(
             "PROYECTO:CREAR",
             "PROYECTO:CERRAR",
             "ENTREGABLE:CREAR",
             "ENTREGABLE:EDITAR",
             "ENTREGABLE:APROBAR",
+            "ENTREGABLE:CAMBIAR_FECHA",
             "EVIDENCIA:EDITAR",
             "EVIDENCIA:ELIMINAR",
             "DOCUMENTO:HISTORIAL",
@@ -139,7 +141,7 @@ public class ProyectoSecurity {
 
     public boolean canAccessOperational(String permissionCode, String proyectoId, Authentication authentication) {
         canAccess(permissionCode, proyectoId, authentication);
-        assertOperationalProjectReady(proyectoId, authentication);
+        assertOperationalProjectReady(proyectoId, authentication, permissionCode);
         return true;
     }
 
@@ -362,6 +364,44 @@ public class ProyectoSecurity {
         return true;
     }
 
+    public boolean canChangeDeadline(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean allowedRole = roleCodes.stream().anyMatch(CHANGE_DEADLINE_ROLE_CODES::contains);
+        if (!allowedRole) {
+            throw new ForbiddenException("Solo el Administrador o un Gestor pueden modificar la fecha limite de entregables.");
+        }
+
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        String normalizedPermission = normalize("ENTREGABLE:CAMBIAR_FECHA");
+        boolean hasPermission = effectivePermissions.stream()
+                .map(this::normalize)
+                .anyMatch(normalizedPermission::equals);
+
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: " + normalizedPermission);
+        }
+
+        if (isTransversal(roleCodes) || proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+            throw new ForbiddenException("El usuario no est\u00e1 asignado al proyecto solicitado.");
+        }
+
+        assertOperationalProjectReady(proyectoId, authentication);
+        return true;
+    }
+
     public boolean canMarkEvidenceCorrected(String proyectoId, Authentication authentication) {
         String username = identityExtractor.resolveUsername(authentication);
         if (username == null || username.isBlank()) {
@@ -470,7 +510,16 @@ public class ProyectoSecurity {
                 && !roleCodes.contains("admin");
     }
 
+    private static final Set<String> COMPLETION_ALLOWED_PERMISSIONS = Set.of(
+            "DOCUMENTO:CARGAR",
+            "PROYECTO:VER"
+    );
+
     private void assertOperationalProjectReady(String proyectoId, Authentication authentication) {
+        assertOperationalProjectReady(proyectoId, authentication, null);
+    }
+
+    private void assertOperationalProjectReady(String proyectoId, Authentication authentication, String permissionCode) {
         if (proyectoId == null || proyectoId.isBlank() || isAdmin(authentication)) {
             return;
         }
@@ -483,6 +532,10 @@ public class ProyectoSecurity {
         Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
                 .orElseThrow(() -> new ForbiddenException("El proyecto solicitado no existe."));
         if (proyecto.requiereCompletitudDirector()) {
+            String normalized = normalize(permissionCode);
+            if (normalized != null && COMPLETION_ALLOWED_PERMISSIONS.contains(normalized)) {
+                return;
+            }
             throw new ForbiddenException("Debe completar la informacion inicial del proyecto antes de acceder a este modulo.");
         }
     }
