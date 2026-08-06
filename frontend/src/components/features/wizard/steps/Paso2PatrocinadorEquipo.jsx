@@ -57,7 +57,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
   };
 
   const handleIntegranteAdd = () => {
-    onChange({ equipoTrabajo: [...(data.equipoTrabajo || []), { nombre: '', cargo: '', rol: '' }] });
+    onChange({ equipoTrabajo: [...(data.equipoTrabajo || []), { nombre: '', cargo: '', rol: '', dependencia: '', telefono: '', correo: '' }] });
   };
 
   const handleIntegranteRemove = (index) => {
@@ -168,6 +168,34 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
                   <option key={rol} value={rol}>{rol}</option>
                 ))}
               </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Dependencia</label>
+              <input
+                className="form-input"
+                value={miembro.dependencia || ''}
+                onChange={(e) => handleIntegranteChange(i, 'dependencia', e.target.value)}
+                placeholder="Dependencia o área"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Teléfono</label>
+              <input
+                className="form-input"
+                value={miembro.telefono || ''}
+                onChange={(e) => handleIntegranteChange(i, 'telefono', e.target.value)}
+                placeholder="Número de contacto"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Correo electrónico</label>
+              <input
+                className="form-input"
+                type="email"
+                value={miembro.correo || ''}
+                onChange={(e) => handleIntegranteChange(i, 'correo', e.target.value)}
+                placeholder="correo@ejemplo.com"
+              />
             </div>
           </div>
         </div>

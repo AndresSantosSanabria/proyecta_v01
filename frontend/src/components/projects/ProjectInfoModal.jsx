@@ -41,22 +41,35 @@ const detectPdfFromBlob = async (blob) => {
 const DocumentViewer = ({ blob, nombre, onClose }) => {
   const [objectUrl, setObjectUrl] = useState(null);
   const [isPdf, setIsPdf] = useState(false);
+  const blobUrlRef = useRef(null);
 
   useEffect(() => {
-    let url = null;
+    let cancelled = false;
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+    setObjectUrl(null);
     if (blob) {
       detectPdfFromBlob(blob).then((detected) => {
+        if (cancelled) return;
         setIsPdf(detected);
         const mimeType = detected ? 'application/pdf' : blob.type || 'application/octet-stream';
         blob.arrayBuffer().then((buf) => {
+          if (cancelled) return;
           const typedBlob = new Blob([buf], { type: mimeType });
-          url = URL.createObjectURL(typedBlob);
+          const url = URL.createObjectURL(typedBlob);
+          blobUrlRef.current = url;
           setObjectUrl(url);
         });
       });
     }
     return () => {
-      if (url) URL.revokeObjectURL(url);
+      cancelled = true;
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
     };
   }, [blob]);
 
@@ -112,6 +125,7 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
   const [error, setError] = useState('');
   const [viewerBlob, setViewerBlob] = useState(null);
   const [viewerNombre, setViewerNombre] = useState('');
+  const [viewerError, setViewerError] = useState('');
 
   useEffect(() => {
     const fetchVersiones = async () => {
@@ -155,17 +169,26 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
 
   const handleViewVersion = async (numeroVersion, nombre) => {
     try {
+      setViewerBlob(null);
+      setViewerError('');
       const blob = await documentService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
       setViewerBlob(blob);
       setViewerNombre(`${nombre || tipoDocumento} - Version ${numeroVersion}`);
-    } catch {
-      console.error('Error cargando version para visor');
+    } catch (err) {
+      console.error('Error cargando version para visor', err);
+      const status = err?.response?.status;
+      if (status === 404) {
+        setViewerError(`La version ${numeroVersion} ya no esta disponible en el servidor.`);
+      } else {
+        setViewerError(`No se pudo cargar la version ${numeroVersion}.`);
+      }
     }
   };
 
   const handleCloseViewer = () => {
     setViewerBlob(null);
     setViewerNombre('');
+    setViewerError('');
   };
 
   return (
@@ -227,6 +250,28 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
           )}
         </div>
       </div>
+      {viewerError && !viewerBlob && (
+        <div className="pim-viewer-overlay" role="presentation" onClick={handleCloseViewer}>
+          <div className="pim-viewer-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <header className="pim-viewer-header">
+              <div className="pim-viewer-title">
+                <FileText size={16} />
+                <span>{viewerError}</span>
+              </div>
+              <button type="button" className="pim-viewer-close" onClick={handleCloseViewer} aria-label="Cerrar">
+                <X size={18} />
+              </button>
+            </header>
+            <div className="pim-viewer-body">
+              <div className="pim-viewer-fallback-block">
+                <FileText size={48} strokeWidth={1} />
+                <p className="pim-viewer-fallback-title">{viewerError}</p>
+                <p className="pim-viewer-fallback-hint">Intenta descargar el archivo para consultarlo.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {viewerBlob && (
         <DocumentViewer blob={viewerBlob} nombre={viewerNombre} onClose={handleCloseViewer} />
       )}
@@ -568,7 +613,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
             <div className="pim-grid">
               <Field label="Dependencia" value={project.dependencia} />
               <Field label="Fecha de inicio" value={project.fechaInicio} />
-              <Field label="Presupuesto estimado" value={project.presupuestoEstimado ? `$${Number(project.presupuestoEstimado).toLocaleString('es-CO')}` : null} />
+              <Field label="Presupuesto estimado" value={project.presupuestoEstimado != null ? `$${Number(project.presupuestoEstimado).toLocaleString('es-CO')}` : null} />
               <Field label="Estado" value={project.estado} />
             </div>
             <div className="pim-field pim-field-wide">
@@ -601,6 +646,9 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                     <div key={i} className="pim-team-member">
                       <strong>{m.nombre}</strong>
                       <span>{m.cargo}{m.rol ? ` · ${m.rol}` : ''}</span>
+                      {m.dependencia && <span>{m.dependencia}</span>}
+                      {m.correo && <span>{m.correo}</span>}
+                      {m.telefono && <span>{m.telefono}</span>}
                     </div>
                   ))}
                 </div>

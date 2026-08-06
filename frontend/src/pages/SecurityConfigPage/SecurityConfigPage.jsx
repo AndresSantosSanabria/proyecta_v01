@@ -30,7 +30,6 @@ import ClosureQuestionsPanel from '../../components/security/ClosureQuestionsPan
 import ListaParametricaPanel from '../../components/security/ListaParametricaPanel';
 import StorageConfigPanel from '../../components/security/StorageConfigPanel';
 import UserPermissionMatrix from '../../components/security/UserPermissionMatrix';
-import { decodeJwtPayload } from '../../utils/auth';
 import './SecurityConfigPage.css';
 
 const SECURITY_TABS = {
@@ -339,7 +338,7 @@ const getProjectId = (project) => project?.codigo || project?.id || project?.pro
 const getProjectName = (project) => project?.nombre || project?.nombreProyecto || project?.name || getProjectId(project);
 
 const SecurityConfigPage = () => {
-  const { user: authUser, accessToken, businessTokenRoles, primaryRole } = useAuthContext();
+  const { accessToken } = useAuthContext();
 
   const [activeSection, setActiveSection] = useState(SECURITY_TABS.USERS);
   const [roles, setRoles] = useState([]);
@@ -379,21 +378,6 @@ const SecurityConfigPage = () => {
   const assignmentsSectionRef = useRef(null);
 
   const canConfigure = usePermission('CONFIGURACION:VER') || usePermission('SISTEMA:CONFIGURAR');
-  const tokenPayload = useMemo(() => decodeJwtPayload(accessToken), [accessToken]);
-  const tokenUsername = [
-    tokenPayload?.preferred_username,
-    tokenPayload?.username,
-    tokenPayload?.email,
-    tokenPayload?.sub,
-  ]
-    .map((value) => String(value || '').trim().toLowerCase())
-    .find(Boolean) || '';
-  const authenticatedUsername = tokenUsername
-    || authUser?.profile?.preferred_username
-    || authUser?.profile?.username
-    || authUser?.profile?.email
-    || '';
-
   const selectedRole = useMemo(
     () => roles.find((role) => role.codigo === selectedRoleCode) || null,
     [roles, selectedRoleCode]
@@ -401,29 +385,11 @@ const SecurityConfigPage = () => {
 
   const permissionGroups = useMemo(() => groupPermissions(permissions), [permissions]);
   const isUserEditorOpen = Boolean(selectedUser) && !creatingUser;
-  const authenticatedTokenRoleCode = businessTokenRoles[0] || primaryRole || '';
-  const authenticatedTokenRoleObject = authenticatedTokenRoleCode
-    ? {
-        codigo: authenticatedTokenRoleCode,
-        nombre: formatRoleLabel(authenticatedTokenRoleCode),
-      }
-    : null;
-  const resolveUserRoleObject = (user) => {
-    if (isSameUsername(user?.username, authenticatedUsername) || isSameUsername(user?.username, tokenUsername)) {
-      if (authenticatedTokenRoleObject) {
-        return authenticatedTokenRoleObject;
-      }
-    }
-
-    return resolveClosestExistingRole(getUserRoleSearchSources(user), roles);
-  };
-  const resolveUserRoleCode = (user) => resolveUserRoleObject(user)?.codigo || '';
-  const resolveUserRoleLabel = (user) => resolveUserRoleObject(user)?.nombre || '';
   const selectedAssignmentUser = useMemo(
     () => users.find((user) => user.username === assignmentForm.username) || null,
     [assignmentForm.username, users]
   );
-  const selectedAssignmentUserRole = resolveUserRoleCode(selectedAssignmentUser);
+  const selectedAssignmentUserRole = getUserRoleCode(selectedAssignmentUser);
   const shouldRestrictToDirectors = isDirectorEquivalentRole(assignmentForm.cargo);
   const selectedAssignmentUserRoleKey = selectedAssignmentUserRole.toUpperCase();
   const isAssignmentsModalOpen = canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS;
@@ -433,7 +399,7 @@ const SecurityConfigPage = () => {
       return users;
     }
 
-    return users.filter((user) => isDirectorEquivalentRole(resolveUserRoleCode(user)));
+    return users.filter((user) => isDirectorEquivalentRole(getUserRoleCode(user)));
   })();
   const projectOptions = useMemo(
     () => [...projects].sort((left, right) => {
@@ -489,25 +455,9 @@ const SecurityConfigPage = () => {
       const parametricRolesData = parametricRolesResult.status === 'fulfilled'
         ? (Array.isArray(parametricRolesResult.value) ? parametricRolesResult.value : [])
         : [];
-      const authenticatedUsernames = [
-        authUser?.profile?.preferred_username,
-        authUser?.profile?.username,
-        authUser?.profile?.email,
-        authUser?.profile?.sub,
-      ]
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean);
       const resolvedUsersData = usersData.map((item) => {
-        const username = String(item?.username || '').trim().toLowerCase();
-        const isAuthenticatedUser = authenticatedUsernames.includes(username);
-        const tokenRoleObject = isAuthenticatedUser && authenticatedTokenRoleCode
-          ? {
-              codigo: authenticatedTokenRoleCode,
-              nombre: formatRoleLabel(authenticatedTokenRoleCode),
-            }
-          : null;
         const explicitRoleObject = resolveClosestExistingRole(getUserRoleSearchSources(item), rolesData);
-        const resolvedRoleObject = tokenRoleObject || explicitRoleObject;
+        const resolvedRoleObject = explicitRoleObject;
         const resolvedRoleCode = resolvedRoleObject?.codigo || '';
 
         if (!resolvedRoleCode) {
@@ -569,7 +519,7 @@ const SecurityConfigPage = () => {
           setSelectedUser(freshUser);
           setUserForm({
             ...mapUserToForm(freshUser),
-            rol: resolveUserRoleCode(freshUser),
+            rol: getUserRoleCode(freshUser),
           });
         } else {
           setSelectedUser(null);
@@ -580,9 +530,7 @@ const SecurityConfigPage = () => {
       if (canConfigure) {
         const backfillCandidates = usersData
           .map((item) => {
-            const resolvedRoleObject = resolveClosestExistingRole(getUserRoleSearchSources(item), rolesData);
-
-            if (getUserRoleCode(item) || !resolvedRoleObject) {
+            if (getUserRoleCode(item)) {
               return null;
             }
 
@@ -591,7 +539,7 @@ const SecurityConfigPage = () => {
               nombre: item?.nombre || '',
               correo: item?.correo || '',
               dependencia: item?.dependencia || '',
-              rol: resolvedRoleObject.codigo || '',
+              rol: 'visualizador',
               activo: Boolean(item?.activo),
             };
           })
@@ -722,7 +670,7 @@ const SecurityConfigPage = () => {
     setSelectedUser(user);
     setUserForm({
       ...mapUserToForm(user),
-      rol: resolveUserRoleCode(user),
+      rol: getUserRoleCode(user),
     });
     setActiveSection(SECURITY_TABS.USERS);
   };
@@ -1335,7 +1283,7 @@ const SecurityConfigPage = () => {
                         const isSelected = selectedUser?.username === user.username;
                         const initial = (user.nombre || user.username || '?')[0].toUpperCase();
                         const avatarColor = getAvatarColor(user.nombre || user.username);
-                        const roleValue = resolveUserRoleLabel(user) || formatRoleLabel(resolveUserRoleCode(user)) || 'No verificado';
+                        const roleValue = getUserRoleLabel(user) || formatRoleLabel(getUserRoleCode(user)) || 'No verificado';
                         const lastAccess = formatDateTime(getUserLastAccess(user));
 
                         return (
@@ -1538,7 +1486,7 @@ const SecurityConfigPage = () => {
                           <>
                             <strong>{selectedAssignmentUser.nombre || selectedAssignmentUser.username}</strong>
                             <span>
-                              {`Rol actual: ${resolveUserRoleLabel(selectedAssignmentUser) || formatRoleLabel(selectedAssignmentUserRole) || 'No verificado'}.`}
+                              {`Rol actual: ${getUserRoleLabel(selectedAssignmentUser) || formatRoleLabel(selectedAssignmentUserRole) || 'No verificado'}.`}
                               {shouldRestrictToDirectors
                                 ? ' El cargo de dirección solo se permite para usuarios con un rol directivo equivalente.'
                                 : ' Los cargos se validan contra la parametrizaci?n del sistema.'}

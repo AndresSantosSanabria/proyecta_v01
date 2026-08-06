@@ -39,6 +39,12 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const canConfigure = usePermission('CONFIGURACION:VER') || usePermission('SISTEMA:CONFIGURAR');
   const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
 
+  const sidebarDashboard = usePermission('SIDEBAR:DASHBOARD');
+  const sidebarProyectos = usePermission('SIDEBAR:PROYECTOS');
+  const sidebarReportes = usePermission('SIDEBAR:REPORTES');
+  const sidebarAnaliticas = usePermission('SIDEBAR:ANALITICAS');
+  const sidebarSeguridad = usePermission('SIDEBAR:SEGURIDAD');
+
   const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
 
@@ -100,27 +106,27 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     {
       category: 'PRINCIPAL',
       items: compactItems([
-        canViewDashboard ? { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> } : null,
-        canViewProjects ? { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: visibleProjectCount } : null,
+        (sidebarDashboard) ? { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> } : null,
+        (sidebarProyectos) ? { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: visibleProjectCount } : null,
       ])
     },
     {
       category: 'MODULOS',
       items: currentProjectId ? [
-        canViewProjects ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
-        canViewProjects ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
-        canViewProjects ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
-        canViewProjects ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
+        (sidebarProyectos) ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
+        (sidebarProyectos) ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
+        (sidebarProyectos) ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
+        (sidebarProyectos) ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
       ].filter(Boolean) : []
     },
     {
       category: 'CONSULTAS',
       items: compactItems([
-        canViewReports ? { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> } : null,
-        canViewAnalytics ? { name: 'Analíticas', path: '/analytics', icon: <BarChart3 size={22} /> } : null,
+        (sidebarReportes) ? { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> } : null,
+        (sidebarAnaliticas) ? { name: 'Analíticas', path: '/analytics', icon: <BarChart3 size={22} /> } : null,
       ])
     },
-    ...(canConfigure ? [{
+    ...((sidebarSeguridad) ? [{
       category: 'ADMINISTRACION',
       items: compactItems([
         { name: 'Configuracion Seguridad', path: '/admin/configuracion', icon: <ShieldCheck size={22} /> },

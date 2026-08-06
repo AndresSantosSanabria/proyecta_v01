@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Download,
+  Eye,
   FileUp,
   Info,
   Plus,
@@ -11,6 +12,7 @@ import {
   ShieldAlert,
   Sparkles,
   Trash2,
+  Upload,
   X,
   Save,
   Pencil,
@@ -101,14 +103,17 @@ const RiesgosPage = () => {
   const [solutionFiles, setSolutionFiles] = useState([]);
   const [solutionSaving, setSolutionSaving] = useState(false);
   const [solutionError, setSolutionError] = useState(null);
+  const [previewSolution, setPreviewSolution] = useState(null);
   const [matrixHelpOpen, setMatrixHelpOpen] = useState(false);
   const [openSelect, setOpenSelect] = useState(null);
+  const [evidencias, setEvidencias] = useState([]);
 
   const closeModal = () => {
     setModalOpen(false);
     setEditingId(null);
     setForm(emptyForm);
     setOpenSelect(null);
+    setEvidencias([]);
   };
 
   const closeSolutionModal = () => {
@@ -117,6 +122,7 @@ const RiesgosPage = () => {
     setSolutionFiles([]);
     setSolutionSaving(false);
     setSolutionError(null);
+    setPreviewSolution(null);
   };
 
   useEffect(() => {
@@ -306,6 +312,18 @@ const RiesgosPage = () => {
     }
   };
 
+  const previewSolutionFile = async (solution) => {
+    if (!solution?.id || !solutionRisk?.id) return;
+    try {
+      const blob = await riskService.downloadRiskSolution(proyectoId, solutionRisk.id, solution.id);
+      const blobUrl = window.URL.createObjectURL(blob);
+      setPreviewSolution({ ...solution, blobUrl });
+    } catch (err) {
+      console.error(err);
+      setSolutionError('No fue posible cargar la vista previa del PDF.');
+    }
+  };
+
   const handleSolutionSubmit = async (event) => {
     event.preventDefault();
     if (!canEdit || !solutionRisk) return;
@@ -358,6 +376,17 @@ const RiesgosPage = () => {
     setModalOpen(true);
   };
 
+  const handleEvidenciasChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    const pdfFiles = files.filter((f) => f.type === 'application/pdf');
+    setEvidencias((prev) => [...prev, ...pdfFiles].slice(0, 10));
+    e.target.value = '';
+  };
+
+  const removeEvidencia = (index) => {
+    setEvidencias((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) return;
@@ -384,10 +413,16 @@ const RiesgosPage = () => {
         estado: form.estado,
       };
 
+      let riskId = editingId;
       if (editingId) {
         await riskService.updateRisk(proyectoId, editingId, payload);
       } else {
-        await riskService.createRisk(proyectoId, payload);
+        const created = await riskService.createRisk(proyectoId, payload);
+        riskId = created?.data?.id ?? created?.data?.data?.id;
+      }
+
+      if (riskId && evidencias.length > 0) {
+        await riskService.uploadRiskSolutions(proyectoId, riskId, evidencias);
       }
 
       closeModal();
@@ -648,6 +683,38 @@ const RiesgosPage = () => {
                   </div>
                 </label>
               </div>
+
+              {form.estado === 'TRATADO' && (
+                <label className="file-picker">
+                  <span>Evidencias (PDF)</span>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    multiple
+                    onChange={handleEvidenciasChange}
+                  />
+                  {evidencias.length > 0 && (
+                    <div className="pending-files">
+                      {evidencias.map((file, idx) => (
+                        <article className="pending-file" key={`${file.name}_${file.size}_${idx}`}>
+                          <div className="solution-item-copy">
+                            <strong>{file.name}</strong>
+                            <span>{formatBytes(file.size)}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-danger compact"
+                            onClick={() => removeEvidencia(idx)}
+                            title="Quitar archivo"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </label>
+              )}
 
               <label>
                 Descripción del riesgo
@@ -986,14 +1053,24 @@ const RiesgosPage = () => {
                             {formatBytes(solution.tamanoBytes)} · {solution.fechaCarga ? new Date(solution.fechaCarga).toLocaleString() : 'Sin fecha'}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          className="btn-secondary compact"
-                          onClick={() => downloadSolutionFile(solution)}
-                          title="Descargar PDF"
-                        >
-                          <Download size={14} />
-                        </button>
+                        <div className="solution-item-actions">
+                          <button
+                            type="button"
+                            className="btn-secondary compact"
+                            onClick={() => previewSolutionFile(solution)}
+                            title="Vista previa"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary compact"
+                            onClick={() => downloadSolutionFile(solution)}
+                            title="Descargar PDF"
+                          >
+                            <Download size={14} />
+                          </button>
+                        </div>
                       </article>
                     ))
                   )}
@@ -1053,6 +1130,24 @@ const RiesgosPage = () => {
                 </form>
               </section>
             </div>
+          </div>
+        </div>
+      )}
+
+      {previewSolution && solutionRisk && (
+        <div className="pdf-preview-backdrop" role="presentation" onClick={() => { window.URL.revokeObjectURL(previewSolution.blobUrl); setPreviewSolution(null); }}>
+          <div className="pdf-preview-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="pdf-preview-header">
+              <span>{previewSolution.nombreOriginal}</span>
+              <button type="button" className="modal-close-btn" onClick={() => { window.URL.revokeObjectURL(previewSolution.blobUrl); setPreviewSolution(null); }} aria-label="Cerrar">
+                <X size={18} />
+              </button>
+            </div>
+            <iframe
+              className="pdf-preview-iframe"
+              src={previewSolution.blobUrl}
+              title={previewSolution.nombreOriginal}
+            />
           </div>
         </div>
       )}

@@ -186,16 +186,12 @@ const shouldSyncBackendUser = (backendUser, tokenProfile, roleAliases = defaultR
 };
 
 const syncBackendUserFromToken = async (currentUser, roleAliases = defaultRoleAliases) => {
-  const tokenProfile = extractTokenProfile(currentUser?.access_token, roleAliases);
-  if (!tokenProfile.username || !tokenProfile.rolCodigo) {
-    return null;
-  }
-
   try {
-    const response = await securityService.updateUser(buildUserSyncPayload(tokenProfile));
+    // Al llamar a /authz/me, el backend hace un upsert automático.
+    const response = await authzService.getMe();
     return response?.data ?? response ?? null;
   } catch (syncError) {
-    console.warn('No fue posible sincronizar el usuario autenticado con el token:', syncError);
+    console.warn('No fue posible sincronizar (upsert) el usuario autenticado:', syncError);
     return null;
   }
 };

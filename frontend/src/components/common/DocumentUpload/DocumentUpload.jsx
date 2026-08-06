@@ -19,6 +19,25 @@ const ALLOWED_MIME_TYPES = [
   'application/pdf',
 ];
 
+const PdfPreviewModal = ({ url, fileName, onClose }) => {
+  if (!url) return null;
+  return (
+    <div className="pdf-preview-backdrop" onClick={onClose}>
+      <div className="pdf-preview-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="pdf-preview-header">
+          <span className="pdf-preview-title">{fileName || 'Vista previa'}</span>
+          <button className="pdf-preview-close" onClick={onClose}><X size={18} /></button>
+        </div>
+        <iframe
+          src={url}
+          className="pdf-preview-iframe"
+          title={fileName || 'PDF Preview'}
+        />
+      </div>
+    </div>
+  );
+};
+
 const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) => {
   const canUpload = usePermission('DOCUMENTO:CARGAR');
   const [state, setState] = useState(STATE.IDLE);
@@ -26,6 +45,7 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
   const [uploadedFile, setUploadedFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoadingExisting, setIsLoadingExisting] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
   const formatSize = useCallback((bytes) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -189,12 +209,19 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
     try {
       const blob = await documentService.descargarDocumento(proyectoId, tipoDocumento);
       const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      setPreviewUrl({ url, name: uploadedFile?.nombreOriginal || `${tipoDocumento}.pdf` });
     } catch {
       setState(STATE.ERROR);
       setErrorMessage('Error al visualizar el documento.');
     }
-  }, [proyectoId, tipoDocumento]);
+  }, [proyectoId, tipoDocumento, uploadedFile]);
+
+  const handleClosePreview = useCallback(() => {
+    if (previewUrl?.url) {
+      window.URL.revokeObjectURL(previewUrl.url);
+    }
+    setPreviewUrl(null);
+  }, [previewUrl]);
 
   const handleReset = useCallback(() => {
     setState(STATE.IDLE);
@@ -324,6 +351,14 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, label, onUploadSuccess }) =
             <X size={16} />
           </button>
         </div>
+      )}
+
+      {previewUrl && (
+        <PdfPreviewModal
+          url={previewUrl.url}
+          fileName={previewUrl.name}
+          onClose={handleClosePreview}
+        />
       )}
     </div>
   );

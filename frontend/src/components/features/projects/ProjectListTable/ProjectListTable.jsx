@@ -39,6 +39,18 @@ const getProjectName = (project) => project?.nombre || project?.nombreProyecto |
 const getProjectDependency = (project) => project?.dependencia || project?.nombreDependencia || 'Sin dependencia';
 const getProjectDirectorName = (project) => project?.director || project?.directorNombre || '';
 const getProjectDirectorCargo = (project) => project?.directorCargo || project?.cargoDirector || project?.directorRol || '';
+const buildProjectProgressPath = (projectId) => `/projects/${encodeURIComponent(projectId)}/progress`;
+
+const openProject = (navigate, projectId) => (event) => {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+
+  if (!projectId) {
+    return;
+  }
+
+  navigate(buildProjectProgressPath(projectId));
+};
 
 const ProjectListTable = ({ projects = [], loading = false, canEditProject = false }) => {
   const navigate = useNavigate();
@@ -78,8 +90,9 @@ const ProjectListTable = ({ projects = [], loading = false, canEditProject = fal
                     <td data-label="Acciones">
                       <div className="action-buttons">
                         <button
+                          type="button"
                           className="btn-action-open"
-                          onClick={() => navigate(`/projects/${projectId}/progress`)}
+                          onClick={openProject(navigate, projectId)}
                           disabled={!projectId}
                         >
                           Abrir
@@ -186,8 +199,9 @@ const ProjectListTable = ({ projects = [], loading = false, canEditProject = fal
 
                 <div className="project-list-card__actions">
                   <button
+                    type="button"
                     className="btn-action-open"
-                    onClick={() => navigate(`/projects/${projectId}/progress`)}
+                    onClick={openProject(navigate, projectId)}
                     disabled={!projectId}
                   >
                     Abrir proyecto

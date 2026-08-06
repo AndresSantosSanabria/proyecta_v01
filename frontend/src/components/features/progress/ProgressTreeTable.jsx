@@ -132,6 +132,7 @@ const normalizeHierarchyForEditor = (source = []) => source.map((fase) => ({
     entregables: sortEntregablesBySchedule(hito.entregables || []).map((entregable) => ({
       id: getEntregableId(entregable),
       nombre: entregable.nombre || '',
+      descripcion: entregable.descripcion || '',
       ponderacion: entregable.ponderacion ?? '',
       fechaInicio: entregable.fechaInicio || entregable.fecha_inicio || '',
       fechaLimite: entregable.fechaLimite || entregable.fechaEntrega || '',
@@ -315,6 +316,7 @@ const TreeTableRow = ({
             </span>
             <strong>{fase.nombre}</strong>
           </div>
+          {fase.descripcion && <div className="node-description">{fase.descripcion}</div>}
         </td>
         <td>{ponderacionFase.toFixed(0)}%</td>
         <td><NodeMetric value={programadoFase} /></td>
@@ -352,6 +354,7 @@ const TreeTableRow = ({
                   </span>
                   <span>{hito.nombre}</span>
                 </div>
+                {hito.descripcion && <div className="node-description">{hito.descripcion}</div>}
               </td>
               <td>{ponderacionHito.toFixed(0)}%</td>
               <td><NodeMetric value={programadoHito} /></td>
@@ -405,6 +408,7 @@ const TreeTableRow = ({
                         </span>
                         <span>{ent.nombre}</span>
                       </div>
+                      {ent.descripcion && <div className="node-description">{ent.descripcion}</div>}
                       {tieneDocumento && (
                         <button
                           type="button"
@@ -1627,7 +1631,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
           entregable={showCambiarFechaModal}
           proyectoId={proyectoId}
           onClose={() => setShowCambiarFechaModal(null)}
-          onSaved={() => {}}
+          onSaved={() => { if (onEvidenceUploaded) onEvidenceUploaded(); }}
         />
       )}
 

@@ -1,5 +1,7 @@
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts';
 import { appConfig } from '../config/env';
+import { prepareLogoutSession } from '../services/sessionService';
+import { notifyLogout } from './feedback';
 
 const clientId = appConfig.keycloak.clientId;
 const authority = appConfig.keycloak.authority;
@@ -29,6 +31,8 @@ export const auth = new UserManager({
 });
 
 let loginRedirectPromise = null;
+let silentRenewPromise = null;
+let logoutRedirectPromise = null;
 
 export async function clearOidcStaleState() {
   try {
@@ -55,15 +59,85 @@ export async function startLoginRedirect() {
   }
 }
 
-export async function startLogoutRedirect() {
+export async function renewAccessToken() {
+  if (silentRenewPromise) {
+    return silentRenewPromise;
+  }
+
+  silentRenewPromise = (async () => {
+    await auth.signinSilent();
+    return auth.getUser();
+  })();
+
+  try {
+    return await silentRenewPromise;
+  } finally {
+    silentRenewPromise = null;
+  }
+}
+
+async function clearLocalOidcState() {
   try {
     await auth.removeUser();
     await auth.clearStaleState();
   } catch (error) {
     console.warn('No se pudo limpiar el estado OIDC antes del logout:', error);
   }
+}
 
-  return auth.signoutRedirect();
+export async function startLogoutRedirect() {
+  if (logoutRedirectPromise) {
+    return logoutRedirectPromise;
+  }
+
+  logoutRedirectPromise = (async () => {
+    let currentUser = null;
+
+    try {
+      currentUser = await auth.getUser();
+    } catch (error) {
+      console.warn('No fue posible leer el usuario actual antes del logout:', error);
+    }
+
+    const accessToken = currentUser?.access_token ?? null;
+    const idToken = currentUser?.id_token ?? null;
+    const refreshToken = currentUser?.refresh_token ?? null;
+
+    try {
+      await prepareLogoutSession({
+        accessToken,
+        idToken,
+        refreshToken,
+      });
+    } catch (error) {
+      console.warn('No se pudo preparar el logout en el backend:', error);
+    }
+
+    await clearLocalOidcState();
+
+    const postLogoutRedirectUri = `${window.location.origin}/`;
+
+    notifyLogout({
+      message: 'Se cerro la sesion local y se redirigira al login de Keycloak.',
+    });
+
+    try {
+      return await auth.signoutRedirect({
+        id_token_hint: idToken,
+        post_logout_redirect_uri: postLogoutRedirectUri,
+      });
+    } catch (error) {
+      console.warn('No se pudo cerrar la sesion global en Keycloak, forzando retorno al login:', error);
+      window.location.assign(postLogoutRedirectUri);
+      return null;
+    }
+  })();
+
+  try {
+    return await logoutRedirectPromise;
+  } finally {
+    logoutRedirectPromise = null;
+  }
 }
 
 export function decodeJwtPayload(token) {

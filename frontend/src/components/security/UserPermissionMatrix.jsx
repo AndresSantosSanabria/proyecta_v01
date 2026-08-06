@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Eye,
   Loader2,
   Save,
   ShieldCheck,
@@ -13,6 +14,18 @@ import {
 } from 'lucide-react';
 import securityService from '../../services/securityService';
 import './UserPermissionMatrix.css';
+
+const SIDEBAR_CATEGORY = 'Modulos Sidebar';
+
+const SIDEBAR_ITEM_LABELS = {
+  'SIDEBAR:DASHBOARD': 'Dashboard',
+  'SIDEBAR:PROYECTOS': 'Proyectos',
+  'SIDEBAR:REPORTES': 'Reportes',
+  'SIDEBAR:ANALITICAS': 'Analiticas',
+  'SIDEBAR:SEGURIDAD': 'Configuracion Seguridad',
+};
+
+const CATEGORY_SORT_ORDER = [SIDEBAR_CATEGORY, 'Analiticas', 'Avances', 'Beneficio e Impacto', 'Cierre', 'Configuracion', 'Cronograma', 'Dashboard', 'Documentos', 'Entregables', 'Evidencias', 'Proyectos', 'Reportes', 'Sistema'];
 
 const UserPermissionMatrix = ({ onClose }) => {
   const [users, setUsers] = useState([]);
@@ -92,7 +105,7 @@ const UserPermissionMatrix = ({ onClose }) => {
     setMatrix((prev) => ({
       ...prev,
       permisos: prev.permisos.map((p) =>
-        p.permisoId === permisoId ? { ...p, concedido, source: true } : p
+        p.permisoId === permisoId ? { ...p, concedido, sidebar: concedido, source: true } : p
       ),
     }));
   };
@@ -102,7 +115,7 @@ const UserPermissionMatrix = ({ onClose }) => {
     setMatrix((prev) => ({
       ...prev,
       permisos: prev.permisos.map((p) =>
-        p.categoria === categoria ? { ...p, concedido: value, source: true } : p
+        p.categoria === categoria ? { ...p, concedido: value, sidebar: value, source: true } : p
       ),
     }));
   };
@@ -121,6 +134,7 @@ const UserPermissionMatrix = ({ onClose }) => {
         })),
       });
       setNotice('Permisos guardados correctamente.');
+      window.dispatchEvent(new Event('proyecta:authz:refresh'));
     } catch {
       setError('Error al guardar los permisos.');
     } finally {
@@ -144,7 +158,13 @@ const UserPermissionMatrix = ({ onClose }) => {
       if (!catMap[p.categoria]) catMap[p.categoria] = [];
       catMap[p.categoria].push(p);
     }
-    return Object.entries(catMap).sort(([a], [b]) => a.localeCompare(b));
+    return Object.entries(catMap).sort(([a], [b]) => {
+      const ia = CATEGORY_SORT_ORDER.indexOf(a);
+      const ib = CATEGORY_SORT_ORDER.indexOf(b);
+      const va = ia >= 0 ? ia : 999;
+      const vb = ib >= 0 ? ib : 999;
+      return va - vb || a.localeCompare(b);
+    });
   }, [matrix]);
 
   const filteredUsers = users.filter((u) => {
@@ -269,6 +289,8 @@ const UserPermissionMatrix = ({ onClose }) => {
                           <span className="upm-th-label">Concedido</span>
                         </th>
                         <th className="upm-th-source">Origen</th>
+                        <th className="upm-th-sidebar">Sidebar</th>
+                        <th className="upm-th-accion">Accion</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -276,14 +298,20 @@ const UserPermissionMatrix = ({ onClose }) => {
                         const allChecked = permisos.every((p) => p.concedido);
                         const someChecked = permisos.some((p) => p.concedido);
                         const isExpanded = expandedCategories.has(categoria);
+                        const isSidebarCategory = categoria === SIDEBAR_CATEGORY;
 
                         return (
                           <Fragment key={categoria}>
-                            <tr className="upm-category-row">
-                              <td colSpan={3} onClick={() => toggleCategory(categoria)}>
+                            <tr className={`upm-category-row ${isSidebarCategory ? 'sidebar-category' : ''}`}>
+                              <td colSpan={5} onClick={() => toggleCategory(categoria)}>
                                 <div className="upm-category-header">
                                   {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                   <span className="upm-category-name">{categoria}</span>
+                                  {isSidebarCategory && (
+                                    <span className="upm-visibility-badge">
+                                      <Eye size={12} /> VISIBILIDAD
+                                    </span>
+                                  )}
                                   <span className="upm-category-count">
                                     {permisos.filter((p) => p.concedido).length}/{permisos.length}
                                   </span>
@@ -304,7 +332,7 @@ const UserPermissionMatrix = ({ onClose }) => {
                               permisos.map((p) => (
                                 <tr
                                   key={p.permisoId}
-                                  className={`upm-permission-row ${p.source ? 'overridden' : ''}`}
+                                  className={`upm-permission-row ${p.source ? 'overridden' : ''} ${isSidebarCategory ? 'sidebar-perm' : ''}`}
                                 >
                                   <td className="upm-td-codigo">
                                     <span className="upm-perm-code">{p.codigo}</span>
@@ -329,6 +357,33 @@ const UserPermissionMatrix = ({ onClose }) => {
                                       <span className="upm-source-role">Rol</span>
                                     ) : (
                                       <span className="upm-source-none">-</span>
+                                    )}
+                                  </td>
+                                  <td className="upm-td-sidebar">
+                                    {isSidebarCategory ? (
+                                      <label className="upm-toggle-switch">
+                                        <input
+                                          type="checkbox"
+                                          checked={p.sidebar}
+                                          onChange={(e) => handleToggle(p.permisoId, e.target.checked)}
+                                        />
+                                        <span className="upm-toggle-slider" />
+                                      </label>
+                                    ) : SIDEBAR_ITEM_LABELS[p.codigo] ? (
+                                      <span className="upm-sidebar-tag">{SIDEBAR_ITEM_LABELS[p.codigo]}</span>
+                                    ) : (
+                                      <span className="upm-sidebar-none">--</span>
+                                    )}
+                                  </td>
+                                  <td className="upm-td-accion">
+                                    {isSidebarCategory ? (
+                                      <span className={`upm-accion-badge ${p.sidebar ? 'visible' : 'hidden'}`}>
+                                        {p.sidebar ? 'Visible' : 'Oculto'}
+                                      </span>
+                                    ) : (
+                                      <span className={`upm-accion-badge ${p.concedido ? 'active' : 'inactive'}`}>
+                                        {p.concedido ? 'Activo' : 'Inactivo'}
+                                      </span>
                                     )}
                                   </td>
                                 </tr>

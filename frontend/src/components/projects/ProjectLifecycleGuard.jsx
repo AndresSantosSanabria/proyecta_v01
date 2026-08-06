@@ -145,7 +145,7 @@ const ProjectLifecycleGuard = () => {
   };
 
   if (!projectId) {
-    return <Navigate to="/access-denied" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
 
   if (loading) {

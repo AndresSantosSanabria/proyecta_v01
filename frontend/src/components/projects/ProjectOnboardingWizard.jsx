@@ -330,6 +330,9 @@ const ProjectOnboardingWizard = ({
       nombre: member.nombre,
       cargo: member.cargo,
       rol: member.rol,
+      dependencia: member.dependencia || null,
+      telefono: member.telefono || null,
+      correo: member.correo || null,
     })),
     fases: (form.fases || []).map((fase) => ({
       nombre: fase.nombre,

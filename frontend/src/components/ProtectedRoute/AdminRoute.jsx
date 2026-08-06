@@ -27,7 +27,15 @@ const AdminRoute = () => {
       return <Navigate to="/analytics" replace />;
     }
 
-    return <Navigate to="/access-denied" replace />;
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{
+          reason: 'Falta acceso de configuracion en BD: CONFIGURACION:VER o SISTEMA:CONFIGURAR.',
+        }}
+      />
+    );
   }
 
   return <Outlet />;

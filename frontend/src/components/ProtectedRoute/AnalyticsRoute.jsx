@@ -9,7 +9,15 @@ const AnalyticsRoute = () => {
     || hasPermission('ANALITICA:VER');
 
   if (!canViewAnalytics) {
-    return <Navigate to="/access-denied" replace />;
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{
+          reason: 'Falta el permiso ANALITICA:VER en la matriz de permisos de BD.',
+        }}
+      />
+    );
   }
 
   return <Outlet />;

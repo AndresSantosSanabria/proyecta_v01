@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CheckCircle, Info, X } from 'lucide-react';
 import projectService from '../../services/projectService';
 import { usePermission } from '../../hooks/usePermission';
-import AccessDeniedPage from '../AccessDeniedPage/AccessDeniedPage';
 import './NewProjectPage.css';
 
 const INITIAL_STATE = {
@@ -210,7 +209,7 @@ const NewProjectPage = () => {
   };
 
   if (!canCreateProject) {
-    return <AccessDeniedPage />;
+    return <Navigate to="/" replace />;
   }
 
   if (submitSuccess) {
