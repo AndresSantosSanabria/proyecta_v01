@@ -16,6 +16,8 @@ public record ProyectoResponseDTO(
     LocalDate fechaInicio,
     String estado,
     BigDecimal avanceTotal,
+    BigDecimal presupuestoEstimado,
+    String alcanceDetallado,
     Boolean peti,
     String vigenciaPeti,
     String estrategiaPeti,

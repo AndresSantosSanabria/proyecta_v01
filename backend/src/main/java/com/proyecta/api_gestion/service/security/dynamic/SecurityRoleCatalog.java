@@ -14,7 +14,8 @@ public final class SecurityRoleCatalog {
             "gestor_proyectos",
             "director_proyecto",
             "auditor",
-            "consulta"
+            "consulta",
+            "visualizador"
     );
 
     public static final Set<String> TRANSVERSAL_ROLE_CODES = Set.of("admin", "gestor_tic", "gestor_proyectos");

@@ -15,6 +15,7 @@ public record PermisoUsuarioMatrixDTO(
             String nombre,
             String categoria,
             boolean concedido,
-            boolean source
+            boolean source,
+            boolean sidebar
     ) {}
 }

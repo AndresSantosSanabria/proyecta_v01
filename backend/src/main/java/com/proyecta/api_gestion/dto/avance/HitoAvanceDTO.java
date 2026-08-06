@@ -6,6 +6,7 @@ import java.util.List;
 public record HitoAvanceDTO(
     Integer id,
     String nombre,
+    String descripcion,
     BigDecimal ponderacion,
     BigDecimal progresoProgramado,
     BigDecimal progresoEjecutado,

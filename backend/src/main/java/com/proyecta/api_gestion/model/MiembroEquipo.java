@@ -15,13 +15,25 @@ public class MiembroEquipo {
     @Column(name = "miembro_rol", length = 100)
     private String rol;
 
+    @Column(name = "miembro_dependencia", length = 150)
+    private String dependencia;
+
+    @Column(name = "miembro_telefono", length = 30)
+    private String telefono;
+
+    @Column(name = "miembro_correo", length = 150)
+    private String correo;
+
     public MiembroEquipo() {
     }
 
-    public MiembroEquipo(String nombre, String cargo, String rol) {
+    public MiembroEquipo(String nombre, String cargo, String rol, String dependencia, String telefono, String correo) {
         this.nombre = nombre;
         this.cargo = cargo;
         this.rol = rol;
+        this.dependencia = dependencia;
+        this.telefono = telefono;
+        this.correo = correo;
     }
 
     public String getNombre() {
@@ -46,5 +58,29 @@ public class MiembroEquipo {
 
     public void setRol(String rol) {
         this.rol = rol;
+    }
+
+    public String getDependencia() {
+        return dependencia;
+    }
+
+    public void setDependencia(String dependencia) {
+        this.dependencia = dependencia;
+    }
+
+    public String getTelefono() {
+        return telefono;
+    }
+
+    public void setTelefono(String telefono) {
+        this.telefono = telefono;
+    }
+
+    public String getCorreo() {
+        return correo;
+    }
+
+    public void setCorreo(String correo) {
+        this.correo = correo;
     }
 }

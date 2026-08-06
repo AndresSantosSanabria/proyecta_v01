@@ -4,8 +4,10 @@ import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.UnauthorizedException;
 import com.proyecta.api_gestion.model.Usuario;
 import com.proyecta.api_gestion.model.config.RolConfig;
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.repository.config.RolConfigRepository;
 import com.proyecta.api_gestion.repository.UsuarioRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import org.slf4j.Logger;
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Locale;
 
@@ -29,16 +32,19 @@ public class LocalUserAuthorizationService {
 
     private final UsuarioRepository usuarioRepository;
     private final RolConfigRepository rolConfigRepository;
+    private final SeguridadUsuarioRepository seguridadUsuarioRepository;
     private final KeycloakIdentityExtractor identityExtractor;
     private final Set<String> bootstrapAdminEmails;
 
     public LocalUserAuthorizationService(
             UsuarioRepository usuarioRepository,
             RolConfigRepository rolConfigRepository,
+            SeguridadUsuarioRepository seguridadUsuarioRepository,
             KeycloakIdentityExtractor identityExtractor,
             @Value("${gob.security.admin-emails:}") String adminEmails) {
         this.usuarioRepository = usuarioRepository;
         this.rolConfigRepository = rolConfigRepository;
+        this.seguridadUsuarioRepository = seguridadUsuarioRepository;
         this.identityExtractor = identityExtractor;
         this.bootstrapAdminEmails = Arrays.stream(adminEmails.split(","))
                 .map(this::clean)
@@ -78,6 +84,16 @@ public class LocalUserAuthorizationService {
         boolean hasLocalRole = usuario.getRolConfig() != null || usuario.getRol() != null;
 
         if (!hasFunctionalRole && !hasLocalRole) {
+            String username = identityExtractor.resolveUsername(authentication);
+            if (username != null && !username.isBlank()) {
+                Optional<SeguridadUsuario> segUsuario = seguridadUsuarioRepository.findByUsernameIgnoreCase(username);
+                if (segUsuario.isPresent() && segUsuario.get().getRolCodigo() != null) {
+                    String normalizedRole = SecurityRoleCatalog.normalize(segUsuario.get().getRolCodigo());
+                    if (normalizedRole != null && SecurityRoleCatalog.isProtected(normalizedRole)) {
+                        return true;
+                    }
+                }
+            }
             throw new ForbiddenException("El usuario no tiene un rol funcional valido en Proyecta.");
         }
 

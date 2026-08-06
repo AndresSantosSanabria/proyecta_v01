@@ -16,8 +16,8 @@ public interface SeguridadUsuarioPermisoRepository extends JpaRepository<Segurid
     Set<Long> findPermisoIdsByUsuario_Id(Long usuarioId);
 
     @Modifying
-    @Transactional
-    void deleteByUsuario_Id(Long usuarioId);
+    @Query(value = "DELETE FROM proyecta_db.usuario_permiso WHERE usuario_id = :usuarioId", nativeQuery = true)
+    void deleteByUsuario_Id(@org.springframework.data.repository.query.Param("usuarioId") Long usuarioId);
 
     @Query("SELECT up.permiso.codigo FROM SeguridadUsuarioPermiso up WHERE up.usuario.id = :usuarioId AND up.concedido = true")
     Set<String> findGrantedPermissionCodesByUsuarioId(Long usuarioId);

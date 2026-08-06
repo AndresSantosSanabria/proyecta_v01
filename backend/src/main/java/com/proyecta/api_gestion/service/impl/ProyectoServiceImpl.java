@@ -185,7 +185,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         // Equipo
         if (dto.equipoTrabajo() != null) {
             proyecto.setEquipoTrabajo(dto.equipoTrabajo().stream()
-                    .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol()))
+                    .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol(), m.dependencia(), m.telefono(), m.correo()))
                     .collect(Collectors.toList()));
         }
 
@@ -600,7 +600,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.getEquipoTrabajo().clear();
         if (dto.equipoTrabajo() != null) {
             dto.equipoTrabajo().stream()
-                    .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol()))
+                    .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol(), m.dependencia(), m.telefono(), m.correo()))
                     .forEach(proyecto.getEquipoTrabajo()::add);
         }
 
@@ -939,12 +939,14 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getFechaInicio(),
                 p.getEstadoCodigo(),
                 p.getAvanceTotal(),
+                p.getPresupuestoEstimado(),
+                p.getAlcanceDetallado(),
                 p.getPeti(),
                 p.getVigenciaPeti(),
                 resolveEstrategiaPetiCodigo(p),
                 p.getTienePlanComunicaciones(),
                 p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getEntidad(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
-                p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol())).collect(Collectors.toList()),
+                p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol(), m.getDependencia(), m.getTelefono(), m.getCorreo())).collect(Collectors.toList()),
                 p.getFurag() != null ? new FuragDTO(p.getFurag().getInfraestructuraDatos(), p.getFurag().getInteroperabilidad(), p.getFurag().getDigitalizacionAutomatizacion(), p.getFurag().getContratacionPublica(), p.getFurag().getServiciosNube(), p.getFurag().getSandbox(), p.getFurag().getTecnologiasEmergentes()) : null,
                 p.getFases().stream()
                         .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)

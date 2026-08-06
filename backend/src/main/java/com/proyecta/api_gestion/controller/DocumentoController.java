@@ -61,10 +61,13 @@ public class DocumentoController implements IDocumentoController {
             @PathVariable String tipoDocumento) {
 
         Resource resource = documentoService.descargarDocumento(proyectoId, tipoDocumento);
+        String filename = resource.getFilename();
+        boolean isPdf = filename != null && filename.toLowerCase().endsWith(".pdf");
 
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .contentType(isPdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        (isPdf ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
                 .body(resource);
     }
 
@@ -87,10 +90,13 @@ public class DocumentoController implements IDocumentoController {
             @PathVariable Integer numeroVersion) {
 
         Resource resource = documentoService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
+        String filename = resource.getFilename();
+        boolean isPdf = filename != null && filename.toLowerCase().endsWith(".pdf");
 
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .contentType(isPdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        (isPdf ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
                 .body(resource);
     }
 }

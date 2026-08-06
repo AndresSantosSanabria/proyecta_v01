@@ -87,6 +87,13 @@ public class ProyectoSecurity {
             throw new ForbiddenException("El Director de Proyecto solo puede cargar, reemplazar y subsanar evidencias de sus proyectos asignados.");
         }
 
+        if (isDirectorOnly(roleCodes)
+                && proyectoId != null && !proyectoId.isBlank()
+                && !DIRECTOR_BLOCKED_PERMISSIONS.contains(normalizedPermission)
+                && catalogCacheService.isAssignedToProject(username, proyectoId)) {
+            return true;
+        }
+
         Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)

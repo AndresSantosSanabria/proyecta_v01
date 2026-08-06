@@ -12,6 +12,8 @@ import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,9 @@ public class PermisoUsuarioService {
     private final SeguridadRolPermisoRepository rolPermisoRepository;
     private final SeguridadUsuarioPermisoRepository usuarioPermisoRepository;
     private final SecurityCatalogCacheService catalogCacheService;
+
+    @PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     public PermisoUsuarioService(
             SeguridadUsuarioRepository usuarioRepository,
@@ -70,6 +75,9 @@ public class PermisoUsuarioService {
                     }
 
                     String categoria = extractCategory(permiso.getCodigo());
+                    boolean sidebar = permiso.getCodigo() != null
+                            && permiso.getCodigo().toUpperCase(Locale.ROOT).startsWith("SIDEBAR:")
+                            && concedido;
 
                     return new PermisoUsuarioMatrixDTO.PermisoItemDTO(
                             permiso.getId(),
@@ -77,7 +85,8 @@ public class PermisoUsuarioService {
                             permiso.getNombre(),
                             categoria,
                             concedido,
-                            source
+                            source,
+                            sidebar
                     );
                 })
                 .toList();
@@ -102,7 +111,14 @@ public class PermisoUsuarioService {
 
         Set<Long> rolePermisoIds = getRolePermissionIds(usuario.getRolCodigo());
 
-        usuarioPermisoRepository.deleteByUsuario_Id(usuario.getId());
+        entityManager.createNativeQuery("DELETE FROM proyecta_db.usuario_permiso WHERE usuario_id = ?1")
+                .setParameter(1, usuario.getId())
+                .executeUpdate();
+        entityManager.flush();
+        entityManager.clear();
+
+        usuario = usuarioRepository.findById(request.usuarioId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + request.usuarioId()));
 
         if (request.permisos() == null || request.permisos().isEmpty()) {
             catalogCacheService.evictAll();
@@ -137,11 +153,13 @@ public class PermisoUsuarioService {
 
     public Set<String> getEffectivePermissions(String username) {
         SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username).orElse(null);
-        if (usuario == null || usuario.getRolCodigo() == null) {
+        if (usuario == null) {
             return Set.of();
         }
 
-        Set<String> rolePermissions = catalogCacheService.getPermissionsForRoles(Set.of(usuario.getRolCodigo().toLowerCase()));
+        Set<String> rolePermissions = usuario.getRolCodigo() == null
+                ? Set.of()
+                : catalogCacheService.getPermissionsForRoles(Set.of(usuario.getRolCodigo().toLowerCase()));
         Set<String> grantedOverrides = usuarioPermisoRepository.findGrantedPermissionCodesByUsuarioId(usuario.getId());
         Set<String> deniedOverrides = usuarioPermisoRepository.findDeniedPermissionCodesByUsuarioId(usuario.getId());
 
@@ -191,6 +209,7 @@ public class PermisoUsuarioService {
                 case "CIERRE" -> "Cierre";
                 case "SISTEMA" -> "Sistema";
                 case "CONFIGURACION" -> "Configuracion";
+                case "SIDEBAR" -> "Modulos Sidebar";
                 default -> prefix;
             };
         }

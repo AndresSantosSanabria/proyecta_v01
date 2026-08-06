@@ -63,19 +63,25 @@ public class ActaCierreDocxGenerator {
         XWPFTable table = bodyTable(doc, 0);
         setCellTextPreservingStyle(table.getRow(1).getCell(0), safe(data.codigoProyecto()));
         setCellTextPreservingStyle(table.getRow(2).getCell(0), safe(data.nombreProyecto()));
-        setCellTextPreservingStyle(table.getRow(4).getCell(0), sponsorLine(data.patrocinadorNombre(), data.patrocinadorCargo()));
-        setCellTextPreservingStyle(table.getRow(5).getCell(0), safe(data.patrocinadorEntidad()));
-        setCellTextPreservingStyle(table.getRow(8).getCell(0), directorLine(data.directorNombre(), data.directorCargo()));
-        setCellTextPreservingStyle(table.getRow(9).getCell(0), safe(data.directorEntidad()));
+        // Patrocinador: Row 3 = sub-header (untouched), Row 4 = Nombre, Row 5 = Cargo, Row 6 = Entidad
+        setCellTextPreservingStyle(table.getRow(4).getCell(0), safe(data.patrocinadorNombre()));
+        setCellTextPreservingStyle(table.getRow(5).getCell(0), safe(data.patrocinadorCargo()));
+        setCellTextPreservingStyle(table.getRow(6).getCell(0), safe(data.patrocinadorEntidad()));
+        // Director: Row 7 = sub-header (untouched), Row 8 = Nombre, Row 9 = Cargo, Row 10 = Entidad
+        setCellTextPreservingStyle(table.getRow(8).getCell(0), safe(data.directorNombre()));
+        setCellTextPreservingStyle(table.getRow(9).getCell(0), safe(data.directorCargo()));
+        setCellTextPreservingStyle(table.getRow(10).getCell(0), safe(data.directorEntidad()));
         setCellTextPreservingStyle(table.getRow(11).getCell(0), safe(data.fechaInicio()));
         setCellTextPreservingStyle(table.getRow(12).getCell(0), safe(data.fechaCierre()));
         setCellTextPreservingStyle(table.getRow(13).getCell(0), safe(data.duracionTotalMeses()) + " meses");
     }
 
     private void fillObjectiveSections(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
+        // Table 1: Row 0 = blue header "OBJETIVO GENERAL:", Row 1 = white content row
         XWPFTable objective = bodyTable(doc, 1);
-        setCellTextPreservingStyle(objective.getRow(0).getCell(0), safe(data.objetivoGeneral()));
+        setCellTextPreservingStyle(objective.getRow(1).getCell(0), safe(data.objetivoGeneral()));
 
+        // Table 2: Row 0 = blue header "OBJETIVOS ESPECIFICOS:", Row 1 = white content row
         XWPFTable objectives = bodyTable(doc, 2);
         StringBuilder sb = new StringBuilder();
         List<String> objetivos = data.objetivosEspecificos() == null ? List.of() : data.objetivosEspecificos();
@@ -89,10 +95,11 @@ public class ActaCierreDocxGenerator {
             }
             sb.append(i + 1).append(". ").append(objetivo.trim());
         }
-        setCellTextPreservingStyle(objectives.getRow(0).getCell(0), sb.length() == 0 ? "No registrado" : sb.toString());
+        setCellTextPreservingStyle(objectives.getRow(1).getCell(0), sb.length() == 0 ? "No registrado" : sb.toString());
 
+        // Table 3: Row 0 = blue header "RESUMEN EJECUTIVO:", Row 1 = white content row
         XWPFTable summary = bodyTable(doc, 3);
-        setCellTextPreservingStyle(summary.getRow(0).getCell(0), safe(data.resumenEjecutivo()));
+        setCellTextPreservingStyle(summary.getRow(1).getCell(0), safe(data.resumenEjecutivo()));
     }
 
     private void fillDeliverables(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
@@ -132,11 +139,13 @@ public class ActaCierreDocxGenerator {
         String publicValue = "Genera valor publico al reducir tiempos de gestion, mejorar la transparencia del seguimiento, "
                 + "concentrar la informacion en una sola plataforma, facilitar la consulta de evidencias y aumentar la calidad del servicio prestado a ciudadanos y equipos internos.";
 
+        // Table 6: Row 0 = blue header "ALINEACION ESTRATEGICA", Row 1 = white content row
         XWPFTable alignmentTable = bodyTable(doc, 6);
-        setCellTextPreservingStyle(alignmentTable.getRow(0).getCell(0), alignment);
+        setCellTextPreservingStyle(alignmentTable.getRow(1).getCell(0), alignment);
 
+        // Table 7: Row 0 = blue header "VALOR PUBLICO", Row 1 = white content row
         XWPFTable valueTable = bodyTable(doc, 7);
-        setCellTextPreservingStyle(valueTable.getRow(0).getCell(0), publicValue);
+        setCellTextPreservingStyle(valueTable.getRow(1).getCell(0), publicValue);
     }
 
     private void fillTransfer(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {

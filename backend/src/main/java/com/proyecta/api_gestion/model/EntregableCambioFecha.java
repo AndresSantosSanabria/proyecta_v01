@@ -31,10 +31,10 @@ public class EntregableCambioFecha {
     @Column(name = "nombre_original", length = 300)
     private String nombreOriginal;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String usuario;
 
-    @Column(name = "usuario_rol", length = 100)
+    @Column(name = "usuario_rol", length = 500)
     private String usuarioRol;
 
     @Column(name = "creado_en", nullable = false, updatable = false)

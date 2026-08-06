@@ -6,6 +6,7 @@ import java.time.LocalDate;
 public record EntregableAvanceDTO(
     Integer id,
     String nombre,
+    String descripcion,
     BigDecimal ponderacion,
     LocalDate fechaInicio,
     LocalDate fechaLimite,

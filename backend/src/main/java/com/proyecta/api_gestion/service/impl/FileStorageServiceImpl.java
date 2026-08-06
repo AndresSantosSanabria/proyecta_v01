@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.InternalErrorException;
+import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
@@ -132,7 +133,7 @@ public class FileStorageServiceImpl implements IStorageProvider {
             if (resource.exists() && resource.isReadable()) {
                 return resource;
             }
-            throw new InternalErrorException("Archivo no encontrado o no legible: " + fileName);
+            throw new ResourceNotFoundException("El archivo no fue encontrado en el servidor: " + fileName);
         } catch (MalformedURLException ex) {
             throw new InternalErrorException("Archivo no encontrado: " + fileName, ex);
         }

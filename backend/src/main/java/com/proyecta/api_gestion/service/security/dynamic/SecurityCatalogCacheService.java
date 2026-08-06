@@ -6,6 +6,8 @@ import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 @Service
 public class SecurityCatalogCacheService {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityCatalogCacheService.class);
     private final SeguridadRolPermisoRepository rolPermisoRepository;
     private final SeguridadPermisoRepository permisoRepository;
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
@@ -60,15 +63,24 @@ public class SecurityCatalogCacheService {
         }
 
         String cacheKey = roleCode.trim().toLowerCase(Locale.ROOT);
-        return permissionsByRoleCache.computeIfAbsent(cacheKey, key ->
-                rolPermisoRepository.findActiveByRoleCodes(Set.of(key)).stream()
-                        .map(SeguridadRolPermiso::getPermiso)
-                        .filter(permiso -> permiso != null && Boolean.TRUE.equals(permiso.getActivo()))
-                        .map(SeguridadPermiso::getCodigo)
-                        .filter(codigo -> codigo != null && !codigo.isBlank())
-                        .map(codigo -> codigo.trim().toUpperCase(Locale.ROOT))
-                        .collect(Collectors.toCollection(LinkedHashSet::new))
-        );
+        return permissionsByRoleCache.computeIfAbsent(cacheKey, key -> {
+            Set<String> result = rolPermisoRepository.findActiveByRoleCodes(Set.of(key)).stream()
+                    .map(SeguridadRolPermiso::getPermiso)
+                    .filter(permiso -> permiso != null && Boolean.TRUE.equals(permiso.getActivo()))
+                    .map(SeguridadPermiso::getCodigo)
+                    .filter(codigo -> codigo != null && !codigo.isBlank())
+                    .map(codigo -> codigo.trim().toUpperCase(Locale.ROOT))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            log.info("[AuthzDebug] getPermissionsForRole roleCode={}, foundPermissions={}", roleCode, result.size());
+            log.info("[AuthzDebug] getPermissionsForRole roleCode={}, allPermissions={}", roleCode, result);
+            return result.isEmpty() ? Set.of() : result;
+        });
+    }
+
+    public void evictRole(String roleCode) {
+        if (roleCode != null && !roleCode.isBlank()) {
+            permissionsByRoleCache.remove(roleCode.trim().toLowerCase(Locale.ROOT));
+        }
     }
 
     public boolean isAssignedToProject(String username, String proyectoId) {

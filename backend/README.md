@@ -267,6 +267,29 @@ export const auth = new UserManager({
 4. React llama a Spring con `Authorization: Bearer <token>`
 5. Spring valida el JWT y aplica `hasRole('app_access')`
 
+**Flujo de logout recomendado:**
+
+1. React limpia el `access_token`, `refresh_token` e `id_token` almacenados localmente.
+2. React llama a `POST /api/v1/authz/logout` enviando `idToken` y, si existe, `refreshToken`.
+3. La API invalida la sesión local, revoca el refresh token cuando aplica y devuelve la `logoutUrl`.
+4. React redirige el navegador a `logoutUrl` para cerrar la sesión SSO en Keycloak.
+5. Si una llamada a la API responde `401`, el frontend debe intentar renovar con el refresh token; si la renovación falla, debe reenviar al usuario al login.
+
+```js
+// Ejemplo de manejo de 401/403 en el cliente
+if (response.status === 401) {
+  const renewed = await auth.signinSilent().catch(() => null);
+  if (!renewed) {
+    await auth.signinRedirect();
+  }
+}
+
+if (response.status === 403) {
+  // El token sigue siendo válido, pero el usuario no tiene permisos
+  showForbiddenMessage();
+}
+```
+
 ---
 
 ## Pruebas

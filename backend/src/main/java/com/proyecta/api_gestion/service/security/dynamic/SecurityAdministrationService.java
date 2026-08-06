@@ -23,6 +23,7 @@ import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadRolRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
@@ -33,6 +34,9 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
+import com.proyecta.api_gestion.service.security.UserProvisioningService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -56,11 +60,13 @@ import org.springframework.data.domain.Sort;
 @Service
 public class SecurityAdministrationService {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityAdministrationService.class);
     private final SeguridadUsuarioRepository usuarioRepository;
     private final SeguridadRolRepository rolRepository;
     private final SeguridadPermisoRepository permisoRepository;
     private final SeguridadRolPermisoRepository rolPermisoRepository;
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final SeguridadUsuarioPermisoRepository usuarioPermisoRepository;
     private final ProyectoRepository proyectoRepository;
     private final SystemParameterService systemParameterService;
     private final ListaParametricaConfigRepository listaParametricaRepository;
@@ -68,6 +74,7 @@ public class SecurityAdministrationService {
     private final KeycloakIdentityExtractor identityExtractor;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final NotificationEventPublisherPort notificationPublisher;
+    private final UserProvisioningService userProvisioningService;
 
     public SecurityAdministrationService(
             SeguridadUsuarioRepository usuarioRepository,
@@ -75,18 +82,21 @@ public class SecurityAdministrationService {
             SeguridadPermisoRepository permisoRepository,
             SeguridadRolPermisoRepository rolPermisoRepository,
             SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+            SeguridadUsuarioPermisoRepository usuarioPermisoRepository,
             ProyectoRepository proyectoRepository,
             SystemParameterService systemParameterService,
             ListaParametricaConfigRepository listaParametricaRepository,
             SecurityCatalogCacheService catalogCacheService,
             KeycloakIdentityExtractor identityExtractor,
             LocalUserAuthorizationService localUserAuthorizationService,
-            NotificationEventPublisherPort notificationPublisher) {
+            NotificationEventPublisherPort notificationPublisher,
+            UserProvisioningService userProvisioningService) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.permisoRepository = permisoRepository;
         this.rolPermisoRepository = rolPermisoRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
+        this.usuarioPermisoRepository = usuarioPermisoRepository;
         this.proyectoRepository = proyectoRepository;
         this.systemParameterService = systemParameterService;
         this.listaParametricaRepository = listaParametricaRepository;
@@ -94,6 +104,7 @@ public class SecurityAdministrationService {
         this.identityExtractor = identityExtractor;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.notificationPublisher = notificationPublisher;
+        this.userProvisioningService = userProvisioningService;
     }
 
     public Page<SeguridadUsuarioDTO> listarUsuarios(String search, String rol, Pageable pageable) {
@@ -124,6 +135,7 @@ public class SecurityAdministrationService {
             usuario.setCorreo(email != null ? email : username);
             usuario.setDependencia(identityExtractor.resolveDependencia(authentication));
             usuario.setActivo(true);
+            shouldSave = true;
         } else {
             if (keycloakSub != null && !keycloakSub.equalsIgnoreCase(normalizeText(usuario.getKeycloakSub()))) {
                 usuario.setKeycloakSub(keycloakSub);
@@ -477,19 +489,26 @@ public class SecurityAdministrationService {
                 .toList();
     }
 
+    @Transactional
     public SeguridadAutorizacionMeDTO getAuthorizationFor(Authentication authentication) {
         String username = identityExtractor.resolveUsername(authentication);
         if (username == null || username.isBlank()) {
             throw new ForbiddenException("No fue posible resolver el usuario autenticado.");
         }
 
-        Jwt jwt = identityExtractor.resolveJwt(authentication);
         String nombre = identityExtractor.resolveDisplayName(authentication);
 
         boolean isAdminFromJwt = authentication.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_admin".equals(a.getAuthority()));
 
-        SeguridadUsuario usuario = sincronizarUsuarioAutenticado(authentication);
+        // Upsert: crea o actualiza el usuario con REQUIRES_NEW (commit garantizado).
+        SeguridadUsuario usuario = userProvisioningService.upsert(authentication);
+
+        // Fallback: si upsert retornó null (muy improbable), intentar carga directa.
+        if (usuario == null) {
+            usuario = usuarioRepository.findByUsernameIgnoreCase(username.trim())
+                    .orElseThrow(() -> new ForbiddenException("Usuario no encontrado tras aprovisionamiento: " + username));
+        }
 
         Set<String> roleCodes = new LinkedHashSet<>();
         Set<String> permissions = new LinkedHashSet<>();
@@ -503,6 +522,14 @@ public class SecurityAdministrationService {
                 roleCodes.add(dbRoleCode.trim().toLowerCase(Locale.ROOT));
                 permissions.addAll(catalogCacheService.getPermissionsForRoles(roleCodes));
             }
+
+            // Apply user-level overrides (granted add, denied remove)
+            Set<String> grantedOverrides = usuarioPermisoRepository.findGrantedPermissionCodesByUsuarioId(usuario.getId());
+            Set<String> deniedOverrides = usuarioPermisoRepository.findDeniedPermissionCodesByUsuarioId(usuario.getId());
+            permissions.addAll(grantedOverrides);
+            permissions.removeAll(deniedOverrides);
+            log.info("[AuthzDebug] user={}, userId={}, dbRoleCode={}, finalCount={}, grantedOverrides={}, deniedOverrides={}",
+                    username, usuario.getId(), dbRoleCode, permissions.size(), grantedOverrides.size(), deniedOverrides.size());
         }
 
         boolean transversal = roleCodes.stream().anyMatch(SecurityRoleCatalog::isTransversal);
@@ -517,6 +544,10 @@ public class SecurityAdministrationService {
             administradorLocal = administradorLocal || localUser.esAdministrador();
         } catch (RuntimeException ignored) {
         }
+
+        log.info("[AuthzDebug] user={}, roles={}, permissionsCount={}, projectsCount={}",
+                username, roleCodes, permissions.size(), projects.size());
+        log.info("[AuthzDebug] user={}, allPermissions={}", username, permissions);
 
         return new SeguridadAutorizacionMeDTO(
                 username,

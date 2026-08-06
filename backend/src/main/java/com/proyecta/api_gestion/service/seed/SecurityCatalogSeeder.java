@@ -25,7 +25,8 @@ public class SecurityCatalogSeeder {
             new RoleSeed("gestor_proyectos", "Gestor de Proyectos", "Gestion funcional y revision de evidencias", true),
             new RoleSeed("director_proyecto", "Director de Proyecto", "Operacion sobre sus proyectos asignados", false),
             new RoleSeed("auditor", "Auditor", "Consulta y revision sin edicion", false),
-            new RoleSeed("consulta", "Consulta", "Solo lectura", false)
+            new RoleSeed("consulta", "Consulta", "Solo lectura", false),
+            new RoleSeed("visualizador", "Visualizador", "Acceso de solo lectura por defecto", false)
     );
 
     private static final List<PermissionSeed> PERMISSIONS = List.of(
@@ -66,7 +67,12 @@ public class SecurityCatalogSeeder {
             new PermissionSeed("SISTEMA:VER", "Ver sistema", "Permite consultar la configuracion general del sistema"),
             new PermissionSeed("SISTEMA:CREAR", "Crear configuracion del sistema", "Permite registrar configuraciones de sistema"),
             new PermissionSeed("SISTEMA:EDITAR", "Editar sistema", "Permite actualizar la configuracion general del sistema"),
-            new PermissionSeed("SISTEMA:CONFIGURAR", "Configurar sistema", "Permite administrar usuarios, roles y permisos")
+            new PermissionSeed("SISTEMA:CONFIGURAR", "Configurar sistema", "Permite administrar usuarios, roles y permisos"),
+            new PermissionSeed("SIDEBAR:DASHBOARD", "Mostrar Dashboard en menu", "Controla la visibilidad del modulo Dashboard en el sidebar"),
+            new PermissionSeed("SIDEBAR:PROYECTOS", "Mostrar Proyectos en menu", "Controla la visibilidad del modulo Proyectos en el sidebar"),
+            new PermissionSeed("SIDEBAR:REPORTES", "Mostrar Reportes en menu", "Controla la visibilidad del modulo Reportes en el sidebar"),
+            new PermissionSeed("SIDEBAR:ANALITICAS", "Mostrar Analiticas en menu", "Controla la visibilidad del modulo Analiticas en el sidebar"),
+            new PermissionSeed("SIDEBAR:SEGURIDAD", "Mostrar Configuracion Seguridad en menu", "Controla la visibilidad del modulo Configuracion y Seguridad en el sidebar")
     );
 
     private static final Map<String, List<String>> ROLE_PERMISSIONS = Map.of(
@@ -80,7 +86,8 @@ public class SecurityCatalogSeeder {
                     "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
                     "BENEFICIO_IMPACTO:VER", "BENEFICIO_IMPACTO:EDITAR",
                     "CIERRE:SOLICITAR", "CIERRE:APROBAR",
-                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR"),
+                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR",
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD"),
             "gestor_tic", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
                     "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
@@ -91,7 +98,8 @@ public class SecurityCatalogSeeder {
                     "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
                     "BENEFICIO_IMPACTO:VER",
                     "CIERRE:APROBAR",
-                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR"),
+                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR",
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD"),
             "gestor_proyectos", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
                     "REPORTE:VER", "ANALITICA:VER",
@@ -101,7 +109,8 @@ public class SecurityCatalogSeeder {
                     "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR", "DOCUMENTO:HISTORIAL", "DOCUMENTO:REVERTIR",
                     "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
                     "BENEFICIO_IMPACTO:VER",
-                    "CIERRE:SOLICITAR", "CIERRE:APROBAR"),
+                    "CIERRE:SOLICITAR", "CIERRE:APROBAR",
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS"),
             "director_proyecto", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:EDITAR",
                     "ENTREGABLE:VER", "EVIDENCIA:VER", "EVIDENCIA:CARGAR",
@@ -109,15 +118,20 @@ public class SecurityCatalogSeeder {
                     "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
                     "AVANCE:VER", "AVANCE:EDITAR",
                     "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR",
-                    "CIERRE:SOLICITAR"),
+                    "CIERRE:SOLICITAR",
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS"),
             "auditor", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "REPORTE:VER", "ANALITICA:VER",
                     "ENTREGABLE:VER", "EVIDENCIA:VER", "BENEFICIO_IMPACTO:VER",
-                    "DOCUMENTO:VER", "CRONOGRAMA:VER", "SISTEMA:VER"),
+                    "DOCUMENTO:VER", "CRONOGRAMA:VER", "SISTEMA:VER",
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS"),
             "consulta", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "REPORTE:VER", "ANALITICA:VER",
                     "ENTREGABLE:VER", "EVIDENCIA:VER", "BENEFICIO_IMPACTO:VER",
-                    "DOCUMENTO:VER", "CRONOGRAMA:VER")
+                    "DOCUMENTO:VER", "CRONOGRAMA:VER",
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS"),
+            "visualizador", List.of(
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS")
     );
 
     private final SeguridadRolRepository rolRepository;

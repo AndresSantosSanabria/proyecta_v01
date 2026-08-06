@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.proyecta.api_gestion.service.security.dynamic.DynamicJwtAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
 /**
  * Security Configuration for Proyecta API
@@ -40,7 +41,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtAuthenticationConverter jwtAuthenticationConverter,
+            UserProvisioningFilter userProvisioningFilter,
+            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -62,7 +67,9 @@ public class SecurityConfig {
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
-            );
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+            )
+            .addFilterAfter(userProvisioningFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

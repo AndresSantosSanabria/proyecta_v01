@@ -30,7 +30,7 @@ public class ProjectDelayNotificationService {
         this.notificationPublisher = notificationPublisher;
     }
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void notifyIfDelayed(Proyecto proyecto, ProyectoAvanceResponseDTO snapshot, String actorUsername) {
         if (proyecto == null || snapshot == null || proyecto.getId() == null) {
             return;

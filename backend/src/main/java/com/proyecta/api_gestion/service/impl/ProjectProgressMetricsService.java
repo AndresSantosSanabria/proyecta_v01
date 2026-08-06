@@ -147,6 +147,7 @@ public class ProjectProgressMetricsService {
         return new FaseAvanceDTO(
                 fase.getId(),
                 fase.getNombre(),
+                fase.getDescripcion(),
                 normalizarPonderacion(fase.getPonderacion()),
                 progresoProgramado,
                 progresoEjecutado,
@@ -177,6 +178,7 @@ public class ProjectProgressMetricsService {
         return new HitoAvanceDTO(
                 hito.getId(),
                 hito.getNombre(),
+                hito.getDescripcion(),
                 normalizarPonderacion(hito.getPonderacion()),
                 progresoProgramado,
                 progresoEjecutado,
@@ -207,6 +209,7 @@ public class ProjectProgressMetricsService {
         return new EntregableAvanceDTO(
                 entregable.getId(),
                 entregable.getNombre(),
+                entregable.getDescripcion(),
                 normalizarPonderacion(entregable.getPonderacion()),
                 entregable.getFechaInicio(),
                 entregable.getFechaLimite(),

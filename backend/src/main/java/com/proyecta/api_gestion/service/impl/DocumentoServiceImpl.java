@@ -210,7 +210,9 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 .orElse(null);
 
         if (documentoExistente != null) {
-            storageProvider.deleteFile(STORAGE_SUBDIR, documentoExistente.getNombreAlmacenado());
+            // ELIMINADO: storageProvider.deleteFile(STORAGE_SUBDIR, documentoExistente.getNombreAlmacenado());
+            // No podemos borrar el archivo físico porque la version anterior (histórica) en `DocumentoProyectoVersion`
+            // lo sigue referenciando y es necesario para que funcione el visor de historial.
             documentoExistente.setNombreOriginal(version.getNombreArchivoOriginal());
             documentoExistente.setNombreAlmacenado(version.getNombreAlmacenado());
             documentoExistente.setRutaAlmacenamiento(version.getRutaAlmacenamiento());

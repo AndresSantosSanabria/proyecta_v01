@@ -29,6 +29,8 @@ gob.security.resource-client-ids=${GOB_RESOURCE_CLIENT_IDS}
 gob.security.cors.allowed-origins=${GOB_CORS_ORIGINS}
 gob.security.admin-emails=${GOB_SECURITY_ADMIN_EMAILS:}
 gob.seed.users=${GOB_SEED_USERS:}
+gob.security.keycloak.client-secret=${GOB_KEYCLOAK_CLIENT_SECRET:}
+gob.security.logout.post-redirect-uri=${GOB_LOGOUT_POST_REDIRECT_URI:http://localhost:5173/}
 spring.flyway.enabled=true
 spring.flyway.locations=classpath:db/migration
 

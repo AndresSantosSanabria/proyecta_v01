@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/v1/usuarios")
@@ -36,6 +37,7 @@ public class UsuarioController implements IUsuarioController {
     }
 
     @Override
+    @Transactional(readOnly = false) // readOnly = false because validateAndTouch saves the entity
     public ResponseEntity<ApiResponse<UsuarioDTO>> getMe(@AuthenticationPrincipal Jwt jwt, Authentication authentication) {
         Usuario usuario = localUserAuthorizationService.validateAndTouch(authentication);
 

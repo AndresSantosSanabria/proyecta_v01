@@ -57,7 +57,7 @@ public class PetiCatalogService {
         List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("FURAG_PREGUNTAS");
         if (!items.isEmpty()) {
             return items.stream()
-                    .map(item -> new FuragPreguntaDTO(item.getItemCodigo().toLowerCase(), item.getItemNombre()))
+                    .map(item -> new FuragPreguntaDTO(toCamelCase(item.getItemCodigo()), item.getItemNombre()))
                     .toList();
         }
         return DEFAULT_FURAG_PREGUNTAS;
@@ -169,6 +169,19 @@ public class PetiCatalogService {
                 .replaceAll("[^A-Z0-9]+", "_")
                 .replaceAll("^_+|_+$", "");
         return code.isBlank() ? null : code;
+    }
+
+    private String toCamelCase(String snakeCase) {
+        if (snakeCase == null) return null;
+        String[] parts = snakeCase.split("_");
+        StringBuilder result = new StringBuilder(parts[0].toLowerCase(Locale.ROOT));
+        for (int i = 1; i < parts.length; i++) {
+            if (!parts[i].isEmpty()) {
+                result.append(parts[i].substring(0, 1).toUpperCase(Locale.ROOT));
+                result.append(parts[i].substring(1).toLowerCase(Locale.ROOT));
+            }
+        }
+        return result.toString();
     }
 
     private String trimToNull(String value) {
