@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, LockKeyhole, Save } from 'lucide-react';
 import { usePermission } from '../../hooks/usePermission';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
@@ -113,6 +113,7 @@ const ProjectOnboardingWizard = ({
   const [petiCatalog, setPetiCatalog] = useState(null);
   const [petiCatalogLoading, setPetiCatalogLoading] = useState(false);
   const [dependencias, setDependencias] = useState([]);
+  const [entregableFiles, setEntregableFiles] = useState({});
 
   useEffect(() => {
     let active = true;
@@ -199,6 +200,22 @@ const ProjectOnboardingWizard = ({
     handleChange({ objetivosEspecificos: (form.objetivosEspecificos || []).filter((_, i) => i !== index) });
   };
 
+  const handleEntregableFileChange = (fIndex, hIndex, eIndex, file) => {
+    const key = `${fIndex}_${hIndex}_${eIndex}`;
+    setEntregableFiles((prev) => ({
+      ...prev,
+      [key]: file,
+    }));
+  };
+
+  const isRetroactiveDate = (fechaLimite) => {
+    if (!fechaLimite) return false;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fecha = new Date(`${fechaLimite}T00:00:00`);
+    return fecha < hoy;
+  };
+
   const validateStep = (targetStep, source = form) => {
     const nextErrors = {};
 
@@ -244,14 +261,21 @@ const ProjectOnboardingWizard = ({
             if (!entregable.ponderacion || parseFloat(entregable.ponderacion) <= 0) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_ponderacion`] = 'La ponderacion del entregable debe ser mayor a 0.';
             if (!entregable.fechaInicio) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaInicio`] = 'La fecha de inicio es obligatoria.';
             if (!entregable.fechaLimite) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaLimite`] = 'La fecha limite es obligatoria.';
-            if (entregable.fechaInicio && source.fechaInicio && isBeforeDate(entregable.fechaInicio, source.fechaInicio)) {
+            const esRetroactivo = isRetroactiveDate(entregable.fechaLimite);
+            if (!esRetroactivo && entregable.fechaInicio && source.fechaInicio && isBeforeDate(entregable.fechaInicio, source.fechaInicio)) {
               nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaInicio`] = `La fecha de inicio del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${source.fechaInicio}).`;
             }
-            if (entregable.fechaLimite && source.fechaInicio && isBeforeDate(entregable.fechaLimite, source.fechaInicio)) {
+            if (!esRetroactivo && entregable.fechaLimite && source.fechaInicio && isBeforeDate(entregable.fechaLimite, source.fechaInicio)) {
               nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaLimite`] = `La fecha limite del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${source.fechaInicio}).`;
             }
             if (entregable.fechaInicio && entregable.fechaLimite && new Date(entregable.fechaLimite) < new Date(entregable.fechaInicio)) {
               nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaLimite`] = 'La fecha limite debe ser mayor o igual a la fecha de inicio.';
+            }
+            if (entregable.fechaLimite && isRetroactiveDate(entregable.fechaLimite)) {
+              const fileKey = `${faseIndex}_${hitoIndex}_${entregableIndex}`;
+              if (!entregableFiles[fileKey]) {
+                nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_archivo`] = 'Debes adjuntar un archivo de soporte porque la fecha limite es anterior a hoy.';
+              }
             }
           });
 
@@ -334,20 +358,25 @@ const ProjectOnboardingWizard = ({
       telefono: member.telefono || null,
       correo: member.correo || null,
     })),
-    fases: (form.fases || []).map((fase) => ({
+    fases: (form.fases || []).map((fase, fIndex) => ({
       nombre: fase.nombre,
       descripcion: fase.descripcion || null,
       ponderacion: parseFloat(fase.ponderacion),
-      hitos: (fase.hitos || []).map((hito) => ({
+      hitos: (fase.hitos || []).map((hito, hIndex) => ({
         nombre: hito.nombre,
         descripcion: hito.descripcion || null,
         ponderacion: parseFloat(hito.ponderacion),
-        entregables: (hito.entregables || []).map((entregable) => ({
-          nombre: entregable.nombre,
-          ponderacion: parseFloat(entregable.ponderacion),
-          fechaInicio: entregable.fechaInicio,
-          fechaLimite: entregable.fechaLimite,
-        })),
+        entregables: (hito.entregables || []).map((entregable, eIndex) => {
+          const fileKey = `${fIndex}_${hIndex}_${eIndex}`;
+          const file = entregableFiles[fileKey];
+          return {
+            nombre: entregable.nombre,
+            ponderacion: parseFloat(entregable.ponderacion),
+            fechaInicio: entregable.fechaInicio,
+            fechaLimite: entregable.fechaLimite,
+            archivoPdf: file ? file.name : null,
+          };
+        }),
       })),
     })),
     peti: form.peti,
@@ -383,6 +412,7 @@ const ProjectOnboardingWizard = ({
       actaConstitucionPdf: form.actaConstitucionPdf || null,
       cronogramaPdf: form.cronogramaPdf || null,
       planComunicacionesPdf: form.planComunicacionesPdf || null,
+      entregableFiles,
     });
   };
 
@@ -483,6 +513,7 @@ const ProjectOnboardingWizard = ({
           onChange={handleChange}
           errors={errors}
           allowEmpty={false}
+          onFileChange={handleEntregableFileChange}
         />
       );
     }

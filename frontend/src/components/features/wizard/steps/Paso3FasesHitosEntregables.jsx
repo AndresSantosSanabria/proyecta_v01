@@ -72,9 +72,25 @@ const Paso3FasesHitosEntregables = ({
   lockExistingDates = false,
   protectExistingItems = false,
   allowEmpty = true,
+  onFileChange,
 }) => {
   const fases = normalizeHierarchyNames(data.fases || []);
   const projectStartDate = getProjectStartDate(data);
+
+  const handleFileChange = (fIndex, hIndex, eIndex, event) => {
+    const file = event.target.files?.[0];
+    if (onFileChange) {
+      onFileChange(fIndex, hIndex, eIndex, file);
+    }
+  };
+
+  const isRetroactiveDate = (fechaLimite) => {
+    if (!fechaLimite) return false;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fecha = new Date(`${fechaLimite}T00:00:00`);
+    return fecha < hoy;
+  };
 
   const updateFase = (fIndex, field, value) => {
     const nuevas = [...fases];
@@ -346,11 +362,13 @@ const Paso3FasesHitosEntregables = ({
                               className={`form-input ${dateLocked ? 'form-input-muted' : ''} ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaInicio`] ? 'input-error' : ''}`}
                               value={ent.fechaInicio || ''}
                               onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'fechaInicio', e.target.value)}
-                              min={projectStartDate || undefined}
                               disabled={dateLocked}
                             />
-                            {projectStartDate && !dateLocked && (
+                            {projectStartDate && !dateLocked && !isRetroactiveDate(ent.fechaLimite) && (
                               <span className="field-help">No puede iniciar antes del inicio del proyecto: {projectStartDate}.</span>
+                            )}
+                            {!dateLocked && isRetroactiveDate(ent.fechaLimite) && (
+                              <span className="field-help field-help-warning">Este entregable es retroactivo: puedes seleccionar fechas anteriores a hoy.</span>
                             )}
                           </div>
                           <div className="form-group">
@@ -360,13 +378,32 @@ const Paso3FasesHitosEntregables = ({
                               className={`form-input ${dateLocked ? 'form-input-muted' : ''} ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] ? 'input-error' : ''}`}
                               value={ent.fechaLimite || ''}
                               onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'fechaLimite', e.target.value)}
-                              min={ent.fechaInicio || projectStartDate || undefined}
                               disabled={dateLocked}
                             />
                             {dateLocked && (
                               <span className="field-help">Las fechas no se pueden editar en entregables existentes.</span>
                             )}
+                            {!dateLocked && isRetroactiveDate(ent.fechaLimite) && (
+                              <span className="field-help field-help-warning">Entregable retroactivo: debes adjuntar un archivo de soporte que lo respalde.</span>
+                            )}
                           </div>
+                          {!dateLocked && isRetroactiveDate(ent.fechaLimite) && (
+                            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                              <label className="form-label">
+                                Archivo de soporte (PDF) *
+                                <span className="retroactive-badge">Obligatorio (entregable retroactivo)</span>
+                              </label>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                className={`form-input ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`] ? 'input-error' : ''}`}
+                                onChange={(e) => handleFileChange(fIndex, hIndex, eIndex, e)}
+                              />
+                              {errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`] && (
+                                <span className="error-text">{errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`]}</span>
+                              )}
+                            </div>
+                          )}
                           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                             <label className="form-label">Descripcion</label>
                             <input

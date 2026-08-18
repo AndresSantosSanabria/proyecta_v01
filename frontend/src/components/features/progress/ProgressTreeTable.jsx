@@ -79,6 +79,14 @@ const isBeforeDate = (value, minValue) => {
   return Boolean(date && minDate && date < minDate);
 };
 
+const isRetroactiveDate = (fechaLimite) => {
+  if (!fechaLimite) return false;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const fecha = new Date(`${fechaLimite}T00:00:00`);
+  return fecha < hoy;
+};
+
 const compareEntregablesBySchedule = (left, right) => {
   const startDiff = dateSortValue(left?.fechaInicio || left?.fecha_inicio)
     - dateSortValue(right?.fechaInicio || right?.fecha_inicio);
@@ -194,10 +202,11 @@ const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '') => {
           if (!entregable.fechaLimite) {
             errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] = 'La fecha limite del nuevo entregable es obligatoria.';
           }
-          if (entregable.fechaInicio && fechaInicioProyecto && isBeforeDate(entregable.fechaInicio, fechaInicioProyecto)) {
+          const esRetroactivo = isRetroactiveDate(entregable.fechaLimite);
+          if (!esRetroactivo && entregable.fechaInicio && fechaInicioProyecto && isBeforeDate(entregable.fechaInicio, fechaInicioProyecto)) {
             errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaInicio`] = `La fecha de inicio del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${fechaInicioProyecto}).`;
           }
-          if (entregable.fechaLimite && fechaInicioProyecto && isBeforeDate(entregable.fechaLimite, fechaInicioProyecto)) {
+          if (!esRetroactivo && entregable.fechaLimite && fechaInicioProyecto && isBeforeDate(entregable.fechaLimite, fechaInicioProyecto)) {
             errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] = `La fecha limite del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${fechaInicioProyecto}).`;
           }
           if (entregable.fechaInicio && entregable.fechaLimite && new Date(entregable.fechaLimite) < new Date(entregable.fechaInicio)) {
