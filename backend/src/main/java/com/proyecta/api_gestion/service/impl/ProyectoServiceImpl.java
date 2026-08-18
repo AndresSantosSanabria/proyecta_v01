@@ -861,9 +861,6 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (entregable.fechaLimite() == null) {
             throw new BadRequestException("La fecha limite del entregable es obligatoria");
         }
-        if (fechaInicioProyecto != null && entregable.fechaInicio().isBefore(fechaInicioProyecto)) {
-            throw new BadRequestException("La fecha de inicio del entregable debe ser mayor o igual a la fecha de inicio del proyecto");
-        }
         if (entregable.fechaLimite().isBefore(entregable.fechaInicio())) {
             throw new BadRequestException("La fecha limite del entregable debe ser mayor o igual a la fecha de inicio del entregable");
         }

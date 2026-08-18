@@ -179,6 +179,15 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             DocumentoVersion nuevaVersion = registrarNuevaVersion(entregable, evidencia, storedName, fechaEntrega, actor);
 
             entregable.completar(storedName, fechaEntrega);
+
+            // Logica de registro retroactivo: si la fecha de entrega es pasada, marcar como completado
+            java.time.LocalDate hoy = java.time.LocalDate.now();
+            if (fechaEntrega != null && fechaEntrega.isBefore(hoy)) {
+                entregable.setFechaEntregaReal(entregable.getFechaLimite() != null ? entregable.getFechaLimite() : fechaEntrega);
+                entregable.setEstado(com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO);
+                entregable.setConforme(false);
+            }
+
             entregableRepository.save(entregable);
             if (subsanaObservaciones) {
                 marcarObservacionesSubsanadas(entregable, actor, "Nueva version cargada para subsanar observaciones.");

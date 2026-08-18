@@ -113,8 +113,9 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         if (esReemplazo) {
             if (observacion == null || observacion.isBlank()) {
-                throw new BadRequestException("La observacion es obligatoria al reemplazar un documento existente.");
+                throw new BadRequestException("La observacion es obligatoria al reemplazar un documento.");
             }
+            observacion = observacion.trim();
             versionActual.setEstado(DocumentoProyectoVersionEstado.HISTORICA);
             versionRepository.save(versionActual);
         }
@@ -138,7 +139,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         version.setRutaAlmacenamiento(STORAGE_SUBDIR);
         version.setMimeType(mimeType);
         version.setTamanoBytes(archivo.getSize());
-        version.setObservacion(esReemplazo ? observacion.trim() : null);
+        version.setObservacion(esReemplazo ? observacion : null);
         version.setEstado(DocumentoProyectoVersionEstado.ACTUAL);
         version.setSubidoPor(actor.username());
         version.setSubidoRol(actor.role());

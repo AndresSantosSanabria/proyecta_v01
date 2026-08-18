@@ -197,6 +197,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         entregable.setFechaInicio(dto.fechaInicio());
         entregable.setFechaLimite(dto.fechaLimite());
+        entregable.setDescripcion(dto.descripcion());
+        entregable.setArchivoPdf(dto.archivoPdf());
         entregable.setHito(hito);
         Entregable guardado = entregableRepository.save(entregable);
         avanceCalculatorService.calcularYActualizarAvanceHito(hitoId);
@@ -261,6 +263,18 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private void validarEntregableNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, LocalDate fechaInicioProyecto) {
         validarPonderacion(dto.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100.");
         validarFechasNuevo(dto, fechaInicioProyecto);
+        validarArchivoRetroactivo(dto);
+    }
+
+    private void validarArchivoRetroactivo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+        if (dto.fechaLimite() != null && dto.fechaLimite().isBefore(hoy)) {
+            if (dto.archivoPdf() == null || dto.archivoPdf().isBlank()) {
+                throw new BadRequestException(
+                    "Debes adjuntar un archivo de soporte porque la fecha limite del entregable es anterior a la fecha actual."
+                );
+            }
+        }
     }
 
     private void validarFechasNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, LocalDate fechaInicioProyecto) {
@@ -270,10 +284,12 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         if (dto.fechaLimite() == null) {
             throw new BadRequestException("La fecha limite del entregable es obligatoria.");
         }
-        if (fechaInicioProyecto != null && dto.fechaInicio().isBefore(fechaInicioProyecto)) {
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+        boolean esRetroactivo = dto.fechaLimite() != null && dto.fechaLimite().isBefore(hoy);
+        if (!esRetroactivo && fechaInicioProyecto != null && dto.fechaInicio().isBefore(fechaInicioProyecto)) {
             throw new BadRequestException("La fecha de inicio del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (" + fechaInicioProyecto + ").");
         }
-        if (fechaInicioProyecto != null && dto.fechaLimite().isBefore(fechaInicioProyecto)) {
+        if (!esRetroactivo && fechaInicioProyecto != null && dto.fechaLimite().isBefore(fechaInicioProyecto)) {
             throw new BadRequestException("La fecha limite del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (" + fechaInicioProyecto + ").");
         }
         if (dto.fechaLimite().isBefore(dto.fechaInicio())) {
@@ -390,6 +406,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             e.setPonderacion(java.math.BigDecimal.valueOf(entregableDto.ponderacion()));
             e.setFechaInicio(entregableDto.fechaInicio());
             e.setFechaLimite(entregableDto.fechaLimite());
+            e.setDescripcion(entregableDto.descripcion());
+            e.setArchivoPdf(entregableDto.archivoPdf());
             e.setHito(hito);
             entregableRepository.save(e);
             hito.getEntregables().add(e);

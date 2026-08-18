@@ -10,5 +10,6 @@ public record EntregableDTO(
     String descripcion,
     @NotNull @Min(1) @Max(100) Integer ponderacion,
     LocalDate fechaInicio,
-    LocalDate fechaLimite
+    LocalDate fechaLimite,
+    String archivoPdf
 ) {}
