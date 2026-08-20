@@ -16,6 +16,7 @@ public record ProyectoCompletarInformacionDTO(
         List<String> objetivosEspecificos,
         PatrocinadorDTO patrocinador,
         List<EquipoTrabajoDTO> equipoTrabajo,
+        List<StakeholderDTO> stakeholders,
         List<FaseDTO> fases,
         @NotNull Boolean peti,
         String vigenciaPeti,

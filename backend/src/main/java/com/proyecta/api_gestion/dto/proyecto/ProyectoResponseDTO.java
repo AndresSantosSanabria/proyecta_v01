@@ -24,6 +24,7 @@ public record ProyectoResponseDTO(
     Boolean tienePlanComunicaciones,
     PatrocinadorDTO patrocinador,
     List<EquipoTrabajoDTO> equipoTrabajo,
+    List<StakeholderDTO> stakeholders,
     FuragDTO furag,
     List<FaseResponseDTO> fases
 ) {}

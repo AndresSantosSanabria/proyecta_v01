@@ -13,8 +13,27 @@ public class ActaCierrePdfGenerator {
             String nombre,
             String fechaEntrega,
             String evidencia,
+            String evidenciaUrl,
             String estado,
             String descripcion
+    ) {
+    }
+
+    public record MiembroEquipoActaItem(
+            String rol,
+            String nombre,
+            String cargo,
+            String dependencia,
+            String telefono,
+            String correo
+    ) {
+    }
+
+    public record StakeholderActaItem(
+            String rol,
+            String descripcion,
+            String interes,
+            String impacto
     ) {
     }
 
@@ -45,7 +64,9 @@ public class ActaCierrePdfGenerator {
             String diferenciaFinal,
             String eficaciaFinal,
             String estadoFinal,
-            List<EntregableActaItem> entregables
+            List<EntregableActaItem> entregables,
+            List<MiembroEquipoActaItem> equipoTrabajo,
+            List<StakeholderActaItem> stakeholders
     ) {
     }
 
@@ -88,7 +109,7 @@ public class ActaCierrePdfGenerator {
             lines.add("ROW|Sin entregables registrados|N/A|N/A|N/A");
         } else {
             data.entregables().forEach(item -> lines.add(
-                    "ROW|" + safe(item.nombre()) + "|" + safe(item.fechaEntrega()) + "|" + safe(item.evidencia()) + "|" + safe(item.estado())
+                    "ROW|" + safe(item.nombre()) + "|" + safe(item.fechaEntrega()) + "|" + safe(item.evidenciaUrl()) + "|" + safe(item.estado())
             ));
         }
 
@@ -103,7 +124,7 @@ public class ActaCierrePdfGenerator {
         lines.add("SEC|7. TRANSFERENCIA DE CONOCIMIENTO");
         lines.add("KV|Actividad ejecutada|" + safe(data.transferenciaActividad()));
         lines.add("KV|Fecha|" + safe(data.transferenciaFecha()));
-        lines.add("KV|Ubicacion de evidencia|" + safe(data.transferenciaUbicacionEvidencia()));
+        lines.add("KV|Enlace publico de evidencia|" + safe(data.transferenciaUbicacionEvidencia()));
 
         lines.add("SEC|8. APROBACION DEL PATROCINADOR");
         lines.add("TXT|El patrocinador del proyecto y el director del proyecto dejan constancia del cierre formal del proyecto y de la aceptacion de la informacion consolidada en la presente acta.");

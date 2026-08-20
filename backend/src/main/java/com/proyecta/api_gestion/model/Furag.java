@@ -10,31 +10,31 @@ import jakarta.persistence.Enumerated;
 public class Furag {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "furag_infraestructura_datos", length = 5)
+    @Column(name = "furag_infraestructura_datos", length = 10)
     private RespuestaFurag infraestructuraDatos;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "furag_interoperabilidad", length = 5)
+    @Column(name = "furag_interoperabilidad", length = 10)
     private RespuestaFurag interoperabilidad;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "furag_digitalizacion_automatizacion", length = 5)
+    @Column(name = "furag_digitalizacion_automatizacion", length = 10)
     private RespuestaFurag digitalizacionAutomatizacion;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "furag_contratacion_publica", length = 5)
+    @Column(name = "furag_contratacion_publica", length = 10)
     private RespuestaFurag contratacionPublica;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "furag_servicios_nube", length = 5)
+    @Column(name = "furag_servicios_nube", length = 10)
     private RespuestaFurag serviciosNube;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "furag_sandbox", length = 5)
+    @Column(name = "furag_sandbox", length = 10)
     private RespuestaFurag sandbox;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "furag_tecnologias_emergentes", length = 5)
+    @Column(name = "furag_tecnologias_emergentes", length = 10)
     private RespuestaFurag tecnologiasEmergentes;
 
     public Furag() {

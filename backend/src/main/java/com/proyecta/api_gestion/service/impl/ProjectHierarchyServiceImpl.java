@@ -284,14 +284,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         if (dto.fechaLimite() == null) {
             throw new BadRequestException("La fecha limite del entregable es obligatoria.");
         }
-        java.time.LocalDate hoy = java.time.LocalDate.now();
-        boolean esRetroactivo = dto.fechaLimite() != null && dto.fechaLimite().isBefore(hoy);
-        if (!esRetroactivo && fechaInicioProyecto != null && dto.fechaInicio().isBefore(fechaInicioProyecto)) {
-            throw new BadRequestException("La fecha de inicio del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (" + fechaInicioProyecto + ").");
-        }
-        if (!esRetroactivo && fechaInicioProyecto != null && dto.fechaLimite().isBefore(fechaInicioProyecto)) {
-            throw new BadRequestException("La fecha limite del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (" + fechaInicioProyecto + ").");
-        }
         if (dto.fechaLimite().isBefore(dto.fechaInicio())) {
             throw new BadRequestException("La fecha limite del entregable debe ser mayor o igual a la fecha de inicio.");
         }

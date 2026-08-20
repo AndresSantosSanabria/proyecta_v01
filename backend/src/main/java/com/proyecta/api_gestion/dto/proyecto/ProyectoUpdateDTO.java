@@ -13,6 +13,7 @@ public record ProyectoUpdateDTO(
     LocalDate fechaInicio,
     PatrocinadorDTO patrocinador,
     List<EquipoTrabajoDTO> equipoTrabajo,
+    List<StakeholderDTO> stakeholders,
     List<FaseDTO> fases,
     Boolean peti,
     String vigenciaPeti,

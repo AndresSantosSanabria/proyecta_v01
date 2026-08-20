@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Cierre de Proyectos", description = "Endpoints para la ejecución formal del cierre de proyecto con generación de Acta")
 public interface IProjectClosureController {
@@ -92,7 +94,7 @@ public interface IProjectClosureController {
     @PostMapping("/{id}/cierre/solicitar")
     ResponseEntity<CierreProyectoResponse> solicitarCierre(
             @Parameter(description = "ID del proyecto") @PathVariable String id,
-            @RequestBody CierreProyectoRequest request,
+            @RequestBody(required = false) CierreProyectoRequest request,
             Authentication authentication);
 
     @Operation(
@@ -122,4 +124,24 @@ public interface IProjectClosureController {
             @Parameter(description = "ID del proyecto") @PathVariable String id,
             @RequestBody java.util.Map<String, String> body,
             Authentication authentication);
+
+    @Operation(
+        summary = "Subir evidencia de transferencia de conocimiento",
+        description = "Sube un documento de evidencia para una actividad de transferencia de conocimiento del cierre del proyecto."
+    )
+    @StandardApiResponses
+    @PostMapping(value = "/{id}/cierre/evidencia-transferencia", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<java.util.Map<String, String>> subirEvidenciaTransferencia(
+            @Parameter(description = "ID del proyecto") @PathVariable String id,
+            @RequestPart("evidencia") MultipartFile evidencia);
+
+    @Operation(
+        summary = "Descargar evidencia de transferencia de conocimiento",
+        description = "Descarga un archivo de evidencia previamente subido para una actividad de transferencia de conocimiento."
+    )
+    @StandardApiResponses
+    @GetMapping("/{id}/cierre/evidencia-transferencia/{fileName}")
+    ResponseEntity<Resource> descargarEvidenciaTransferencia(
+            @Parameter(description = "ID del proyecto") @PathVariable String id,
+            @Parameter(description = "Nombre del archivo") @PathVariable String fileName);
 }

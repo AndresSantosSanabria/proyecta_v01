@@ -36,7 +36,7 @@ public class FuragRespuesta {
     private String pregunta;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "respuesta", length = 5)
+    @Column(name = "respuesta", length = 20)
     private RespuestaFurag respuesta;
 
     @Column(name = "obligatoria", nullable = false)

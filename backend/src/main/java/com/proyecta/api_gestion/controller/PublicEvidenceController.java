@@ -38,4 +38,17 @@ public class PublicEvidenceController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
+
+    @GetMapping(value = "/cierre-evidencia/{fileName}", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<Resource> verEvidenciaCierre(@PathVariable String fileName) {
+        try {
+            Resource resource = storageProvider.loadFileAsResource("cierre-transferencia", fileName);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

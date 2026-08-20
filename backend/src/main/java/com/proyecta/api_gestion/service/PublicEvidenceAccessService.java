@@ -43,7 +43,7 @@ public class PublicEvidenceAccessService {
 
     @Transactional(readOnly = true)
     public Entregable resolveByToken(String token) {
-        var access = repository.findByTokenAndActivoTrue(token)
+        var access = repository.findByTokenAndActivoTrueWithEntregable(token)
                 .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException(
                         "Evidencia no encontrada o enlace expirado."));
         return access.getEntregable();

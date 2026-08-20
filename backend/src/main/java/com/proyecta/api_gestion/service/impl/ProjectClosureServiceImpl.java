@@ -129,6 +129,12 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         closureValidator.validarCierre(projectId);
         closureValidator.validarDatosActa(projectId);
 
+        if (request == null) {
+            request = buildRequestFromSavedAnswers(projectId);
+        } else {
+            request = mergeRequestWithSavedAnswers(projectId, request);
+        }
+
         LocalDateTime fechaCierre = LocalDateTime.now();
         LocalDate corteCalculo = fechaCierre.toLocalDate();
         LocalDate transferenciaFecha = corteCalculo;
@@ -193,7 +199,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 formatPercent(snapshot.diferencia()),
                 formatRatio(snapshot.eficacia()),
                 snapshot.estado(),
-                entregables
+                entregables,
+                List.of(),
+                List.of()
         );
         byte[] docxBytes = docxGenerator.build(actaData);
         String nombreArchivo = buildActaFileName(projectId, fechaCierre, ".docx");
@@ -229,7 +237,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                     java.util.Map.of(
                             "projectName", proyecto.getNombre(),
                             "state", proyecto.getEstadoCodigo(),
-                            "recipients", List.of(proyecto.getCorreoDirector())
+                            "recipients", proyecto.getCorreoDirector() != null ? List.of(proyecto.getCorreoDirector()) : List.of("sistema@proyecta.com")
                     )));
         } catch (RuntimeException ex) {
             storageProvider.deleteFile(rutaArchivo, storedFileName);
@@ -257,6 +265,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
 
         if (Boolean.TRUE.equals(proyecto.getCierreSolicitado())) {
             return CierreProyectoResponse.error("Ya existe una solicitud de cierre activa para este proyecto.");
+        }
+
+        if (request == null) {
+            request = buildRequestFromSavedAnswers(projectId);
         }
 
         if (request.formData() != null && !request.formData().isBlank()) {
@@ -390,8 +402,13 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Resource descargarActaCierre(String projectId) {
+        Resource draftDocx = generarBorradorDocxSiExiste(projectId);
+        if (draftDocx != null) {
+            return draftDocx;
+        }
+
         ActaCierre acta = actaCierreRepository.findByProyectoId(projectId).orElse(null);
 
         if (acta != null) {
@@ -412,11 +429,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             }
         }
 
-        Resource draftDocx = generarBorradorDocxSiExiste(projectId);
-        if (draftDocx != null) {
-            return draftDocx;
-        }
-
         if (acta == null) {
             throw new ResourceNotFoundException("No existe un acta de cierre para el proyecto: " + projectId
                     + ". Verifique que la plantilla este configurada y las respuestas esten completas.");
@@ -429,15 +441,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         Proyecto proyecto = proyectoRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
 
-        String borradorJson = proyecto.getCierreBorradorJson();
-        CierreProyectoRequest request = null;
-        if (borradorJson != null && !borradorJson.isBlank()) {
-            try {
-                request = objectMapper.readValue(borradorJson, CierreProyectoRequest.class);
-            } catch (Exception ex) {
-                log.warn("No se pudo leer el json del borrador para {}: {}", projectId, ex.getMessage());
-            }
-        }
+        CierreProyectoRequest request = buildRequestFromSavedAnswers(projectId);
 
         LocalDate corteCalculo = LocalDate.now();
         LocalDate transferenciaFecha = (request != null && request.transferenciaFecha() != null) 
@@ -517,7 +521,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 formatPercent(diff),
                 formatRatio(ef),
                 estado,
-                entregables
+                entregables,
+                List.of(),
+                List.of()
         );
 
         try {
@@ -608,13 +614,25 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                 items.stream()
                                         .filter(Objects::nonNull)
                                         .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
-                                        .forEach(entregable -> entregables.add(new ActaCierrePdfGenerator.EntregableActaItem(
-                                                entregable.getNombre(),
-                                                formatDate(entregable.getFechaEntregaReal() != null ? entregable.getFechaEntregaReal() : entregable.getFechaLimite()),
-                                                entregable.getArchivoPdf() != null ? "Si" : "No",
-                                                construirEstadoEntregable(entregable, corteCalculo),
-                                                entregable.getDescripcion()
-                                        )));
+                                        .forEach(entregable -> {
+                                            String evidenciaUrl = "";
+                                            if (entregable.getArchivoPdf() != null && !entregable.getArchivoPdf().isBlank()) {
+                                                try {
+                                                    String token = publicEvidenceAccessService.getOrCreateToken(entregable, "system");
+                                                    evidenciaUrl = buildPublicEvidenceUrl(token);
+                                                } catch (Exception ex) {
+                                                    log.warn("No se pudo generar token de evidencia para entregable {}: {}", entregable.getId(), ex.getMessage());
+                                                }
+                                            }
+                                            entregables.add(new ActaCierrePdfGenerator.EntregableActaItem(
+                                                    entregable.getNombre(),
+                                                    formatDate(entregable.getFechaEntregaReal() != null ? entregable.getFechaEntregaReal() : entregable.getFechaLimite()),
+                                                    entregable.getArchivoPdf() != null ? "Si" : "No",
+                                                    evidenciaUrl,
+                                                    construirEstadoEntregable(entregable, corteCalculo),
+                                                    entregable.getDescripcion()
+                                            ));
+                                        });
                             });
                 });
 
@@ -715,5 +733,114 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             return;
         }
         fields.put(key, value);
+    }
+
+    private CierreProyectoRequest buildRequestFromSavedAnswers(String projectId) {
+        List<com.proyecta.api_gestion.model.closure.ClosureAnswer> answers =
+                closureAnswerRepository.findByProyectoIdOrderByQuestion_OrdenAsc(projectId);
+
+        String resumenEjecutivo = findAnswerByOrderOrKeyword(answers, 1, "resumen");
+        String leccionesPositivas = findAnswerByOrderOrKeyword(answers, 2, "positivo");
+        String leccionesMejorar = findAnswerByOrderOrKeyword(answers, 3, "mejor");
+        String recomendaciones = findAnswerByOrderOrKeyword(answers, 4, "recomend");
+        String transferenciaRaw = findAnswerByOrderOrKeyword(answers, 5, "transfer");
+
+        String transferenciaActividad = transferenciaRaw;
+        LocalDate transferenciaFecha = null;
+        String transferenciaUbicacion = "Evidencia en el sistema";
+
+        try {
+            if (transferenciaRaw != null && transferenciaRaw.startsWith("[")) {
+                com.fasterxml.jackson.databind.JsonNode entries = objectMapper.readTree(transferenciaRaw);
+                StringBuilder sb = new StringBuilder();
+                StringBuilder fechas = new StringBuilder();
+                StringBuilder evidencias = new StringBuilder();
+                for (com.fasterxml.jackson.databind.JsonNode entry : entries) {
+                    String act = entry.has("actividad") ? entry.get("actividad").asText("") : "";
+                    String fecha = entry.has("fecha") ? entry.get("fecha").asText("") : "";
+                    String evidencia = entry.has("evidenciaNombre") ? entry.get("evidenciaNombre").asText("") : "";
+                    String storedName = entry.has("evidenciaStoredName") ? entry.get("evidenciaStoredName").asText("") : "";
+                    if (!act.isBlank()) {
+                        if (!sb.isEmpty()) sb.append("\n---\n");
+                        sb.append(act);
+                    }
+                    if (!fecha.isBlank()) {
+                        if (!fechas.isEmpty()) fechas.append(";");
+                        fechas.append(fecha);
+                    }
+                    if (!evidencia.isBlank()) {
+                        if (!evidencias.isEmpty()) evidencias.append(";");
+                        evidencias.append(storedName.isEmpty() ? evidencia : storedName);
+                    }
+                }
+                if (!sb.isEmpty()) transferenciaActividad = sb.toString();
+                if (!fechas.isEmpty()) {
+                    try {
+                        transferenciaFecha = LocalDate.parse(fechas.toString().split(";")[0].trim());
+                    } catch (Exception ignored) {}
+                }
+                if (!evidencias.isEmpty()) transferenciaUbicacion = evidencias.toString();
+            }
+        } catch (Exception ignored) {}
+
+        if (resumenEjecutivo.isBlank() || leccionesPositivas.isBlank() || leccionesMejorar.isBlank()
+                || recomendaciones.isBlank() || (transferenciaActividad != null && transferenciaActividad.isBlank())) {
+            log.warn("El acta de cierre del proyecto {} tiene respuestas vacias en uno o mas campos obligatorios.", projectId);
+        }
+
+        return new CierreProyectoRequest(
+                resumenEjecutivo,
+                leccionesPositivas,
+                leccionesMejorar,
+                recomendaciones,
+                transferenciaActividad,
+                transferenciaFecha,
+                transferenciaUbicacion,
+                null,
+                null
+        );
+    }
+
+    private CierreProyectoRequest mergeRequestWithSavedAnswers(String projectId, CierreProyectoRequest request) {
+        CierreProyectoRequest saved = buildRequestFromSavedAnswers(projectId);
+        return new CierreProyectoRequest(
+                firstNonBlank(request.resumenEjecutivo(), saved.resumenEjecutivo()),
+                firstNonBlank(request.leccionesPositivas(), saved.leccionesPositivas()),
+                firstNonBlank(request.leccionesMejorar(), saved.leccionesMejorar()),
+                firstNonBlank(request.recomendaciones(), saved.recomendaciones()),
+                firstNonBlank(request.transferenciaActividad(), saved.transferenciaActividad()),
+                request.transferenciaFecha() != null ? request.transferenciaFecha() : saved.transferenciaFecha(),
+                firstNonBlank(request.transferenciaUbicacionEvidencia(), saved.transferenciaUbicacionEvidencia()),
+                request.fechaCierre(),
+                request.formData()
+        );
+    }
+
+    private String findAnswerByOrderOrKeyword(List<com.proyecta.api_gestion.model.closure.ClosureAnswer> answers, int order, String keyword) {
+        if (answers == null || answers.isEmpty()) {
+            return "";
+        }
+        if (order > 0) {
+            String byOrder = answers.stream()
+                    .filter(a -> a != null && a.getQuestion() != null && Integer.valueOf(order).equals(a.getQuestion().getOrden()))
+                    .map(this::safeAnswer)
+                    .filter(v -> !v.isBlank())
+                    .findFirst()
+                    .orElse("");
+            if (!byOrder.isBlank()) {
+                return byOrder;
+            }
+        }
+        return answers.stream()
+                .filter(a -> a != null && a.getQuestion() != null && a.getQuestion().getTexto() != null)
+                .filter(a -> a.getQuestion().getTexto().toLowerCase().contains(keyword.toLowerCase()))
+                .map(this::safeAnswer)
+                .filter(v -> !v.isBlank())
+                .findFirst()
+                .orElse("");
+    }
+
+    private String safeAnswer(com.proyecta.api_gestion.model.closure.ClosureAnswer answer) {
+        return answer == null || answer.getRespuesta() == null ? "" : answer.getRespuesta().trim();
     }
 }

@@ -106,6 +106,10 @@ public class Proyecto {
     @CollectionTable(name = "proyecto_equipo", joinColumns = @JoinColumn(name = "proyecto_id"))
     private List<MiembroEquipo> equipoTrabajo = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "proyecto_stakeholder", joinColumns = @JoinColumn(name = "proyecto_id"))
+    private List<Stakeholder> stakeholders = new ArrayList<>();
+
     @OneToMany(mappedBy = "proyecto", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Fase> fases = new ArrayList<>();
 
@@ -225,6 +229,9 @@ public class Proyecto {
 
     public List<MiembroEquipo> getEquipoTrabajo() { return equipoTrabajo; }
     public void setEquipoTrabajo(List<MiembroEquipo> equipoTrabajo) { this.equipoTrabajo = equipoTrabajo; }
+
+    public List<Stakeholder> getStakeholders() { return stakeholders; }
+    public void setStakeholders(List<Stakeholder> stakeholders) { this.stakeholders = stakeholders; }
 
     public List<Fase> getFases() { return fases; }
     public void setFases(List<Fase> fases) { this.fases = fases; }

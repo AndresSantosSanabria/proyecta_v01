@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.controller.interfaces.IProjectClosureController;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
 import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;
+import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -12,6 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
@@ -20,9 +25,11 @@ import org.springframework.web.bind.annotation.*;
 public class ProjectClosureController implements IProjectClosureController {
 
     private final ProjectClosureService closureService;
+    private final IStorageProvider storageProvider;
 
-    public ProjectClosureController(ProjectClosureService closureService) {
+    public ProjectClosureController(ProjectClosureService closureService, IStorageProvider storageProvider) {
         this.closureService = closureService;
+        this.storageProvider = storageProvider;
     }
 
     @Override
@@ -30,7 +37,7 @@ public class ProjectClosureController implements IProjectClosureController {
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:CERRAR', #id, authentication)")
     public ResponseEntity<CierreProyectoResponse> cerrarProyecto(
             @PathVariable String id,
-            @Valid @RequestBody CierreProyectoRequest request) {
+            @RequestBody(required = false) CierreProyectoRequest request) {
 
         CierreProyectoResponse response = closureService.cerrarProyecto(id, request);
         return ResponseEntity.ok(response);
@@ -41,7 +48,7 @@ public class ProjectClosureController implements IProjectClosureController {
     @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:SOLICITAR', #id, authentication)")
     public ResponseEntity<CierreProyectoResponse> solicitarCierre(
             @PathVariable String id,
-            @Valid @RequestBody CierreProyectoRequest request,
+            @RequestBody(required = false) CierreProyectoRequest request,
             Authentication authentication) {
 
         CierreProyectoResponse response = closureService.solicitarCierre(id, request, authentication);
@@ -87,6 +94,46 @@ public class ProjectClosureController implements IProjectClosureController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
                 .contentType(MediaType.parseMediaType(contentType))
+                .body(resource);
+    }
+
+    @Override
+    @PostMapping(value = "/{id}/cierre/evidencia-transferencia", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:SOLICITAR', #id, authentication)")
+    public ResponseEntity<Map<String, String>> subirEvidenciaTransferencia(
+            @PathVariable String id,
+            @RequestPart("evidencia") MultipartFile evidencia) {
+
+        if (evidencia == null || evidencia.isEmpty()) {
+            throw new com.proyecta.api_gestion.exception.BadRequestException("Debe seleccionar un archivo de evidencia.");
+        }
+        String contentType = evidencia.getContentType();
+        if (contentType == null || !contentType.equals("application/pdf")) {
+            throw new com.proyecta.api_gestion.exception.BadRequestException("Solo se permiten archivos PDF como evidencia.");
+        }
+
+        String originalName = evidencia.getOriginalFilename() != null ? evidencia.getOriginalFilename() : "evidencia.pdf";
+        String safeName = originalName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String uniqueName = UUID.randomUUID().toString() + "_" + safeName;
+
+        String storedName = storageProvider.storeFile(evidencia, "cierre-transferencia", uniqueName);
+
+        return ResponseEntity.ok(Map.of(
+                "fileName", originalName,
+                "storedName", storedName
+        ));
+    }
+
+    @Override
+    @GetMapping("/{id}/cierre/evidencia-transferencia/{fileName}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<Resource> descargarEvidenciaTransferencia(
+            @PathVariable String id,
+            @PathVariable String fileName) {
+        Resource resource = storageProvider.loadFileAsResource("cierre-transferencia", fileName);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
 }

@@ -6,12 +6,14 @@ import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
+import com.proyecta.api_gestion.model.config.ListaParametricaConfig;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
 import com.proyecta.api_gestion.model.enums.RespuestaFurag;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
 import com.proyecta.api_gestion.repository.DocumentoProyectoVersionRepository;
+import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
@@ -35,13 +37,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,6 +66,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
     private final DocumentoProyectoVersionRepository documentoVersionRepository;
+    private final ListaParametricaConfigRepository listaParametricaRepository;
 
     public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
                                FuragRespuestaRepository furagRespuestaRepository,
@@ -70,7 +77,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                                IProgressCalculator progressCalculator,
                                NotificationEventPublisherPort notificationPublisher,
                                KeycloakIdentityExtractor identityExtractor,
-                               DocumentoProyectoVersionRepository documentoVersionRepository) {
+                               DocumentoProyectoVersionRepository documentoVersionRepository,
+                               ListaParametricaConfigRepository listaParametricaRepository) {
         this.proyectoRepository = proyectoRepository;
         this.furagRespuestaRepository = furagRespuestaRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -81,6 +89,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
         this.documentoVersionRepository = documentoVersionRepository;
+        this.listaParametricaRepository = listaParametricaRepository;
     }
 
     @Override
@@ -189,6 +198,13 @@ public class ProyectoServiceImpl implements ProyectoService {
                     .collect(Collectors.toList()));
         }
 
+        // Stakeholders
+        if (dto.stakeholders() != null) {
+            proyecto.setStakeholders(dto.stakeholders().stream()
+                    .map(s -> new Stakeholder(s.rol(), s.descripcion(), s.interes(), s.impacto()))
+                    .collect(Collectors.toList()));
+        }
+
         // Objetivos específicos
         if (dto.objetivosEspecificos() != null) {
             proyecto.setObjetivosEspecificos(dto.objetivosEspecificos().stream()
@@ -202,15 +218,7 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         // FURAG
         if (dto.furag() != null) {
-            Furag furag = new Furag();
-            furag.setInfraestructuraDatos(dto.furag().infraestructuraDatos());
-            furag.setInteroperabilidad(dto.furag().interoperabilidad());
-            furag.setDigitalizacionAutomatizacion(dto.furag().digitalizacionAutomatizacion());
-            furag.setContratacionPublica(dto.furag().contratacionPublica());
-            furag.setServiciosNube(dto.furag().serviciosNube());
-            furag.setSandbox(dto.furag().sandbox());
-            furag.setTecnologiasEmergentes(dto.furag().tecnologiasEmergentes());
-            proyecto.setFurag(furag);
+            proyecto.setFurag(buildFurag(dto.furag()));
         }
 
         // Fases / Hitos / Entregables. La jerarquia inicial es opcional.
@@ -399,11 +407,23 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (dto.vigenciaPeti() != null) proyecto.setVigenciaPeti(dto.vigenciaPeti());
         if (dto.estrategiaPeti() != null) aplicarEstrategiaPeti(proyecto, dto.estrategiaPeti());
         if (dto.tienePlanComunicaciones() != null) proyecto.setTienePlanComunicaciones(dto.tienePlanComunicaciones());
-
-        // Actualizar sub-entidades si se proporcionan (omitiendo lógica compleja de merge por brevedad, asumiendo reemplazo)
-        // ... (se puede implementar merge fino si es necesario)
+        if (dto.furag() != null) proyecto.setFurag(buildFurag(dto.furag()));
+        if (dto.patrocinador() != null) proyecto.setPatrocinador(buildPatrocinador(dto.patrocinador()));
+        if (dto.equipoTrabajo() != null) {
+            proyecto.getEquipoTrabajo().clear();
+            dto.equipoTrabajo().stream()
+                    .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol(), m.dependencia(), m.telefono(), m.correo()))
+                    .forEach(proyecto.getEquipoTrabajo()::add);
+        }
+        if (dto.stakeholders() != null) {
+            proyecto.getStakeholders().clear();
+            dto.stakeholders().stream()
+                    .map(s -> new Stakeholder(s.rol(), s.descripcion(), s.interes(), s.impacto()))
+                    .forEach(proyecto.getStakeholders()::add);
+        }
 
         Proyecto actualizado = proyectoRepository.save(proyecto);
+        sincronizarRespuestasFurag(actualizado);
         notificarCambioProyecto(actualizado, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
                 "projectName", actualizado.getNombre(),
                 "state", actualizado.getEstadoCodigo()
@@ -546,7 +566,12 @@ public class ProyectoServiceImpl implements ProyectoService {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
-        return proyecto.getFurag();
+        Furag furag = proyecto.getFurag();
+        if (furag != null && tieneAlgunaRespuestaFurag(furag)) {
+            return furag;
+        }
+        Furag reconstructed = reconstruirFuragDesdeRespuestas(normalizedId);
+        return reconstructed != null ? reconstructed : new Furag();
     }
 
     @Override
@@ -564,6 +589,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+        validarFuragCompleto(furag);
         proyecto.setFurag(furag);
         Proyecto guardado = proyectoRepository.save(proyecto);
         sincronizarRespuestasFurag(guardado);
@@ -604,6 +630,13 @@ public class ProyectoServiceImpl implements ProyectoService {
                     .forEach(proyecto.getEquipoTrabajo()::add);
         }
 
+        proyecto.getStakeholders().clear();
+        if (dto.stakeholders() != null) {
+            dto.stakeholders().stream()
+                    .map(s -> new Stakeholder(s.rol(), s.descripcion(), s.interes(), s.impacto()))
+                    .forEach(proyecto.getStakeholders()::add);
+        }
+
         if (dto.fases() != null) {
             proyecto.getFases().clear();
             final int[] faseIdx = {0};
@@ -629,18 +662,68 @@ public class ProyectoServiceImpl implements ProyectoService {
     }
 
     private Furag buildFurag(FuragDTO dto) {
-        if (dto == null) {
+        if (dto == null || dto.respuestas() == null) {
             return null;
         }
+        Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> r = dto.respuestas();
         Furag furag = new Furag();
-        furag.setInfraestructuraDatos(dto.infraestructuraDatos());
-        furag.setInteroperabilidad(dto.interoperabilidad());
-        furag.setDigitalizacionAutomatizacion(dto.digitalizacionAutomatizacion());
-        furag.setContratacionPublica(dto.contratacionPublica());
-        furag.setServiciosNube(dto.serviciosNube());
-        furag.setSandbox(dto.sandbox());
-        furag.setTecnologiasEmergentes(dto.tecnologiasEmergentes());
+        furag.setInfraestructuraDatos(findFuragValue(r, "infraestructuraDatos"));
+        furag.setInteroperabilidad(findFuragValue(r, "interoperabilidad"));
+        furag.setDigitalizacionAutomatizacion(findFuragValue(r, "digitalizacionAutomatizacion"));
+        furag.setContratacionPublica(findFuragValue(r, "contratacionPublica"));
+        furag.setServiciosNube(findFuragValue(r, "serviciosNube"));
+        furag.setSandbox(findFuragValue(r, "sandbox"));
+        furag.setTecnologiasEmergentes(findFuragValue(r, "tecnologiasEmergentes"));
+        validarFuragCompleto(furag);
         return furag;
+    }
+
+    private com.proyecta.api_gestion.model.enums.RespuestaFurag findFuragValue(
+            Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> respuestas, String fieldKey) {
+        if (respuestas.containsKey(fieldKey)) {
+            return respuestas.get(fieldKey);
+        }
+        String normalizedTarget = normalizeFuragKey(fieldKey);
+        for (Map.Entry<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> entry : respuestas.entrySet()) {
+            if (normalizeFuragKey(entry.getKey()).contains(normalizedTarget)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private String normalizeFuragKey(String key) {
+        if (key == null) return "";
+        return key.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]", "");
+    }
+
+    private Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> buildFuragRespuestasMap(Furag furag) {
+        Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> map = new java.util.LinkedHashMap<>();
+        if (furag.getInfraestructuraDatos() != null) map.put("infraestructuraDatos", furag.getInfraestructuraDatos());
+        if (furag.getInteroperabilidad() != null) map.put("interoperabilidad", furag.getInteroperabilidad());
+        if (furag.getDigitalizacionAutomatizacion() != null) map.put("digitalizacionAutomatizacion", furag.getDigitalizacionAutomatizacion());
+        if (furag.getContratacionPublica() != null) map.put("contratacionPublica", furag.getContratacionPublica());
+        if (furag.getServiciosNube() != null) map.put("serviciosNube", furag.getServiciosNube());
+        if (furag.getSandbox() != null) map.put("sandbox", furag.getSandbox());
+        if (furag.getTecnologiasEmergentes() != null) map.put("tecnologiasEmergentes", furag.getTecnologiasEmergentes());
+        return map;
+    }
+
+    private void validarFuragCompleto(Furag furag) {
+        if (furag == null) {
+            throw new BadRequestException("FURAG es obligatorio y no puede ser nulo.");
+        }
+        List<String> camposFaltantes = new ArrayList<>();
+        if (furag.getInfraestructuraDatos() == null) camposFaltantes.add("infraestructuraDatos");
+        if (furag.getInteroperabilidad() == null) camposFaltantes.add("interoperabilidad");
+        if (furag.getDigitalizacionAutomatizacion() == null) camposFaltantes.add("digitalizacionAutomatizacion");
+        if (furag.getContratacionPublica() == null) camposFaltantes.add("contratacionPublica");
+        if (furag.getServiciosNube() == null) camposFaltantes.add("serviciosNube");
+        if (furag.getSandbox() == null) camposFaltantes.add("sandbox");
+        if (furag.getTecnologiasEmergentes() == null) camposFaltantes.add("tecnologiasEmergentes");
+        if (!camposFaltantes.isEmpty()) {
+            throw new BadRequestException("FURAG incompleto. Los campos obligatorios no pueden ser nulos: " + String.join(", ", camposFaltantes));
+        }
     }
 
     private Fase buildFase(FaseDTO fDto, Proyecto proyecto, LocalDate fechaInicioProyecto, int faseNumero, int[] hitoIdx, int[] entIdx) {
@@ -944,7 +1027,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getTienePlanComunicaciones(),
                 p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getEntidad(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
                 p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol(), m.getDependencia(), m.getTelefono(), m.getCorreo())).collect(Collectors.toList()),
-                p.getFurag() != null ? new FuragDTO(p.getFurag().getInfraestructuraDatos(), p.getFurag().getInteroperabilidad(), p.getFurag().getDigitalizacionAutomatizacion(), p.getFurag().getContratacionPublica(), p.getFurag().getServiciosNube(), p.getFurag().getSandbox(), p.getFurag().getTecnologiasEmergentes()) : null,
+                p.getStakeholders().stream().map(s -> new StakeholderDTO(s.getRol(), s.getDescripcion(), s.getInteres(), s.getImpacto())).collect(Collectors.toList()),
+                p.getFurag() != null ? new FuragDTO(buildFuragRespuestasMap(p.getFurag())) : null,
                 p.getFases().stream()
                         .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
                         .map(f -> new FaseResponseDTO(
@@ -994,6 +1078,45 @@ public class ProyectoServiceImpl implements ProyectoService {
         item.setRespuesta(respuesta);
         item.setObligatoria(true);
         return item;
+    }
+
+    private Furag reconstruirFuragDesdeRespuestas(String proyectoId) {
+        List<FuragRespuesta> respuestas = furagRespuestaRepository.findByProyecto_IdOrderByCodigoPreguntaAsc(proyectoId);
+        if (respuestas == null || respuestas.isEmpty()) {
+            return null;
+        }
+
+        Furag furag = new Furag();
+        for (FuragRespuesta respuesta : respuestas) {
+            if (respuesta == null) {
+                continue;
+            }
+            switch (respuesta.getCodigoPregunta()) {
+                case "FURAG_INFRAESTRUCTURA_DATOS" -> furag.setInfraestructuraDatos(respuesta.getRespuesta());
+                case "FURAG_INTEROPERABILIDAD" -> furag.setInteroperabilidad(respuesta.getRespuesta());
+                case "FURAG_DIGITALIZACION_AUTOMATIZACION" -> furag.setDigitalizacionAutomatizacion(respuesta.getRespuesta());
+                case "FURAG_CONTRATACION_PUBLICA" -> furag.setContratacionPublica(respuesta.getRespuesta());
+                case "FURAG_SERVICIOS_NUBE" -> furag.setServiciosNube(respuesta.getRespuesta());
+                case "FURAG_SANDBOX" -> furag.setSandbox(respuesta.getRespuesta());
+                case "FURAG_TECNOLOGIAS_EMERGENTES" -> furag.setTecnologiasEmergentes(respuesta.getRespuesta());
+                default -> {
+                    // Ignora códigos no reconocidos para no romper compatibilidad con históricos.
+                }
+            }
+        }
+
+        return tieneAlgunaRespuestaFurag(furag) ? furag : null;
+    }
+
+    private boolean tieneAlgunaRespuestaFurag(Furag furag) {
+        return furag != null
+                && (furag.getInfraestructuraDatos() != null
+                || furag.getInteroperabilidad() != null
+                || furag.getDigitalizacionAutomatizacion() != null
+                || furag.getContratacionPublica() != null
+                || furag.getServiciosNube() != null
+                || furag.getSandbox() != null
+                || furag.getTecnologiasEmergentes() != null);
     }
 
     private String firstNonBlank(String... values) {

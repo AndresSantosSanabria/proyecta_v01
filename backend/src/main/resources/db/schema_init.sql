@@ -158,13 +158,13 @@ CREATE TABLE IF NOT EXISTS proyecto (
     fecha_registro          TIMESTAMP       NOT NULL DEFAULT NOW(),
     patrocinador_id         INTEGER         REFERENCES patrocinador(patrocinador_id) ON DELETE SET NULL,
     
-    furag_infraestructura_datos         VARCHAR(5),
-    furag_interoperabilidad             VARCHAR(5),
-    furag_digitalizacion_automatizacion VARCHAR(5),
-    furag_contratacion_publica           VARCHAR(5),
-    furag_servicios_nube                VARCHAR(5),
-    furag_sandbox                       VARCHAR(5),
-    furag_tecnologias_emergentes        VARCHAR(5)
+    furag_infraestructura_datos         VARCHAR(10),
+    furag_interoperabilidad             VARCHAR(10),
+    furag_digitalizacion_automatizacion VARCHAR(10),
+    furag_contratacion_publica           VARCHAR(10),
+    furag_servicios_nube                VARCHAR(10),
+    furag_sandbox                       VARCHAR(10),
+    furag_tecnologias_emergentes        VARCHAR(10)
 );;
 
 -- 3.1 fase

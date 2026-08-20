@@ -14,6 +14,7 @@ public record ProyectoCreateDTO(
     @NotNull LocalDate fechaInicio,
     @NotNull PatrocinadorDTO patrocinador,
     List<EquipoTrabajoDTO> equipoTrabajo,
+    List<StakeholderDTO> stakeholders,
     List<FaseDTO> fases,
     @NotNull Boolean peti,
     String vigenciaPeti,

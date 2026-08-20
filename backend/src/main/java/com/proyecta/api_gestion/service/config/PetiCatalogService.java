@@ -57,7 +57,13 @@ public class PetiCatalogService {
         List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("FURAG_PREGUNTAS");
         if (!items.isEmpty()) {
             return items.stream()
-                    .map(item -> new FuragPreguntaDTO(toCamelCase(item.getItemCodigo()), item.getItemNombre()))
+                    .map(item -> {
+                        String codigo = item.getItemCodigo();
+                        if (codigo != null && codigo.toUpperCase(Locale.ROOT).startsWith("FURAG_")) {
+                            codigo = codigo.substring(6);
+                        }
+                        return new FuragPreguntaDTO(toCamelCase(codigo), item.getItemNombre());
+                    })
                     .toList();
         }
         return DEFAULT_FURAG_PREGUNTAS;
