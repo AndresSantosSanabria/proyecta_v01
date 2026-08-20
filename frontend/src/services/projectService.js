@@ -94,6 +94,11 @@ const projectService = {
     return data;
   },
 
+  getFurag: async (id) => {
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}/furag`);
+    return data;
+  },
+
   /**
    * Crea un nuevo proyecto.
    * @param {Object} projectData 
@@ -237,6 +242,17 @@ const projectService = {
    */
   solicitarCierre: async (id, payload) => {
     const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/solicitar`, payload);
+    return data;
+  },
+
+  uploadTransferenciaEvidence: async (id, file) => {
+    const formData = new FormData();
+    formData.append('evidencia', file);
+    const { data } = await apiClient.post(
+      `/proyectos/${normalizeProjectId(id)}/cierre/evidencia-transferencia`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
     return data;
   },
 

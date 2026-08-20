@@ -1,6 +1,7 @@
 import apiClient from '../api/axiosConfig';
 
 const unwrap = (response) => response?.data ?? response;
+const normalizeProjectId = (id) => String(id || '').trim().toUpperCase();
 
 const securityService = {
   getCurrentProfile: async () => {
@@ -154,7 +155,7 @@ const securityService = {
 
   notifyProjectBenefitImpactEvent: async (projectId, payload = {}) => {
     const response = await apiClient.post(
-      `/proyectos/${encodeURIComponent(projectId)}/beneficio-impacto/notificar`,
+      `/proyectos/${normalizeProjectId(projectId)}/beneficio-impacto/notificar`,
       payload
     );
     return unwrap(response);
@@ -171,12 +172,12 @@ const securityService = {
   },
 
   getClosureRecord: async (projectId) => {
-    const response = await apiClient.get(`/admin/closure-templates/closure-record/${encodeURIComponent(projectId)}`);
+    const response = await apiClient.get(`/admin/closure-templates/closure-record/${normalizeProjectId(projectId)}`);
     return unwrap(response);
   },
 
   saveClosureRecord: async (projectId, formData) => {
-    const response = await apiClient.post(`/admin/closure-templates/closure-record/${encodeURIComponent(projectId)}`, { formData });
+    const response = await apiClient.post(`/admin/closure-templates/closure-record/${normalizeProjectId(projectId)}`, { formData });
     return unwrap(response);
   },
 
@@ -211,27 +212,27 @@ const securityService = {
   },
 
   getClosureAnswers: async (projectId) => {
-    const response = await apiClient.get(`/admin/closure-questions/answers/${encodeURIComponent(projectId)}`);
+    const response = await apiClient.get(`/admin/closure-questions/answers/${normalizeProjectId(projectId)}`);
     return unwrap(response);
   },
 
   saveClosureAnswers: async (projectId, answers) => {
-    const response = await apiClient.post(`/admin/closure-questions/answers/${encodeURIComponent(projectId)}`, answers);
+    const response = await apiClient.post(`/admin/closure-questions/answers/${normalizeProjectId(projectId)}`, answers);
     return unwrap(response);
   },
 
   getResolvedClosureTemplate: async (projectId) => {
-    const response = await apiClient.get(`/admin/closure-questions/resolved-template/${encodeURIComponent(projectId)}`);
+    const response = await apiClient.get(`/admin/closure-questions/resolved-template/${normalizeProjectId(projectId)}`);
     return unwrap(response);
   },
 
   getClosureDraftTemplate: async (projectId) => {
-    const response = await apiClient.get(`/admin/closure-questions/draft/${encodeURIComponent(projectId)}`);
+    const response = await apiClient.get(`/admin/closure-questions/draft/${normalizeProjectId(projectId)}`);
     return unwrap(response);
   },
 
   getMissingClosureQuestions: async (projectId) => {
-    const response = await apiClient.get(`/admin/closure-questions/missing/${encodeURIComponent(projectId)}`);
+    const response = await apiClient.get(`/admin/closure-questions/missing/${normalizeProjectId(projectId)}`);
     return unwrap(response);
   },
 

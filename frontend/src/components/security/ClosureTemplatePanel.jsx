@@ -5,6 +5,7 @@ import {
   Columns3, Signature, AlignLeft, Heading1,
 } from 'lucide-react';
 import securityService from '../../services/securityService';
+import SpellCheckerInput from '../common/SpellCheckerInput';
 import './ClosureTemplatePanel.css';
 
 const COMPONENT_TYPES = [
@@ -306,7 +307,7 @@ const ClosureTemplatePanel = () => {
           <div className="ctp-meta-top">
             <span className="ctp-eyebrow">Configuracion de Plantilla de Acta de Cierre</span>
             <div className="ctp-title-row">
-              <input
+              <SpellCheckerInput
                 className="ctp-title-input"
                 value={metadata.nombre_documento}
                 onChange={(e) => setMetadata((m) => ({ ...m, nombre_documento: e.target.value }))}
@@ -315,7 +316,7 @@ const ClosureTemplatePanel = () => {
             <div className="ctp-meta-row">
               <div className="ctp-meta-item">
                 <span className="ctp-meta-label">Codigo del Proceso</span>
-                <input className="ctp-meta-value-input" value={metadata.codigo_proceso} onChange={(e) => setMetadata((m) => ({ ...m, codigo_proceso: e.target.value }))} />
+                <SpellCheckerInput className="ctp-meta-value-input" value={metadata.codigo_proceso} onChange={(e) => setMetadata((m) => ({ ...m, codigo_proceso: e.target.value }))} />
               </div>
               <div className="ctp-meta-item">
                 <span className="ctp-meta-label">Version Actual</span>
@@ -352,7 +353,7 @@ const ClosureTemplatePanel = () => {
                       <button type="button" onClick={() => moveBlock(idx, 1)} disabled={idx === blocks.length - 1}><ChevronDown size={14} /></button>
                     </div>
                     <span className="ctp-section-num">{idx + 1}</span>
-                    <input
+                    <SpellCheckerInput
                       className="ctp-section-title-input"
                       value={block.titulo}
                       onChange={(e) => updateBlock(idx, { titulo: e.target.value })}
@@ -388,7 +389,7 @@ const ClosureTemplatePanel = () => {
                         {block.questionId && <span className="ctp-chip-linked">VINCULADO</span>}
                       </div>
                       <div className="ctp-field-row">
-                        <input className="ctp-field-label-input" value={block.label} onChange={(e) => updateBlock(idx, { label: e.target.value })} placeholder="Nombre del campo" disabled={!!block.questionId} />
+                        <SpellCheckerInput className="ctp-field-label-input" value={block.label} onChange={(e) => updateBlock(idx, { label: e.target.value })} placeholder="Nombre del campo" disabled={!!block.questionId} />
                         <label className="ctp-toggle-inline" title="Activar o desactivar este campo">
                           <input
                             type="checkbox"
@@ -441,7 +442,7 @@ const ClosureTemplatePanel = () => {
                       <div className="ctp-table-columns">
                         {(block.columnas || []).map((col, ci) => (
                           <div key={col.id} className="ctp-col-chip">
-                            <input value={col.label} onChange={(e) => updateColumn(idx, ci, e.target.value)} className="ctp-col-chip-input" />
+                            <SpellCheckerInput value={col.label} onChange={(e) => updateColumn(idx, ci, e.target.value)} className="ctp-col-chip-input" />
                             <label className="ctp-col-toggle" title="Activar o desactivar columna">
                               <input
                                 type="checkbox"
@@ -470,7 +471,7 @@ const ClosureTemplatePanel = () => {
                   {block.type === 'signature' && (
                     <div className="ctp-component-body ctp-signature-editor">
                       <div className="ctp-chip"><Signature size={12} /> BLOQUE DE FIRMA</div>
-                      <input className="ctp-field-label-input" value={block.label} onChange={(e) => updateBlock(idx, { label: e.target.value })} placeholder="Nombre del firmante" />
+                      <SpellCheckerInput className="ctp-field-label-input" value={block.label} onChange={(e) => updateBlock(idx, { label: e.target.value })} placeholder="Nombre del firmante" />
                       <label className="ctp-toggle-inline" title="Activar o desactivar este bloque">
                         <input
                           type="checkbox"

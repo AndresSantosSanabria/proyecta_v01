@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import SpellCheckerTextarea from '../../../common/SpellCheckerTextarea';
+import SpellCheckerInput from '../../../common/SpellCheckerInput';
 
 const DEPENDENCIAS = [
   'Infraestructura',
@@ -87,7 +89,7 @@ const Paso1DatosGenerales = ({
       <div className="form-grid">
         <div className="form-group">
           <label className="form-label">Nombre del Proyecto *</label>
-          <input
+          <SpellCheckerInput
             className={`form-input ${errors.nombre ? 'input-error' : ''}`}
             value={data.nombre || ''}
             onChange={(e) => handleChange('nombre', e.target.value)}
@@ -205,7 +207,7 @@ const Paso1DatosGenerales = ({
 
       <div className="form-group">
         <label className="form-label">Objetivo General del Proyecto *</label>
-        <textarea
+        <SpellCheckerTextarea
           className={`form-input form-textarea ${errors.objetivoGeneral ? 'input-error' : ''}`}
           value={data.objetivoGeneral || ''}
           onChange={(e) => handleChange('objetivoGeneral', e.target.value)}
@@ -219,7 +221,7 @@ const Paso1DatosGenerales = ({
         <label className="form-label">Objetivos Específicos</label>
         {(data.objetivosEspecificos || []).map((obj, i) => (
           <div key={i} className="array-field-row">
-            <input
+            <SpellCheckerInput
               className="form-input"
               value={obj}
               onChange={(e) => handleObjetivoChange(i, e.target.value)}

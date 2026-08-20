@@ -93,6 +93,9 @@ const ProjectProgressPage = () => {
   const [benefitImpactData, setBenefitImpactData] = useState(null);
 
   const showBenefitImpact = useMemo(() => {
+    if (toNumber(progressData.progresoEjecutado) >= 100 || toNumber(progressData.avanceTotal) >= 100) {
+      return true;
+    }
     const allEntregables = flattenEntregables(progressData.fases || []);
     if (allEntregables.length === 0) return false;
     const isAprobado = (ent) => {
@@ -101,12 +104,11 @@ const ProjectProgressPage = () => {
         || estado === 'APROBADO'
         || ent.conforme === true;
     };
-    const tieneEvidencia = (ent) => Boolean(ent.fechaEntrega || ent.fechaEntregaReal || ent.evidenciaUrl || ent.descargaUrl);
-    return allEntregables.every((ent) => tieneEvidencia(ent) && isAprobado(ent));
-  }, [progressData.fases]);
+    return allEntregables.every((ent) => isAprobado(ent));
+  }, [progressData]);
 
-  const canApproveBenefits = usePermission('BENEFICIO:APROBAR');
-  const canViewBenefits = usePermission('BENEFICIO:VER');
+  const canApproveBenefits = usePermission('BENEFICIO_IMPACTO:APROBAR');
+  const canViewBenefits = usePermission('BENEFICIO_IMPACTO:VER');
   const hasBenefitData = benefitImpactData && ['DILIGENCIADO', 'OBSERVADO', 'RECHAZADO', 'APROBADO'].includes(benefitImpactData.estado);
   const canReview = canApproveBenefits && hasBenefitData;
   const canViewBenefitModal = hasBenefitData && (canApproveBenefits || canViewBenefits);

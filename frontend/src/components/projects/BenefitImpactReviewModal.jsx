@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import projectService from '../../services/projectService';
+import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import './BenefitImpactReviewModal.css';
 
 const AccordionSection = ({ label, value }) => {
@@ -156,7 +157,7 @@ const BenefitImpactReviewModal = ({ isOpen, onClose, proyectoId, projectName, be
           {view === 'rejecting' && (
             <div className="birm-reject-section birm-expand">
               <label className="birm-reject-label">Motivo del rechazo / Observaciones para correccion (Obligatorio)</label>
-              <textarea
+              <SpellCheckerTextarea
                 value={rejectReason}
                 onChange={(e) => { setRejectReason(e.target.value); setRejectError(''); }}
                 rows={4}

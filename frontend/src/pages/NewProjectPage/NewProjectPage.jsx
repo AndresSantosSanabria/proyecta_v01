@@ -3,6 +3,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CheckCircle, Info, X } from 'lucide-react';
 import projectService from '../../services/projectService';
 import { usePermission } from '../../hooks/usePermission';
+import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
+import SpellCheckerInput from '../../components/common/SpellCheckerInput';
 import './NewProjectPage.css';
 
 const INITIAL_STATE = {
@@ -337,7 +339,7 @@ const NewProjectPage = () => {
 
                 <div className="form-group">
                   <label className="form-label">Nombre del Proyecto *</label>
-                  <input
+                  <SpellCheckerInput
                     className={`form-input ${errors.nombre ? 'input-error' : ''}`}
                     value={formData.nombre}
                     onChange={(event) => updateField('nombre', event.target.value)}
@@ -388,7 +390,7 @@ const NewProjectPage = () => {
 
               <div className="form-group">
                 <label className="form-label">Objetivo del Proyecto *</label>
-                <textarea
+                <SpellCheckerTextarea
                   className={`form-input form-textarea ${errors.objetivoGeneral ? 'input-error' : ''}`}
                   value={formData.objetivoGeneral}
                   onChange={(event) => updateField('objetivoGeneral', event.target.value)}

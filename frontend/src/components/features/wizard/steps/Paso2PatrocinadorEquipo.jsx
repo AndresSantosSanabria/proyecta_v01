@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import configCatalogService from '../../../../services/configCatalogService';
 import projectService from '../../../../services/projectService';
+import SpellCheckerTextarea from '../../../common/SpellCheckerTextarea';
+import SpellCheckerInput from '../../../common/SpellCheckerInput';
 
 const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
   const [rolesEquipo, setRolesEquipo] = useState([]);
@@ -64,6 +66,20 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
     onChange({ equipoTrabajo: (data.equipoTrabajo || []).filter((_, i) => i !== index) });
   };
 
+  const handleStakeholderChange = (index, field, value) => {
+    const nuevos = [...(data.stakeholders || [])];
+    nuevos[index] = { ...nuevos[index], [field]: value };
+    onChange({ stakeholders: nuevos });
+  };
+
+  const handleStakeholderAdd = () => {
+    onChange({ stakeholders: [...(data.stakeholders || []), { rol: '', descripcion: '', interes: '', impacto: '' }] });
+  };
+
+  const handleStakeholderRemove = (index) => {
+    onChange({ stakeholders: (data.stakeholders || []).filter((_, i) => i !== index) });
+  };
+
   return (
     <div className="step-form">
       <h3 className="step-title">Patrocinador del Proyecto</h3>
@@ -77,7 +93,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
       <div className="form-grid">
         <div className="form-group">
           <label className="form-label">Nombre del Patrocinador *</label>
-          <input
+          <SpellCheckerInput
             className={`form-input ${errors.patrocinadorNombre ? 'input-error' : ''}`}
             value={data.patrocinador?.nombre || ''}
             onChange={(e) => handleNombrePatrocinador(e.target.value)}
@@ -89,7 +105,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
 
         <div className="form-group">
           <label className="form-label">Cargo *</label>
-          <input
+          <SpellCheckerInput
             className={`form-input ${errors.patrocinadorCargo ? 'input-error' : ''}`}
             value={data.patrocinador?.cargo || ''}
             onChange={(e) => handlePatrocinador('cargo', e.target.value)}
@@ -100,7 +116,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
 
         <div className="form-group">
           <label className="form-label">Entidad *</label>
-          <input
+          <SpellCheckerInput
             className={`form-input ${errors.patrocinadorEntidad ? 'input-error' : ''}`}
             value={data.patrocinador?.entidad || ''}
             onChange={(e) => handlePatrocinador('entidad', e.target.value)}
@@ -111,7 +127,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
 
         <div className="form-group">
           <label className="form-label">Proceso SIGC</label>
-          <input
+          <SpellCheckerInput
             className="form-input"
             value={data.patrocinador?.procesoSigc || ''}
             onChange={(e) => handlePatrocinador('procesoSigc', e.target.value)}
@@ -120,7 +136,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
 
         <div className="form-group">
           <label className="form-label">Procedimiento SIGC</label>
-          <input
+          <SpellCheckerInput
             className="form-input"
             value={data.patrocinador?.procedimientoSigc || ''}
             onChange={(e) => handlePatrocinador('procedimientoSigc', e.target.value)}
@@ -140,7 +156,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
           <div className="form-grid array-card-body">
             <div className="form-group">
               <label className="form-label">Nombre</label>
-              <input
+              <SpellCheckerInput
                 className="form-input"
                 value={miembro.nombre || ''}
                 onChange={(e) => handleIntegranteChange(i, 'nombre', e.target.value)}
@@ -149,7 +165,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
             </div>
             <div className="form-group">
               <label className="form-label">Cargo</label>
-              <input
+              <SpellCheckerInput
                 className="form-input"
                 value={miembro.cargo || ''}
                 onChange={(e) => handleIntegranteChange(i, 'cargo', e.target.value)}
@@ -171,7 +187,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
             </div>
             <div className="form-group">
               <label className="form-label">Dependencia</label>
-              <input
+              <SpellCheckerInput
                 className="form-input"
                 value={miembro.dependencia || ''}
                 onChange={(e) => handleIntegranteChange(i, 'dependencia', e.target.value)}
@@ -182,9 +198,14 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
               <label className="form-label">Teléfono</label>
               <input
                 className="form-input"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={miembro.telefono || ''}
-                onChange={(e) => handleIntegranteChange(i, 'telefono', e.target.value)}
-                placeholder="Número de contacto"
+                onChange={(e) => {
+                  const soloNumeros = e.target.value.replace(/[^0-9]/g, '');
+                  handleIntegranteChange(i, 'telefono', soloNumeros);
+                }}
+                placeholder="Solo números"
               />
             </div>
             <div className="form-group">
@@ -192,6 +213,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
               <input
                 className="form-input"
                 type="email"
+                pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
                 value={miembro.correo || ''}
                 onChange={(e) => handleIntegranteChange(i, 'correo', e.target.value)}
                 placeholder="correo@ejemplo.com"
@@ -203,6 +225,62 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
 
       <button type="button" className="btn-add" onClick={handleIntegranteAdd}>
         + Agregar integrante
+      </button>
+
+      <h3 className="step-title" style={{ marginTop: '2rem' }}>Grupo de Interes (Stakeholders)</h3>
+      <p className="help-text">Identifique los grupos de interes del proyecto y su nivel de impacto.</p>
+
+      {(data.stakeholders || []).map((stakeholder, i) => (
+        <div key={i} className="array-card">
+          <div className="array-card-header">
+            <strong>Stakeholder #{i + 1}</strong>
+            <button type="button" className="btn-icon-danger" onClick={() => handleStakeholderRemove(i)}>✕</button>
+          </div>
+          <div className="form-grid array-card-body">
+            <div className="form-group">
+              <label className="form-label">Rol</label>
+              <SpellCheckerInput
+                className="form-input"
+                value={stakeholder.rol || ''}
+                onChange={(e) => handleStakeholderChange(i, 'rol', e.target.value)}
+                placeholder="Ej: Gestores de cuentas de cobro"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Descripcion</label>
+              <SpellCheckerInput
+                className="form-input"
+                value={stakeholder.descripcion || ''}
+                onChange={(e) => handleStakeholderChange(i, 'descripcion', e.target.value)}
+                placeholder="Descripcion del grupo de interes"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Interes / Expectativas</label>
+              <SpellCheckerTextarea
+                className="form-input form-textarea"
+                value={stakeholder.interes || ''}
+                onChange={(e) => handleStakeholderChange(i, 'interes', e.target.value)}
+                placeholder="Que espera obtener del proyecto"
+                rows={3}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Impacto en el Proyecto</label>
+              <SpellCheckerTextarea
+                className="form-input form-textarea"
+                value={stakeholder.impacto || ''}
+                onChange={(e) => handleStakeholderChange(i, 'impacto', e.target.value)}
+                placeholder="Como impacta en el proyecto"
+                rows={3}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <button type="button" className="btn-add" onClick={handleStakeholderAdd}>
+        + Agregar stakeholder
       </button>
     </div>
   );

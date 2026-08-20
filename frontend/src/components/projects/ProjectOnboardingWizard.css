@@ -1141,3 +1141,68 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+.retroactive-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retroactive-upload-btn:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-panel));
+  color: var(--primary);
+}
+
+.retroactive-upload-btn.input-error {
+  border-color: var(--danger);
+}
+
+.retroactive-file-attached {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: color-mix(in srgb, var(--success) 8%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--success);
+}
+
+.retroactive-file-attached span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.retroactive-change-btn {
+  padding: 0.3rem 0.6rem;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.retroactive-change-btn:hover {
+  background: var(--primary);
+  color: white;
+}

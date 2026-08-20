@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import EvidenceUpload from '../../common/EvidenceUpload';
 import Paso3FasesHitosEntregables from '../wizard/steps/Paso3FasesHitosEntregables';
+import SpellCheckerTextarea from '../../common/SpellCheckerTextarea';
 import apiClient from '../../../api/axiosConfig';
 import projectService from '../../../services/projectService';
 import { usePermission } from '../../../hooks/usePermission';
@@ -153,7 +154,7 @@ const toHierarchyNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '') => {
+const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '', pendingFiles = {}) => {
   const errors = {};
 
   if (fases.length === 0) {
@@ -203,14 +204,14 @@ const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '') => {
             errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] = 'La fecha limite del nuevo entregable es obligatoria.';
           }
           const esRetroactivo = isRetroactiveDate(entregable.fechaLimite);
-          if (!esRetroactivo && entregable.fechaInicio && fechaInicioProyecto && isBeforeDate(entregable.fechaInicio, fechaInicioProyecto)) {
-            errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaInicio`] = `La fecha de inicio del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${fechaInicioProyecto}).`;
-          }
-          if (!esRetroactivo && entregable.fechaLimite && fechaInicioProyecto && isBeforeDate(entregable.fechaLimite, fechaInicioProyecto)) {
-            errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] = `La fecha limite del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${fechaInicioProyecto}).`;
-          }
           if (entregable.fechaInicio && entregable.fechaLimite && new Date(entregable.fechaLimite) < new Date(entregable.fechaInicio)) {
             errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] = 'La fecha limite debe ser mayor o igual a la fecha de inicio.';
+          }
+          if (esRetroactivo) {
+            const hasFile = Boolean(pendingFiles[`${fIndex}-${hIndex}-${eIndex}`]);
+            if (!hasFile) {
+              errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`] = 'Debes adjuntar un archivo de soporte porque la fecha limite del entregable es anterior a la fecha actual.';
+            }
           }
         }
       });
@@ -590,6 +591,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     loading: false,
     saving: false,
     fechaInicioProyecto: '',
+    pendingFiles: {},
   });
   const [approvalModal, setApprovalModal] = React.useState({
     open: false,
@@ -647,6 +649,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       loading: !projectInfo,
       saving: false,
       fechaInicioProyecto: projectInfo?.fechaInicio || progressData?.fechaInicio || '',
+      pendingFiles: {},
     });
 
     if (projectInfo) return;
@@ -682,6 +685,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       loading: false,
       saving: false,
       fechaInicioProyecto: '',
+      pendingFiles: {},
     });
   };
 
@@ -689,6 +693,16 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     setHierarchyModal((current) => ({
       ...current,
       fases: changes.fases || [],
+      errors: {},
+      error: '',
+    }));
+  };
+
+  const handleHierarchyFileChange = (fIndex, hIndex, eIndex, file) => {
+    const key = `${fIndex}-${hIndex}-${eIndex}`;
+    setHierarchyModal((current) => ({
+      ...current,
+      pendingFiles: { ...current.pendingFiles, [key]: file },
       errors: {},
       error: '',
     }));
@@ -737,8 +751,9 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     return payload;
   };
 
-  const persistHierarchyTree = async (fases) => {
-    for (const fase of fases) {
+  const persistHierarchyTree = async (fases, pendingFiles = {}) => {
+    for (let fIndex = 0; fIndex < fases.length; fIndex++) {
+      const fase = fases[fIndex];
       const faseId = getFaseId(fase);
 
       if (!faseId) {
@@ -748,7 +763,9 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
       await projectService.updateFase(proyectoId, faseId, buildFasePayload(fase));
 
-      for (const hito of sortHitosBySequence(fase.hitos || [])) {
+      const hitos = fase.hitos || [];
+      for (let hIndex = 0; hIndex < hitos.length; hIndex++) {
+        const hito = hitos[hIndex];
         const hitoId = getHitoId(hito);
 
         if (!hitoId) {
@@ -758,11 +775,22 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
         await projectService.updateHito(proyectoId, faseId, hitoId, buildHitoPayload(hito));
 
-        for (const entregable of sortEntregablesBySchedule(hito.entregables || [])) {
+        const entregables = hito.entregables || [];
+        for (let eIndex = 0; eIndex < entregables.length; eIndex++) {
+          const entregable = entregables[eIndex];
           const entregableId = getEntregableId(entregable);
 
           if (!entregableId) {
-            await projectService.createEntregable(proyectoId, faseId, hitoId, buildEntregablePayload(entregable, true));
+            const result = await projectService.createEntregable(proyectoId, faseId, hitoId, buildEntregablePayload(entregable, true));
+            const newId = result?.id || result?.data?.id || result?.entregableId;
+            const pendingFile = pendingFiles[`${fIndex}-${hIndex}-${eIndex}`];
+            if (newId && pendingFile) {
+              try {
+                await projectService.uploadEvidencia(proyectoId, newId, pendingFile, entregable.fechaLimite);
+              } catch (fileErr) {
+                console.error('Error uploading file for new entregable:', fileErr);
+              }
+            }
           } else {
             await projectService.updateEntregable(proyectoId, entregableId, buildEntregablePayload(entregable));
           }
@@ -774,7 +802,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   const handleSaveHierarchy = async (event) => {
     event.preventDefault();
 
-    const validation = buildHierarchyValidation(hierarchyModal.fases, hierarchyModal.fechaInicioProyecto);
+    const validation = buildHierarchyValidation(hierarchyModal.fases, hierarchyModal.fechaInicioProyecto, hierarchyModal.pendingFiles);
     if (validation.message) {
       setHierarchyModal((current) => ({
         ...current,
@@ -786,7 +814,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
     try {
       setHierarchyModal((current) => ({ ...current, saving: true, error: '' }));
-      await persistHierarchyTree(hierarchyModal.fases);
+      await persistHierarchyTree(hierarchyModal.fases, hierarchyModal.pendingFiles);
       handleCloseHierarchyModal();
       if (onEvidenceUploaded) onEvidenceUploaded();
     } catch (error) {
@@ -1306,6 +1334,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
                   lockExistingDates
                   protectExistingItems
                   allowEmpty
+                  onFileChange={handleHierarchyFileChange}
+                  pendingFiles={hierarchyModal.pendingFiles}
                 />
               </div>
             )}
@@ -1431,7 +1461,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
             <label className="review-field">
               <span>Motivo obligatorio</span>
-              <textarea
+              <SpellCheckerTextarea
                 value={revertModal.motivo}
                 onChange={(event) => setRevertModal((current) => ({ ...current, motivo: event.target.value, error: '' }))}
                 placeholder="Explica por que se restaura esta version."
@@ -1525,7 +1555,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
             <label className="review-field">
               <span>Observacion obligatoria</span>
-              <textarea
+              <SpellCheckerTextarea
                 value={reviewModal.observacion}
                 onChange={(event) => setReviewModal((current) => ({ ...current, observacion: event.target.value, error: '' }))}
                 placeholder="Ej: El documento no incluye firmas, falta anexo técnico o la evidencia no corresponde al entregable."

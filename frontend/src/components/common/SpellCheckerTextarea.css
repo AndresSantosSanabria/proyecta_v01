@@ -1,0 +1,175 @@
+.spell-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.spell-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: transparent;
+  background: transparent;
+  border: 1px solid transparent;
+  overflow: auto;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.spell-textarea {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+  color: inherit;
+}
+
+.spell-textarea.spell-loading {
+  opacity: 0.85;
+}
+
+.spell-highlight mark.spell-error {
+  background: none;
+  color: transparent;
+  border-bottom: 2px wavy #ef4444;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.spell-loading-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.85);
+  padding: 2px 6px;
+  border-radius: 4px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.spell-context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  min-width: 180px;
+  max-width: 260px;
+}
+
+.spell-suggestion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #e2e8f0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.spell-suggestion:hover {
+  background: #334155;
+}
+
+.spell-no-suggestions {
+  display: block;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
+.spell-menu-divider {
+  height: 1px;
+  background: #334155;
+  margin: 4px 0;
+}
+
+.spell-add-dict {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.spell-add-dict:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.spell-wrapper-input {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.spell-wrapper-input .spell-highlight-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: transparent;
+  background: transparent;
+  border: 1px solid transparent;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.spell-wrapper-input .spell-input {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+  color: inherit;
+  width: 100%;
+}
+
+.spell-wrapper-input .spell-input.spell-loading {
+  opacity: 0.85;
+}
+
+.spell-wrapper-input .spell-highlight-input mark.spell-error {
+  background: none;
+  color: transparent;
+  border-bottom: 2px wavy #ef4444;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.spell-loading-badge-input {
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}

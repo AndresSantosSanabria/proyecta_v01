@@ -1191,3 +1191,174 @@
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border-color);
 }
+
+/* Transferencia de Conocimiento */
+.transferencia-table {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.transferencia-row {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.transferencia-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.transferencia-row-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.transferencia-remove-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #ef4444;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.transferencia-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.transferencia-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transferencia-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transferencia-field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.transferencia-date {
+  flex: 0 0 200px;
+}
+
+.transferencia-evidence {
+  flex: 1;
+}
+
+.transferencia-evidence .closure-dyn-file {
+  padding: 8px;
+  border: 1px solid var(--border-color, #3a3a5c);
+  border-radius: 6px;
+  background: var(--input-bg, #1a1a2e);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 13px;
+  width: 100%;
+}
+
+.transferencia-evidence .closure-dyn-file::file-selector-button {
+  padding: 4px 12px;
+  border: 1px solid var(--border-color, #3a3a5c);
+  border-radius: 4px;
+  background: var(--bg-secondary, #16213e);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: background 0.2s;
+}
+
+.transferencia-evidence .closure-dyn-file::file-selector-button:hover {
+  background: var(--bg-tertiary, #0f3460);
+}
+
+.transferencia-evidence .closure-dyn-file:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.transferencia-evidence .closure-dyn-file:disabled::file-selector-button {
+  cursor: not-allowed;
+}
+
+.transferencia-file-name {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary, #8888aa);
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.transferencia-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: var(--bg-tertiary, #0f3460);
+  color: var(--text-primary, #e0e0e0);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.transferencia-view-btn:hover {
+  background: #1a5276;
+  color: #5dade2;
+}
+
+.transferencia-sublabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.transferencia-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px dashed var(--primary);
+  cursor: pointer;
+  padding: 10px 16px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.transferencia-add-btn:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+@media (max-width: 600px) {
+  .transferencia-field-row {
+    flex-direction: column;
+  }
+  .transferencia-date {
+    flex: 1;
+  }
+}

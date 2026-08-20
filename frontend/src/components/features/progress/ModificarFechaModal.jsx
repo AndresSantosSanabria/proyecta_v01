@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Calendar, FileText, Upload, X, LoaderCircle } from 'lucide-react';
+import SpellCheckerTextarea from '../../common/SpellCheckerTextarea';
 import './ModificarFechaModal.css';
 
 export default function ModificarFechaModal({ entregable, proyectoId, onClose, onSaved }) {
@@ -93,7 +94,7 @@ export default function ModificarFechaModal({ entregable, proyectoId, onClose, o
 
           <div className="mfm-field">
             <label>Justificación del cambio</label>
-            <textarea
+            <SpellCheckerTextarea
               rows={4}
               value={justificacion}
               onChange={(e) => setJustificacion(e.target.value)}

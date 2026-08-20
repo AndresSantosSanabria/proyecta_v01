@@ -3,6 +3,8 @@ import { AlertTriangle, ArrowLeft, ArrowRight, LockKeyhole, Save } from 'lucide-
 import { usePermission } from '../../hooks/usePermission';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
+import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
+import SpellCheckerInput from '../common/SpellCheckerInput';
 import Paso4PetiComunicaciones from '../features/wizard/steps/Paso4PetiComunicaciones';
 import Paso5Furag from '../features/wizard/steps/Paso5Furag';
 import Paso6GestionDocumental from '../features/wizard/steps/Paso6GestionDocumental';
@@ -27,11 +29,13 @@ const initialForm = (project) => ({
   objetivosEspecificos: Array.isArray(project?.objetivosEspecificos) ? project.objetivosEspecificos : [],
   patrocinador: project?.patrocinador || { nombre: '', cargo: '', entidad: '', procesoSigc: '', procedimientoSigc: '' },
   equipoTrabajo: Array.isArray(project?.equipoTrabajo) ? project.equipoTrabajo : [],
+  stakeholders: Array.isArray(project?.stakeholders) ? project.stakeholders : [],
   fases: Array.isArray(project?.fases) ? project.fases : [],
   peti: project?.peti ?? null,
   vigenciaPeti: project?.vigenciaPeti || '',
   estrategiaPeti: project?.estrategiaPeti || null,
   tienePlanComunicaciones: project?.tienePlanComunicaciones ?? null,
+  // furag stores { [fieldKey]: 'SI'|'NO'|'NO_APLICA' } keyed by the catalog question key
   furag: project?.furag || {},
   viabilizacionPdf: null,
   actaConstitucionPdf: null,
@@ -40,6 +44,37 @@ const initialForm = (project) => ({
 });
 
 const sumPonderacion = (items = []) => items.reduce((sum, item) => sum + (parseFloat(item?.ponderacion) || 0), 0);
+
+// FURAG field keys are fully dynamic — they come from petiCatalog.furagPreguntas at runtime.
+// Do NOT hardcode them here. This allows admins to add/remove FURAG questions from
+// the configuration panel without any frontend code changes.
+
+const normalizeFuragValue = (value) => {
+  if (value == null) return null;
+  const normalized = String(value).trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'NA' || normalized === 'N/A' || normalized === 'NOAPLICA') return 'NO_APLICA';
+  if (normalized === 'SI' || normalized === 'S') return 'SI';
+  if (normalized === 'NO' || normalized === 'N') return 'NO';
+  if (normalized === 'NO_APLICA') return 'NO_APLICA';
+  return null;
+};
+
+const getFuragValue = (furagState, key) => {
+  if (!furagState || !key) return null;
+
+  const exactValue = furagState[key];
+  if (exactValue != null) return exactValue;
+
+  const normalizedKey = String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const entry = Object.entries(furagState).find(([candidateKey]) => {
+    const normalizedCandidate = String(candidateKey).toLowerCase().replace(/[^a-z0-9]/g, '');
+    return normalizedCandidate === normalizedKey
+      || normalizedCandidate.includes(normalizedKey)
+      || normalizedKey.includes(normalizedCandidate);
+  });
+
+  return entry ? entry[1] : null;
+};
 
 const toDateOnly = (value) => {
   if (!value) return null;
@@ -201,7 +236,7 @@ const ProjectOnboardingWizard = ({
   };
 
   const handleEntregableFileChange = (fIndex, hIndex, eIndex, file) => {
-    const key = `${fIndex}_${hIndex}_${eIndex}`;
+    const key = `${fIndex}-${hIndex}-${eIndex}`;
     setEntregableFiles((prev) => ({
       ...prev,
       [key]: file,
@@ -261,18 +296,11 @@ const ProjectOnboardingWizard = ({
             if (!entregable.ponderacion || parseFloat(entregable.ponderacion) <= 0) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_ponderacion`] = 'La ponderacion del entregable debe ser mayor a 0.';
             if (!entregable.fechaInicio) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaInicio`] = 'La fecha de inicio es obligatoria.';
             if (!entregable.fechaLimite) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaLimite`] = 'La fecha limite es obligatoria.';
-            const esRetroactivo = isRetroactiveDate(entregable.fechaLimite);
-            if (!esRetroactivo && entregable.fechaInicio && source.fechaInicio && isBeforeDate(entregable.fechaInicio, source.fechaInicio)) {
-              nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaInicio`] = `La fecha de inicio del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${source.fechaInicio}).`;
-            }
-            if (!esRetroactivo && entregable.fechaLimite && source.fechaInicio && isBeforeDate(entregable.fechaLimite, source.fechaInicio)) {
-              nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaLimite`] = `La fecha limite del entregable no puede ser anterior a la fecha de inicio configurada del proyecto (${source.fechaInicio}).`;
-            }
             if (entregable.fechaInicio && entregable.fechaLimite && new Date(entregable.fechaLimite) < new Date(entregable.fechaInicio)) {
               nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaLimite`] = 'La fecha limite debe ser mayor o igual a la fecha de inicio.';
             }
             if (entregable.fechaLimite && isRetroactiveDate(entregable.fechaLimite)) {
-              const fileKey = `${faseIndex}_${hitoIndex}_${entregableIndex}`;
+              const fileKey = `${faseIndex}-${hitoIndex}-${entregableIndex}`;
               if (!entregableFiles[fileKey]) {
                 nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_archivo`] = 'Debes adjuntar un archivo de soporte porque la fecha limite es anterior a hoy.';
               }
@@ -309,12 +337,18 @@ const ProjectOnboardingWizard = ({
     }
 
     if (targetStep === 5) {
-      const furagKeys = (petiCatalog?.furagPreguntas || []).map((p) => p.key);
-      const defaultKeys = ['infraestructuraDatos', 'interoperabilidad', 'digitalizacionAutomatizacion', 'contratacionPublica', 'serviciosNube', 'sandbox', 'tecnologiasEmergentes'];
-      const keysToValidate = furagKeys.length > 0 ? furagKeys : defaultKeys;
-      keysToValidate.forEach((key) => {
-        if (!source.furag?.[key]) nextErrors[`furag_${key}`] = 'Debe seleccionar una respuesta.';
-      });
+      // Validate using dynamic catalog keys — not hardcoded ones
+      const preguntasFurag = petiCatalog?.furagPreguntas || [];
+      if (preguntasFurag.length === 0) {
+        nextErrors.furag = 'No se pudieron cargar las preguntas FURAG.';
+      } else {
+        preguntasFurag.forEach((p) => {
+          const qKey = p?.key || p?.codigo || p?.id;
+          if (qKey && !normalizeFuragValue(source.furag?.[qKey])) {
+            nextErrors[`furag_${qKey}`] = 'Debe seleccionar una respuesta.';
+          }
+        });
+      }
     }
 
     if (targetStep === 6) {
@@ -337,61 +371,128 @@ const ProjectOnboardingWizard = ({
     setStep((current) => Math.min(current + 1, STEPS.length));
   };
 
-  const buildPayload = () => ({
-    dependencia: form.dependencia,
-    fechaInicio: form.fechaInicio,
-    alcanceDetallado: String(form.alcanceDetallado || '').trim(),
-    presupuestoEstimado: Number(form.presupuestoEstimado) || 0,
-    objetivosEspecificos: (form.objetivosEspecificos || []).map((value) => value?.trim()).filter(Boolean),
-    patrocinador: {
-      nombre: form.patrocinador?.nombre || '',
-      cargo: form.patrocinador?.cargo || '',
-      entidad: form.patrocinador?.entidad || '',
-      procesoSigc: form.patrocinador?.procesoSigc || null,
-      procedimientoSigc: form.patrocinador?.procedimientoSigc || null,
-    },
-    equipoTrabajo: (form.equipoTrabajo || []).map((member) => ({
-      nombre: member.nombre,
-      cargo: member.cargo,
-      rol: member.rol,
-      dependencia: member.dependencia || null,
-      telefono: member.telefono || null,
-      correo: member.correo || null,
-    })),
-    fases: (form.fases || []).map((fase, fIndex) => ({
-      nombre: fase.nombre,
-      descripcion: fase.descripcion || null,
-      ponderacion: parseFloat(fase.ponderacion),
-      hitos: (fase.hitos || []).map((hito, hIndex) => ({
-        nombre: hito.nombre,
-        descripcion: hito.descripcion || null,
-        ponderacion: parseFloat(hito.ponderacion),
-        entregables: (hito.entregables || []).map((entregable, eIndex) => {
-          const fileKey = `${fIndex}_${hIndex}_${eIndex}`;
-          const file = entregableFiles[fileKey];
-          return {
-            nombre: entregable.nombre,
-            ponderacion: parseFloat(entregable.ponderacion),
-            fechaInicio: entregable.fechaInicio,
-            fechaLimite: entregable.fechaLimite,
-            archivoPdf: file ? file.name : null,
-          };
-        }),
+  const buildPayload = () => {
+    // Build the FURAG respuestas map dynamically from catalog keys.
+    // To prevent validation errors on the backend due to fuzzy-matching mismatches
+    // (such as "digitalizacionOAutomatizacion" not containing "digitalizacionautomatizacion" because of the "O"),
+    // we map the catalog question keys to the exact hardcoded keys expected by the backend
+    // whenever a match is detected.
+    const catalogPreguntas = petiCatalog?.furagPreguntas || [];
+    const furagRespuestas = {};
+    
+    const backendKeys = [
+      'infraestructuraDatos',
+      'interoperabilidad',
+      'digitalizacionAutomatizacion',
+      'contratacionPublica',
+      'serviciosNube',
+      'sandbox',
+      'tecnologiasEmergentes'
+    ];
+
+    const normalizeString = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    catalogPreguntas.forEach((p) => {
+      const qKey = p?.key || p?.codigo || p?.id;
+      if (!qKey) return;
+
+      const userValue = normalizeFuragValue(form.furag?.[qKey]) ?? null;
+      const normalizedQKey = normalizeString(qKey);
+
+      // Check if this catalog question maps to one of our 7 standard backend fields
+      let matchedBackendKey = null;
+      for (const bKey of backendKeys) {
+        const normalizedBKey = normalizeString(bKey);
+        // Match if keys are equal, or if the question key contains the backend key,
+        // or if we do a smart match for common variations (e.g. digitalizacion/automatizacion)
+        if (
+          normalizedQKey.includes(normalizedBKey) ||
+          normalizedBKey.includes(normalizedQKey) ||
+          (bKey === 'digitalizacionAutomatizacion' && normalizedQKey.includes('digitalizacion') && normalizedQKey.includes('automatizacion'))
+        ) {
+          matchedBackendKey = bKey;
+          break;
+        }
+      }
+
+      // If it maps to a standard field, send it under the exact expected key.
+      // Otherwise, send it with its original catalog key.
+      if (matchedBackendKey) {
+        furagRespuestas[matchedBackendKey] = userValue;
+      } else {
+        furagRespuestas[qKey] = userValue;
+      }
+    });
+
+    // Verify that all 7 required backend keys are populated. If any was missed by the
+    // catalog map, assign it its value using a looser fallback check on form.furag.
+    backendKeys.forEach((bKey) => {
+      if (furagRespuestas[bKey] == null) {
+        // Fallback search in form.furag keys
+        const foundVal = getFuragValue(form.furag, bKey);
+        if (foundVal != null) {
+          furagRespuestas[bKey] = normalizeFuragValue(foundVal);
+        }
+      }
+    });
+
+    return {
+      dependencia: form.dependencia,
+      fechaInicio: form.fechaInicio,
+      alcanceDetallado: String(form.alcanceDetallado || '').trim(),
+      presupuestoEstimado: Number(form.presupuestoEstimado) || 0,
+      objetivosEspecificos: (form.objetivosEspecificos || []).map((value) => value?.trim()).filter(Boolean),
+      patrocinador: {
+        nombre: form.patrocinador?.nombre || '',
+        cargo: form.patrocinador?.cargo || '',
+        entidad: form.patrocinador?.entidad || '',
+        procesoSigc: form.patrocinador?.procesoSigc || null,
+        procedimientoSigc: form.patrocinador?.procedimientoSigc || null,
+      },
+      equipoTrabajo: (form.equipoTrabajo || []).map((member) => ({
+        nombre: member.nombre,
+        cargo: member.cargo,
+        rol: member.rol,
+        dependencia: member.dependencia || null,
+        telefono: member.telefono || null,
+        correo: member.correo || null,
       })),
-    })),
-    peti: form.peti,
-    vigenciaPeti: form.peti === true ? form.vigenciaPeti : null,
-    estrategiaPeti: form.peti === true ? form.estrategiaPeti : null,
-    tienePlanComunicaciones: form.tienePlanComunicaciones,
-    furag: (() => {
-      const furagKeys = (petiCatalog?.furagPreguntas || []).map((p) => p.key);
-      const defaultKeys = ['infraestructuraDatos', 'interoperabilidad', 'digitalizacionAutomatizacion', 'contratacionPublica', 'serviciosNube', 'sandbox', 'tecnologiasEmergentes'];
-      const keys = furagKeys.length > 0 ? furagKeys : defaultKeys;
-      const result = {};
-      keys.forEach((key) => { result[key] = form.furag?.[key] || null; });
-      return result;
-    })(),
-  });
+      stakeholders: (form.stakeholders || []).map((s) => ({
+        rol: s.rol || null,
+        descripcion: s.descripcion || null,
+        interes: s.interes || null,
+        impacto: s.impacto || null,
+      })),
+      fases: (form.fases || []).map((fase, fIndex) => ({
+        nombre: fase.nombre,
+        descripcion: fase.descripcion || null,
+        ponderacion: parseFloat(fase.ponderacion),
+        hitos: (fase.hitos || []).map((hito, hIndex) => ({
+          nombre: hito.nombre,
+          descripcion: hito.descripcion || null,
+          ponderacion: parseFloat(hito.ponderacion),
+          entregables: (hito.entregables || []).map((entregable, eIndex) => {
+            const fileKey = `${fIndex}-${hIndex}-${eIndex}`;
+            const file = entregableFiles[fileKey];
+            return {
+              nombre: entregable.nombre,
+              ponderacion: parseFloat(entregable.ponderacion),
+              fechaInicio: entregable.fechaInicio,
+              fechaLimite: entregable.fechaLimite,
+              archivoPdf: file ? file.name : null,
+            };
+          }),
+        })),
+      })),
+      peti: form.peti,
+      vigenciaPeti: form.peti === true ? form.vigenciaPeti : null,
+      estrategiaPeti: form.peti === true ? form.estrategiaPeti : null,
+      tienePlanComunicaciones: form.tienePlanComunicaciones,
+      // FuragDTO expects { respuestas: Map<String, RespuestaFurag> }
+      furag: { respuestas: furagRespuestas },
+    };
+  };
+
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -407,7 +508,10 @@ const ProjectOnboardingWizard = ({
 
     setErrors({});
     clearSavedState(project);
-    onComplete?.(buildPayload(), {
+    const payload = buildPayload();
+    console.log('[FURAG] Body enviado al backend:', JSON.stringify(payload.furag, null, 2));
+    console.log('[PAYLOAD COMPLETO]', JSON.stringify(payload, null, 2));
+    onComplete?.(payload, {
       viabilizacionPdf: form.viabilizacionPdf || null,
       actaConstitucionPdf: form.actaConstitucionPdf || null,
       cronogramaPdf: form.cronogramaPdf || null,
@@ -469,7 +573,7 @@ const ProjectOnboardingWizard = ({
 
           <div className="form-group">
             <label className="form-label">Alcance detallado *</label>
-            <textarea
+            <SpellCheckerTextarea
               className={`form-input form-textarea ${errors.alcanceDetallado ? 'input-error' : ''}`}
               value={form.alcanceDetallado || ''}
               onChange={(event) => handleChange({ alcanceDetallado: event.target.value })}
@@ -483,7 +587,7 @@ const ProjectOnboardingWizard = ({
             <label className="form-label">Objetivos especificos</label>
             {(form.objetivosEspecificos || []).map((objective, index) => (
               <div key={`objective-${index}`} className="array-field-row">
-                <input
+                <SpellCheckerInput
                   className="form-input"
                   value={objective}
                   onChange={(event) => handleObjetivoChange(index, event.target.value)}
@@ -514,6 +618,7 @@ const ProjectOnboardingWizard = ({
           errors={errors}
           allowEmpty={false}
           onFileChange={handleEntregableFileChange}
+          pendingFiles={entregableFiles}
         />
       );
     }
@@ -608,7 +713,9 @@ const ProjectOnboardingWizard = ({
           {Object.keys(errors).length > 0 && (
             <div className="error-banner">
               <AlertTriangle size={18} />
-              <span>{getFirstValidationMessage(errors)}</span>
+              <span>
+                {errors.furag || getFirstValidationMessage(errors)}
+              </span>
             </div>
           )}
 

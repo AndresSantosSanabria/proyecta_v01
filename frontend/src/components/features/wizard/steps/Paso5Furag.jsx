@@ -1,37 +1,47 @@
-const PREGUNTAS_FURAG_DEFAULT = [
-  { key: 'infraestructuraDatos', label: '¿El proyecto incluye uso de infraestructura de datos (datos abiertos, big data, analytics)?' },
-  { key: 'interoperabilidad', label: '¿El proyecto requiere interoperabilidad con otros sistemas de la entidad o del Estado?' },
-  { key: 'digitalizacionAutomatizacion', label: '¿El proyecto contempla digitalización o automatización de procesos?' },
-  { key: 'contratacionPublica', label: '¿El proyecto está relacionado con contratación pública electrónica?' },
-  { key: 'serviciosNube', label: '¿El proyecto utilizará servicios en la nube (IaaS, PaaS, SaaS)?' },
-  { key: 'sandbox', label: '¿El proyecto requiere un entorno Sandbox regulatorio para pruebas?' },
-  { key: 'tecnologiasEmergentes', label: '¿El proyecto hace uso de tecnologías emergentes (IA, Blockchain, IoT)?' },
-];
-
 const OPCIONES = [
   { value: 'SI', label: 'Sí' },
   { value: 'NO', label: 'No' },
-  { value: 'NA', label: 'No aplica' },
+  { value: 'NO_APLICA', label: 'No aplica' },
 ];
+
+const normalizePreguntas = (preguntas) => {
+  if (!Array.isArray(preguntas)) return [];
+
+  return preguntas
+    .map((p) => ({
+      key: p?.key || p?.codigo || p?.id || '',
+      label: p?.label || p?.pregunta || p?.nombre || '',
+    }))
+    .filter((p) => p.key && p.label);
+};
 
 const Paso5Furag = ({ data, onChange, errors, preguntas }) => {
   const furag = data.furag || {};
-  const PREGUNTAS_FURAG = Array.isArray(preguntas) && preguntas.length > 0
-    ? preguntas.map((p) => ({ key: p.key, label: p.label }))
-    : PREGUNTAS_FURAG_DEFAULT;
+  const preguntasFurag = normalizePreguntas(preguntas);
 
   const handleRespuesta = (key, value) => {
     onChange({ furag: { ...furag, [key]: value } });
   };
 
+  if (preguntasFurag.length === 0) {
+    return (
+      <div className="step-form">
+        <h3 className="step-title">Cuestionario FURAG</h3>
+        <p className="help-text">
+          No se pudieron cargar las preguntas del catálogo FURAG. Verifique la configuración e intente nuevamente.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="step-form">
       <h3 className="step-title">Cuestionario FURAG</h3>
       <p className="help-text">
-        Responda las siguientes preguntas obligatorias sobre la alineación del proyecto con el Formulario Único de Reporte de Avance de la Gestión (FURAG).
+        Responda las preguntas obligatorias sobre la alineación del proyecto con el FURAG.
       </p>
 
-      {PREGUNTAS_FURAG.map((pregunta) => (
+      {preguntasFurag.map((pregunta) => (
         <div key={pregunta.key} className="furag-item">
           <p className="furag-pregunta">{pregunta.label} *</p>
           <div className="furag-opciones">

@@ -4,6 +4,7 @@ import { LoaderCircle } from 'lucide-react';
 import projectService from '../../services/projectService';
 import documentService from '../../services/documentService';
 import ProjectOnboardingWizard from './ProjectOnboardingWizard';
+import { emitToast } from '../../utils/feedback';
 
 const unwrapPayload = (value) => value?.data?.data ?? value?.data ?? value;
 
@@ -99,7 +100,7 @@ const ProjectLifecycleGuard = () => {
       const tipo = tipoMap[key];
       if (!tipo) continue;
       try {
-        await documentService.cargarDocumento(projectId, tipo, file);
+        await documentService.cargarDocumento(projectId, tipo, file, 'Documento cargado durante el proceso de completar información del proyecto');
       } catch (docError) {
         const detail = docError?.response?.data?.detail
           || docError?.response?.data?.message
@@ -115,6 +116,42 @@ const ProjectLifecycleGuard = () => {
     }
   };
 
+  const uploadRetroactiveEvidence = async (projectId, projectResponse, entregableFiles) => {
+    if (!entregableFiles || Object.keys(entregableFiles).length === 0) return;
+
+    const fases = projectResponse?.fases || [];
+    const flatEntregables = [];
+    fases.forEach((fase, fIdx) => {
+      (fase.hitos || []).forEach((hito, hIdx) => {
+        (hito.entregables || []).forEach((entregable, eIdx) => {
+          flatEntregables.push({ key: `${fIdx}-${hIdx}-${eIdx}`, id: entregable.id });
+        });
+      });
+    });
+
+    const errors = [];
+    const hoy = new Date().toISOString().split('T')[0];
+
+    for (const [fileKey, file] of Object.entries(entregableFiles)) {
+      if (!file) continue;
+      const match = flatEntregables.find((e) => e.key === fileKey);
+      if (!match) {
+        console.warn(`No se encontro entregable para la clave ${fileKey}`);
+        continue;
+      }
+      try {
+        await projectService.uploadEvidencia(projectId, match.id, file, hoy, () => {});
+      } catch (err) {
+        const detail = err?.response?.data?.detail || err?.message || 'Error subiendo evidencia';
+        errors.push(`Entregable ${match.id}: ${detail}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      console.warn('Algunas evidencias retroactivas no se pudieron subir:', errors);
+    }
+  };
+
   const handleComplete = async (payload, documents = {}) => {
     if (!projectId) return;
 
@@ -125,13 +162,24 @@ const ProjectLifecycleGuard = () => {
       await uploadDocuments(projectId, documents);
 
       const response = await projectService.completeInitialInfo(projectId, payload);
-      setProject(unwrapPayload(response));
+      const updatedProject = unwrapPayload(response);
+      setProject(updatedProject);
+
+      if (documents.entregableFiles && Object.keys(documents.entregableFiles).length > 0) {
+        await uploadRetroactiveEvidence(projectId, updatedProject, documents.entregableFiles);
+      }
 
       setCompletionStatus((current) => ({
         ...(current || {}),
         requiereCompletitud: false,
         puedeCompletar: false,
       }));
+
+      emitToast({
+        tone: 'success',
+        title: 'Proyecto completado',
+        message: 'La información inicial quedó guardada y los módulos operativos ya pueden habilitarse.',
+      });
     } catch (saveError) {
       console.error('No fue posible completar la informacion inicial:', saveError);
       const rawDetail = saveError?.response?.data?.detail
@@ -139,6 +187,11 @@ const ProjectLifecycleGuard = () => {
         || saveError?.message
         || '';
       setError(sanitizeBackendError(rawDetail));
+      emitToast({
+        tone: 'error',
+        title: 'No se pudo completar',
+        message: sanitizeBackendError(rawDetail),
+      });
     } finally {
       setSaving(false);
     }

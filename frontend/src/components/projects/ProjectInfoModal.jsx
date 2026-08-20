@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle, Eye, History } from 'lucide-react';
 import documentService from '../../services/documentService';
+import projectService from '../../services/projectService';
+import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import './ProjectInfoModal.css';
 
 const Section = ({ title, icon: Icon, children, defaultOpen = true }) => {
@@ -393,7 +395,7 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
         <div className="pim-observacion-form">
           <label className="pim-observacion-label">
             Motivo del cambio (obligatorio):
-            <textarea
+            <SpellCheckerTextarea
               className="pim-observacion-input"
               value={observacion}
               onChange={(e) => setObservacion(e.target.value)}
@@ -487,7 +489,7 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded, exists 
         <div className="pim-observacion-form">
           <label className="pim-observacion-label">
             Motivo del cambio (obligatorio):
-            <textarea
+            <SpellCheckerTextarea
               className="pim-observacion-input"
               value={observacion}
               onChange={(e) => setObservacion(e.target.value)}
@@ -550,9 +552,24 @@ const mapFuragValue = (val) => {
   return val;
 };
 
+const normalizeFurag = (payload) => {
+  const data = payload?.data?.data ?? payload?.data ?? payload ?? {};
+  return {
+    infraestructuraDatos: data.infraestructuraDatos ?? null,
+    interoperabilidad: data.interoperabilidad ?? null,
+    digitalizacionAutomatizacion: data.digitalizacionAutomatizacion ?? null,
+    contratacionPublica: data.contratacionPublica ?? null,
+    serviciosNube: data.serviciosNube ?? null,
+    sandbox: data.sandbox ?? null,
+    tecnologiasEmergentes: data.tecnologiasEmergentes ?? null,
+  };
+};
+
 const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const [existingDocs, setExistingDocs] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [furag, setFurag] = useState(null);
+  const [loadingFurag, setLoadingFurag] = useState(false);
 
   const proyectoId = project?.codigo || project?.id;
 
@@ -575,19 +592,34 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
     }
   }, [proyectoId]);
 
+  const fetchFurag = useCallback(async () => {
+    if (!proyectoId) return;
+    try {
+      setLoadingFurag(true);
+      const response = await projectService.getFurag(proyectoId);
+      setFurag(normalizeFurag(response));
+    } catch {
+      setFurag(normalizeFurag(project?.furag));
+    } finally {
+      setLoadingFurag(false);
+    }
+  }, [proyectoId, project?.furag]);
+
   useEffect(() => {
     if (open && proyectoId) {
       fetchDocuments();
+      fetchFurag();
     }
-  }, [open, proyectoId, fetchDocuments]);
+  }, [open, proyectoId, fetchDocuments, fetchFurag]);
 
   if (!open || !project) return null;
 
   const patrocinador = project.patrocinador || {};
   const equipoTrabajo = Array.isArray(project.equipoTrabajo) ? project.equipoTrabajo : [];
+  const stakeholders = Array.isArray(project.stakeholders) ? project.stakeholders : [];
   const fases = Array.isArray(project.fases) ? project.fases : [];
   const objetivos = Array.isArray(project.objetivosEspecificos) ? project.objetivosEspecificos : [];
-  const furag = project.furag || {};
+  const furagData = furag || normalizeFurag(project?.furag);
 
   const handleDocumentUploaded = () => {
     fetchDocuments();
@@ -654,6 +686,21 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                 </div>
               </div>
             )}
+            {stakeholders.length > 0 && (
+              <div className="pim-field pim-field-wide">
+                <span className="pim-field-label">Grupo de Interes (Stakeholders)</span>
+                <div className="pim-team-list">
+                  {stakeholders.map((s, i) => (
+                    <div key={i} className="pim-team-member">
+                      <strong>{s.rol}</strong>
+                      {s.descripcion && <span>{s.descripcion}</span>}
+                      {s.interes && <span><em>Interes:</em> {s.interes}</span>}
+                      {s.impacto && <span><em>Impacto:</em> {s.impacto}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </Section>
 
           <Section title="Fases, hitos y entregables" icon={Layers} defaultOpen={false}>
@@ -696,13 +743,19 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
 
           <Section title="FURAG" icon={Target} defaultOpen={false}>
             <div className="pim-grid">
-              <Field label="Infraestructura de datos" value={mapFuragValue(furag.infraestructuraDatos)} />
-              <Field label="Interoperabilidad" value={mapFuragValue(furag.interoperabilidad)} />
-              <Field label="Digitalizacion/Automatizacion" value={mapFuragValue(furag.digitalizacionAutomatizacion)} />
-              <Field label="Contratacion publica" value={mapFuragValue(furag.contratacionPublica)} />
-              <Field label="Servicios en la nube" value={mapFuragValue(furag.serviciosNube)} />
-              <Field label="Sandbox regulatorio" value={mapFuragValue(furag.sandbox)} />
-              <Field label="Tecnologias emergentes" value={mapFuragValue(furag.tecnologiasEmergentes)} />
+              {loadingFurag ? (
+                <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando FURAG...</p>
+              ) : (
+                <>
+                  <Field label="Infraestructura de datos" value={mapFuragValue(furagData.infraestructuraDatos)} />
+                  <Field label="Interoperabilidad" value={mapFuragValue(furagData.interoperabilidad)} />
+                  <Field label="Digitalizacion/Automatizacion" value={mapFuragValue(furagData.digitalizacionAutomatizacion)} />
+                  <Field label="Contratacion publica" value={mapFuragValue(furagData.contratacionPublica)} />
+                  <Field label="Servicios en la nube" value={mapFuragValue(furagData.serviciosNube)} />
+                  <Field label="Sandbox regulatorio" value={mapFuragValue(furagData.sandbox)} />
+                  <Field label="Tecnologias emergentes" value={mapFuragValue(furagData.tecnologiasEmergentes)} />
+                </>
+              )}
             </div>
           </Section>
 

@@ -1,4 +1,7 @@
-import { AlertTriangle, CheckCircle, Flag, Layers, Package } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, CheckCircle, FileText, Flag, Layers, Package, Upload } from 'lucide-react';
+import RetroactiveFileUploadModal from '../../../common/RetroactiveFileUploadModal/RetroactiveFileUploadModal';
+import SpellCheckerInput from '../../../common/SpellCheckerInput';
 
 const sumPonderacion = (items) => items.reduce((s, i) => s + (parseFloat(i.ponderacion) || 0), 0);
 const hasPersistentId = (item) => Boolean(item?.id || item?.faseId || item?.hitoId || item?.entregableId);
@@ -73,15 +76,30 @@ const Paso3FasesHitosEntregables = ({
   protectExistingItems = false,
   allowEmpty = true,
   onFileChange,
+  pendingFiles = {},
 }) => {
   const fases = normalizeHierarchyNames(data.fases || []);
   const projectStartDate = getProjectStartDate(data);
+  const [uploadModal, setUploadModal] = useState({ open: false, fIndex: -1, hIndex: -1, eIndex: -1 });
 
-  const handleFileChange = (fIndex, hIndex, eIndex, event) => {
-    const file = event.target.files?.[0];
+  const handleOpenUploadModal = (fIndex, hIndex, eIndex) => {
+    setUploadModal({ open: true, fIndex, hIndex, eIndex });
+  };
+
+  const handleCloseUploadModal = () => {
+    setUploadModal({ open: false, fIndex: -1, hIndex: -1, eIndex: -1 });
+  };
+
+  const handleConfirmUpload = (file) => {
     if (onFileChange) {
-      onFileChange(fIndex, hIndex, eIndex, file);
+      onFileChange(uploadModal.fIndex, uploadModal.hIndex, uploadModal.eIndex, file);
     }
+    handleCloseUploadModal();
+  };
+
+  const getPendingFileName = (fIndex, hIndex, eIndex) => {
+    const file = pendingFiles[`${fIndex}-${hIndex}-${eIndex}`];
+    return file?.name || null;
   };
 
   const isRetroactiveDate = (fechaLimite) => {
@@ -263,7 +281,7 @@ const Paso3FasesHitosEntregables = ({
             </div>
             <div className="form-group">
               <label className="form-label">Descripcion</label>
-              <input
+              <SpellCheckerInput
                 className="form-input"
                 value={fase.descripcion || ''}
                 onChange={(e) => updateFase(fIndex, 'descripcion', e.target.value)}
@@ -312,7 +330,7 @@ const Paso3FasesHitosEntregables = ({
                   </div>
                   <div className="form-group">
                     <label className="form-label">Descripcion</label>
-                    <input
+                    <SpellCheckerInput
                       className="form-input"
                       value={hito.descripcion || ''}
                       onChange={(e) => updateHito(fIndex, hIndex, 'descripcion', e.target.value)}
@@ -363,10 +381,8 @@ const Paso3FasesHitosEntregables = ({
                               value={ent.fechaInicio || ''}
                               onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'fechaInicio', e.target.value)}
                               disabled={dateLocked}
+                              max={ent.fechaLimite || ''}
                             />
-                            {projectStartDate && !dateLocked && !isRetroactiveDate(ent.fechaLimite) && (
-                              <span className="field-help">No puede iniciar antes del inicio del proyecto: {projectStartDate}.</span>
-                            )}
                             {!dateLocked && isRetroactiveDate(ent.fechaLimite) && (
                               <span className="field-help field-help-warning">Este entregable es retroactivo: puedes seleccionar fechas anteriores a hoy.</span>
                             )}
@@ -393,12 +409,28 @@ const Paso3FasesHitosEntregables = ({
                                 Archivo de soporte (PDF) *
                                 <span className="retroactive-badge">Obligatorio (entregable retroactivo)</span>
                               </label>
-                              <input
-                                type="file"
-                                accept=".pdf"
-                                className={`form-input ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`] ? 'input-error' : ''}`}
-                                onChange={(e) => handleFileChange(fIndex, hIndex, eIndex, e)}
-                              />
+                              {getPendingFileName(fIndex, hIndex, eIndex) ? (
+                                <div className="retroactive-file-attached">
+                                  <FileText size={15} />
+                                  <span>{getPendingFileName(fIndex, hIndex, eIndex)}</span>
+                                  <button
+                                    type="button"
+                                    className="retroactive-change-btn"
+                                    onClick={() => handleOpenUploadModal(fIndex, hIndex, eIndex)}
+                                  >
+                                    Cambiar
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={`retroactive-upload-btn ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`] ? 'input-error' : ''}`}
+                                  onClick={() => handleOpenUploadModal(fIndex, hIndex, eIndex)}
+                                >
+                                  <Upload size={15} />
+                                  Seleccionar archivo de soporte
+                                </button>
+                              )}
                               {errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`] && (
                                 <span className="error-text">{errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`]}</span>
                               )}
@@ -406,7 +438,7 @@ const Paso3FasesHitosEntregables = ({
                           )}
                           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                             <label className="form-label">Descripcion</label>
-                            <input
+                            <SpellCheckerInput
                               className="form-input"
                               value={ent.descripcion || ''}
                               onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'descripcion', e.target.value)}
@@ -433,6 +465,25 @@ const Paso3FasesHitosEntregables = ({
       <button type="button" className="btn-add" onClick={addFase}>
         + Agregar fase
       </button>
+
+      <RetroactiveFileUploadModal
+        open={uploadModal.open}
+        entregableNombre={
+          uploadModal.fIndex >= 0 && uploadModal.hIndex >= 0 && uploadModal.eIndex >= 0
+            ? (() => {
+                const ent = (fases[uploadModal.fIndex]?.hitos || [])[uploadModal.hIndex]?.entregables?.[uploadModal.eIndex];
+                return ent ? `${ent.nombre || ''} (${uploadModal.fIndex + 1}.${uploadModal.hIndex + 1}.${uploadModal.eIndex + 1})` : '';
+              })()
+            : ''
+        }
+        currentFile={
+          uploadModal.fIndex >= 0 && uploadModal.hIndex >= 0 && uploadModal.eIndex >= 0
+            ? pendingFiles[`${uploadModal.fIndex}-${uploadModal.hIndex}-${uploadModal.eIndex}`]
+            : null
+        }
+        onConfirm={handleConfirmUpload}
+        onClose={handleCloseUploadModal}
+      />
     </div>
   );
 };

@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
+import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
+import SpellCheckerInput from '../common/SpellCheckerInput';
 import './NotificationTemplatesPanel.css';
 
 const emptyForm = {
@@ -716,7 +718,7 @@ const NotificationTemplatesPanel = () => {
                   </label>
                   <label>
                     <span>Asunto del correo</span>
-                    <input
+                    <SpellCheckerInput
                       value={form.subjectTemplate}
                       onChange={handleField('subjectTemplate')}
                       placeholder="Asunto del correo electrónico"
@@ -790,7 +792,7 @@ const NotificationTemplatesPanel = () => {
 
                 <label className="editor-field">
                   <span>Cuerpo del correo</span>
-                  <textarea
+                  <SpellCheckerTextarea
                     value={form.bodyTemplate}
                     onChange={handleField('bodyTemplate')}
                     rows={20}

@@ -3,6 +3,8 @@ import {
   Pencil, Save, ArrowLeft, LoaderCircle,
 } from 'lucide-react';
 import configCatalogService from '../../services/configCatalogService';
+import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
+import SpellCheckerInput from '../common/SpellCheckerInput';
 import './ListaParametricaPanel.css';
 
 const ListaParametricaPanel = () => {
@@ -130,8 +132,7 @@ const ListaParametricaPanel = () => {
 
           <div className="lpp-edit-field">
             <label>Nombre *</label>
-            <input
-              type="text"
+            <SpellCheckerInput
               className="lpp-input"
               value={form.nombreCampo}
               onChange={(e) => setForm((p) => ({ ...p, nombreCampo: e.target.value }))}
@@ -141,7 +142,7 @@ const ListaParametricaPanel = () => {
 
           <div className="lpp-edit-field">
             <label>Descripcion</label>
-            <textarea
+            <SpellCheckerTextarea
               className="lpp-input lpp-textarea-small"
               value={form.descripcion}
               onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))}
@@ -152,7 +153,7 @@ const ListaParametricaPanel = () => {
 
           <div className="lpp-edit-field">
             <label>Valores posibles *</label>
-            <textarea
+            <SpellCheckerTextarea
               className="lpp-input lpp-textarea"
               value={form.valores}
               onChange={(e) => setForm((p) => ({ ...p, valores: e.target.value }))}

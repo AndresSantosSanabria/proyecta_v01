@@ -27,6 +27,8 @@ import configCatalogService from '../../services/configCatalogService';
 import NotificationTemplatesPanel from '../../components/security/NotificationTemplatesPanel';
 import ClosureTemplatePanel from '../../components/security/ClosureTemplatePanel';
 import ClosureQuestionsPanel from '../../components/security/ClosureQuestionsPanel';
+import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
+import SpellCheckerInput from '../../components/common/SpellCheckerInput';
 import ListaParametricaPanel from '../../components/security/ListaParametricaPanel';
 import StorageConfigPanel from '../../components/security/StorageConfigPanel';
 import UserPermissionMatrix from '../../components/security/UserPermissionMatrix';
@@ -1178,7 +1180,7 @@ const SecurityConfigPage = () => {
                   <div className="create-user-grid">
                     <label className="span-full">
                       <span>Nombre completo *</span>
-                      <input
+                      <SpellCheckerInput
                         value={userForm.nombre}
                         onChange={handleUserFieldChange('nombre')}
                         disabled={!canConfigure}
@@ -1215,7 +1217,7 @@ const SecurityConfigPage = () => {
 
                     <label>
                       <span>Dependencia</span>
-                      <input value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
+                      <SpellCheckerInput value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
                     </label>
 
                     <label className="toggle-field compact-toggle">
@@ -1659,7 +1661,7 @@ const SecurityConfigPage = () => {
 
                     <label>
                       <span>Nombre</span>
-                      <input value={userForm.nombre} onChange={handleUserFieldChange('nombre')} disabled={!canConfigure} placeholder="Nombre completo" />
+                      <SpellCheckerInput value={userForm.nombre} onChange={handleUserFieldChange('nombre')} disabled={!canConfigure} placeholder="Nombre completo" />
                     </label>
 
                     <label>
@@ -1669,7 +1671,7 @@ const SecurityConfigPage = () => {
 
                     <label>
                       <span>Dependencia</span>
-                      <input value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
+                      <SpellCheckerInput value={userForm.dependencia} onChange={handleUserFieldChange('dependencia')} disabled={!canConfigure} placeholder="Area o dependencia" />
                     </label>
 
                     <label className="span-full">
@@ -1871,7 +1873,7 @@ const SecurityConfigPage = () => {
 
                 <label>
                   <span>Nombre del rol *</span>
-                  <input
+                  <SpellCheckerInput
                     value={roleForm.nombre}
                     onChange={handleRoleFieldChange('nombre')}
                     disabled={!canConfigure}
@@ -1881,7 +1883,7 @@ const SecurityConfigPage = () => {
 
                 <label>
                   <span>Descripción del perfil</span>
-                  <textarea
+                  <SpellCheckerTextarea
                     value={roleForm.descripcion}
                     onChange={handleRoleFieldChange('descripcion')}
                     disabled={!canConfigure}

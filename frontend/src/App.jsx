@@ -50,12 +50,10 @@ const DefaultEntryRoute = () => {
   } = useAuthContext();
   const loginTriggeredRef = useRef(false);
 
-  const canViewDashboard = !hasRole('DIRECTOR_PROYECTO') && (
-    isAdminLocal
+  const canViewDashboard = isAdminLocal
     || transversal
     || hasRole('ADMIN')
-    || hasPermission('DASHBOARD:VER')
-  );
+    || hasPermission('DASHBOARD:VER');
   const canViewProjects = hasRole('DIRECTOR_PROYECTO')
     || hasProjectScopePermission(permissions)
     || hasPermission('PROYECTO:VER')

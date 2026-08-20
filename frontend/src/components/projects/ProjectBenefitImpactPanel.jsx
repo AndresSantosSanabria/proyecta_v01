@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import projectService from '../../services/projectService';
 import securityService from '../../services/securityService';
+import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import './ProjectBenefitImpactPanel.css';
 
 const emptyForm = {
@@ -95,7 +96,7 @@ const TextareaField = ({ label, name, value, onChange, placeholder, disabled = f
       {label}
       {required ? ' *' : ''}
     </span>
-    <textarea
+    <SpellCheckerTextarea
       name={name}
       value={value}
       onChange={onChange}

@@ -5,6 +5,8 @@ import {
   Type, List, Calendar, Hash,
 } from 'lucide-react';
 import securityService from '../../services/securityService';
+import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
+import SpellCheckerInput from '../common/SpellCheckerInput';
 import './ClosureQuestionsPanel.css';
 
 const TIPO_RESPUESTA = [
@@ -184,7 +186,7 @@ const ClosureQuestionsPanel = () => {
           <div className="cqp-form-body">
             <div className="cqp-form-field">
               <label>Texto de la Pregunta *</label>
-              <textarea
+              <SpellCheckerTextarea
                 className="cqp-input-textarea"
                 value={form.texto}
                 onChange={(e) => setForm((f) => ({ ...f, texto: e.target.value }))}
@@ -233,7 +235,7 @@ const ClosureQuestionsPanel = () => {
                   ))}
                 </div>
                 <div className="cqp-option-add">
-                  <input
+                  <SpellCheckerInput
                     className="cqp-input"
                     value={newOption}
                     onChange={(e) => setNewOption(e.target.value)}

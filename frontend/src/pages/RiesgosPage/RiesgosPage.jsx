@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import riskService from '../../services/riskService';
 import { usePermission } from '../../hooks/usePermission';
+import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
+import SpellCheckerInput from '../../components/common/SpellCheckerInput';
 import './RiesgosPage.css';
 
 const DEFAULT_PROBABILIDADES = ['BAJA', 'MEDIA', 'ALTA'];
@@ -642,7 +644,7 @@ const RiesgosPage = () => {
               <div className="form-grid form-grid-2">
                 <label>
                   Categoría del riesgo
-                  <input
+                  <SpellCheckerInput
                     value={form.categoriaRiesgo}
                     onChange={(e) => setForm((prev) => ({ ...prev, categoriaRiesgo: e.target.value }))}
                     placeholder="Estratégico, operativo, tecnológico..."
@@ -718,7 +720,7 @@ const RiesgosPage = () => {
 
               <label>
                 Descripción del riesgo
-                <textarea
+                <SpellCheckerTextarea
                   value={form.descripcion}
                   onChange={(e) => setForm((prev) => ({ ...prev, descripcion: e.target.value }))}
                   required
@@ -730,7 +732,7 @@ const RiesgosPage = () => {
               <div className="form-grid form-grid-2">
                 <label>
                   Causa
-                  <textarea
+                  <SpellCheckerTextarea
                     value={form.causa}
                     onChange={(e) => setForm((prev) => ({ ...prev, causa: e.target.value }))}
                     rows={3}
@@ -739,7 +741,7 @@ const RiesgosPage = () => {
                 </label>
                 <label>
                   Consecuencia
-                  <textarea
+                  <SpellCheckerTextarea
                     value={form.consecuencia}
                     onChange={(e) => setForm((prev) => ({ ...prev, consecuencia: e.target.value }))}
                     rows={3}
@@ -913,7 +915,7 @@ const RiesgosPage = () => {
 
               <label>
                 Controles existentes
-                <textarea
+                <SpellCheckerTextarea
                   value={form.controlesExistentes}
                   onChange={(e) => setForm((prev) => ({ ...prev, controlesExistentes: e.target.value }))}
                   rows={3}
@@ -924,7 +926,7 @@ const RiesgosPage = () => {
               <div className="form-grid form-grid-2">
                 <label>
                   Tipo de control
-                  <input
+                  <SpellCheckerInput
                     value={form.tipoControl}
                     onChange={(e) => setForm((prev) => ({ ...prev, tipoControl: e.target.value }))}
                     placeholder="Preventivo, detectivo, correctivo..."
@@ -932,7 +934,7 @@ const RiesgosPage = () => {
                 </label>
                 <label>
                   Valoración del control
-                  <input
+                  <SpellCheckerInput
                     value={form.valoracionControl}
                     onChange={(e) => setForm((prev) => ({ ...prev, valoracionControl: e.target.value }))}
                     placeholder="Alta, media, baja"
@@ -942,7 +944,7 @@ const RiesgosPage = () => {
 
               <label>
                 Tratamiento
-                <textarea
+                <SpellCheckerTextarea
                   value={form.tratamiento}
                   onChange={(e) => setForm((prev) => ({ ...prev, tratamiento: e.target.value }))}
                   rows={3}
@@ -952,7 +954,7 @@ const RiesgosPage = () => {
 
               <label>
                 Acciones de mitigación
-                <textarea
+                <SpellCheckerTextarea
                   value={form.accionesMitigacion}
                   onChange={(e) => setForm((prev) => ({ ...prev, accionesMitigacion: e.target.value }))}
                   rows={3}
@@ -963,7 +965,7 @@ const RiesgosPage = () => {
               <div className="form-grid form-grid-2">
                 <label>
                   Entidad responsable
-                  <input
+                  <SpellCheckerInput
                     value={form.entidadResponsable}
                     onChange={(e) => setForm((prev) => ({ ...prev, entidadResponsable: e.target.value }))}
                     placeholder="Secretaría TIC, despacho..."
@@ -971,7 +973,7 @@ const RiesgosPage = () => {
                 </label>
                 <label>
                   Rol responsable
-                  <input
+                  <SpellCheckerInput
                     value={form.rolResponsable}
                     onChange={(e) => setForm((prev) => ({ ...prev, rolResponsable: e.target.value }))}
                     placeholder="Gerente del proyecto, líder..."
