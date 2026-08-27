@@ -1,0 +1,53 @@
+.spellcheck-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.spellcheck-field {
+  transition: all 0.3s ease;
+}
+
+/* Red border to visually highlight field with spelling errors */
+.spellcheck-field.has-spelling-errors {
+  border-color: #ff4d4f !important;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2) !important;
+}
+
+.spellcheck-warning {
+  color: #ff4d4f;
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.spellcheck-warning-box {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.spellcheck-suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.spellcheck-suggestions-list li {
+  margin-bottom: 4px;
+}
+
+.spellcheck-suggestion-btn {
+  background: none;
+  border: none;
+  color: #0066cc;
+  cursor: pointer;
+  padding: 0 4px;
+  text-decoration: underline;
+  font-size: 0.85rem;
+}
+
+.spellcheck-suggestion-btn:hover {
+  color: #004499;
+}

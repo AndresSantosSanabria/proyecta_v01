@@ -27,6 +27,22 @@ export default function SpellCheckerTextarea({
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [hlStyle, setHlStyle] = useState({});
+
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (ta) {
+      const cs = window.getComputedStyle(ta);
+      setHlStyle({
+        padding: cs.padding,
+        fontFamily: cs.fontFamily,
+        fontSize: cs.fontSize,
+        lineHeight: cs.lineHeight,
+        letterSpacing: cs.letterSpacing,
+        wordSpacing: cs.wordSpacing,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (ready && value) {
@@ -119,6 +135,7 @@ export default function SpellCheckerTextarea({
         className="spell-highlight"
         ref={highlightRef}
         aria-hidden="true"
+        style={hlStyle}
         dangerouslySetInnerHTML={{ __html: buildHighlightedHTML() }}
       />
       <textarea

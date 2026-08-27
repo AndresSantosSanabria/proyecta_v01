@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Sparkles,
   Trash2,
-  Upload,
   X,
   Save,
   Pencil,
@@ -36,21 +35,12 @@ const RISK_LEVEL_LABELS = {
 };
 
 const emptyForm = {
-  categoriaRiesgo: '',
   descripcion: '',
-  causa: '',
-  consecuencia: '',
   probabilidad: 'MEDIA',
   impacto: 'MEDIO',
-  probabilidadResidual: '',
-  impactoResidual: '',
-  controlesExistentes: '',
-  tipoControl: '',
-  valoracionControl: '',
   tratamiento: '',
-  accionesMitigacion: '',
   entidadResponsable: '',
-  rolResponsable: '',
+  accionesMitigacion: '',
   fechaAccion: '',
   estado: 'PENDIENTE',
 };
@@ -88,6 +78,17 @@ const formatRiskLevelLabel = (value) => {
   return RISK_LEVEL_LABELS[key] || key.replace(/_/g, ' ');
 };
 
+const getProjectRiskKey = (risk) => (
+  String(
+    risk?.proyectoId
+      ?? risk?.proyecto_id
+      ?? risk?.codigoProyecto
+      ?? risk?.codigo_proyecto
+      ?? risk?.proyecto
+      ?? ''
+  ).toUpperCase()
+);
+
 const RiesgosPage = () => {
   const params = useParams();
   const proyectoId = (params.codigoProyecto || params.id || '').toUpperCase();
@@ -109,6 +110,7 @@ const RiesgosPage = () => {
   const [matrixHelpOpen, setMatrixHelpOpen] = useState(false);
   const [openSelect, setOpenSelect] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const closeModal = () => {
     setModalOpen(false);
@@ -167,7 +169,15 @@ const RiesgosPage = () => {
       const riskData = riskResp?.data?.riesgos ?? riskResp?.data ?? [];
       const matrixData = matrixResp?.data ?? [];
 
-      setRiskList(Array.isArray(riskData) ? riskData : []);
+      const normalizedProjectId = String(proyectoId || '').toUpperCase();
+      const scopedRiskData = Array.isArray(riskData)
+        ? riskData.filter((risk) => {
+            const projectKey = getProjectRiskKey(risk);
+            return !projectKey || !normalizedProjectId || projectKey === normalizedProjectId;
+          })
+        : [];
+
+      setRiskList(scopedRiskData);
       setMatrix(Array.isArray(matrixData) ? matrixData : []);
       setError(null);
     } catch (err) {
@@ -353,25 +363,37 @@ const RiesgosPage = () => {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const downloadRiskMatrixExcel = async () => {
+    if (exportingExcel) return;
+    try {
+      setExportingExcel(true);
+      const blob = await riskService.downloadRiskMatrixExcel(proyectoId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Matriz de Riesgos ${proyectoId || 'proyecto'}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setError('No fue posible generar el Excel de la matriz de riesgos.');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   const startEdit = (risk) => {
     if (!canEdit) return;
     setEditingId(risk.id);
     setForm({
-      categoriaRiesgo: risk.categoriaRiesgo || '',
       descripcion: risk.descripcion || '',
-      causa: risk.causa || '',
-      consecuencia: risk.consecuencia || '',
       probabilidad: risk.probabilidad || 'MEDIA',
       impacto: risk.impacto || 'MEDIO',
-      probabilidadResidual: risk.probabilidadResidual || '',
-      impactoResidual: risk.impactoResidual || '',
-      controlesExistentes: risk.controlesExistentes || '',
-      tipoControl: risk.tipoControl || '',
-      valoracionControl: risk.valoracionControl || '',
       tratamiento: risk.tratamiento || '',
-      accionesMitigacion: risk.accionesMitigacion || '',
       entidadResponsable: risk.entidadResponsable || '',
-      rolResponsable: risk.rolResponsable || '',
+      accionesMitigacion: risk.accionesMitigacion || '',
       fechaAccion: risk.fechaAccion || '',
       estado: risk.estado || 'PENDIENTE',
     });
@@ -396,21 +418,12 @@ const RiesgosPage = () => {
     try {
       setSaving(true);
       const payload = {
-        categoriaRiesgo: form.categoriaRiesgo,
         descripcion: form.descripcion,
-        causa: form.causa,
-        consecuencia: form.consecuencia,
         probabilidad: form.probabilidad,
         impacto: form.impacto,
-        probabilidadResidual: form.probabilidadResidual || null,
-        impactoResidual: form.impactoResidual || null,
-        controlesExistentes: form.controlesExistentes,
-        tipoControl: form.tipoControl,
-        valoracionControl: form.valoracionControl,
         tratamiento: form.tratamiento,
-        accionesMitigacion: form.accionesMitigacion,
         entidadResponsable: form.entidadResponsable,
-        rolResponsable: form.rolResponsable,
+        accionesMitigacion: form.accionesMitigacion,
         fechaAccion: form.fechaAccion || null,
         estado: form.estado,
       };
@@ -482,6 +495,9 @@ const RiesgosPage = () => {
           <button className="btn-help" onClick={openMatrixHelp} type="button">
             <Info size={16} /> Cómo leer la matriz
           </button>
+          <button className="btn-secondary" onClick={downloadRiskMatrixExcel} type="button" disabled={exportingExcel}>
+            <Download size={16} /> {exportingExcel ? 'Generando Excel...' : 'Descargar Excel'}
+          </button>
           <button className="btn-primary btn-add-risk" onClick={openCreateModal} type="button" disabled={!canEdit}>
             <Plus size={16} /> Agregar riesgo
           </button>
@@ -528,10 +544,12 @@ const RiesgosPage = () => {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Riesgo</th>
-                <th>Inherente</th>
-                <th>Residual</th>
-                <th>Controles</th>
+                <th>Descripción</th>
+                <th>Probabilidad</th>
+                <th>Impacto</th>
+                <th>Calificación</th>
+                <th>Nivel</th>
+                <th>Como mitigar</th>
                 <th>Responsable</th>
                 <th>Estado</th>
                 <th>Acciones</th>
@@ -540,7 +558,7 @@ const RiesgosPage = () => {
             <tbody>
               {riskList.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={10}>
                     <div className="empty-box">No hay riesgos registrados para este proyecto.</div>
                   </td>
                 </tr>
@@ -548,43 +566,33 @@ const RiesgosPage = () => {
                 riskList.map((risk, index) => {
                   const score = deriveInherentScore(risk.probabilidad, risk.impacto);
                   const level = normalizeRiskLevel(risk.nivel || getRiskLevelFromScore(score));
-                  const residualLevel = normalizeRiskLevel(risk.nivelResidual || 'SIN_NIVEL');
 
                   return (
                     <tr key={risk.id}>
                       <td>{index + 1}</td>
                       <td className="risk-cell-left">
-                        <strong>{formatLongText(risk.categoriaRiesgo, 'Sin categoría')}</strong>
                         <span>{formatLongText(risk.descripcion)}</span>
-                        <small>
-                          Causa: {formatLongText(risk.causa)} · Consecuencia: {formatLongText(risk.consecuencia)}
-                        </small>
                       </td>
                       <td>
-                        <div className="risk-stack">
-                          <span className="code-pill">{risk.probabilidad || '—'}</span>
-                          <span className="code-pill">{risk.impacto || '—'}</span>
-                          <span className="code-pill strong">{score || '—'}</span>
-                          <span className={`risk-badge ${level.toLowerCase()}`}>{formatRiskLevelLabel(level)}</span>
-                        </div>
+                        <span className="code-pill">{risk.probabilidad || '—'}</span>
                       </td>
                       <td>
-                        <div className="risk-stack">
-                          <span className="code-pill">{risk.probabilidadResidual || '—'}</span>
-                          <span className="code-pill">{risk.impactoResidual || '—'}</span>
-                          <span className={`risk-badge ${residualLevel.toLowerCase()}`}>{formatRiskLevelLabel(residualLevel)}</span>
-                        </div>
+                        <span className="code-pill">{risk.impacto || '—'}</span>
+                      </td>
+                      <td>
+                        <span className="code-pill strong">{score || '—'}</span>
+                      </td>
+                      <td>
+                        <span className={`risk-badge ${level.toLowerCase()}`}>{formatRiskLevelLabel(level)}</span>
                       </td>
                       <td className="risk-cell-left">
-                        <strong>{formatLongText(risk.controlesExistentes)}</strong>
-                        <span>{formatLongText(risk.tipoControl)} {risk.valoracionControl ? `· ${risk.valoracionControl}` : ''}</span>
+                        <span>{formatLongText(risk.tratamiento)}</span>
                       </td>
                       <td className="risk-cell-left">
-                        <strong>{formatLongText(risk.entidadResponsable)}</strong>
-                        <span>{formatLongText(risk.rolResponsable)}</span>
+                        <span>{formatLongText(risk.entidadResponsable)}</span>
                       </td>
                       <td>
-                        <span className={`risk-badge ${String(risk.estado || '').toLowerCase()}`}>
+                        <span className={`risk-badge ${String(risk.estado || 'PENDIENTE').toLowerCase()}`}>
                           {risk.estado || 'PENDIENTE'}
                         </span>
                       </td>
@@ -641,41 +649,78 @@ const RiesgosPage = () => {
             </div>
 
             <form className="risk-form risk-form-modal" onSubmit={handleSubmit}>
+              <label>
+                Descripción del riesgo
+                <SpellCheckerTextarea
+                  value={form.descripcion}
+                  onChange={(e) => setForm((prev) => ({ ...prev, descripcion: e.target.value }))}
+                  required
+                  rows={3}
+                  placeholder="Describe el evento o condición de riesgo de forma concreta."
+                />
+              </label>
+
               <div className="form-grid form-grid-2">
                 <label>
-                  Categoría del riesgo
-                  <SpellCheckerInput
-                    value={form.categoriaRiesgo}
-                    onChange={(e) => setForm((prev) => ({ ...prev, categoriaRiesgo: e.target.value }))}
-                    placeholder="Estratégico, operativo, tecnológico..."
-                  />
-                </label>
-                <label>
-                  Estado
+                  Probabilidad
                   <div className="custom-select">
                     <button
                       type="button"
                       className="custom-select-trigger"
-                      onClick={() => toggleSelect('estado')}
+                      onClick={() => toggleSelect('probabilidad')}
                       aria-haspopup="listbox"
-                      aria-expanded={openSelect === 'estado'}
+                      aria-expanded={openSelect === 'probabilidad'}
                     >
-                      <span>{form.estado}</span>
+                      <span>{form.probabilidad}</span>
                       <span className="custom-select-arrow">⌄</span>
                     </button>
-                    {openSelect === 'estado' && (
-                      <div className="custom-select-menu" role="listbox" aria-label="Estado del riesgo">
-                        {ESTADOS.map((item) => (
+                    {openSelect === 'probabilidad' && (
+                      <div className="custom-select-menu" role="listbox" aria-label="Probabilidad">
+                        {matrixProbabilidades.map((item) => (
                           <button
                             key={item}
                             type="button"
-                            className={`custom-select-option ${form.estado === item ? 'active' : ''}`}
+                            className={`custom-select-option ${form.probabilidad === item ? 'active' : ''}`}
                             onClick={() => {
-                              setForm((prev) => ({ ...prev, estado: item }));
+                              setForm((prev) => ({ ...prev, probabilidad: item }));
                               setOpenSelect(null);
                             }}
                             role="option"
-                            aria-selected={form.estado === item}
+                            aria-selected={form.probabilidad === item}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+                <label>
+                  Impacto
+                  <div className="custom-select">
+                    <button
+                      type="button"
+                      className="custom-select-trigger"
+                      onClick={() => toggleSelect('impacto')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openSelect === 'impacto'}
+                    >
+                      <span>{form.impacto}</span>
+                      <span className="custom-select-arrow">⌄</span>
+                    </button>
+                    {openSelect === 'impacto' && (
+                      <div className="custom-select-menu" role="listbox" aria-label="Impacto">
+                        {matrixImpactos.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={`custom-select-option ${form.impacto === item ? 'active' : ''}`}
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, impacto: item }));
+                              setOpenSelect(null);
+                            }}
+                            role="option"
+                            aria-selected={form.impacto === item}
                           >
                             {item}
                           </button>
@@ -686,9 +731,82 @@ const RiesgosPage = () => {
                 </label>
               </div>
 
+              <label>
+                Cómo mitigar el riesgo
+                <SpellCheckerTextarea
+                  value={form.tratamiento}
+                  onChange={(e) => setForm((prev) => ({ ...prev, tratamiento: e.target.value }))}
+                  rows={3}
+                  placeholder="Plan de tratamiento: aceptar, mitigar, transferir o evitar."
+                />
+              </label>
+
+              <label>
+                Responsable
+                <SpellCheckerInput
+                  value={form.entidadResponsable}
+                  onChange={(e) => setForm((prev) => ({ ...prev, entidadResponsable: e.target.value }))}
+                  placeholder="Secretaría TIC, despacho, gerente del proyecto..."
+                />
+              </label>
+
+              <label>
+                Acciones realizadas para mitigar el riesgo
+                <SpellCheckerTextarea
+                  value={form.accionesMitigacion}
+                  onChange={(e) => setForm((prev) => ({ ...prev, accionesMitigacion: e.target.value }))}
+                  rows={3}
+                  placeholder="Acciones concretas para reducir probabilidad o impacto."
+                />
+              </label>
+
+              <label>
+                Fecha de la acción
+                <input
+                  type="date"
+                  value={form.fechaAccion}
+                  onChange={(e) => setForm((prev) => ({ ...prev, fechaAccion: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                Estado del riesgo
+                <div className="custom-select">
+                  <button
+                    type="button"
+                    className="custom-select-trigger"
+                    onClick={() => toggleSelect('estado')}
+                    aria-haspopup="listbox"
+                    aria-expanded={openSelect === 'estado'}
+                  >
+                    <span>{form.estado}</span>
+                    <span className="custom-select-arrow">⌄</span>
+                  </button>
+                  {openSelect === 'estado' && (
+                    <div className="custom-select-menu" role="listbox" aria-label="Estado del riesgo">
+                      {ESTADOS.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className={`custom-select-option ${form.estado === item ? 'active' : ''}`}
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, estado: item }));
+                            setOpenSelect(null);
+                          }}
+                          role="option"
+                          aria-selected={form.estado === item}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </label>
+
               {form.estado === 'TRATADO' && (
                 <label className="file-picker">
-                  <span>Evidencias (PDF)</span>
+                  <span>Cargar evidencias (PDF)</span>
                   <input
                     type="file"
                     accept=".pdf,application/pdf"
@@ -718,277 +836,6 @@ const RiesgosPage = () => {
                 </label>
               )}
 
-              <label>
-                Descripción del riesgo
-                <SpellCheckerTextarea
-                  value={form.descripcion}
-                  onChange={(e) => setForm((prev) => ({ ...prev, descripcion: e.target.value }))}
-                  required
-                  rows={3}
-                  placeholder="Describe el evento o condición de riesgo de forma concreta."
-                />
-              </label>
-
-              <div className="form-grid form-grid-2">
-                <label>
-                  Causa
-                  <SpellCheckerTextarea
-                    value={form.causa}
-                    onChange={(e) => setForm((prev) => ({ ...prev, causa: e.target.value }))}
-                    rows={3}
-                    placeholder="Origen o detonante del riesgo."
-                  />
-                </label>
-                <label>
-                  Consecuencia
-                  <SpellCheckerTextarea
-                    value={form.consecuencia}
-                    onChange={(e) => setForm((prev) => ({ ...prev, consecuencia: e.target.value }))}
-                    rows={3}
-                    placeholder="Efecto esperado si ocurre."
-                  />
-                </label>
-              </div>
-
-              <div className="form-grid form-grid-2">
-                <label>
-                  Probabilidad inherente
-                  <div className="custom-select">
-                    <button
-                      type="button"
-                      className="custom-select-trigger"
-                      onClick={() => toggleSelect('probabilidad')}
-                      aria-haspopup="listbox"
-                      aria-expanded={openSelect === 'probabilidad'}
-                    >
-                      <span>{form.probabilidad}</span>
-                      <span className="custom-select-arrow">⌄</span>
-                    </button>
-                    {openSelect === 'probabilidad' && (
-                      <div className="custom-select-menu" role="listbox" aria-label="Probabilidad inherente">
-                        {matrixProbabilidades.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className={`custom-select-option ${form.probabilidad === item ? 'active' : ''}`}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, probabilidad: item }));
-                              setOpenSelect(null);
-                            }}
-                            role="option"
-                            aria-selected={form.probabilidad === item}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </label>
-                <label>
-                  Impacto inherente
-                  <div className="custom-select">
-                    <button
-                      type="button"
-                      className="custom-select-trigger"
-                      onClick={() => toggleSelect('impacto')}
-                      aria-haspopup="listbox"
-                      aria-expanded={openSelect === 'impacto'}
-                    >
-                      <span>{form.impacto}</span>
-                      <span className="custom-select-arrow">⌄</span>
-                    </button>
-                    {openSelect === 'impacto' && (
-                      <div className="custom-select-menu" role="listbox" aria-label="Impacto inherente">
-                        {matrixImpactos.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className={`custom-select-option ${form.impacto === item ? 'active' : ''}`}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, impacto: item }));
-                              setOpenSelect(null);
-                            }}
-                            role="option"
-                            aria-selected={form.impacto === item}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </label>
-                <label>
-                  Probabilidad residual
-                  <div className="custom-select">
-                    <button
-                      type="button"
-                      className="custom-select-trigger"
-                      onClick={() => toggleSelect('probabilidadResidual')}
-                      aria-haspopup="listbox"
-                      aria-expanded={openSelect === 'probabilidadResidual'}
-                    >
-                      <span>{form.probabilidadResidual || 'Sin definir'}</span>
-                      <span className="custom-select-arrow">⌄</span>
-                    </button>
-                    {openSelect === 'probabilidadResidual' && (
-                      <div className="custom-select-menu" role="listbox" aria-label="Probabilidad residual">
-                        <button
-                          type="button"
-                          className={`custom-select-option ${!form.probabilidadResidual ? 'active' : ''}`}
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, probabilidadResidual: '' }));
-                            setOpenSelect(null);
-                          }}
-                          role="option"
-                          aria-selected={!form.probabilidadResidual}
-                        >
-                          Sin definir
-                        </button>
-                        {matrixProbabilidades.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className={`custom-select-option ${form.probabilidadResidual === item ? 'active' : ''}`}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, probabilidadResidual: item }));
-                              setOpenSelect(null);
-                            }}
-                            role="option"
-                            aria-selected={form.probabilidadResidual === item}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </label>
-                <label>
-                  Impacto residual
-                  <div className="custom-select">
-                    <button
-                      type="button"
-                      className="custom-select-trigger"
-                      onClick={() => toggleSelect('impactoResidual')}
-                      aria-haspopup="listbox"
-                      aria-expanded={openSelect === 'impactoResidual'}
-                    >
-                      <span>{form.impactoResidual || 'Sin definir'}</span>
-                      <span className="custom-select-arrow">⌄</span>
-                    </button>
-                    {openSelect === 'impactoResidual' && (
-                      <div className="custom-select-menu" role="listbox" aria-label="Impacto residual">
-                        <button
-                          type="button"
-                          className={`custom-select-option ${!form.impactoResidual ? 'active' : ''}`}
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, impactoResidual: '' }));
-                            setOpenSelect(null);
-                          }}
-                          role="option"
-                          aria-selected={!form.impactoResidual}
-                        >
-                          Sin definir
-                        </button>
-                        {matrixImpactos.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className={`custom-select-option ${form.impactoResidual === item ? 'active' : ''}`}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, impactoResidual: item }));
-                              setOpenSelect(null);
-                            }}
-                            role="option"
-                            aria-selected={form.impactoResidual === item}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </label>
-              </div>
-
-              <label>
-                Controles existentes
-                <SpellCheckerTextarea
-                  value={form.controlesExistentes}
-                  onChange={(e) => setForm((prev) => ({ ...prev, controlesExistentes: e.target.value }))}
-                  rows={3}
-                  placeholder="Controles actuales que ya reducen el riesgo."
-                />
-              </label>
-
-              <div className="form-grid form-grid-2">
-                <label>
-                  Tipo de control
-                  <SpellCheckerInput
-                    value={form.tipoControl}
-                    onChange={(e) => setForm((prev) => ({ ...prev, tipoControl: e.target.value }))}
-                    placeholder="Preventivo, detectivo, correctivo..."
-                  />
-                </label>
-                <label>
-                  Valoración del control
-                  <SpellCheckerInput
-                    value={form.valoracionControl}
-                    onChange={(e) => setForm((prev) => ({ ...prev, valoracionControl: e.target.value }))}
-                    placeholder="Alta, media, baja"
-                  />
-                </label>
-              </div>
-
-              <label>
-                Tratamiento
-                <SpellCheckerTextarea
-                  value={form.tratamiento}
-                  onChange={(e) => setForm((prev) => ({ ...prev, tratamiento: e.target.value }))}
-                  rows={3}
-                  placeholder="Aceptar, mitigar, transferir o evitar."
-                />
-              </label>
-
-              <label>
-                Acciones de mitigación
-                <SpellCheckerTextarea
-                  value={form.accionesMitigacion}
-                  onChange={(e) => setForm((prev) => ({ ...prev, accionesMitigacion: e.target.value }))}
-                  rows={3}
-                  placeholder="Acciones concretas para reducir probabilidad o impacto."
-                />
-              </label>
-
-              <div className="form-grid form-grid-2">
-                <label>
-                  Entidad responsable
-                  <SpellCheckerInput
-                    value={form.entidadResponsable}
-                    onChange={(e) => setForm((prev) => ({ ...prev, entidadResponsable: e.target.value }))}
-                    placeholder="Secretaría TIC, despacho..."
-                  />
-                </label>
-                <label>
-                  Rol responsable
-                  <SpellCheckerInput
-                    value={form.rolResponsable}
-                    onChange={(e) => setForm((prev) => ({ ...prev, rolResponsable: e.target.value }))}
-                    placeholder="Gerente del proyecto, líder..."
-                  />
-                </label>
-                <label>
-                  Fecha de la acción
-                  <input
-                    type="date"
-                    value={form.fechaAccion}
-                    onChange={(e) => setForm((prev) => ({ ...prev, fechaAccion: e.target.value }))}
-                  />
-                </label>
-              </div>
-
               <div className="form-actions">
                 <button type="button" className="btn-secondary" onClick={closeModal}>
                   Cancelar
@@ -1014,7 +861,7 @@ const RiesgosPage = () => {
             <div className="risk-modal-header">
               <div>
                 <span className="panel-chip">Dar solución</span>
-                <h2 id="solution-modal-title">{solutionRisk?.categoriaRiesgo || 'Riesgo seleccionado'}</h2>
+                <h2 id="solution-modal-title">{solutionRisk?.descripcion || 'Riesgo seleccionado'}</h2>
                 <p>
                   Adjunta uno o varios PDF para este riesgo. Los archivos nuevos se suman a los ya cargados sin
                   borrar los anteriores.

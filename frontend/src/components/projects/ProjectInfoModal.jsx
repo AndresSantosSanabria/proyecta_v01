@@ -1,7 +1,8 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+﻿import { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle, Eye, History } from 'lucide-react';
 import documentService from '../../services/documentService';
 import projectService from '../../services/projectService';
+import configCatalogService from '../../services/configCatalogService';
 import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import './ProjectInfoModal.css';
 
@@ -24,7 +25,7 @@ const Section = ({ title, icon: Icon, children, defaultOpen = true }) => {
 const Field = ({ label, value }) => (
   <div className="pim-field">
     <span className="pim-field-label">{label}</span>
-    <strong className="pim-field-value">{value || '—'}</strong>
+    <strong className="pim-field-value">{value || 'â€”'}</strong>
   </div>
 );
 
@@ -552,17 +553,91 @@ const mapFuragValue = (val) => {
   return val;
 };
 
+const DEFAULT_FURAG_LABELS = {
+  infraestructuraDatos: '¿El proyecto incluye uso de infraestructura de datos (datos abiertos, big data, analytics)?',
+  interoperabilidad: '¿El proyecto requiere interoperabilidad con otros sistemas de la entidad o del Estado?',
+  digitalizacionAutomatizacion: '¿El proyecto contempla digitalización o automatización de procesos?',
+  contratacionPublica: '¿El proyecto está relacionado con contratación pública electrónica?',
+  serviciosNube: '¿El proyecto utilizará servicios en la nube (IaaS, PaaS, SaaS)?',
+  sandbox: '¿El proyecto requiere un entorno Sandbox regulatorio para pruebas?',
+  tecnologiasEmergentes: '¿El proyecto hace uso de tecnologías emergentes (IA, Blockchain, IoT)?',
+};
+
+const DEFAULT_FURAG_ORDER = [
+  'infraestructuraDatos',
+  'interoperabilidad',
+  'digitalizacionAutomatizacion',
+  'contratacionPublica',
+  'serviciosNube',
+  'sandbox',
+  'tecnologiasEmergentes',
+];
+
 const normalizeFurag = (payload) => {
   const data = payload?.data?.data ?? payload?.data ?? payload ?? {};
+  const source = data.respuestas || data;
   return {
-    infraestructuraDatos: data.infraestructuraDatos ?? null,
-    interoperabilidad: data.interoperabilidad ?? null,
-    digitalizacionAutomatizacion: data.digitalizacionAutomatizacion ?? null,
-    contratacionPublica: data.contratacionPublica ?? null,
-    serviciosNube: data.serviciosNube ?? null,
-    sandbox: data.sandbox ?? null,
-    tecnologiasEmergentes: data.tecnologiasEmergentes ?? null,
+    detalle: Array.isArray(data.detalle) ? data.detalle : Array.isArray(source.detalle) ? source.detalle : [],
+    infraestructuraDatos: source.infraestructuraDatos ?? null,
+    interoperabilidad: source.interoperabilidad ?? null,
+    digitalizacionAutomatizacion: source.digitalizacionAutomatizacion ?? null,
+    contratacionPublica: source.contratacionPublica ?? null,
+    serviciosNube: source.serviciosNube ?? null,
+    sandbox: source.sandbox ?? null,
+    tecnologiasEmergentes: source.tecnologiasEmergentes ?? null,
   };
+};
+
+const normalizeFuragQuestions = (preguntas) => {
+  if (!Array.isArray(preguntas)) return [];
+  return preguntas
+    .map((pregunta) => ({
+      key: pregunta?.key || pregunta?.codigo || pregunta?.id || '',
+      label: pregunta?.label || pregunta?.pregunta || pregunta?.nombre || '',
+    }))
+    .filter((pregunta) => pregunta.key && pregunta.label);
+};
+
+const normalizeFuragKey = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+
+const resolveFuragAnswer = (furagMap, pregunta) => {
+  if (!furagMap || !pregunta) return null;
+
+  const candidates = [
+    pregunta.key,
+    pregunta.label,
+    pregunta.codigo,
+    pregunta.nombre,
+    pregunta.pregunta,
+    pregunta.key && pregunta.key.replace(/^furag[_-]?/i, ''),
+  ].filter(Boolean);
+
+  const normalizedCandidates = candidates.map(normalizeFuragKey);
+  const entries = Object.entries(furagMap);
+
+  for (const [entryKey, entryValue] of entries) {
+    const normalizedEntryKey = normalizeFuragKey(entryKey);
+    if (normalizedCandidates.includes(normalizedEntryKey)) {
+      return entryValue;
+    }
+  }
+
+  if (pregunta.label) {
+    const normalizedLabel = normalizeFuragKey(pregunta.label);
+    for (const [entryKey, entryValue] of entries) {
+      if (normalizeFuragKey(entryKey).includes(normalizedLabel) || normalizedLabel.includes(normalizeFuragKey(entryKey))) {
+        return entryValue;
+      }
+    }
+  }
+
+  return null;
 };
 
 const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
@@ -570,6 +645,9 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [furag, setFurag] = useState(null);
   const [loadingFurag, setLoadingFurag] = useState(false);
+  const [furagQuestions, setFuragQuestions] = useState(
+    DEFAULT_FURAG_ORDER.map((key) => ({ key, label: DEFAULT_FURAG_LABELS[key] }))
+  );
 
   const proyectoId = project?.codigo || project?.id;
 
@@ -605,12 +683,27 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
     }
   }, [proyectoId, project?.furag]);
 
+  const fetchFuragLabels = useCallback(async () => {
+    try {
+      const catalog = await configCatalogService.getPetiCatalog();
+      const preguntas = normalizeFuragQuestions(catalog?.furagPreguntas);
+      if (preguntas.length === 0) {
+        setFuragQuestions(DEFAULT_FURAG_ORDER.map((key) => ({ key, label: DEFAULT_FURAG_LABELS[key] })));
+        return;
+      }
+      setFuragQuestions(preguntas);
+    } catch {
+      setFuragQuestions(DEFAULT_FURAG_ORDER.map((key) => ({ key, label: DEFAULT_FURAG_LABELS[key] })));
+    }
+  }, []);
+
   useEffect(() => {
     if (open && proyectoId) {
       fetchDocuments();
       fetchFurag();
+      fetchFuragLabels();
     }
-  }, [open, proyectoId, fetchDocuments, fetchFurag]);
+  }, [open, proyectoId, fetchDocuments, fetchFurag, fetchFuragLabels]);
 
   if (!open || !project) return null;
 
@@ -620,6 +713,8 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const fases = Array.isArray(project.fases) ? project.fases : [];
   const objetivos = Array.isArray(project.objetivosEspecificos) ? project.objetivosEspecificos : [];
   const furagData = furag || normalizeFurag(project?.furag);
+  const furagAnswers = furagData?.respuestas || furagData || {};
+  const furagDetail = Array.isArray(furagData?.detalle) ? furagData.detalle : [];
 
   const handleDocumentUploaded = () => {
     fetchDocuments();
@@ -649,8 +744,8 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
               <Field label="Estado" value={project.estado} />
             </div>
             <div className="pim-field pim-field-wide">
-              <span className="pim-field-label">Alcance detallado</span>
-              <p className="pim-field-text">{project.alcanceDetallado || '—'}</p>
+              <span className="pim-field-label">Alcance</span>
+              <p className="pim-field-text">{project.alcanceDetallado || 'â€”'}</p>
             </div>
             {objetivos.length > 0 && (
               <div className="pim-field pim-field-wide">
@@ -666,7 +761,6 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
             <div className="pim-grid">
               <Field label="Nombre" value={patrocinador.nombre} />
               <Field label="Cargo" value={patrocinador.cargo} />
-              <Field label="Entidad" value={patrocinador.entidad} />
               <Field label="Proceso SIGC" value={patrocinador.procesoSigc} />
               <Field label="Procedimiento SIGC" value={patrocinador.procedimientoSigc} />
             </div>
@@ -742,18 +836,22 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
           </Section>
 
           <Section title="FURAG" icon={Target} defaultOpen={false}>
-            <div className="pim-grid">
+            <div className="pim-furag-list">
               {loadingFurag ? (
                 <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando FURAG...</p>
               ) : (
                 <>
-                  <Field label="Infraestructura de datos" value={mapFuragValue(furagData.infraestructuraDatos)} />
-                  <Field label="Interoperabilidad" value={mapFuragValue(furagData.interoperabilidad)} />
-                  <Field label="Digitalizacion/Automatizacion" value={mapFuragValue(furagData.digitalizacionAutomatizacion)} />
-                  <Field label="Contratacion publica" value={mapFuragValue(furagData.contratacionPublica)} />
-                  <Field label="Servicios en la nube" value={mapFuragValue(furagData.serviciosNube)} />
-                  <Field label="Sandbox regulatorio" value={mapFuragValue(furagData.sandbox)} />
-                  <Field label="Tecnologias emergentes" value={mapFuragValue(furagData.tecnologiasEmergentes)} />
+                  {(furagDetail.length > 0 ? furagDetail : furagQuestions).map((pregunta) => {
+                    const response = pregunta?.response ?? resolveFuragAnswer(furagAnswers, pregunta);
+                    return (
+                      <div key={pregunta.key || pregunta.label} className="pim-furag-item">
+                        <span className="pim-field-label pim-furag-question">{pregunta.label}</span>
+                        <strong className="pim-field-value pim-furag-answer">
+                          {mapFuragValue(response) || '—'}
+                        </strong>
+                      </div>
+                    );
+                  })}
                 </>
               )}
             </div>
@@ -794,3 +892,8 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
 };
 
 export default ProjectInfoModal;
+
+
+
+
+

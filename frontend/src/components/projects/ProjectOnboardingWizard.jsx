@@ -3,8 +3,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, LockKeyhole, Save } from 'lucide-
 import { usePermission } from '../../hooks/usePermission';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
-import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
-import SpellCheckerInput from '../common/SpellCheckerInput';
+import { SpellCheckInput } from '../common/SpellCheckInput/SpellCheckInput';
 import Paso4PetiComunicaciones from '../features/wizard/steps/Paso4PetiComunicaciones';
 import Paso5Furag from '../features/wizard/steps/Paso5Furag';
 import Paso6GestionDocumental from '../features/wizard/steps/Paso6GestionDocumental';
@@ -27,7 +26,7 @@ const initialForm = (project) => ({
   alcanceDetallado: project?.alcanceDetallado || project?.alcanceDetalle || project?.alcance || '',
   presupuestoEstimado: project?.presupuestoEstimado ?? project?.presupuesto ?? '',
   objetivosEspecificos: Array.isArray(project?.objetivosEspecificos) ? project.objetivosEspecificos : [],
-  patrocinador: project?.patrocinador || { nombre: '', cargo: '', entidad: '', procesoSigc: '', procedimientoSigc: '' },
+  patrocinador: project?.patrocinador || { nombre: '', cargo: '', procesoSigc: '', procedimientoSigc: '' },
   equipoTrabajo: Array.isArray(project?.equipoTrabajo) ? project.equipoTrabajo : [],
   stakeholders: Array.isArray(project?.stakeholders) ? project.stakeholders : [],
   fases: Array.isArray(project?.fases) ? project.fases : [],
@@ -149,6 +148,7 @@ const ProjectOnboardingWizard = ({
   const [petiCatalogLoading, setPetiCatalogLoading] = useState(false);
   const [dependencias, setDependencias] = useState([]);
   const [entregableFiles, setEntregableFiles] = useState({});
+  const [spellingErrors, setSpellingErrors] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -256,7 +256,7 @@ const ProjectOnboardingWizard = ({
 
     if (targetStep === 1) {
       if (!source.dependencia) nextErrors.dependencia = 'Seleccione una dependencia.';
-      if (!String(source.alcanceDetallado || '').trim()) nextErrors.alcanceDetallado = 'El alcance detallado es obligatorio.';
+      if (!String(source.alcanceDetallado || '').trim()) nextErrors.alcanceDetallado = 'El alcance es obligatorio.';
       if (source.presupuestoEstimado === '' || source.presupuestoEstimado == null) {
         nextErrors.presupuestoEstimado = 'El presupuesto estimado es obligatorio.';
       } else if (Number(source.presupuestoEstimado) < 0) {
@@ -269,7 +269,6 @@ const ProjectOnboardingWizard = ({
     if (targetStep === 2) {
       if (!source.patrocinador?.nombre?.trim()) nextErrors.patrocinadorNombre = 'El nombre del patrocinador es obligatorio.';
       if (!source.patrocinador?.cargo?.trim()) nextErrors.patrocinadorCargo = 'El cargo del patrocinador es obligatorio.';
-      if (!source.patrocinador?.entidad?.trim()) nextErrors.patrocinadorEntidad = 'La entidad del patrocinador es obligatoria.';
     }
 
     if (targetStep === 3) {
@@ -445,7 +444,6 @@ const ProjectOnboardingWizard = ({
       patrocinador: {
         nombre: form.patrocinador?.nombre || '',
         cargo: form.patrocinador?.cargo || '',
-        entidad: form.patrocinador?.entidad || '',
         procesoSigc: form.patrocinador?.procesoSigc || null,
         procedimientoSigc: form.patrocinador?.procedimientoSigc || null,
       },
@@ -572,11 +570,13 @@ const ProjectOnboardingWizard = ({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Alcance detallado *</label>
-            <SpellCheckerTextarea
+            <label className="form-label">Alcance *</label>
+            <SpellCheckInput
+              as="textarea"
               className={`form-input form-textarea ${errors.alcanceDetallado ? 'input-error' : ''}`}
               value={form.alcanceDetallado || ''}
               onChange={(event) => handleChange({ alcanceDetallado: event.target.value })}
+              onErrorChange={(hasError) => setSpellingErrors(prev => hasError ? prev + 1 : Math.max(0, prev - 1))}
               rows={5}
               placeholder="Describa alcance, limites y resultados esperados."
             />
@@ -587,10 +587,11 @@ const ProjectOnboardingWizard = ({
             <label className="form-label">Objetivos especificos</label>
             {(form.objetivosEspecificos || []).map((objective, index) => (
               <div key={`objective-${index}`} className="array-field-row">
-                <SpellCheckerInput
+                <SpellCheckInput
                   className="form-input"
                   value={objective}
                   onChange={(event) => handleObjetivoChange(index, event.target.value)}
+                  onErrorChange={(hasError) => setSpellingErrors(prev => hasError ? prev + 1 : Math.max(0, prev - 1))}
                   placeholder={`Objetivo especifico ${index + 1}`}
                 />
                 <button type="button" className="btn-icon-danger" onClick={() => handleObjetivoRemove(index)}>
@@ -648,7 +649,7 @@ const ProjectOnboardingWizard = ({
         <form className="project-onboarding__panel card-surface" onSubmit={handleSubmit}>
           <div className="project-onboarding__header project-onboarding__hero">
             <div className="project-onboarding__hero-copy">
-              <span className="modal-flow-badge">Momento 2 - Director de Proyecto</span>
+              <span className="modal-flow-badge">Momento {step} - Director de Proyecto</span>
               <h2 className="page-title">Completar informacion del proyecto</h2>
               <p className="page-subtitle">
                 El proyecto fue registrado por el Gestor. Complete la informacion pendiente para habilitar los modulos operativos.

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BookText,
   ChevronRight,
@@ -92,21 +92,13 @@ const normalizeText = (value) =>
 
 const sameText = (left, right) => normalizeText(left) === normalizeText(right);
 
-const FURAG_KEYS = [
-  'infraestructuraDatos',
-  'interoperabilidad',
-  'digitalizacionAutomatizacion',
-  'contratacionPublica',
-  'serviciosNube',
-  'sandbox',
-  'tecnologiasEmergentes',
-];
+const getFuragAnswers = (project) => project?.furag?.respuestas || project?.furag || {};
 
 const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
 
 const furagCompleto = (project) => {
-  const furag = project?.furag || {};
-  return FURAG_KEYS.every((key) => hasText(furag[key]));
+  const furag = getFuragAnswers(project);
+  return Object.values(furag).every((value) => hasText(value));
 };
 
 const FALLBACK_REPORTS = [
@@ -886,4 +878,5 @@ const ReportsPage = () => {
 };
 
 export default ReportsPage;
+
 

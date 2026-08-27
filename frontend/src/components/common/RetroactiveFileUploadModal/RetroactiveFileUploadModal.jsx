@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Upload, FileText, AlertCircle } from 'lucide-react';
 import './RetroactiveFileUploadModal.css';
 
@@ -9,6 +9,16 @@ const RetroactiveFileUploadModal = ({ open, entregableNombre, currentFile, onCon
   const [selectedFile, setSelectedFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedFile(null);
+      setErrorMessage('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [open, entregableNombre]);
 
   if (!open) return null;
 
@@ -71,13 +81,6 @@ const RetroactiveFileUploadModal = ({ open, entregableNombre, currentFile, onCon
         </div>
 
         <div className="retroactive-upload-body">
-          {currentFile && !selectedFile && (
-            <div className="retroactive-current-file">
-              <FileText size={16} />
-              <span>Archivo actual: {currentFile.name || currentFile}</span>
-            </div>
-          )}
-
           <div
             className="retroactive-dropzone"
             onClick={() => fileInputRef.current?.click()}

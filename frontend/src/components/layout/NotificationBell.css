@@ -242,6 +242,12 @@
   border-color: rgba(245, 158, 11, 0.24);
 }
 
+.notification-bell__item-event.error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.24);
+}
+
 .notification-bell__item-event.info {
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.12);

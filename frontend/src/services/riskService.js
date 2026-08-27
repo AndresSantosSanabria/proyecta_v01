@@ -11,6 +11,13 @@ const riskService = {
     return data;
   },
 
+  downloadRiskMatrixExcel: async (proyectoId) => {
+    const response = await apiClient.get(`/proyectos/${proyectoId}/riesgos/descargar-excel`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
   createRisk: async (proyectoId, payload) => {
     const { data } = await apiClient.post(`/proyectos/${proyectoId}/riesgos`, payload);
     return data;

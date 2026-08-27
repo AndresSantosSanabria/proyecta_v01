@@ -201,7 +201,7 @@ const Paso3FasesHitosEntregables = ({
         {fases.length > 0 && <PesoIndicator actual={sumaFases} />}
       </div>
       <p className="help-text">
-        Puedes dejar esta seccion vacia al crear el proyecto. Cuando agregues estructura, cada fase debe tener al menos un hito y cada hito al menos un entregable.
+        Registre la estructura del proyecto lo más precisa posible. Es obligatorio al menos una fase, un hito y un entregable. Esta información se puede ajustar más adelante.
       </p>
 
       <div className="hierarchy-rule-banner">

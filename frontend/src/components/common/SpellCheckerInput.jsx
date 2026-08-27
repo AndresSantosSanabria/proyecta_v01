@@ -27,6 +27,22 @@ export default function SpellCheckerInput({
   const inputRef = useRef(null);
   const highlightRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [hlStyle, setHlStyle] = useState({});
+
+  useEffect(() => {
+    const inp = inputRef.current;
+    if (inp) {
+      const cs = window.getComputedStyle(inp);
+      setHlStyle({
+        padding: cs.padding,
+        fontFamily: cs.fontFamily,
+        fontSize: cs.fontSize,
+        lineHeight: cs.lineHeight,
+        letterSpacing: cs.letterSpacing,
+        wordSpacing: cs.wordSpacing,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (ready && value) {
@@ -111,6 +127,7 @@ export default function SpellCheckerInput({
         className="spell-highlight spell-highlight-input"
         ref={highlightRef}
         aria-hidden="true"
+        style={hlStyle}
         dangerouslySetInnerHTML={{ __html: buildHighlightedHTML() }}
       />
       <input

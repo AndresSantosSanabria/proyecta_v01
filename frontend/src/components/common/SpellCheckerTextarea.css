@@ -9,7 +9,6 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: inherit;
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
@@ -138,13 +137,11 @@
   color: transparent;
   background: transparent;
   border: 1px solid transparent;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
   white-space: nowrap;
   z-index: 1;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
 }
 
 .spell-wrapper-input .spell-input {

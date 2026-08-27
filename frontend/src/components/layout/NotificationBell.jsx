@@ -41,12 +41,16 @@ const getEventLabel = (item) => {
   if (code.includes('REENV') || code.includes('REENVI')) return 'Reenviado';
   if (code.includes('OBSERV') || code.includes('RECHAZ')) return 'Observado';
   if (code.includes('DILIG') || code.includes('CREAD') || code.includes('REGISTR')) return 'Diligenciado';
+  if (code === 'ENTREGABLE_OVERDUE_REMINDER' || code.includes('OVERDUE')) return 'Vencido';
+  if (code === 'ENTREGABLE_DEADLINE_WARNING' || code.includes('DEADLINE') || code.includes('VENCIMIENTO')) return 'Por vencer';
 
   const text = `${item?.title || ''} ${item?.message || ''}`.toUpperCase();
   if (text.includes('APROB')) return 'Aprobado';
   if (text.includes('REENV')) return 'Reenviado';
   if (text.includes('OBSERV') || text.includes('RECHAZ')) return 'Observado';
   if (text.includes('DILIG') || text.includes('GUARD')) return 'Diligenciado';
+  if (text.includes('VENCID') || text.includes('ATRAS')) return 'Vencido';
+  if (text.includes('POR VENCER') || text.includes('VENCE')) return 'Por vencer';
 
   return 'Notificación';
 };
@@ -56,6 +60,8 @@ const getEventTone = (item) => {
   if (label === 'Aprobado' || label === 'Diligenciado') return 'success';
   if (label === 'Observado') return 'warning';
   if (label === 'Reenviado') return 'info';
+  if (label === 'Vencido') return 'error';
+  if (label === 'Por vencer') return 'warning';
   return 'neutral';
 };
 

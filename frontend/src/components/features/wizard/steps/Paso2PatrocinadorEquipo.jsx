@@ -42,7 +42,6 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
         patrocinador: {
           nombre: encontrado.nombre,
           cargo: encontrado.cargo || '',
-          entidad: encontrado.entidad || '',
           procesoSigc: encontrado.procesoSigc || '',
           procedimientoSigc: encontrado.procedimientoSigc || '',
         },
@@ -115,17 +114,6 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Entidad *</label>
-          <SpellCheckerInput
-            className={`form-input ${errors.patrocinadorEntidad ? 'input-error' : ''}`}
-            value={data.patrocinador?.entidad || ''}
-            onChange={(e) => handlePatrocinador('entidad', e.target.value)}
-            placeholder="Ej: Gobernación de Cundinamarca"
-          />
-          {errors.patrocinadorEntidad && <span className="error-text">{errors.patrocinadorEntidad}</span>}
-        </div>
-
-        <div className="form-group">
           <label className="form-label">Proceso SIGC</label>
           <SpellCheckerInput
             className="form-input"
@@ -144,7 +132,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
         </div>
       </div>
 
-      <h3 className="step-title" style={{ marginTop: '2rem' }}>Equipo TIC del Proyecto</h3>
+      <h3 className="step-title" style={{ marginTop: '2rem' }}>Equipo de Trabajo</h3>
       <p className="help-text">Registre los integrantes del equipo TIC que participarán en el proyecto.</p>
 
       {(data.equipoTrabajo || []).map((miembro, i) => (

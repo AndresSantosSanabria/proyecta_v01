@@ -2,8 +2,8 @@ import gobLogo from '../../assets/logo gob cun.png';
 import stdLogo from '../../assets/STD.png';
 import './ReportDocumentPreview.css';
 
-/* ─── helpers ─────────────────────────────────────────────────────────────── */
-const fmt = (v) => (v === null || v === undefined || v === '' ? '—' : v);
+/* â”€â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+const fmt = (v) => (v === null || v === undefined || v === '' ? 'â€”' : v);
 
 const toPercent = (v) => {
   const n = Number(v);
@@ -12,7 +12,7 @@ const toPercent = (v) => {
 };
 
 const fmtDate = (d) => {
-  if (!d) return '—';
+  if (!d) return 'â€”';
   try {
     return new Date(d).toLocaleDateString('es-CO', {
       day: '2-digit', month: '2-digit', year: 'numeric',
@@ -25,15 +25,7 @@ const todayStr = () =>
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
-const FURAG_KEYS = [
-  'infraestructuraDatos',
-  'interoperabilidad',
-  'digitalizacionAutomatizacion',
-  'contratacionPublica',
-  'serviciosNube',
-  'sandbox',
-  'tecnologiasEmergentes',
-];
+const getFuragAnswers = (project) => project?.furag?.respuestas || project?.furag || {};
 
 const normalizeText = (value) =>
   String(value || '')
@@ -47,11 +39,11 @@ const sameText = (left, right) => normalizeText(left) === normalizeText(right);
 const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
 
 const furagCompleto = (project) => {
-  const furag = project?.furag || {};
-  return FURAG_KEYS.every((key) => hasText(furag[key]));
+  const furag = getFuragAnswers(project);
+  return Object.values(furag).every((value) => hasText(value));
 };
 
-/* ─── section header ──────────────────────────────────────────────────────── */
+/* â”€â”€â”€ section header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const SectionHead = ({ number, title }) => (
   <div className="rdoc__section-head">
     <span className="rdoc__section-number">{number}.</span>
@@ -59,7 +51,7 @@ const SectionHead = ({ number, title }) => (
   </div>
 );
 
-/* ─── field grid (label / value pairs) ───────────────────────────────────── */
+/* â”€â”€â”€ field grid (label / value pairs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const FieldGrid = ({ fields }) => (
   <div className="rdoc__field-grid">
     {fields.map(({ label, value, wide, emphasis }) => (
@@ -73,7 +65,7 @@ const FieldGrid = ({ fields }) => (
   </div>
 );
 
-/* ─── generic table ──────────────────────────────────────────────────────── */
+/* â”€â”€â”€ generic table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const DocTable = ({ columns, rows, emptyMsg = 'Sin datos disponibles.' }) => (
   <table className="rdoc__table">
     <thead>
@@ -105,7 +97,7 @@ const DocTable = ({ columns, rows, emptyMsg = 'Sin datos disponibles.' }) => (
   </table>
 );
 
-/* ─── status badge ────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ status badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const StatusBadge = ({ value }) => {
   const up = String(value || '').toUpperCase();
   const cls = up === 'SI' ? 'rdoc__badge rdoc__badge--yes'
@@ -114,20 +106,20 @@ const StatusBadge = ({ value }) => {
   return <span className={cls}>{value}</span>;
 };
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    REPORT BODIES
-   ═══════════════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/* 1. ESTADO DE PROYECTO ESPECÍFICO */
+/* 1. ESTADO DE PROYECTO ESPECÃFICO */
 const BodyEstadoProyecto = ({ reportData, selectedProject }) => {
   const entregables = Array.isArray(reportData?.entregablesVencidos)
     ? reportData.entregablesVencidos : [];
 
   return (
     <>
-      <SectionHead number="1" title="Información general del proyecto" />
+      <SectionHead number="1" title="InformaciÃ³n general del proyecto" />
       <FieldGrid fields={[
-        { label: 'Código del proyecto',  value: fmt(reportData?.proyectoId) },
+        { label: 'CÃ³digo del proyecto',  value: fmt(reportData?.proyectoId) },
         { label: 'Nombre del proyecto',  value: fmt(reportData?.nombre), wide: true },
         { label: 'Director del proyecto', value: fmt(reportData?.directorNombre) },
         { label: 'Dependencia',           value: fmt(reportData?.dependencia) },
@@ -162,7 +154,7 @@ const BodyTodosProyectos = ({ reportData }) => {
       <table className="rdoc__table">
         <thead>
           <tr>
-            <th>Código del proyecto</th>
+            <th>CÃ³digo del proyecto</th>
             <th>Nombre del proyecto</th>
             <th>Avance total del proyecto (%)</th>
             <th>Estado del proyecto (En desarrollo - cerrado)</th>
@@ -283,7 +275,7 @@ const BodyPlanComunicaciones = ({ projects }) => {
   );
 };
 
-/* 6. VERIFICACIÓN DE RIESGOS */
+/* 6. VERIFICACIÃ“N DE RIESGOS */
 const BodyRiesgos = ({ reportData }) => {
   const rows = Array.isArray(reportData) ? reportData : [];
   const totalYes = rows.filter((row) => row.diligencioTratamiento).length;
@@ -304,13 +296,13 @@ const BodyRiesgos = ({ reportData }) => {
 
       <DocTable
         columns={[
-          { key: 'proyectoId', label: 'Código del proyecto', width: '18%' },
+          { key: 'proyectoId', label: 'CÃ³digo del proyecto', width: '18%' },
           { key: 'nombreProyecto', label: 'Nombre del proyecto', width: '27%' },
           { key: 'directorProyecto', label: 'Director del proyecto', width: '19%' },
           { key: 'dependencia', label: 'Dependencia', width: '21%' },
           {
             key: 'diligencioTratamiento',
-            label: 'Diligenció tratamiento de riesgos',
+            label: 'DiligenciÃ³ tratamiento de riesgos',
             width: '15%',
             render: (row) => <StatusBadge value={row.diligencioTratamiento ? 'SI' : 'NO'} />,
           },
@@ -322,9 +314,9 @@ const BodyRiesgos = ({ reportData }) => {
   );
 };
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MAIN COMPONENT
-   ═══════════════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /* 5. FURAG */
 const BodyFuragV2 = ({ reportData, selectedProject, projects }) => {
@@ -360,7 +352,7 @@ const BodyFuragV2 = ({ reportData, selectedProject, projects }) => {
 
       <DocTable
         columns={[
-          { key: 'id', label: 'Código del proyecto', width: '18%' },
+          { key: 'id', label: 'CÃ³digo del proyecto', width: '18%' },
           { key: 'nombre', label: 'Nombre del proyecto', width: '22%' },
           { key: 'director', label: 'Director del proyecto', width: '20%' },
           { key: 'dependencia', label: 'Dependencia', width: '20%' },
@@ -380,7 +372,7 @@ const BodyFuragV2 = ({ reportData, selectedProject, projects }) => {
 
 const REPORT_META = {
   ESTADO_PROYECTO: {
-    title: 'ESTADO DE PROYECTO ESPECÍFICO',
+    title: 'ESTADO DE PROYECTO ESPECÃFICO',
     code: 'RPT-001',
   },
   TODOS_LOS_PROYECTOS: {
@@ -400,7 +392,7 @@ const REPORT_META = {
     code: 'RPT-005',
   },
   VERIFICACION_RIESGOS: {
-    title: 'VERIFICACIÓN DE TRATAMIENTO A RIESGOS',
+    title: 'VERIFICACIÃ“N DE TRATAMIENTO A RIESGOS',
     code: 'RPT-006',
   },
 };
@@ -435,16 +427,16 @@ const ReportDocumentPreview = ({ reportId, reportData, selectedProject, projects
   return (
     <div className="rdoc">
 
-      {/* ── HEADER ─────────────────────────────────────────────────────── */}
+      {/* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <header className="rdoc__header">
         <div className="rdoc__header-brand">
           <img
             src={gobLogo}
-            alt="Gobernación de Cundinamarca"
+            alt="GobernaciÃ³n de Cundinamarca"
             className="rdoc__header-logo"
           />
           <div className="rdoc__header-org">
-            <p className="rdoc__header-supertitle">Gobernación de Cundinamarca</p>
+            <p className="rdoc__header-supertitle">GobernaciÃ³n de Cundinamarca</p>
             <p className="rdoc__header-subtitle">
               Sistema Integral de Seguimiento Institucional
             </p>
@@ -452,7 +444,7 @@ const ReportDocumentPreview = ({ reportId, reportData, selectedProject, projects
         </div>
         <div className="rdoc__header-stamp">
           <div className="rdoc__stamp-row">
-            <span className="rdoc__stamp-label">Código</span>
+            <span className="rdoc__stamp-label">CÃ³digo</span>
             <span className="rdoc__stamp-value">{meta.code}</span>
           </div>
           <div className="rdoc__stamp-row">
@@ -467,20 +459,20 @@ const ReportDocumentPreview = ({ reportId, reportData, selectedProject, projects
         </div>
       </header>
 
-      {/* ── TITLE BAND ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ TITLE BAND â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="rdoc__title-band">
         <h1 className="rdoc__title">REPORTE: {meta.title}</h1>
       </div>
 
-      {/* ── BODY ───────────────────────────────────────────────────────── */}
+      {/* â”€â”€ BODY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="rdoc__body">
         {renderBody()}
       </div>
 
-      {/* ── DIVIDER ────────────────────────────────────────────────────── */}
+      {/* â”€â”€ DIVIDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="rdoc__divider" />
 
-      {/* ── SIGNATURE STRIP ────────────────────────────────────────────── */}
+      {/* â”€â”€ SIGNATURE STRIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="rdoc__signatures">
         <div className="rdoc__sig">
           <div className="rdoc__sig-line" />
@@ -496,17 +488,17 @@ const ReportDocumentPreview = ({ reportId, reportData, selectedProject, projects
         </div>
       </div>
 
-      {/* ── FOOTER ─────────────────────────────────────────────────────── */}
+      {/* â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <footer className="rdoc__footer">
         <div className="rdoc__footer-left">
-          <p>Calle 26 #51-53, Bogotá D.C.</p>
-          <p><strong>Sede Administrativa</strong> — Torre Central, Piso 7</p>
-          <p>Código Postal: 111321 &nbsp;|&nbsp; Tel: 7491513</p>
-          <p>f /CundiGob &nbsp;·&nbsp; @CundinamarcaGob &nbsp;·&nbsp; www.cundinamarca.gov.co</p>
+          <p>Calle 26 #51-53, BogotÃ¡ D.C.</p>
+          <p><strong>Sede Administrativa</strong> â€” Torre Central, Piso 7</p>
+          <p>CÃ³digo Postal: 111321 &nbsp;|&nbsp; Tel: 7491513</p>
+          <p>f /CundiGob &nbsp;Â·&nbsp; @CundinamarcaGob &nbsp;Â·&nbsp; www.cundinamarca.gov.co</p>
         </div>
         <img
           src={stdLogo}
-          alt="Transformación Digital"
+          alt="TransformaciÃ³n Digital"
           className="rdoc__footer-logo"
         />
       </footer>
@@ -515,3 +507,4 @@ const ReportDocumentPreview = ({ reportId, reportData, selectedProject, projects
 };
 
 export default ReportDocumentPreview;
+

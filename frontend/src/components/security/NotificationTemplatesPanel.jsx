@@ -108,6 +108,22 @@ const fallbackEvents = [
     defaultEnabled: true,
     requiresProjectContext: true,
   },
+  {
+    code: 'ENTREGABLE_DEADLINE_WARNING',
+    name: 'Entregable próximo a vencer',
+    category: 'BUSINESS',
+    active: true,
+    defaultEnabled: true,
+    requiresProjectContext: true,
+  },
+  {
+    code: 'ENTREGABLE_OVERDUE_REMINDER',
+    name: 'Entregable vencido recordatorio',
+    category: 'BUSINESS',
+    active: true,
+    defaultEnabled: true,
+    requiresProjectContext: true,
+  },
 ];
 
 const templateVariables = [
@@ -118,6 +134,9 @@ const templateVariables = [
   { key: 'entregable_nombre', label: 'Nombre del entregable', description: 'Elemento del flujo documental.' },
   { key: 'estado_anterior', label: 'Estado anterior', description: 'Estado previo al cambio de negocio.' },
   { key: 'estado_nuevo', label: 'Estado nuevo', description: 'Estado después del cambio.' },
+  { key: 'dias_restantes', label: 'Días restantes', description: 'Días para el vencimiento del entregable.' },
+  { key: 'dias_vencido', label: 'Días vencido', description: 'Días desde el vencimiento del entregable.' },
+  { key: 'fecha_limite', label: 'Fecha límite', description: 'Fecha límite del entregable.' },
 ];
 
 const extractApiDetail = (error) => error?.response?.data?.detail || error?.response?.data?.title || error?.message || '';
