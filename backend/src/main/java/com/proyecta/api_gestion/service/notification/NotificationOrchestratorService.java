@@ -49,6 +49,8 @@ public class NotificationOrchestratorService {
         tmp.put("RISK_UPDATED", "/risks");
         tmp.put("RISK_TREATED", "/risks");
         tmp.put("ENTREGABLE_FECHA_CAMBIADA", "/schedule");
+        tmp.put("ENTREGABLE_DEADLINE_WARNING", "/progress");
+        tmp.put("ENTREGABLE_OVERDUE_REMINDER", "/progress");
         EVENT_ROUTE_MAP = Map.copyOf(tmp);
     }
 

@@ -180,10 +180,12 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
             entregable.completar(storedName, fechaEntrega);
 
-            // Logica de registro retroactivo: si la fecha limite del entregable es pasada, marcar como completado
+            // Si la fecha limite ya paso y no se indico una fecha de entrega, usar la fecha actual
             java.time.LocalDate hoy = java.time.LocalDate.now();
-            if (entregable.getFechaLimite() != null && entregable.getFechaLimite().isBefore(hoy)) {
-                entregable.setFechaEntregaReal(entregable.getFechaLimite());
+            if (entregable.getFechaEntregaReal() == null
+                    && entregable.getFechaLimite() != null
+                    && entregable.getFechaLimite().isBefore(hoy)) {
+                entregable.setFechaEntregaReal(hoy);
                 entregable.setEstado(com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO);
                 entregable.setConforme(false);
             }
@@ -403,6 +405,11 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 java.util.Map.of(
                         "observationId", guardada.getId(),
                         "deliverableName", guardada.getEntregable() != null ? guardada.getEntregable().getNombre() : "",
+                        "projectName", guardada.getEntregable() != null
+                                && guardada.getEntregable().getHito() != null
+                                && guardada.getEntregable().getHito().getFase() != null
+                                && guardada.getEntregable().getHito().getFase().getProyecto() != null
+                                ? guardada.getEntregable().getHito().getFase().getProyecto().getNombre() : "",
                         "recipients", List.of(
                                 guardada.getEntregable() != null
                                         && guardada.getEntregable().getHito() != null

@@ -45,6 +45,16 @@ public class RiesgoController implements IRiesgoController {
         return ResponseEntity.ok(ApiResponse.success(riesgoService.getRiskMatrix(), "Matriz de riesgos configurada con exito"));
     }
 
+    @GetMapping("/{proyectoId}/riesgos/descargar-excel")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<Resource> descargarMatrizExcel(@PathVariable String proyectoId) {
+        Resource resource = riesgoService.descargarMatrizExcel(proyectoId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Matriz de Riesgos " + proyectoId + ".xlsx\"")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(resource);
+    }
+
     @Override
     @PostMapping("/{proyectoId}/riesgos")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")

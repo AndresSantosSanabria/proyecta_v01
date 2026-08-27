@@ -73,7 +73,7 @@ public class ProjectDelayNotificationScheduler {
                                 "projectName", project.getNombreProyecto(),
                                 "overdueDeliverables", project.getEntregablesAtrasados(),
                                 "recipients", List.of(director),
-                                "title", "Proyecto " + projectId + " con retrasos"
+                                "title", "Proyecto con retrasos: " + project.getNombreProyecto()
                         )));
             } catch (Exception ex) {
                 log.warn("[Notification] Failed to create delayed-project notification for {}: {}", projectId, ex.getMessage());

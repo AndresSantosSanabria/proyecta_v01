@@ -16,10 +16,10 @@ public class ApiErrorResponseDTO {
     @Schema(description = "Nombre del error HTTP", example = "Not Found")
     private String error;
 
-    @Schema(description = "Mensaje detallado del error", example = "Proyecto no encontrado: IS-PROY-001")
+    @Schema(description = "Mensaje detallado del error", example = "Proyecto no encontrado: PROY-001")
     private String message;
 
-    @Schema(description = "Ruta del endpoint que generó el error", example = "/api/proyectos/IS-PROY-001")
+    @Schema(description = "Ruta del endpoint que generó el error", example = "/api/proyectos/PROY-001")
     private String path;
 
     @Schema(description = "Marca de tiempo del error", example = "2026-04-24T11:51:00")

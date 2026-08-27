@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public class DashboardProjectSummaryDTO {
 
-    @Schema(description = "Codigo de los proyectos registrados", example = "IS-PROY-CUN-2026-005")
+    @Schema(description = "Codigo de los proyectos registrados", example = "PROY-CUN-2026-005")
     private String codigo;
 
     @Schema(description = "Nombre del proyecto registrado", example = "Modernización de Redes LAN")

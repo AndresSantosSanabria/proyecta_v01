@@ -32,7 +32,6 @@ public class PatrocinadorController {
         List<PatrocinadorDTO> dtos = patrocinadores.stream()
                 .map(p -> new PatrocinadorDTO(
                         p.getNombre(),
-                        p.getEntidad(),
                         p.getCargo(),
                         p.getProcesoSigc(),
                         p.getProcedimiento()

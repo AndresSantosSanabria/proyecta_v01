@@ -200,9 +200,10 @@ public class ProjectProgressMetricsService {
         BigDecimal diferencia = clampPct(progresoProgramado.subtract(progresoEjecutado).setScale(2, RoundingMode.HALF_UP));
         BigDecimal eficacia = clampRatio(calcularEficacia(progresoProgramado, progresoEjecutado));
         Long diasAtraso = iniciarDiasAtraso(entregable, iniciado, corte);
+        Long diasCumplimiento = iniciado ? calcularDiasCumplimiento(entregable) : 0L;
         String estadoCodigo = entregable.getEstadoCodigo();
         String estado = iniciado
-                ? construirEstadoEntregable(estadoCodigo, conforme, diasAtraso, entregable.getFechaLimite(), corte)
+                ? construirEstadoEntregable(estadoCodigo, conforme, diasAtraso, entregable.getFechaEntregaReal(), entregable.getFechaLimite(), corte)
                 : "NO_INICIADO";
         String evidenciaNombre = nombreEvidenciaActual(entregable);
 
@@ -227,7 +228,8 @@ public class ProjectProgressMetricsService {
                 progresoEjecutado,
                 diasAtraso,
                 estadoCodigo,
-                entregable.getObservacionRevision()
+                entregable.getObservacionRevision(),
+                diasCumplimiento
         );
     }
 
@@ -312,6 +314,14 @@ public class ProjectProgressMetricsService {
         return calcularDiasAtraso(entregable, corte);
     }
 
+    /**
+     * Calcula los dias de atraso de un entregable.
+     * <ul>
+     *   <li>Si ya entrego: {@code fechaEntregaReal - fechaLimite} (negativo si entrego tarde, positivo si entrego antes)</li>
+     *   <li>Si no entrego y esta vencido: {@code fechaLimite - hoy} (negativo, ej: -30 significa 30 dias vencido)</li>
+     *   <li>Caso contrario: 0</li>
+     * </ul>
+     */
     private Long calcularDiasAtraso(Entregable entregable, LocalDate corte) {
         if (entregable.getFechaLimite() == null) {
             return 0L;
@@ -326,6 +336,19 @@ public class ProjectProgressMetricsService {
         }
 
         return 0L;
+    }
+
+    /**
+     * Calcula los dias de cumplimiento (entregado antes de la fecha limite).
+     * Solo aplica cuando el entregable ya fue entregado y fue antes de la fecha limite.
+     * @return positivo si entrego antes de tiempo, 0 en caso contrario
+     */
+    private Long calcularDiasCumplimiento(Entregable entregable) {
+        if (entregable.getFechaLimite() == null || entregable.getFechaEntregaReal() == null) {
+            return 0L;
+        }
+        long dias = ChronoUnit.DAYS.between(entregable.getFechaEntregaReal(), entregable.getFechaLimite());
+        return Math.max(0L, dias);
     }
 
     private BigDecimal calcularRatio(long numerador, long denominador) {
@@ -388,14 +411,19 @@ public class ProjectProgressMetricsService {
                 .count();
     }
 
-    private String construirEstadoEntregable(String estadoCodigo, boolean conforme, Long diasAtraso, LocalDate fechaLimite, LocalDate corte) {
+    private String construirEstadoEntregable(String estadoCodigo, boolean conforme, Long diasAtraso,
+                                              LocalDate fechaEntregaReal, LocalDate fechaLimite, LocalDate corte) {
         if ("RECHAZADO".equals(estadoCodigo)) {
             return "RECHAZADO";
         }
         if ("EN_PROCESO".equals(estadoCodigo) || "COMPLETADO".equals(estadoCodigo)) {
             return "EN_REVISION";
         }
-        if (conforme && diasAtraso != null && diasAtraso >= 0) {
+        if (conforme && fechaEntregaReal != null && fechaLimite != null
+                && !fechaEntregaReal.isAfter(fechaLimite)) {
+            return "EN_TIEMPO";
+        }
+        if (conforme && (diasAtraso == null || diasAtraso >= 0)) {
             return "EN_TIEMPO";
         }
         if (diasAtraso != null && diasAtraso < 0) {

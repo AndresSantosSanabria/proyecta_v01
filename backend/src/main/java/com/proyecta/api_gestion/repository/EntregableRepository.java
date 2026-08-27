@@ -54,6 +54,48 @@ public interface EntregableRepository extends JpaRepository<Entregable, Integer>
         JOIN FETCH e.hito h
         JOIN FETCH h.fase f
         JOIN FETCH f.proyecto p
+        LEFT JOIN e.estadoConfig ec
+        WHERE e.fechaLimite IS NOT NULL
+        AND e.fechaLimite > :hoy
+        AND ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD'))
+             OR (ec IS NULL AND e.estado NOT IN (
+                 com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO,
+                 com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD)))
+        AND ((p.estadoConfig IS NOT NULL AND p.estadoConfig.codigo IN ('ACTIVO', 'CON_RETRASOS', 'EN_REVISION'))
+             OR (p.estadoConfig IS NULL AND p.estado IN (
+                 com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO,
+                 com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS,
+                 com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION)))
+    """)
+    List<Entregable> findNoCompletados(@Param("hoy") LocalDate hoy);
+
+    @Query("""
+        SELECT e
+        FROM Entregable e
+        JOIN FETCH e.hito h
+        JOIN FETCH h.fase f
+        JOIN FETCH f.proyecto p
+        LEFT JOIN e.estadoConfig ec
+        WHERE e.fechaLimite IS NOT NULL
+        AND e.fechaLimite < :hoy
+        AND ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD'))
+             OR (ec IS NULL AND e.estado NOT IN (
+                 com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO,
+                 com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD)))
+        AND ((p.estadoConfig IS NOT NULL AND p.estadoConfig.codigo IN ('ACTIVO', 'CON_RETRASOS', 'EN_REVISION'))
+             OR (p.estadoConfig IS NULL AND p.estado IN (
+                 com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO,
+                 com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS,
+                 com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION)))
+    """)
+    List<Entregable> findVencidosNoEntregados(@Param("hoy") LocalDate hoy);
+
+    @Query("""
+        SELECT e
+        FROM Entregable e
+        JOIN FETCH e.hito h
+        JOIN FETCH h.fase f
+        JOIN FETCH f.proyecto p
         WHERE e.id = :entregableId
         AND UPPER(p.id) = UPPER(:proyectoId)
     """)

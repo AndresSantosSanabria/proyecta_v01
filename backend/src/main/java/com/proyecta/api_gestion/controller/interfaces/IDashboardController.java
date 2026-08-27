@@ -96,7 +96,7 @@ public interface IDashboardController {
                             "  \"timestamp\": \"2026-04-29T10:00:00\",\n" +
                             "  \"data\": [\n" +
                             "    {\n" +
-                            "      \"proyectoId\": \"IS-PROY-001\",\n" +
+                            "      \"proyectoId\": \"PROY-001\",\n" +
                             "      \"nombre\": \"Sistema de Gestión\",\n" +
                             "      \"avance\": 75.5,\n" +
                             "      \"estado\": \"activo\",\n" +

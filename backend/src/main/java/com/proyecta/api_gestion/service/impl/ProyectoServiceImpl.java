@@ -1,6 +1,8 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.proyecto.*;
+import com.proyecta.api_gestion.dto.config.FuragPreguntaDTO;
+import com.proyecta.api_gestion.dto.config.FuragPreguntaRespuestaDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
@@ -53,8 +55,8 @@ import java.util.stream.Collectors;
 @Service
 public class ProyectoServiceImpl implements ProyectoService {
 
-    private static final String PROJECT_CODE_PREFIX = "IS-PROY-CUN-";
-    private static final String PROJECT_CODE_REGEX = "^IS-PROY-CUN-\\d{4}-\\d+$";
+    private static final String PROJECT_CODE_PREFIX = "PROY-CUN-";
+    private static final String PROJECT_CODE_REGEX = "^PROY-CUN-\\d{4}-\\d+$";
 
     private final ProyectoRepository proyectoRepository;
     private final FuragRespuestaRepository furagRespuestaRepository;
@@ -180,22 +182,27 @@ public class ProyectoServiceImpl implements ProyectoService {
         aplicarEstrategiaPeti(proyecto, dto.estrategiaPeti());
         proyecto.setTienePlanComunicaciones(dto.tienePlanComunicaciones());
 
-        // Patrocinador
-        if (dto.patrocinador() != null) {
-            Patrocinador pat = new Patrocinador();
-            pat.setNombre(dto.patrocinador().nombre());
-            pat.setEntidad(dto.patrocinador().entidad());
-            pat.setCargo(dto.patrocinador().cargo());
-            pat.setProcesoSigc(dto.patrocinador().procesoSigc());
-            pat.setProcedimiento(dto.patrocinador().procedimientoSigc());
-            proyecto.setPatrocinador(pat);
-        }
-
         // Equipo
         if (dto.equipoTrabajo() != null) {
             proyecto.setEquipoTrabajo(dto.equipoTrabajo().stream()
                     .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol(), m.dependencia(), m.telefono(), m.correo()))
                     .collect(Collectors.toList()));
+        }
+
+        // Patrocinador (entidad se toma de la dependencia del primer miembro del equipo)
+        if (dto.patrocinador() != null) {
+            String dependenciaEquipo = proyecto.getEquipoTrabajo().stream()
+                    .map(MiembroEquipo::getDependencia)
+                    .filter(d -> d != null && !d.isBlank())
+                    .findFirst()
+                    .orElse(null);
+            Patrocinador pat = new Patrocinador();
+            pat.setNombre(dto.patrocinador().nombre());
+            pat.setEntidad(dependenciaEquipo);
+            pat.setCargo(dto.patrocinador().cargo());
+            pat.setProcesoSigc(dto.patrocinador().procesoSigc());
+            pat.setProcedimiento(dto.patrocinador().procedimientoSigc());
+            proyecto.setPatrocinador(pat);
         }
 
         // Stakeholders
@@ -205,7 +212,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                     .collect(Collectors.toList()));
         }
 
-        // Objetivos específicos
+        // Objetivos especÃ­ficos
         if (dto.objetivosEspecificos() != null) {
             proyecto.setObjetivosEspecificos(dto.objetivosEspecificos().stream()
                     .map(desc -> {
@@ -408,12 +415,19 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (dto.estrategiaPeti() != null) aplicarEstrategiaPeti(proyecto, dto.estrategiaPeti());
         if (dto.tienePlanComunicaciones() != null) proyecto.setTienePlanComunicaciones(dto.tienePlanComunicaciones());
         if (dto.furag() != null) proyecto.setFurag(buildFurag(dto.furag()));
-        if (dto.patrocinador() != null) proyecto.setPatrocinador(buildPatrocinador(dto.patrocinador()));
         if (dto.equipoTrabajo() != null) {
             proyecto.getEquipoTrabajo().clear();
             dto.equipoTrabajo().stream()
                     .map(m -> new MiembroEquipo(m.nombre(), m.cargo(), m.rol(), m.dependencia(), m.telefono(), m.correo()))
                     .forEach(proyecto.getEquipoTrabajo()::add);
+        }
+        if (dto.patrocinador() != null) {
+            String dependenciaEquipo = proyecto.getEquipoTrabajo().stream()
+                    .map(MiembroEquipo::getDependencia)
+                    .filter(d -> d != null && !d.isBlank())
+                    .findFirst()
+                    .orElse(null);
+            proyecto.setPatrocinador(buildPatrocinador(dto.patrocinador(), dependenciaEquipo));
         }
         if (dto.stakeholders() != null) {
             proyecto.getStakeholders().clear();
@@ -527,7 +541,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         BigDecimal avanceActual = progressCalculator.calcularYActualizarAvanceProyecto(normalizedId);
         proyecto.setAvanceTotal(avanceActual);
 
-        // Uso de la lógica rica del dominio
+        // Uso de la lÃ³gica rica del dominio
         proyecto.cerrar();
 
         proyectoRepository.save(proyecto);
@@ -566,12 +580,18 @@ public class ProyectoServiceImpl implements ProyectoService {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+        Furag reconstructed = reconstruirFuragDesdeRespuestas(normalizedId);
+        if (reconstructed != null) {
+            reconstructed.setDetalle(buildFuragDetalle(reconstructed));
+            return reconstructed;
+        }
         Furag furag = proyecto.getFurag();
-        if (furag != null && tieneAlgunaRespuestaFurag(furag)) {
+        if (furag != null) {
+            furag.setRespuestas(buildFuragRespuestasMap(furag));
+            furag.setDetalle(buildFuragDetalle(furag));
             return furag;
         }
-        Furag reconstructed = reconstruirFuragDesdeRespuestas(normalizedId);
-        return reconstructed != null ? reconstructed : new Furag();
+        return new Furag();
     }
 
     @Override
@@ -589,7 +609,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
-        validarFuragCompleto(furag);
+        validarFuragCompleto(furag, furag.getRespuestas());
         proyecto.setFurag(furag);
         Proyecto guardado = proyectoRepository.save(proyecto);
         sincronizarRespuestasFurag(guardado);
@@ -606,7 +626,12 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.setVigenciaPeti(trimToNull(dto.vigenciaPeti()));
         aplicarEstrategiaPeti(proyecto, dto.estrategiaPeti());
         proyecto.setTienePlanComunicaciones(dto.tienePlanComunicaciones());
-        proyecto.setPatrocinador(buildPatrocinador(dto.patrocinador()));
+        proyecto.setPatrocinador(buildPatrocinador(dto.patrocinador(),
+                dto.equipoTrabajo() != null ? dto.equipoTrabajo().stream()
+                        .map(EquipoTrabajoDTO::dependencia)
+                        .filter(d -> d != null && !d.isBlank())
+                        .findFirst()
+                        .orElse(null) : null));
         proyecto.setFurag(buildFurag(dto.furag()));
 
         proyecto.getObjetivosEspecificos().clear();
@@ -648,13 +673,13 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
     }
 
-    private Patrocinador buildPatrocinador(PatrocinadorDTO dto) {
+    private Patrocinador buildPatrocinador(PatrocinadorDTO dto, String dependenciaEquipo) {
         if (dto == null) {
             return null;
         }
         Patrocinador pat = new Patrocinador();
         pat.setNombre(dto.nombre());
-        pat.setEntidad(dto.entidad());
+        pat.setEntidad(dependenciaEquipo != null ? dependenciaEquipo.trim() : null);
         pat.setCargo(dto.cargo());
         pat.setProcesoSigc(dto.procesoSigc());
         pat.setProcedimiento(dto.procedimientoSigc());
@@ -662,43 +687,124 @@ public class ProyectoServiceImpl implements ProyectoService {
     }
 
     private Furag buildFurag(FuragDTO dto) {
-        if (dto == null || dto.respuestas() == null) {
+        if (dto == null || dto.respuestas() == null || dto.respuestas().isEmpty()) {
             return null;
         }
-        Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> r = dto.respuestas();
+
+        Map<String, RespuestaFurag> respuestas = normalizeFuragResponses(dto.respuestas());
         Furag furag = new Furag();
-        furag.setInfraestructuraDatos(findFuragValue(r, "infraestructuraDatos"));
-        furag.setInteroperabilidad(findFuragValue(r, "interoperabilidad"));
-        furag.setDigitalizacionAutomatizacion(findFuragValue(r, "digitalizacionAutomatizacion"));
-        furag.setContratacionPublica(findFuragValue(r, "contratacionPublica"));
-        furag.setServiciosNube(findFuragValue(r, "serviciosNube"));
-        furag.setSandbox(findFuragValue(r, "sandbox"));
-        furag.setTecnologiasEmergentes(findFuragValue(r, "tecnologiasEmergentes"));
-        validarFuragCompleto(furag);
+        furag.setRespuestas(respuestas);
+        furag.setInfraestructuraDatos(resolveFuragAnswer(respuestas, "infraestructuraDatos"));
+        furag.setInteroperabilidad(resolveFuragAnswer(respuestas, "interoperabilidad"));
+        furag.setDigitalizacionAutomatizacion(resolveFuragAnswer(respuestas, "digitalizacionAutomatizacion"));
+        furag.setContratacionPublica(resolveFuragAnswer(respuestas, "contratacionPublica"));
+        furag.setServiciosNube(resolveFuragAnswer(respuestas, "serviciosNube"));
+        furag.setSandbox(resolveFuragAnswer(respuestas, "sandbox"));
+        furag.setTecnologiasEmergentes(resolveFuragAnswer(respuestas, "tecnologiasEmergentes"));
+        furag.setDetalle(buildFuragDetalle(furag));
+        validarFuragCompleto(furag, respuestas);
         return furag;
     }
 
-    private com.proyecta.api_gestion.model.enums.RespuestaFurag findFuragValue(
-            Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> respuestas, String fieldKey) {
-        if (respuestas.containsKey(fieldKey)) {
-            return respuestas.get(fieldKey);
+    private List<FuragPreguntaRespuestaDTO> buildFuragDetalle(Furag furag) {
+        Map<String, RespuestaFurag> respuestas = buildFuragRespuestasMap(furag);
+        Map<String, String> labels = new LinkedHashMap<>();
+        petiCatalogService.getFuragPreguntas().forEach(pregunta -> {
+            String normalizedKey = canonicalizeFuragKey(pregunta.key());
+            if (normalizedKey != null) {
+                labels.put(normalizedKey, pregunta.label());
+            }
+            if (pregunta.label() != null) {
+                labels.putIfAbsent(trimToNull(pregunta.label()), pregunta.label());
+            }
+        });
+        List<FuragPreguntaRespuestaDTO> detalle = new ArrayList<>();
+        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
+            String key = canonicalizeFuragKey(entry.getKey());
+            String label = labels.getOrDefault(key, entry.getKey());
+            String technicalKey = key != null ? key : entry.getKey();
+            detalle.add(new FuragPreguntaRespuestaDTO(technicalKey, label, entry.getValue()));
         }
-        String normalizedTarget = normalizeFuragKey(fieldKey);
-        for (Map.Entry<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> entry : respuestas.entrySet()) {
-            if (normalizeFuragKey(entry.getKey()).contains(normalizedTarget)) {
+        return detalle;
+    }
+
+    private Map<String, RespuestaFurag> normalizeFuragResponses(Map<String, RespuestaFurag> respuestas) {
+        Map<String, RespuestaFurag> normalized = new LinkedHashMap<>();
+        if (respuestas == null) {
+            return normalized;
+        }
+        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
+            String key = trimToNull(entry.getKey());
+            if (key == null || entry.getValue() == null) {
+                continue;
+            }
+            normalized.put(key, entry.getValue());
+        }
+        return normalized;
+    }
+
+    private RespuestaFurag resolveFuragAnswer(Map<String, RespuestaFurag> respuestas, String canonicalKey) {
+        if (respuestas == null || respuestas.isEmpty() || canonicalKey == null) {
+            return null;
+        }
+        if (respuestas.containsKey(canonicalKey)) {
+            return respuestas.get(canonicalKey);
+        }
+        String canonicalLabel = petiCatalogService.getFuragPreguntas().stream()
+                .filter(pregunta -> canonicalKey.equals(canonicalizeFuragKey(pregunta.key())) || canonicalKey.equals(pregunta.key()))
+                .map(FuragPreguntaDTO::label)
+                .findFirst()
+                .orElse(null);
+        if (canonicalLabel != null && respuestas.containsKey(canonicalLabel)) {
+            return respuestas.get(canonicalLabel);
+        }
+        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
+            String key = canonicalizeFuragKey(entry.getKey());
+            if (canonicalKey.equals(key)) {
+                return entry.getValue();
+            }
+            if (canonicalLabel != null && canonicalLabel.equalsIgnoreCase(entry.getKey())) {
                 return entry.getValue();
             }
         }
         return null;
     }
 
-    private String normalizeFuragKey(String key) {
-        if (key == null) return "";
-        return key.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]", "");
+    private String canonicalizeFuragKey(String key) {
+        if (key == null) {
+            return null;
+        }
+        String cleaned = key.trim();
+        if (cleaned.isBlank()) {
+            return null;
+        }
+        String normalized = cleaned.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        if (normalized.isBlank()) {
+            return null;
+        }
+        if (normalized.equals("infraestructuradedatos") || normalized.equals("usoinfraestructuradedatos")) return "infraestructuraDatos";
+        if (normalized.contains("infraestructura") && normalized.contains("dato")) return "infraestructuraDatos";
+        if (normalized.contains("interoperabilidad")) return "interoperabilidad";
+        if (normalized.equals("digitalizacionautomatizacion") || (normalized.contains("digitalizacion") && normalized.contains("automatizacion"))) return "digitalizacionAutomatizacion";
+        if (normalized.equals("contratacionpublica") || (normalized.contains("contratacion") && normalized.contains("publica"))) return "contratacionPublica";
+        if (normalized.equals("serviciosnube") || (normalized.contains("servicios") && normalized.contains("nube"))) return "serviciosNube";
+        if (normalized.equals("sandbox") || normalized.contains("sandbox")) return "sandbox";
+        if (normalized.equals("tecnologiasemergentes") || (normalized.contains("tecnologias") && normalized.contains("emergentes"))) return "tecnologiasEmergentes";
+        if (normalized.equals("elpepe")) return "elPepe";
+        if (normalized.equals("sanpepe")) return "sanPepe";
+        return cleaned;
     }
 
-    private Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> buildFuragRespuestasMap(Furag furag) {
-        Map<String, com.proyecta.api_gestion.model.enums.RespuestaFurag> map = new java.util.LinkedHashMap<>();
+    private Map<String, RespuestaFurag> buildFuragRespuestasMap(Furag furag) {
+        Map<String, RespuestaFurag> map = new LinkedHashMap<>();
+        if (furag == null) {
+            return map;
+        }
+        Map<String, RespuestaFurag> dynamic = furag.getRespuestas();
+        if (dynamic != null && !dynamic.isEmpty()) {
+            map.putAll(normalizeFuragResponses(dynamic));
+            return map;
+        }
         if (furag.getInfraestructuraDatos() != null) map.put("infraestructuraDatos", furag.getInfraestructuraDatos());
         if (furag.getInteroperabilidad() != null) map.put("interoperabilidad", furag.getInteroperabilidad());
         if (furag.getDigitalizacionAutomatizacion() != null) map.put("digitalizacionAutomatizacion", furag.getDigitalizacionAutomatizacion());
@@ -709,21 +815,101 @@ public class ProyectoServiceImpl implements ProyectoService {
         return map;
     }
 
-    private void validarFuragCompleto(Furag furag) {
+    private void validarFuragCompleto(Furag furag, Map<String, RespuestaFurag> respuestas) {
         if (furag == null) {
             throw new BadRequestException("FURAG es obligatorio y no puede ser nulo.");
         }
         List<String> camposFaltantes = new ArrayList<>();
-        if (furag.getInfraestructuraDatos() == null) camposFaltantes.add("infraestructuraDatos");
-        if (furag.getInteroperabilidad() == null) camposFaltantes.add("interoperabilidad");
-        if (furag.getDigitalizacionAutomatizacion() == null) camposFaltantes.add("digitalizacionAutomatizacion");
-        if (furag.getContratacionPublica() == null) camposFaltantes.add("contratacionPublica");
-        if (furag.getServiciosNube() == null) camposFaltantes.add("serviciosNube");
-        if (furag.getSandbox() == null) camposFaltantes.add("sandbox");
-        if (furag.getTecnologiasEmergentes() == null) camposFaltantes.add("tecnologiasEmergentes");
-        if (!camposFaltantes.isEmpty()) {
-            throw new BadRequestException("FURAG incompleto. Los campos obligatorios no pueden ser nulos: " + String.join(", ", camposFaltantes));
+        if (respuestas == null || respuestas.isEmpty()) {
+            camposFaltantes.add("respuestas");
+        } else {
+            for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
+                if (entry.getValue() == null) {
+                    camposFaltantes.add(entry.getKey());
+                }
+            }
         }
+        if (!camposFaltantes.isEmpty()) {
+            throw new BadRequestException("FURAG incompleto. No se pudieron resolver estos campos: " + String.join(", ", camposFaltantes));
+        }
+    }
+
+    private void sincronizarRespuestasFurag(Proyecto proyecto) {
+        if (proyecto == null || proyecto.getId() == null) {
+            return;
+        }
+
+        furagRespuestaRepository.deleteByProyecto_Id(proyecto.getId());
+
+        Furag furag = proyecto.getFurag();
+        if (furag == null) {
+            return;
+        }
+
+        Map<String, RespuestaFurag> respuestas = buildFuragRespuestasMap(furag);
+        if (respuestas.isEmpty()) {
+            return;
+        }
+
+        Map<String, String> labels = petiCatalogService.getFuragPreguntas().stream()
+                .collect(Collectors.toMap(FuragPreguntaDTO::key, FuragPreguntaDTO::label, (a, b) -> a, LinkedHashMap::new));
+
+        List<FuragRespuesta> items = new ArrayList<>();
+        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
+            String pregunta = labels.getOrDefault(canonicalizeFuragKey(entry.getKey()), entry.getKey());
+            items.add(buildFuragRespuesta(proyecto, entry.getKey(), pregunta, entry.getValue()));
+        }
+        furagRespuestaRepository.saveAll(items);
+    }
+
+    private FuragRespuesta buildFuragRespuesta(Proyecto proyecto, String codigo, String pregunta, RespuestaFurag respuesta) {
+        FuragRespuesta item = new FuragRespuesta();
+        item.setProyecto(proyecto);
+        item.setCodigoPregunta(codigo);
+        item.setPregunta(pregunta);
+        item.setRespuesta(respuesta);
+        item.setObligatoria(true);
+        return item;
+    }
+
+    private Furag reconstruirFuragDesdeRespuestas(String proyectoId) {
+        List<FuragRespuesta> respuestas = furagRespuestaRepository.findByProyecto_IdOrderByCodigoPreguntaAsc(proyectoId);
+        if (respuestas == null || respuestas.isEmpty()) {
+            return null;
+        }
+
+        Furag furag = new Furag();
+        Map<String, RespuestaFurag> dynamic = new LinkedHashMap<>();
+        for (FuragRespuesta respuesta : respuestas) {
+            if (respuesta == null) {
+                continue;
+            }
+            String key = trimToNull(respuesta.getCodigoPregunta());
+            if (key == null) {
+                key = trimToNull(respuesta.getPregunta());
+            }
+            if (key == null || respuesta.getRespuesta() == null) {
+                continue;
+            }
+            dynamic.put(key, respuesta.getRespuesta());
+            String canonicalKey = canonicalizeFuragKey(key);
+            switch (canonicalKey) {
+                case "infraestructuraDatos" -> furag.setInfraestructuraDatos(respuesta.getRespuesta());
+                case "interoperabilidad" -> furag.setInteroperabilidad(respuesta.getRespuesta());
+                case "digitalizacionAutomatizacion" -> furag.setDigitalizacionAutomatizacion(respuesta.getRespuesta());
+                case "contratacionPublica" -> furag.setContratacionPublica(respuesta.getRespuesta());
+                case "serviciosNube" -> furag.setServiciosNube(respuesta.getRespuesta());
+                case "sandbox" -> furag.setSandbox(respuesta.getRespuesta());
+                case "tecnologiasEmergentes" -> furag.setTecnologiasEmergentes(respuesta.getRespuesta());
+                default -> {
+                    // Preguntas nuevas quedan disponibles en el mapa dinamico.
+                }
+            }
+        }
+
+        furag.setRespuestas(dynamic);
+        furag.setDetalle(buildFuragDetalle(furag));
+        return dynamic.isEmpty() ? null : furag;
     }
 
     private Fase buildFase(FaseDTO fDto, Proyecto proyecto, LocalDate fechaInicioProyecto, int faseNumero, int[] hitoIdx, int[] entIdx) {
@@ -973,7 +1159,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getEstadoCodigo(),
                 (int) total,
                 (int) conformes,
-                (int) atrasados
+                (int) atrasados,
+                p.getFurag() != null ? buildFuragDetalle(p.getFurag()) : List.of()
         );
     }
 
@@ -1025,10 +1212,10 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getVigenciaPeti(),
                 resolveEstrategiaPetiCodigo(p),
                 p.getTienePlanComunicaciones(),
-                p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getEntidad(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
+                p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
                 p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol(), m.getDependencia(), m.getTelefono(), m.getCorreo())).collect(Collectors.toList()),
                 p.getStakeholders().stream().map(s -> new StakeholderDTO(s.getRol(), s.getDescripcion(), s.getInteres(), s.getImpacto())).collect(Collectors.toList()),
-                p.getFurag() != null ? new FuragDTO(buildFuragRespuestasMap(p.getFurag())) : null,
+                p.getFurag() != null ? buildFuragDto(p.getFurag()) : null,
                 p.getFases().stream()
                         .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
                         .map(f -> new FaseResponseDTO(
@@ -1047,76 +1234,10 @@ public class ProyectoServiceImpl implements ProyectoService {
         );
     }
 
-    private void sincronizarRespuestasFurag(Proyecto proyecto) {
-        if (proyecto == null || proyecto.getId() == null) {
-            return;
-        }
-
-        furagRespuestaRepository.deleteByProyecto_Id(proyecto.getId());
-
-        Furag furag = proyecto.getFurag();
-        if (furag == null) {
-            return;
-        }
-
-        furagRespuestaRepository.saveAll(List.of(
-                buildFuragRespuesta(proyecto, "FURAG_INFRAESTRUCTURA_DATOS", "Infraestructura de datos", furag.getInfraestructuraDatos()),
-                buildFuragRespuesta(proyecto, "FURAG_INTEROPERABILIDAD", "Interoperabilidad", furag.getInteroperabilidad()),
-                buildFuragRespuesta(proyecto, "FURAG_DIGITALIZACION_AUTOMATIZACION", "Digitalización y automatización", furag.getDigitalizacionAutomatizacion()),
-                buildFuragRespuesta(proyecto, "FURAG_CONTRATACION_PUBLICA", "Contratación pública", furag.getContratacionPublica()),
-                buildFuragRespuesta(proyecto, "FURAG_SERVICIOS_NUBE", "Servicios en nube", furag.getServiciosNube()),
-                buildFuragRespuesta(proyecto, "FURAG_SANDBOX", "Sandbox", furag.getSandbox()),
-                buildFuragRespuesta(proyecto, "FURAG_TECNOLOGIAS_EMERGENTES", "Tecnologías emergentes", furag.getTecnologiasEmergentes())
-        ));
-    }
-
-    private FuragRespuesta buildFuragRespuesta(Proyecto proyecto, String codigo, String pregunta, RespuestaFurag respuesta) {
-        FuragRespuesta item = new FuragRespuesta();
-        item.setProyecto(proyecto);
-        item.setCodigoPregunta(codigo);
-        item.setPregunta(pregunta);
-        item.setRespuesta(respuesta);
-        item.setObligatoria(true);
-        return item;
-    }
-
-    private Furag reconstruirFuragDesdeRespuestas(String proyectoId) {
-        List<FuragRespuesta> respuestas = furagRespuestaRepository.findByProyecto_IdOrderByCodigoPreguntaAsc(proyectoId);
-        if (respuestas == null || respuestas.isEmpty()) {
-            return null;
-        }
-
-        Furag furag = new Furag();
-        for (FuragRespuesta respuesta : respuestas) {
-            if (respuesta == null) {
-                continue;
-            }
-            switch (respuesta.getCodigoPregunta()) {
-                case "FURAG_INFRAESTRUCTURA_DATOS" -> furag.setInfraestructuraDatos(respuesta.getRespuesta());
-                case "FURAG_INTEROPERABILIDAD" -> furag.setInteroperabilidad(respuesta.getRespuesta());
-                case "FURAG_DIGITALIZACION_AUTOMATIZACION" -> furag.setDigitalizacionAutomatizacion(respuesta.getRespuesta());
-                case "FURAG_CONTRATACION_PUBLICA" -> furag.setContratacionPublica(respuesta.getRespuesta());
-                case "FURAG_SERVICIOS_NUBE" -> furag.setServiciosNube(respuesta.getRespuesta());
-                case "FURAG_SANDBOX" -> furag.setSandbox(respuesta.getRespuesta());
-                case "FURAG_TECNOLOGIAS_EMERGENTES" -> furag.setTecnologiasEmergentes(respuesta.getRespuesta());
-                default -> {
-                    // Ignora códigos no reconocidos para no romper compatibilidad con históricos.
-                }
-            }
-        }
-
-        return tieneAlgunaRespuestaFurag(furag) ? furag : null;
-    }
-
-    private boolean tieneAlgunaRespuestaFurag(Furag furag) {
-        return furag != null
-                && (furag.getInfraestructuraDatos() != null
-                || furag.getInteroperabilidad() != null
-                || furag.getDigitalizacionAutomatizacion() != null
-                || furag.getContratacionPublica() != null
-                || furag.getServiciosNube() != null
-                || furag.getSandbox() != null
-                || furag.getTecnologiasEmergentes() != null);
+    private FuragDTO buildFuragDto(Furag furag) {
+        FuragDTO dto = new FuragDTO(buildFuragRespuestasMap(furag));
+        dto.setDetalle(buildFuragDetalle(furag));
+        return dto;
     }
 
     private String firstNonBlank(String... values) {
@@ -1191,3 +1312,4 @@ public class ProyectoServiceImpl implements ProyectoService {
         ));
     }
 }
+

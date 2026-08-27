@@ -6,6 +6,7 @@ import com.proyecta.api_gestion.dto.risk.RiesgoListResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoRequestDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoSolucionAdjuntoDTO;
+import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -19,5 +20,8 @@ public interface IRiesgoService {
     void verificarTratamiento(String projectId, Integer riesgoId, String verificacion);
     List<RiesgoSolucionAdjuntoDTO> listarSoluciones(String projectId, Integer riesgoId);
     List<RiesgoSolucionAdjuntoDTO> agregarSoluciones(String projectId, Integer riesgoId, MultipartFile[] archivos);
-    org.springframework.core.io.Resource descargarSolucion(String projectId, Integer riesgoId, Long solucionId);
+    Resource descargarSolucion(String projectId, Integer riesgoId, Long solucionId);
+    Resource descargarMatrizExcel(String projectId);
+    String construirUrlPublicaSolucion(String projectId, Integer riesgoId, Long solucionId);
+    String construirUrlPublicaSolucionInline(String projectId, Integer riesgoId, Long solucionId);
 }

@@ -6,6 +6,7 @@ import com.proyecta.api_gestion.dto.risk.RiesgoListResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoRequestDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoSolucionAdjuntoDTO;
+import com.proyecta.api_gestion.config.PublicUrlProperties;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
@@ -22,22 +23,32 @@ import com.proyecta.api_gestion.repository.RiesgoRepository;
 import com.proyecta.api_gestion.repository.RiesgoSolucionAdjuntoRepository;
 import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.service.IRiesgoService;
+import com.proyecta.api_gestion.service.report.RiesgoExcelExporter;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.common.usermodel.HyperlinkType;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -61,19 +72,26 @@ public class RiesgoServiceImpl implements IRiesgoService {
     private final RiesgoSolucionAdjuntoRepository solucionRepository;
     private final IStorageProvider storageProvider;
     private final NotificationEventPublisherPort notificationPublisher;
+    private final RiesgoExcelExporter riesgoExcelExporter;
+    private final String publicUrlBase;
 
     public RiesgoServiceImpl(RiesgoRepository riesgoRepository,
                              ProyectoRepository proyectoRepository,
                              MatrizRiesgoRepository matrizRiesgoRepository,
                              RiesgoSolucionAdjuntoRepository solucionRepository,
                              IStorageProvider storageProvider,
-                             NotificationEventPublisherPort notificationPublisher) {
+                             NotificationEventPublisherPort notificationPublisher,
+                             RiesgoExcelExporter riesgoExcelExporter,
+                             PublicUrlProperties publicUrlProperties) {
         this.riesgoRepository = riesgoRepository;
         this.proyectoRepository = proyectoRepository;
         this.matrizRiesgoRepository = matrizRiesgoRepository;
         this.solucionRepository = solucionRepository;
         this.storageProvider = storageProvider;
         this.notificationPublisher = notificationPublisher;
+        this.riesgoExcelExporter = riesgoExcelExporter;
+        String base = publicUrlProperties.getBase();
+        this.publicUrlBase = (base == null || base.isBlank()) ? "http://localhost:8082" : (base.endsWith("/") ? base.substring(0, base.length() - 1) : base);
     }
 
     @Override
@@ -161,6 +179,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
                 java.util.Map.of(
                         "riskCode", saved.getCodigo(),
                         "riskLevel", saved.getNivel(),
+                        "projectName", saved.getProyecto().getNombre(),
                         "recipients", List.of(saved.getProyecto().getCorreoDirector())
                 )));
         return convertToResponseDto(saved);
@@ -203,6 +222,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
                 java.util.Map.of(
                         "riskCode", saved.getCodigo(),
                         "riskLevel", saved.getNivel(),
+                        "projectName", saved.getProyecto().getNombre(),
                         "recipients", List.of(saved.getProyecto().getCorreoDirector())
                 )));
     }
@@ -269,56 +289,252 @@ public class RiesgoServiceImpl implements IRiesgoService {
         return storageProvider.loadFileAsResource(adjunto.getRutaAlmacenamiento(), adjunto.getNombreAlmacenado());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Resource descargarMatrizExcel(String projectId) {
+        List<Riesgo> riesgos = riesgoRepository.findByProyectoId(projectId);
+        byte[] bytes = riesgoExcelExporter.buildProjectRiskMatrix(projectId, riesgos);
+        return new ByteArrayResource(bytes);
+    }
+
+    @Override
+    public String construirUrlPublicaSolucion(String projectId, Integer riesgoId, Long solucionId) {
+        return publicUrlBase + "/api/v1/public/riesgos/" + projectId + "/" + riesgoId + "/soluciones/" + solucionId;
+    }
+
+    @Override
+    public String construirUrlPublicaSolucionInline(String projectId, Integer riesgoId, Long solucionId) {
+        return construirUrlPublicaSolucion(projectId, riesgoId, solucionId) + "?inline=true";
+    }
+
+    private byte[] construirExcelMatrizRiesgos(String projectId, List<Riesgo> riesgos) {
+        try (
+                InputStream templateStream = new ClassPathResource("report-assets/Matriz de Riesgos Plantilla.xlsx").getInputStream();
+                Workbook workbook = new XSSFWorkbook(templateStream);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+        ) {
+            Sheet sheet = workbook.getSheetAt(0);
+            List<RiesgoFilaExport> filas = construirFilasRiesgo(riesgos);
+            int dataStartRow = 6;
+            int templateRows = 5;
+            Row styleRow = sheet.getRow(dataStartRow);
+            if (styleRow == null) {
+                throw new IllegalStateException("La plantilla de matriz de riesgos no contiene la fila de datos esperada.");
+            }
+
+            for (int i = 0; i < filas.size(); i++) {
+                RiesgoFilaExport fila = filas.get(i);
+                Row source = sheet.getRow(dataStartRow + Math.min(i, templateRows - 1));
+                Row target = sheet.getRow(dataStartRow + i);
+                if (target == null) {
+                    target = sheet.createRow(dataStartRow + i);
+                }
+                copiarFormatoFila(source, target);
+                target.setHeight(source != null ? source.getHeight() : styleRow.getHeight());
+                aplicarFila(target, fila, workbook);
+            }
+
+            for (int i = filas.size(); i < templateRows; i++) {
+                Row row = sheet.getRow(dataStartRow + i);
+                if (row != null) {
+                    clearRow(row, 0, 10);
+                    row.setHeight(styleRow.getHeight());
+                }
+            }
+
+            int lastRow = Math.max(dataStartRow + filas.size() - 1, dataStartRow);
+            sheet.setAutoFilter(new CellRangeAddress(4, lastRow, 0, 10));
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException ex) {
+            throw new IllegalStateException("No fue posible generar el archivo Excel de riesgos.", ex);
+        }
+    }
+
+    private List<RiesgoFilaExport> construirFilasRiesgo(List<Riesgo> riesgos) {
+        List<RiesgoFilaExport> filas = new ArrayList<>();
+        int numero = 1;
+        for (Riesgo riesgo : riesgos) {
+            List<RiesgoSolucionAdjunto> soluciones = riesgo.getSoluciones() == null ? List.of() : new ArrayList<>(riesgo.getSoluciones());
+            if (soluciones.isEmpty()) {
+                filas.add(mapRiskRow(riesgo, String.valueOf(numero), "Sin evidencia", null));
+                numero++;
+                continue;
+            }
+
+            StringBuilder labels = new StringBuilder();
+            StringBuilder urls = new StringBuilder();
+            for (int i = 0; i < soluciones.size(); i++) {
+                RiesgoSolucionAdjunto solucion = soluciones.get(i);
+                if (i > 0) {
+                    labels.append('\n');
+                    urls.append('\n');
+                }
+                labels.append(solucion.getNombreOriginal() == null || solucion.getNombreOriginal().isBlank()
+                        ? "Evidencia " + (i + 1)
+                        : solucion.getNombreOriginal());
+                urls.append(construirUrlPublicaSolucionInline(riesgo.getProyecto().getId(), riesgo.getId(), solucion.getId()));
+            }
+
+            filas.add(mapRiskRow(riesgo, String.valueOf(numero), labels.toString(), urls.toString()));
+            numero++;
+        }
+        return filas;
+    }
+
+    private RiesgoFilaExport mapRiskRow(Riesgo riesgo, String numero, String evidenciaLabel, String evidenciaUrl) {
+        return new RiesgoFilaExport(
+                numero,
+                normalizeText(riesgo.getDescripcion(), "Sin descripci�n"),
+                riesgo.getProbabilidad() == null ? "" : riesgo.getProbabilidad().name(),
+                riesgo.getImpacto() == null ? "" : riesgo.getImpacto().name(),
+                String.valueOf(calcularCalificacionInherente(riesgo.getProbabilidad(), riesgo.getImpacto())),
+                riesgo.getNivel() == null ? "" : riesgo.getNivel().name(),
+                normalizeText(riesgo.getTratamiento() != null ? riesgo.getTratamiento() : riesgo.getAccionesMitigacion(), ""),
+                normalizeText(riesgo.getEntidadResponsable() != null ? riesgo.getEntidadResponsable() : riesgo.getRolResponsable(), ""),
+                normalizeText(riesgo.getAccionesMitigacion() != null ? riesgo.getAccionesMitigacion() : riesgo.getTratamiento(), ""),
+                riesgo.getFechaAccion(),
+                evidenciaLabel == null || evidenciaLabel.isBlank() ? "Click aqu�" : evidenciaLabel,
+                evidenciaUrl
+        );
+    }
+
+    private void aplicarFila(Row row, RiesgoFilaExport fila, Workbook workbook) {
+        CellStyle baseNivelStyle = row.getCell(5) != null ? row.getCell(5).getCellStyle() : null;
+        setCellText(row, 0, fila.numero());
+        setCellText(row, 1, fila.descripcion());
+        setCellText(row, 2, fila.probabilidad());
+        setCellText(row, 3, fila.impacto());
+        setCellText(row, 4, fila.calificacion());
+        setNivelCell(row, 5, fila.nivel(), baseNivelStyle, workbook);
+        setCellText(row, 6, fila.mitigar());
+        setCellText(row, 7, fila.responsable());
+        setCellText(row, 8, fila.acciones());
+        setCellDate(row, 9, fila.fechaAccion());
+        setEvidenceCell(row, 10, fila.evidenciaLabel());
+    }
+
+    private void setNivelCell(Row row, int col, String value, CellStyle baseStyle, Workbook workbook) {
+        Cell cell = ensureCell(row, col);
+        cell.setCellValue(value == null ? "" : value);
+        CellStyle style = workbook.createCellStyle();
+        if (baseStyle != null) {
+            style.cloneStyleFrom(baseStyle);
+        }
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if ("EXTREMO".equals(normalized)) {
+            style.setFillForegroundColor(IndexedColors.RED.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        } else if ("ALTO".equals(normalized)) {
+            style.setFillForegroundColor(IndexedColors.ORANGE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
+        cell.setCellStyle(style);
+    }
+
+    private void setEvidenceCell(Row row, int col, String label) {
+        Cell cell = ensureCell(row, col);
+        cell.setCellValue(label == null || label.isBlank() ? "Click aquí" : label);
+        if (row.getCell(col) != null && row.getCell(col).getCellStyle() != null) {
+            cell.setCellStyle(row.getCell(col).getCellStyle());
+        }
+        cell.getCellStyle().setWrapText(true);
+    }
+
+    private Cell ensureCell(Row row, int col) {
+        Cell cell = row.getCell(col);
+        if (cell == null) {
+            cell = row.createCell(col);
+        }
+        return cell;
+    }
+    private void setCellText(Row row, int col, String value) {
+        Cell cell = ensureCell(row, col);
+        cell.setCellValue(value == null ? "" : value);
+    }
+
+    private void setCellDate(Row row, int col, LocalDate value) {
+        Cell cell = ensureCell(row, col);
+        if (value == null) {
+            cell.setBlank();
+            return;
+        }
+        cell.setCellValue(java.util.Date.from(value.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+    }
+    private void copiarFormatoFila(Row source, Row target) {
+        if (source == null || target == null) {
+            return;
+        }
+        for (int col = 0; col <= 10; col++) {
+            Cell sourceCell = source.getCell(col);
+            if (sourceCell == null) {
+                continue;
+            }
+            Cell targetCell = ensureCell(target, col);
+            targetCell.setCellStyle(sourceCell.getCellStyle());
+        }
+    }
+
+    private void clearRow(Row row, int fromColumnInclusive, int toColumnInclusive) {
+        if (row == null) {
+            return;
+        }
+        for (int col = fromColumnInclusive; col <= toColumnInclusive; col++) {
+            Cell cell = ensureCell(row, col);
+            cell.setBlank();
+        }
+    }
+    private String normalizeText(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim();
+    }
+
+    private record RiesgoFilaExport(
+            String numero,
+            String descripcion,
+            String probabilidad,
+            String impacto,
+            String calificacion,
+            String nivel,
+            String mitigar,
+            String responsable,
+            String acciones,
+            LocalDate fechaAccion,
+            String evidenciaLabel,
+            String evidenciaUrl
+    ) {}
+
     private void aplicarRequest(Riesgo riesgo, RiesgoRequestDTO requestDto, Proyecto proyecto) {
         riesgo.setProyecto(proyecto);
-        riesgo.setCategoriaRiesgo(trimToNull(requestDto.categoriaRiesgo()));
         riesgo.setDescripcion(requestDto.descripcion());
-        riesgo.setCausa(trimToNull(requestDto.causa()));
-        riesgo.setConsecuencia(trimToNull(requestDto.consecuencia()));
         riesgo.setProbabilidad(requestDto.probabilidad());
         riesgo.setImpacto(requestDto.impacto());
         riesgo.setNivel(parseNivelRiesgo(calcularNivelDesdeMatriz(requestDto.probabilidad(), requestDto.impacto())));
-        riesgo.setControlesExistentes(trimToNull(requestDto.controlesExistentes()));
-        riesgo.setTipoControl(trimToNull(requestDto.tipoControl()));
-        riesgo.setValoracionControl(trimToNull(requestDto.valoracionControl()));
-        riesgo.setProbabilidadResidual(requestDto.probabilidadResidual());
-        riesgo.setImpactoResidual(requestDto.impactoResidual());
-        riesgo.setNivelResidual(
-                requestDto.probabilidadResidual() != null && requestDto.impactoResidual() != null
-                        ? parseNivelRiesgo(calcularNivelDesdeMatriz(requestDto.probabilidadResidual(), requestDto.impactoResidual()))
-                        : null
-        );
-        riesgo.setTratamiento(requestDto.tratamiento());
-        riesgo.setAccionesMitigacion(trimToNull(requestDto.accionesMitigacion()));
+        riesgo.setTratamiento(trimToNull(requestDto.tratamiento()));
         riesgo.setEntidadResponsable(trimToNull(requestDto.entidadResponsable()));
-        riesgo.setRolResponsable(trimToNull(requestDto.rolResponsable()));
+        riesgo.setAccionesMitigacion(trimToNull(requestDto.accionesMitigacion()));
         riesgo.setFechaAccion(requestDto.fechaAccion());
-        riesgo.setEvidenciaIndicador(trimToNull(requestDto.evidenciaIndicador()));
-        riesgo.setEstado(requestDto.estado());
+        if (requestDto.estado() != null) {
+            riesgo.setEstado(requestDto.estado());
+        } else if (riesgo.getEstado() == null) {
+            riesgo.setEstado(EstadoRiesgo.PENDIENTE);
+        }
     }
 
     private RiesgoResponseDTO convertToResponseDto(Riesgo riesgo) {
         return new RiesgoResponseDTO(
                 riesgo.getId(),
                 riesgo.getCodigo(),
-                riesgo.getCategoriaRiesgo(),
                 riesgo.getDescripcion(),
-                riesgo.getCausa(),
-                riesgo.getConsecuencia(),
                 riesgo.getProbabilidad(),
                 riesgo.getImpacto(),
                 calcularCalificacionInherente(riesgo.getProbabilidad(), riesgo.getImpacto()),
                 riesgo.getNivel(),
-                riesgo.getControlesExistentes(),
-                riesgo.getTipoControl(),
-                riesgo.getValoracionControl(),
-                riesgo.getProbabilidadResidual(),
-                riesgo.getImpactoResidual(),
-                riesgo.getNivelResidual(),
                 riesgo.getTratamiento(),
-                riesgo.getAccionesMitigacion(),
                 riesgo.getEntidadResponsable(),
-                riesgo.getRolResponsable(),
+                riesgo.getAccionesMitigacion(),
                 riesgo.getFechaAccion(),
                 riesgo.getEvidenciaIndicador(),
                 riesgo.getEstado(),
@@ -473,3 +689,5 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
     private record MatrixRule(String probabilidad, String impacto, String nivel, String color) {}
 }
+
+

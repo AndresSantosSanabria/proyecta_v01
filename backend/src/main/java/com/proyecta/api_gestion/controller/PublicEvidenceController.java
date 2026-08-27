@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
+import com.proyecta.api_gestion.service.IRiesgoService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -16,11 +17,14 @@ public class PublicEvidenceController {
 
     private final PublicEvidenceAccessService evidenceAccessService;
     private final IStorageProvider storageProvider;
+    private final IRiesgoService riesgoService;
 
     public PublicEvidenceController(PublicEvidenceAccessService evidenceAccessService,
-                                     IStorageProvider storageProvider) {
+                                     IStorageProvider storageProvider,
+                                     IRiesgoService riesgoService) {
         this.evidenceAccessService = evidenceAccessService;
         this.storageProvider = storageProvider;
+        this.riesgoService = riesgoService;
     }
 
     @GetMapping(value = "/evidencia/{token}", produces = MediaType.APPLICATION_PDF_VALUE)
@@ -50,5 +54,19 @@ public class PublicEvidenceController {
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping(value = "/riesgos/{proyectoId}/{riesgoId}/soluciones/{solucionId}", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<Resource> verSolucionRiesgo(
+            @PathVariable String proyectoId,
+            @PathVariable Integer riesgoId,
+            @PathVariable Long solucionId,
+            @RequestParam(value = "inline", defaultValue = "true") boolean inline) {
+        Resource resource = riesgoService.descargarSolucion(proyectoId, riesgoId, solucionId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
+                        + "; filename=\"solucion-riesgo-" + riesgoId + "-" + solucionId + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(resource);
     }
 }

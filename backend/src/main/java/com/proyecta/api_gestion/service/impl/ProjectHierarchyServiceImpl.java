@@ -497,10 +497,11 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private EntregableHierarchyDTO buildEntregableDTO(Entregable entregable) {
         LocalDate hoy = LocalDate.now();
-        LocalDate fechaEntrega = entregable.getFechaLimite();
+        LocalDate fechaLimite = entregable.getFechaLimite();
+        LocalDate fechaEntregaReal = entregable.getFechaEntregaReal();
 
-        String estado = calcularEstado(entregable, hoy, fechaEntrega);
-        Integer diasDiferencia = calcularDiasDiferencia(hoy, fechaEntrega);
+        String estado = calcularEstado(entregable, hoy, fechaLimite);
+        Integer diasDiferencia = calcularDiasDiferencia(hoy, fechaLimite, fechaEntregaReal);
 
         EntregableHierarchyDTO dto = new EntregableHierarchyDTO(
                 entregable.getId(),
@@ -509,7 +510,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 entregable.getPonderacion(),
                 entregable.getConforme(),
                 entregable.getFechaInicio(),
-                fechaEntrega,
+                fechaLimite,
                 estado,
                 diasDiferencia
         );
@@ -518,7 +519,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         return dto;
     }
 
-    private String calcularEstado(Entregable entregable, LocalDate hoy, LocalDate fechaEntrega) {
+    private String calcularEstado(Entregable entregable, LocalDate hoy, LocalDate fechaLimite) {
         if (EstadoEntregable.COMPLETADO.equals(entregable.getEstado())) {
             return "Completado";
         }
@@ -535,16 +536,16 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             return "Conforme";
         }
 
-        if (fechaEntrega == null) {
+        if (fechaLimite == null) {
             return "Pendiente";
         }
 
-        if (hoy.isAfter(fechaEntrega)) {
+        if (hoy.isAfter(fechaLimite)) {
             return "Atrasado";
         }
 
         int diasParaVencer = obtenerDiasPorVencer();
-        long diasRestantes = ChronoUnit.DAYS.between(hoy, fechaEntrega);
+        long diasRestantes = ChronoUnit.DAYS.between(hoy, fechaLimite);
 
         if (diasRestantes <= diasParaVencer) {
             return "Por vencer";
@@ -553,11 +554,20 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         return "Pendiente";
     }
 
-    private Integer calcularDiasDiferencia(LocalDate hoy, LocalDate fechaEntrega) {
-        if (fechaEntrega == null) {
+    private Integer calcularDiasDiferencia(LocalDate hoy, LocalDate fechaLimite, LocalDate fechaEntregaReal) {
+        if (fechaLimite == null) {
             return null;
         }
-        return (int) ChronoUnit.DAYS.between(hoy, fechaEntrega);
+
+        // Si ya entrego: calcular dias entre fechaEntregaReal y fechaLimite
+        // positivo = entrego antes (cumplimiento), negativo = entrego tarde (atraso)
+        if (fechaEntregaReal != null) {
+            return (int) ChronoUnit.DAYS.between(fechaEntregaReal, fechaLimite);
+        }
+
+        // Si no ha entregado: calcular dias entre hoy y fechaLimite
+        // positivo = aun no vence, negativo = ya vencio (atraso)
+        return (int) ChronoUnit.DAYS.between(hoy, fechaLimite);
     }
 
     private int obtenerDiasPorVencer() {
@@ -652,6 +662,15 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
         // Notificar
         try {
+            Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+            List<String> recipients = proyecto != null && usuarioProyectoRepository != null
+                    ? usuarioProyectoRepository.findActivasByProyectoId(proyectoId).stream()
+                            .map(item -> item.getUsuario())
+                            .filter(u -> u != null && u.getUsername() != null)
+                            .map(u -> u.getUsername())
+                            .filter(u -> u != null && !u.isBlank() && !u.equalsIgnoreCase(username))
+                            .distinct().toList()
+                    : List.of();
             notificationOrchestrator.dispatch(new NotificationContext(
                     NotificationEventType.ENTREGABLE_FECHA_CAMBIADA,
                     proyectoId,
@@ -661,7 +680,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                             "entregableNombre", entregable.getNombre(),
                             "fechaAnterior", String.valueOf(fechaAnterior),
                             "fechaNueva", String.valueOf(fechaNueva),
-                            "justificacion", justificacion
+                            "justificacion", justificacion,
+                            "projectName", proyecto != null ? proyecto.getNombre() : "",
+                            "recipients", recipients
                     )));
         } catch (Exception e) {
             log.warn("No se pudo notificar el cambio de fecha: {}", e.getMessage());

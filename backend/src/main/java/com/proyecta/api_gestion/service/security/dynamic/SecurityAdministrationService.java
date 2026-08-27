@@ -469,6 +469,7 @@ public class SecurityAdministrationService {
                 java.util.Map.of(
                         "assignedUsername", username,
                         "assignmentRole", cargoNormalizado,
+                        "projectName", proyectoRepository.findById(proyectoId).map(Proyecto::getNombre).orElse(""),
                         "recipients", List.of(usuario.getCorreo(), proyectoRepository.findById(proyectoId).map(Proyecto::getCorreoDirector).orElse(null))
                 )));
         return toUsuarioProyectoDTO(saved);

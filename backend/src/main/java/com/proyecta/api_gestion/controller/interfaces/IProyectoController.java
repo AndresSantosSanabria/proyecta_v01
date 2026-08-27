@@ -43,7 +43,7 @@ public interface IProyectoController {
     @PostMapping
     ResponseEntity<ApiResponse<ProyectoCreatedDTO>> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto);
 
-    @Operation(summary = "EP-PROY-03A - Siguiente codigo", description = "Retorna el siguiente codigo auto-generado para un nuevo proyecto con formato IS-PROY-CUN-YYYY-NNN.")
+    @Operation(summary = "EP-PROY-03A - Siguiente codigo", description = "Retorna el siguiente codigo auto-generado para un nuevo proyecto con formato PROY-CUN-YYYY-NNN.")
     @GetMapping("/siguiente-codigo")
     ResponseEntity<ApiResponse<String>> obtenerSiguienteCodigo();
 

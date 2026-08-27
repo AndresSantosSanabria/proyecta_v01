@@ -32,7 +32,7 @@ public interface IReporteController {
     @StandardApiResponses
     @GetMapping("/vista-previa/{proyectoId}")
     ResponseEntity<ApiResponse<ReporteVistaPreviaDTO>> getVistaPrevia(
-            @Parameter(description = "ID del proyecto", example = "IS-PROY-001") @PathVariable String proyectoId);
+            @Parameter(description = "ID del proyecto", example = "PROY-001") @PathVariable String proyectoId);
 
     @Operation(summary = "Obtener estado de todos los proyectos", description = "Lista resumida de todos los proyectos con su avance.")
     @StandardApiResponses

@@ -15,4 +15,6 @@ public final class SystemParameterKeys {
     public static final String RIESGO_IMPACTOS = "riesgo_impactos";
     public static final String RIESGO_NIVELES = "riesgo_niveles";
     public static final String STORAGE_BASE_PATH = "storage_base_path";
+    public static final String NOTIFICATION_DEADLINE_WARNING_INTERVAL_DAYS = "notification_deadline_warning_interval_days";
+    public static final String NOTIFICATION_OVERDUE_REMINDER_INTERVAL_DAYS = "notification_overdue_reminder_interval_days";
 }

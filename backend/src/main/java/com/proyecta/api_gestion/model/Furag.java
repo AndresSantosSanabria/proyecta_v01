@@ -1,10 +1,16 @@
 package com.proyecta.api_gestion.model;
 
+import com.proyecta.api_gestion.dto.config.FuragPreguntaRespuestaDTO;
 import com.proyecta.api_gestion.model.enums.RespuestaFurag;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Transient;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Embeddable
 public class Furag {
@@ -36,6 +42,12 @@ public class Furag {
     @Enumerated(EnumType.STRING)
     @Column(name = "furag_tecnologias_emergentes", length = 10)
     private RespuestaFurag tecnologiasEmergentes;
+
+    @Transient
+    private Map<String, RespuestaFurag> respuestas = new LinkedHashMap<>();
+
+    @Transient
+    private List<FuragPreguntaRespuestaDTO> detalle;
 
     public Furag() {
     }
@@ -95,5 +107,21 @@ public class Furag {
 
     public void setTecnologiasEmergentes(RespuestaFurag tecnologiasEmergentes) {
         this.tecnologiasEmergentes = tecnologiasEmergentes;
+    }
+
+    public Map<String, RespuestaFurag> getRespuestas() {
+        return respuestas;
+    }
+
+    public void setRespuestas(Map<String, RespuestaFurag> respuestas) {
+        this.respuestas = respuestas != null ? new LinkedHashMap<>(respuestas) : new LinkedHashMap<>();
+    }
+
+    public List<FuragPreguntaRespuestaDTO> getDetalle() {
+        return detalle;
+    }
+
+    public void setDetalle(List<FuragPreguntaRespuestaDTO> detalle) {
+        this.detalle = detalle;
     }
 }

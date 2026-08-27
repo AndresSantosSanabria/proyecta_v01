@@ -12,31 +12,20 @@ public record RiesgoRequestDTO(
         @NotBlank(message = "La descripcion es obligatoria")
         String descripcion,
 
-        String categoriaRiesgo,
-        String causa,
-        String consecuencia,
-
         @NotNull(message = "La probabilidad es obligatoria")
         Probabilidad probabilidad,
 
         @NotNull(message = "El impacto es obligatorio")
         Impacto impacto,
 
-        Probabilidad probabilidadResidual,
-        Impacto impactoResidual,
-        String controlesExistentes,
-        String tipoControl,
-        String valoracionControl,
-
-        @NotBlank(message = "El plan de tratamiento es obligatorio")
         String tratamiento,
 
-        String accionesMitigacion,
+        @NotBlank(message = "El responsable es obligatorio")
         String entidadResponsable,
-        String rolResponsable,
-        LocalDate fechaAccion,
-        String evidenciaIndicador,
 
-        @NotNull(message = "El estado es obligatorio")
+        String accionesMitigacion,
+
+        LocalDate fechaAccion,
+
         EstadoRiesgo estado
 ) {}

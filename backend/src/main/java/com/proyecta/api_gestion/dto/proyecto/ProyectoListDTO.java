@@ -1,6 +1,9 @@
 package com.proyecta.api_gestion.dto.proyecto;
 
+import com.proyecta.api_gestion.dto.config.FuragPreguntaRespuestaDTO;
+
 import java.math.BigDecimal;
+import java.util.List;
 
 public record ProyectoListDTO(
     String id,
@@ -13,5 +16,6 @@ public record ProyectoListDTO(
     String estado,
     Integer entregablesTotal,
     Integer entregablesConformes,
-    Integer entregablesAtrasados
+    Integer entregablesAtrasados,
+    List<FuragPreguntaRespuestaDTO> furagDetalle
 ) {}

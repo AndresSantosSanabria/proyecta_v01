@@ -18,7 +18,7 @@ public class Proyecto {
 
     @Id
     @Column(name = "proyecto_id", length = 40, nullable = false, updatable = false)
-    private String id; // Formato IS-PROY-CUN-YYYY-NNN.
+    private String id; // Formato PROY-CUN-YYYY-NNN.
 
     @Column(nullable = false, length = 300)
     private String nombre;

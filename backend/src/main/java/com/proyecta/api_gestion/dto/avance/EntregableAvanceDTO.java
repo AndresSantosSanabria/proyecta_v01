@@ -22,5 +22,6 @@ public record EntregableAvanceDTO(
     BigDecimal avance,
     Long atraso,
     String estadoCodigo,
-    String observacionRevision
+    String observacionRevision,
+    Long diasCumplimiento
 ) {}

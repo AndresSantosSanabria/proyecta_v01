@@ -70,7 +70,7 @@ public class ProjectDelayNotificationService {
                         "projectName", proyecto.getNombre(),
                         "overdueDeliverables", snapshot.entregablesAtrasados(),
                         "recipients", List.of(director),
-                        "title", "Proyecto " + proyecto.getId() + " con retrasos"
+                        "title", "Proyecto con retrasos: " + proyecto.getNombre()
                 )));
     }
 }

@@ -38,14 +38,14 @@ public interface IProjectHierarchyController {
                 examples = @ExampleObject(
                     name = "200 OK",
                     summary = "Jerarquía completa",
-                    value = "{\"success\": true, \"message\": \"Jerarquía obtenida con éxito\", \"data\": {\"proyectoId\": \"IS-PROY-001\", \"nombreProyecto\": \"Sistema de Gestión\", \"fases\": []}}"
+                    value = "{\"success\": true, \"message\": \"Jerarquía obtenida con éxito\", \"data\": {\"proyectoId\": \"PROY-001\", \"nombreProyecto\": \"Sistema de Gestión\", \"fases\": []}}"
                 )
             )
         )
     })
     @StandardApiResponses
     ResponseEntity<ApiResponse<ProjectHierarchyDTO>> getProjectHierarchy(
-            @Parameter(description = "ID del proyecto", example = "IS-PROY-001", required = true)
+            @Parameter(description = "ID del proyecto", example = "PROY-001", required = true)
             @PathVariable String id);
 
     // Fases
