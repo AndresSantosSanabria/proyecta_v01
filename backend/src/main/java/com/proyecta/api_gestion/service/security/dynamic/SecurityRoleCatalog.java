@@ -42,15 +42,11 @@ public final class SecurityRoleCatalog {
     private SecurityRoleCatalog() {}
 
     public static String normalize(String value) {
-        if (value == null) {
-            return null;
+        if (value == null || value.trim().isBlank()) {
+            return "visualizador";
         }
 
         String cleaned = value.trim();
-        if (cleaned.isBlank()) {
-            return null;
-        }
-
         String lower = Normalizer.normalize(cleaned, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase()
@@ -61,7 +57,13 @@ public final class SecurityRoleCatalog {
         if (lower.contains("admin")) {
             return "admin";
         }
-        return ROLE_ALIASES.getOrDefault(lower, lower);
+        
+        String mapped = ROLE_ALIASES.getOrDefault(lower, lower);
+        if (PROTECTED_ROLE_CODES.contains(mapped)) {
+            return mapped;
+        }
+        
+        return "visualizador";
     }
 
     public static boolean isProtected(String code) {

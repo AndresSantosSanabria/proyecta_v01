@@ -9,6 +9,8 @@ public record DocumentoUploadResultDTO(
         Long tamanoBytes,
         String tamanoFormateado,
         String urlDescarga,
-        String fechaCarga
+        String fechaCarga,
+        String usuario,
+        String usuarioRol
 ) {
 }

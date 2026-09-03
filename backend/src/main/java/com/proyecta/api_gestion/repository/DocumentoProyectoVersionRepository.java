@@ -19,6 +19,9 @@ public interface DocumentoProyectoVersionRepository extends JpaRepository<Docume
     Optional<DocumentoProyectoVersion> findByProyectoIdAndTipoDocumentoAndEstado(
             String proyectoId, String tipoDocumento, DocumentoProyectoVersionEstado estado);
 
+    List<DocumentoProyectoVersion> findByProyectoIdAndEstado(
+            String proyectoId, DocumentoProyectoVersionEstado estado);
+
     Optional<DocumentoProyectoVersion> findByProyectoIdAndTipoDocumentoAndNumeroVersion(
             String proyectoId, String tipoDocumento, Integer numeroVersion);
 

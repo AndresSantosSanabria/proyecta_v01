@@ -7,6 +7,7 @@ import com.proyecta.api_gestion.dto.proyecto.CambioFechaRequest;
 import com.proyecta.api_gestion.dto.proyecto.CambioFechaResponse;
 import com.proyecta.api_gestion.model.EntregableCambioFecha;
 import com.proyecta.api_gestion.repository.EntregableCambioFechaRepository;
+import com.proyecta.api_gestion.repository.EntregableCambioDescripcionRepository;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
 import org.springframework.core.io.Resource;
@@ -28,13 +29,16 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
 
     private final ProjectHierarchyService projectHierarchyService;
     private final EntregableCambioFechaRepository cambioFechaRepository;
+    private final EntregableCambioDescripcionRepository cambioDescripcionRepository;
     private final IStorageProvider storageProvider;
 
     public ProjectHierarchyController(ProjectHierarchyService projectHierarchyService,
                                        EntregableCambioFechaRepository cambioFechaRepository,
+                                       EntregableCambioDescripcionRepository cambioDescripcionRepository,
                                        IStorageProvider storageProvider) {
         this.projectHierarchyService = projectHierarchyService;
         this.cambioFechaRepository = cambioFechaRepository;
+        this.cambioDescripcionRepository = cambioDescripcionRepository;
         this.storageProvider = storageProvider;
     }
 
@@ -142,6 +146,30 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
                 .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException("Registro de cambio de fecha no encontrado: " + cambioId));
         Resource resource = storageProvider.loadFileAsResource("cambios-fecha", registro.getArchivoPdf());
         String nombreDescarga = registro.getNombreOriginal() != null ? registro.getNombreOriginal() : "soporte-cambio-fecha.pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + nombreDescarga + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(resource);
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canChangeDescription(#id, authentication)")
+    public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse>> cambiarDescripcion(
+            String id, Integer entregableId,
+            com.proyecta.api_gestion.dto.proyecto.CambioDescripcionRequest request,
+            MultipartFile evidencia,
+            Authentication authentication) {
+        com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse response = projectHierarchyService.cambiarDescripcion(id, entregableId, request, evidencia, authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, "Descripción del entregable actualizada exitosamente"));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canChangeDescription(#id, authentication)")
+    public ResponseEntity<Resource> descargarPdfCambioDescripcion(String id, Long cambioId) {
+        com.proyecta.api_gestion.model.EntregableCambioDescripcion registro = cambioDescripcionRepository.findById(cambioId)
+                .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException("Registro de cambio de descripción no encontrado: " + cambioId));
+        Resource resource = storageProvider.loadFileAsResource("cambios-descripcion", registro.getArchivoPdf());
+        String nombreDescarga = registro.getNombreOriginal() != null ? registro.getNombreOriginal() : "soporte-cambio-descripcion.pdf";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + nombreDescarga + "\"")
                 .contentType(MediaType.APPLICATION_PDF)

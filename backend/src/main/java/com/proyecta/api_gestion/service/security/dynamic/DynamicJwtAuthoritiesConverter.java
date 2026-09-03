@@ -54,8 +54,6 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
         boolean isAdmin = keycloakRoles.stream()
                 .anyMatch(role -> role.equals(KEYCLOAK_ADMIN_ROLE) || role.equals("administrador"));
 
-        addFunctionalRoleAuthorities(keycloakRoles, authorities);
-
         if (isAdmin) {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + KEYCLOAK_ADMIN_ROLE));
 
@@ -66,22 +64,14 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
                 logger.warn("No se pudieron resolver permisos del catalogo de seguridad para ADMIN. Se continuo con rol ADMIN del JWT: {}", ex.getMessage());
             }
         } else {
-            logger.debug("Usuario USUARIO detectado en JWT. Los permisos se resuelven desde la BD interna.");
+            authorities.add(new SimpleGrantedAuthority("ROLE_usuario"));
+            logger.debug("Usuario detectado en JWT. Los permisos funcionales se resuelven desde la BD interna.");
         }
 
         addScopes(jwt.getClaimAsString("scope"), authorities);
         addScopes(jwt.getClaimAsStringList("scp"), authorities);
 
         return authorities;
-    }
-
-    private void addFunctionalRoleAuthorities(Set<String> keycloakRoles, Set<GrantedAuthority> authorities) {
-        keycloakRoles.stream()
-                .map(roleAliasService::normalize)
-                .filter(value -> value != null && !"usuario".equals(value))
-                .filter(SecurityRoleCatalog::isProtected)
-                .map(value -> new SimpleGrantedAuthority("ROLE_" + value))
-                .forEach(authorities::add);
     }
 
     private void addScopes(String scopes, Set<GrantedAuthority> authorities) {

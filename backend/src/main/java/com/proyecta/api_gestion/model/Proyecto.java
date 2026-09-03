@@ -95,6 +95,12 @@ public class Proyecto {
     @Column(name = "cierre_borrador_json", columnDefinition = "TEXT")
     private String cierreBorradorJson;
 
+    @Column(name = "completitud_borrador_json", columnDefinition = "TEXT")
+    private String completitudBorradorJson;
+
+    @Column(name = "completitud_fases_completadas", columnDefinition = "TEXT")
+    private String completitudFasesCompletadas;
+
     @Embedded
     private Furag furag;
 
@@ -220,6 +226,12 @@ public class Proyecto {
 
     public String getCierreBorradorJson() { return cierreBorradorJson; }
     public void setCierreBorradorJson(String cierreBorradorJson) { this.cierreBorradorJson = cierreBorradorJson; }
+
+    public String getCompletitudBorradorJson() { return completitudBorradorJson; }
+    public void setCompletitudBorradorJson(String completitudBorradorJson) { this.completitudBorradorJson = completitudBorradorJson; }
+
+    public String getCompletitudFasesCompletadas() { return completitudFasesCompletadas; }
+    public void setCompletitudFasesCompletadas(String completitudFasesCompletadas) { this.completitudFasesCompletadas = completitudFasesCompletadas; }
 
     public Furag getFurag() { return furag; }
     public void setFurag(Furag furag) { this.furag = furag; }

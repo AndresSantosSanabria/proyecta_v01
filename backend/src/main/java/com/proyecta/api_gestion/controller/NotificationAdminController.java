@@ -1,6 +1,8 @@
 package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
+import com.proyecta.api_gestion.dto.notification.NotificationAuditDTO;
+import com.proyecta.api_gestion.dto.notification.NotificationDispatchLogDTO;
 import com.proyecta.api_gestion.dto.notification.NotificationEventCatalogDTO;
 import com.proyecta.api_gestion.dto.notification.NotificationPreferenceDTO;
 import com.proyecta.api_gestion.dto.notification.NotificationPreferenceUpdateRequest;
@@ -10,6 +12,7 @@ import com.proyecta.api_gestion.dto.notification.NotificationTemplatePreviewResp
 import com.proyecta.api_gestion.dto.notification.NotificationTemplateUpdateRequest;
 import com.proyecta.api_gestion.dto.notification.NotificationTestSendRequest;
 import com.proyecta.api_gestion.model.notification.NotificationAudit;
+import com.proyecta.api_gestion.model.notification.NotificationEventCatalog;
 import com.proyecta.api_gestion.model.notification.NotificationMailDispatchLog;
 import com.proyecta.api_gestion.model.notification.NotificationPreference;
 import com.proyecta.api_gestion.model.notification.NotificationTemplate;
@@ -29,7 +32,11 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -40,11 +47,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/admin/notificaciones")
@@ -109,9 +122,50 @@ public class NotificationAdminController {
     }
 
     @GetMapping("/plantillas")
-    public ResponseEntity<ApiResponse<List<NotificationTemplateDTO>>> listTemplates() {
-        var data = templateService.listAll().stream().map(this::toDto).toList();
+    public ResponseEntity<ApiResponse<List<NotificationTemplateDTO>>> listTemplates(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String severity,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(required = false) String search) {
+
+        Map<String, String> eventCategoryMap = eventCatalogRepository.findAll().stream()
+                .collect(Collectors.toMap(NotificationEventCatalog::getCode, NotificationEventCatalog::getCategory));
+
+        List<NotificationTemplateDTO> data = templateService.listAll().stream()
+                .filter(t -> category == null || category.isBlank() || category.equals(eventCategoryMap.get(t.getEventCode())))
+                .filter(t -> severity == null || severity.isBlank() || severity.equals(t.getSeverity()))
+                .filter(t -> enabled == null || t.getEnabled().equals(enabled))
+                .filter(t -> search == null || search.isBlank()
+                        || t.getEventCode().toLowerCase().contains(search.toLowerCase())
+                        || eventCategoryMap.getOrDefault(t.getEventCode(), "").toLowerCase().contains(search.toLowerCase()))
+                .map(template -> toDto(template, eventCategoryMap.get(template.getEventCode())))
+                .toList();
+
         return ResponseEntity.ok(ApiResponse.success(data, "Plantillas listadas correctamente"));
+    }
+
+    @GetMapping("/categorias")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listCategories() {
+        List<NotificationEventCatalog> events = eventCatalogRepository.findAll();
+
+        Map<String, List<NotificationEventCatalog>> grouped = events.stream()
+                .collect(Collectors.groupingBy(NotificationEventCatalog::getCategory));
+
+        List<Map<String, Object>> result = grouped.entrySet().stream().map(entry -> {
+            Map<String, Object> category = new LinkedHashMap<>();
+            category.put("category", entry.getKey());
+            category.put("eventCount", entry.getValue().size());
+            category.put("events", entry.getValue().stream().map(e -> {
+                Map<String, Object> event = new LinkedHashMap<>();
+                event.put("code", e.getCode());
+                event.put("name", e.getName());
+                event.put("active", e.getActive());
+                return event;
+            }).toList());
+            return category;
+        }).toList();
+
+        return ResponseEntity.ok(ApiResponse.success(result, "Categorias listadas correctamente"));
     }
 
     @PutMapping("/plantillas")
@@ -127,7 +181,10 @@ public class NotificationAdminController {
         template.setBodyTemplate(request.bodyTemplate());
         template.setTargetRoles(request.targetRoles());
         var saved = templateService.upsert(template, identityExtractor.resolveUsername(authentication));
-        return ResponseEntity.ok(ApiResponse.success(toDto(saved), "Plantilla guardada correctamente"));
+        String category = eventCatalogRepository.findById(saved.getEventCode())
+                .map(NotificationEventCatalog::getCategory)
+                .orElse(null);
+        return ResponseEntity.ok(ApiResponse.success(toDto(saved, category), "Plantilla guardada correctamente"));
     }
 
     @GetMapping("/preferencias")
@@ -298,6 +355,93 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(result, "Diagnostico del sistema de correo"));
     }
 
+    @GetMapping("/fallidas")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> listFailedNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String channel,
+            @RequestParam(required = false) String eventCode,
+            @RequestParam(required = false) String recipient,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+
+        LocalDateTime fromDate = parseDateTime(from);
+        LocalDateTime toDate = parseDateTime(to);
+        String status = "FAILED";
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<NotificationAudit> auditPage = auditRepository.findFailedWithFilters(
+                status, channel, eventCode, recipient, fromDate, toDate, pageable);
+
+        List<NotificationAuditDTO> entries = auditPage.getContent().stream()
+                .map(a -> new NotificationAuditDTO(
+                        a.getId(), a.getEventCode(), a.getRecipient(),
+                        a.getChannel(), a.getStatus(), a.getFailureReason(), a.getCreatedAt()))
+                .toList();
+
+        long totalFailedEmail = auditRepository.countByChannelAndStatus("EMAIL", "FAILED");
+        long totalFailedInApp = auditRepository.countByChannelAndStatus("IN_APP", "FAILED");
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("entries", entries);
+        result.put("totalElements", auditPage.getTotalElements());
+        result.put("totalPages", auditPage.getTotalPages());
+        result.put("currentPage", auditPage.getNumber());
+        result.put("totalFailedEmail", totalFailedEmail);
+        result.put("totalFailedInApp", totalFailedInApp);
+
+        return ResponseEntity.ok(ApiResponse.success(result, "Notificaciones fallidas listadas correctamente"));
+    }
+
+    @GetMapping("/fallidas/detalle-dispatch")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> listFailedDispatchLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String recipient,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+
+        Instant fromDate = parseInstant(from);
+        Instant toDate = parseInstant(to);
+        String status = "FAILED";
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<NotificationMailDispatchLog> logPage = mailDispatchLogRepository.findFailedWithFilters(
+                status, recipient, fromDate, toDate, pageable);
+
+        List<NotificationDispatchLogDTO> entries = logPage.getContent().stream()
+                .map(l -> new NotificationDispatchLogDTO(
+                        l.getId(), l.getRecipient(), l.getSubject(),
+                        l.getStatus(), l.getDetail(), l.getCreatedAt()))
+                .toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("entries", entries);
+        result.put("totalElements", logPage.getTotalElements());
+        result.put("totalPages", logPage.getTotalPages());
+        result.put("currentPage", logPage.getNumber());
+
+        return ResponseEntity.ok(ApiResponse.success(result, "Detalle de dispatch fallidos listado correctamente"));
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private Instant parseInstant(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
     private String maskEmail(String email) {
         if (email == null || !email.contains("@")) return email;
         int atIndex = email.indexOf('@');
@@ -307,7 +451,7 @@ public class NotificationAdminController {
         return local.substring(0, 2) + "**" + domain;
     }
 
-    private NotificationTemplateDTO toDto(NotificationTemplate template) {
+    private NotificationTemplateDTO toDto(NotificationTemplate template, String category) {
         return new NotificationTemplateDTO(
                 template.getEventCode(),
                 template.getEnabled(),
@@ -317,7 +461,8 @@ public class NotificationAdminController {
                 template.getSubjectTemplate(),
                 template.getBodyTemplate(),
                 template.getTargetRoles(),
-                template.getUpdatedBy()
+                template.getUpdatedBy(),
+                category
         );
     }
 

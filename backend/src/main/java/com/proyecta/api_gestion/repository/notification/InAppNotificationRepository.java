@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public interface InAppNotificationRepository extends JpaRepository<InAppNotification, Long> {
     Page<InAppNotification> findByRecipient_UsernameIgnoreCaseOrderByCreatedAtDesc(String username, Pageable pageable);
     Page<InAppNotification> findByRecipient_UsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(String username, Boolean readStatus, Pageable pageable);
+    Page<InAppNotification> findByRecipient_UsernameIgnoreCaseAndEventCodeOrderByCreatedAtDesc(String username, String eventCode, Pageable pageable);
     long countByRecipient_UsernameIgnoreCaseAndReadStatusFalse(String username);
     boolean existsByRecipient_IdAndEventCodeAndSourceEntityIdAndCreatedAtAfter(Long recipientId, String eventCode, String sourceEntityId, LocalDateTime createdAtAfter);
 }

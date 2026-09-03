@@ -110,4 +110,17 @@ public interface IProjectHierarchyController {
     @Operation(summary = "EP-ENTR-08 · Descargar PDF de soporte de un cambio de fecha")
     @GetMapping("/{id}/entregables/cambios-fecha/{cambioId}/descargar")
     ResponseEntity<org.springframework.core.io.Resource> descargarPdfCambioFecha(@PathVariable String id, @PathVariable Long cambioId);
+
+    @Operation(summary = "EP-ENTR-09 · Cambiar descripcion con justificacion y PDF de soporte")
+    @PostMapping(value = "/{id}/entregables/{entregableId}/cambiar-descripcion", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse>> cambiarDescripcion(
+            @PathVariable String id,
+            @PathVariable Integer entregableId,
+            @RequestPart("request") @org.springframework.lang.NonNull com.proyecta.api_gestion.dto.proyecto.CambioDescripcionRequest request,
+            @RequestPart("evidencia") MultipartFile evidencia,
+            Authentication authentication);
+
+    @Operation(summary = "EP-ENTR-10 · Descargar PDF de soporte de un cambio de descripcion")
+    @GetMapping("/{id}/entregables/cambios-descripcion/{cambioId}/descargar")
+    ResponseEntity<org.springframework.core.io.Resource> descargarPdfCambioDescripcion(@PathVariable String id, @PathVariable Long cambioId);
 }

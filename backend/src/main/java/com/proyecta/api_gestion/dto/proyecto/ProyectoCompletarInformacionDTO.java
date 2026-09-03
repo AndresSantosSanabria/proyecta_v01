@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.dto.proyecto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,6 +23,8 @@ public record ProyectoCompletarInformacionDTO(
         String vigenciaPeti,
         String estrategiaPeti,
         @NotNull Boolean tienePlanComunicaciones,
-        FuragDTO furag
+        FuragDTO furag,
+        @Size(min = 2, message = "Debe registrar al menos 2 riesgos en la matriz de riesgos")
+        List<RiesgoCompletitudDTO> riesgosIniciales
 ) {
 }

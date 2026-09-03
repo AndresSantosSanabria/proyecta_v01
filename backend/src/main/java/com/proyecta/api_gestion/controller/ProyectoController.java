@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.proyecto.DashboardDTO;
+import com.proyecta.api_gestion.dto.proyecto.CompletitudBorradorDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletarInformacionDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletionStatusDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
@@ -191,5 +192,46 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     public ResponseEntity<ApiResponse<Void>> recalcularAvances() {
         proyectoService.recalcularAvances();
         return ResponseEntity.ok(ApiResponse.success("Avances recalculados exitosamente"));
+    }
+
+    @Override
+    @PatchMapping("/{id}/completitud-borrador")
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<CompletitudBorradorDTO>> guardarBorradorCompletitud(
+            @PathVariable String id,
+            @RequestBody CompletitudBorradorDTO dto,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.guardarBorradorCompletitud(id, dto, username),
+                "Borrador de completitud guardado exitosamente"
+        ));
+    }
+
+    @Override
+    @GetMapping("/{id}/completitud-borrador")
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<CompletitudBorradorDTO>> obtenerBorradorCompletitud(
+            @PathVariable String id,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.obtenerBorradorCompletitud(id, username),
+                "Borrador de completitud obtenido"
+        ));
+    }
+
+    @Override
+    @PatchMapping("/{id}/completitud-fase/{fase}")
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarFaseCompletitud(
+            @PathVariable String id,
+            @PathVariable Integer fase,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.completarFaseCompletitud(id, fase, username),
+                "Fase " + fase + " completada exitosamente"
+        ));
     }
 }

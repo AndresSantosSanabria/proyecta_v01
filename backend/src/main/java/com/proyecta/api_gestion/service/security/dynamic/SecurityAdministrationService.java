@@ -170,17 +170,19 @@ public class SecurityAdministrationService {
             }
         }
 
-        Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(usuario, authentication, true);
-        if (resolvedRole.isEmpty() && (isNewUser || usuario.getRolCodigo() == null || usuario.getRolCodigo().isBlank())) {
-            resolvedRole = rolRepository.findByCodigoIgnoreCase("consulta");
-        }
+        if (isNewUser || usuario.getRolCodigo() == null || usuario.getRolCodigo().isBlank()) {
+            Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(usuario, authentication, true);
+            if (resolvedRole.isEmpty()) {
+                resolvedRole = rolRepository.findByCodigoIgnoreCase("visualizador");
+            }
 
-        if (resolvedRole.isPresent()) {
-            SeguridadRol rol = resolvedRole.get();
-            if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
-                usuario.setRolCodigo(rol.getCodigo());
-                usuario.setRolNombre(rol.getNombre());
-                shouldSave = true;
+            if (resolvedRole.isPresent()) {
+                SeguridadRol rol = resolvedRole.get();
+                if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
+                    usuario.setRolCodigo(rol.getCodigo());
+                    usuario.setRolNombre(rol.getNombre());
+                    shouldSave = true;
+                }
             }
         }
 

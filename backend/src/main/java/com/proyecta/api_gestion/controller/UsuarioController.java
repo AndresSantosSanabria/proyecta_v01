@@ -53,8 +53,27 @@ public class UsuarioController implements IUsuarioController {
                 jwt.getClaimAsString("preferred_username"),
                 "");
 
-        String rolCodigo = firstNonBlank(usuario.getRolCodigo(), "SIN_ROL");
-        String rolNombre = usuario.getRolConfig() != null ? usuario.getRolConfig().getNombre() : rolCodigo;
+        String username = identityExtractor.resolveUsername(authentication);
+
+        String rolCodigo = usuario.getRolCodigo();
+        String rolNombre = usuario.getRolConfig() != null ? usuario.getRolConfig().getNombre() : null;
+
+        if (rolCodigo == null || "SIN_ROL".equalsIgnoreCase(rolCodigo) || "VISUALIZADOR".equalsIgnoreCase(rolCodigo)) {
+            if (username != null && !username.isBlank()) {
+                var segOpt = seguridadUsuarioRepository.findByUsernameIgnoreCase(username);
+                if (segOpt.isPresent() && segOpt.get().getRolCodigo() != null) {
+                    rolCodigo = segOpt.get().getRolCodigo();
+                    rolNombre = segOpt.get().getRolNombre() != null ? segOpt.get().getRolNombre() : segOpt.get().getRolCodigo();
+                }
+            }
+        }
+
+        if (rolCodigo == null || rolCodigo.isBlank()) {
+            rolCodigo = "SIN_ROL";
+        }
+        if (rolNombre == null || rolNombre.isBlank()) {
+            rolNombre = rolCodigo;
+        }
         Integer nivelAcceso = usuario.getRolConfig() != null ? usuario.getRolConfig().getNivelAcceso() : null;
 
         String dependencia = firstNonBlank(

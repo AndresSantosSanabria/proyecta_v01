@@ -47,6 +47,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private final SystemParameterRepository systemParameterRepository;
     private final IProgressCalculator avanceCalculatorService;
     private final EntregableCambioFechaRepository cambioFechaRepository;
+    private final EntregableCambioDescripcionRepository cambioDescripcionRepository;
     private final IStorageProvider storageProvider;
     private final KeycloakIdentityExtractor identityExtractor;
     private final NotificationOrchestratorService notificationOrchestrator;
@@ -66,6 +67,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                                         SystemParameterRepository systemParameterRepository,
                                         IProgressCalculator avanceCalculatorService,
                                         EntregableCambioFechaRepository cambioFechaRepository,
+                                        EntregableCambioDescripcionRepository cambioDescripcionRepository,
                                         IStorageProvider storageProvider,
                                         KeycloakIdentityExtractor identityExtractor,
                                         NotificationOrchestratorService notificationOrchestrator,
@@ -78,6 +80,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         this.systemParameterRepository = systemParameterRepository;
         this.avanceCalculatorService = avanceCalculatorService;
         this.cambioFechaRepository = cambioFechaRepository;
+        this.cambioDescripcionRepository = cambioDescripcionRepository;
         this.storageProvider = storageProvider;
         this.identityExtractor = identityExtractor;
         this.notificationOrchestrator = notificationOrchestrator;
@@ -90,6 +93,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     public Fase agregarFase(String proyectoId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
         Proyecto proyecto = proyectoRepository.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado"));
+        if (proyecto.esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
         String actorUsername = identityExtractor.resolveUsername(authentication);
         validarFaseConHitos(dto, proyecto.getFechaInicio());
         validarPonderacionAlAgregarFase(proyectoId, dto.ponderacion());
@@ -115,6 +121,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
+        if (fase.getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
         validarPonderacion(dto.ponderacion(), "La ponderacion de la fase debe estar entre 1 y 100.");
         validarPonderacionAlEditarFase(proyectoId, fase, dto.ponderacion());
         fase.setDescripcion(dto.descripcion());
@@ -142,6 +151,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
+        if (fase.getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
         validarHitoConEntregables(dto, fase.getProyecto() != null ? fase.getProyecto().getFechaInicio() : null);
         validarPonderacionAlAgregarHito(faseId, dto.ponderacion());
         Hito guardado = crearHitoConEntregables(fase, dto);
@@ -158,6 +170,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
+        if (hito.getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
         validarPonderacion(dto.ponderacion(), "La ponderacion del hito debe estar entre 1 y 100.");
         validarPonderacionAlEditarHito(faseId, hito, dto.ponderacion());
         hito.setDescripcion(dto.descripcion());
@@ -187,6 +202,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
+        if (hito.getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
         validarEntregableNuevo(dto, hito.getFase() != null && hito.getFase().getProyecto() != null
                 ? hito.getFase().getProyecto().getFechaInicio()
                 : null);
@@ -213,6 +231,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
+        if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
         validarPonderacion(dto.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100.");
         if (dto.fechaInicio() != null && !dto.fechaInicio().equals(entregable.getFechaInicio())) {
             throw new BadRequestException("La fecha de inicio de un entregable existente no se puede editar.");
@@ -605,6 +626,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         Entregable entregable = entregableRepository.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
+        if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
 
         entregable.asegurarModificable();
 
@@ -772,5 +796,82 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 actorUsername,
                 attributes
         ));
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse cambiarDescripcion(
+            String proyectoId, Integer entregableId,
+            com.proyecta.api_gestion.dto.proyecto.CambioDescripcionRequest request,
+            MultipartFile evidencia,
+            Authentication authentication) {
+
+        Entregable entregable = entregableRepository.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+        asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
+        if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
+        }
+
+        entregable.asegurarModificable();
+
+        String justificacion = request.justificacion().trim();
+        if (justificacion.isBlank()) {
+            throw new BadRequestException("La justificacion es obligatoria para modificar la descripcion.");
+        }
+
+        String descripcionAnterior = entregable.getDescripcion();
+        String descripcionNueva = request.nuevaDescripcion().trim();
+        if (descripcionNueva.isBlank()) {
+            throw new BadRequestException("La nueva descripcion no puede estar vacia.");
+        }
+        if (descripcionAnterior != null && descripcionNueva.equals(descripcionAnterior.trim())) {
+            throw new BadRequestException("La nueva descripcion debe ser diferente a la descripcion actual.");
+        }
+
+        // Validar PDF
+        if (evidencia == null || evidencia.isEmpty()) {
+            throw new BadRequestException("Debe adjuntar un archivo PDF como soporte.");
+        }
+        storageProvider.validateFile(evidencia, MAX_FILE_SIZE_BYTES, Set.of("application/pdf"));
+        validarPdfMagicBytes(evidencia);
+
+        // Almacenar PDF
+        String fileName = "cambio-descripcion_" + entregableId + "_" + System.currentTimeMillis();
+        String storedName = storageProvider.storeFile(evidencia, "cambios-descripcion", fileName);
+
+        // Actualizar descripcion del entregable
+        entregable.setDescripcion(descripcionNueva);
+        entregableRepository.save(entregable);
+
+        // Registrar auditoria
+        String username = identityExtractor.resolveUsername(authentication);
+        Set<String> roles = identityExtractor.resolveRealmAndClientRoles(authentication,
+                List.of("proyecta", "proyecta-api", "account"));
+        String rol = roles.isEmpty() ? "DESCONOCIDO" : String.join(", ", roles);
+
+        EntregableCambioDescripcion auditoria = new EntregableCambioDescripcion();
+        auditoria.setEntregable(entregable);
+        auditoria.setDescripcionAnterior(descripcionAnterior);
+        auditoria.setDescripcionNueva(descripcionNueva);
+        auditoria.setJustificacion(justificacion);
+        auditoria.setArchivoPdf(storedName);
+        auditoria.setNombreOriginal(evidencia.getOriginalFilename());
+        auditoria.setUsuario(username);
+        auditoria.setUsuarioRol(rol);
+        cambioDescripcionRepository.save(auditoria);
+
+        return new com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse(
+                auditoria.getId(),
+                entregableId,
+                descripcionAnterior,
+                descripcionNueva,
+                justificacion,
+                storedName,
+                evidencia.getOriginalFilename(),
+                username,
+                rol,
+                auditoria.getCreadoEn()
+        );
     }
 }

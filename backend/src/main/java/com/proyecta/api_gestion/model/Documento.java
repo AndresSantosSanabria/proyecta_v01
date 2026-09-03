@@ -53,7 +53,9 @@ public class Documento {
 
     @PrePersist
     protected void onCreate() {
-        this.fechaCarga = LocalDateTime.now();
+        if (this.fechaCarga == null) {
+            this.fechaCarga = LocalDateTime.now();
+        }
     }
 
     @PreUpdate

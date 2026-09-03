@@ -100,4 +100,24 @@ public interface IProyectoController {
     @Operation(summary = "EP-PROY-11 · Recalcular avances", description = "Recalcular avances de todos los proyectos basado en estado de entregables.")
     @PostMapping("/recalcular-avances")
     ResponseEntity<ApiResponse<Void>> recalcularAvances();
+
+    @Operation(summary = "EP-PROY-12 · Guardar borrador completitud", description = "Guardar borrador de completitud por fase para que el Director pueda continuar despues.")
+    @PatchMapping("/{id}/completitud-borrador")
+    ResponseEntity<ApiResponse<CompletitudBorradorDTO>> guardarBorradorCompletitud(
+            @PathVariable String id,
+            @RequestBody CompletitudBorradorDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-13 · Obtener borrador completitud", description = "Obtener el borrador de completitud guardado por el Director.")
+    @GetMapping("/{id}/completitud-borrador")
+    ResponseEntity<ApiResponse<CompletitudBorradorDTO>> obtenerBorradorCompletitud(
+            @PathVariable String id,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-14 · Completar fase", description = "Marcar una fase de completitud como completada.")
+    @PatchMapping("/{id}/completitud-fase/{fase}")
+    ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarFaseCompletitud(
+            @PathVariable String id,
+            @PathVariable Integer fase,
+            Authentication authentication);
 }

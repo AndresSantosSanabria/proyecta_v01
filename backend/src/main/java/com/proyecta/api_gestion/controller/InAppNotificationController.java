@@ -25,9 +25,10 @@ public class InAppNotificationController {
     public ResponseEntity<ApiResponse<Page<InAppNotificationDTO>>> list(
             Authentication authentication,
             @RequestParam(required = false) Boolean leido,
+            @RequestParam(required = false) String eventCode,
             Pageable pageable) {
         String username = identityExtractor.resolveUsername(authentication);
-        return ResponseEntity.ok(ApiResponse.success(service.list(username, leido, pageable), "Notificaciones consultadas correctamente"));
+        return ResponseEntity.ok(ApiResponse.success(service.list(username, leido, eventCode, pageable), "Notificaciones consultadas correctamente"));
     }
 
     @GetMapping("/no-leidas")

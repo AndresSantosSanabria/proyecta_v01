@@ -28,4 +28,9 @@ public interface ProyectoService {
     // FURAG
     com.proyecta.api_gestion.model.Furag obtenerFurag(String id);
     void actualizarFurag(String id, com.proyecta.api_gestion.model.Furag furag);
+
+    // Completitud por fases (borrador)
+    CompletitudBorradorDTO guardarBorradorCompletitud(String id, CompletitudBorradorDTO dto, String username);
+    CompletitudBorradorDTO obtenerBorradorCompletitud(String id, String username);
+    ProyectoResponseDTO completarFaseCompletitud(String id, Integer fase, String username);
 }

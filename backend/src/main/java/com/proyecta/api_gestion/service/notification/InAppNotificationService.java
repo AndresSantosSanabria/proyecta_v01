@@ -43,7 +43,11 @@ public class InAppNotificationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<InAppNotificationDTO> list(String username, Boolean readStatus, Pageable pageable) {
+    public Page<InAppNotificationDTO> list(String username, Boolean readStatus, String eventCode, Pageable pageable) {
+        if (eventCode != null && !eventCode.isBlank()) {
+            return repository.findByRecipient_UsernameIgnoreCaseAndEventCodeOrderByCreatedAtDesc(username, eventCode, pageable)
+                    .map(this::toDto);
+        }
         if (readStatus != null) {
             return repository.findByRecipient_UsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(username, readStatus, pageable)
                     .map(this::toDto);

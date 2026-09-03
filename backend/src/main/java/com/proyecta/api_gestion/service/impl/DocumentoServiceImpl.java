@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.document.*;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.exception.UnauthorizedException;
 import com.proyecta.api_gestion.model.Documento;
 import com.proyecta.api_gestion.model.DocumentoProyectoVersion;
 import com.proyecta.api_gestion.model.Proyecto;
@@ -29,8 +30,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class DocumentoServiceImpl implements IDocumentoService {
@@ -88,8 +92,16 @@ public class DocumentoServiceImpl implements IDocumentoService {
         validarExistenciaProyecto(proyectoId);
 
         List<Documento> documentos = documentoRepository.findByProyectoIdOrderByFechaCargaDesc(proyectoId);
+        Map<String, DocumentoProyectoVersion> versionesActuales = versionRepository
+                .findByProyectoIdAndEstado(proyectoId, DocumentoProyectoVersionEstado.ACTUAL)
+                .stream()
+                .collect(Collectors.toMap(
+                        DocumentoProyectoVersion::getTipoDocumento,
+                        Function.identity(),
+                        (actual, duplicada) -> actual.getSubidoEn().isAfter(duplicada.getSubidoEn()) ? actual : duplicada
+                ));
         List<DocumentoDetailDTO> detalles = documentos.stream()
-                .map(this::toDetailDTO)
+                .map(doc -> toDetailDTO(doc, versionesActuales.get(doc.getTipoDocumentoCodigo())))
                 .toList();
 
         return new DocumentoListadoResponseDTO(proyectoId, detalles);
@@ -220,6 +232,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
             documentoExistente.setMimeType(version.getMimeType());
             documentoExistente.setTamanoBytes(version.getTamanoBytes());
             documentoExistente.setUrlDescarga(construirUrlDescarga(proyectoId, tipoDocumento));
+            documentoExistente.setFechaCarga(version.getSubidoEn());
             documentoRepository.save(documentoExistente);
         } else {
             Documento documento = new Documento();
@@ -232,6 +245,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
             documento.setMimeType(version.getMimeType());
             documento.setTamanoBytes(version.getTamanoBytes());
             documento.setUrlDescarga(construirUrlDescarga(proyectoId, tipoDocumento));
+            documento.setFechaCarga(version.getSubidoEn());
             documentoRepository.save(documento);
         }
     }
@@ -291,7 +305,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
     }
 
-    private DocumentoDetailDTO toDetailDTO(Documento doc) {
+    private DocumentoDetailDTO toDetailDTO(Documento doc, DocumentoProyectoVersion version) {
         return new DocumentoDetailDTO(
                 doc.getId(),
                 doc.getTipoDocumentoCodigo(),
@@ -300,7 +314,9 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 doc.getTamanoBytes(),
                 formatearTamano(doc.getTamanoBytes()),
                 doc.getUrlDescarga(),
-                doc.getFechaCarga().format(DATE_FORMATTER)
+                doc.getFechaCarga().format(DATE_FORMATTER),
+                version != null ? version.getSubidoPor() : null,
+                version != null ? version.getSubidoRol() : null
         );
     }
 
@@ -315,7 +331,9 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 version.getTamanoBytes(),
                 formatearTamano(version.getTamanoBytes()),
                 urlDescarga,
-                version.getSubidoEn().format(DATE_FORMATTER)
+                version.getSubidoEn().format(DATE_FORMATTER),
+                version.getSubidoPor(),
+                version.getSubidoRol()
         );
     }
 
@@ -371,14 +389,13 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private ActorContext actorContext(Authentication authentication) {
-        try {
-            Usuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
-            String username = firstNonBlank(usuario.getCorreo(), usuario.getNombre(), identityExtractor.resolveUsername(authentication), "sistema");
-            String role = firstNonBlank(SecurityRoleCatalog.normalize(usuario.getRolCodigo()), "sin_rol");
-            return new ActorContext(username, role);
-        } catch (RuntimeException ex) {
-            return new ActorContext(firstNonBlank(identityExtractor.resolveUsername(authentication), "sistema"), "sin_rol");
+        Usuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
+        String username = firstNonBlank(usuario.getNombre(), usuario.getCorreo(), identityExtractor.resolveUsername(authentication));
+        if (username == null) {
+            throw new UnauthorizedException("No fue posible identificar el usuario que carga el documento.");
         }
+        String role = firstNonBlank(SecurityRoleCatalog.normalize(usuario.getRolCodigo()), "sin_rol");
+        return new ActorContext(username, role);
     }
 
     private String firstNonBlank(String... values) {

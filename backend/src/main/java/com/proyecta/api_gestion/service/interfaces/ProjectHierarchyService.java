@@ -32,5 +32,6 @@ public interface ProjectHierarchyService {
     CambioFechaResponse cambiarFecha(String proyectoId, Integer entregableId, CambioFechaRequest request, MultipartFile evidencia, Authentication authentication);
     List<CambioFechaResponse> obtenerHistorialFechas(Integer entregableId);
     boolean tieneHistorialCambiosFecha(Integer entregableId);
+    com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse cambiarDescripcion(String proyectoId, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.CambioDescripcionRequest request, org.springframework.web.multipart.MultipartFile evidencia, org.springframework.security.core.Authentication authentication);
 }
 

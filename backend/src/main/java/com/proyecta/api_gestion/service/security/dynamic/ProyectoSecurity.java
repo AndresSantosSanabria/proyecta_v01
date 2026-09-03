@@ -172,14 +172,7 @@ public class ProyectoSecurity {
             throw new ForbiddenException("El usuario no posee el permiso funcional requerido: BENEFICIO_IMPACTO:VER");
         }
 
-        if (roleCodes.contains("director_proyecto") && !isTransversal(roleCodes)) {
-            if (proyectoId == null || proyectoId.isBlank()) {
-                return true;
-            }
-
-            if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-                throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
-            }
+        if (proyectoId == null || proyectoId.isBlank() || catalogCacheService.isAssignedToProject(username, proyectoId)) {
             return true;
         }
 
@@ -216,38 +209,43 @@ public class ProyectoSecurity {
             throw new ForbiddenException("El usuario no posee el permiso funcional requerido: BENEFICIO_IMPACTO:EDITAR");
         }
 
-        if (!roleCodes.contains("director_proyecto") || isTransversal(roleCodes)) {
-            throw new ForbiddenException("Solo el Director de Proyecto asignado puede diligenciar esta informacion.");
-        }
-
         if (proyectoId == null || proyectoId.isBlank()) {
             return true;
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException("Solo el Director de Proyecto asignado puede diligenciar esta informacion.");
         }
 
         return true;
     }
 
     public boolean canCompleteInitialRegistration(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
         String username = identityExtractor.resolveUsername(authentication);
         if (username == null || username.isBlank()) {
             throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
-        }
-
-        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        if (!roleCodes.contains("director_proyecto") || isTransversal(roleCodes)) {
-            throw new ForbiddenException("Solo el Director de Proyecto asignado puede completar la informacion inicial.");
         }
 
         if (proyectoId == null || proyectoId.isBlank()) {
             throw new ForbiddenException("No se pudo evaluar el proyecto solicitado.");
         }
 
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        if (isTransversal(roleCodes)) {
+            Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
+                    .orElseThrow(() -> new ForbiddenException("El proyecto solicitado no existe."));
+            if (!proyecto.requiereCompletitudDirector()) {
+                throw new ForbiddenException("El proyecto no esta pendiente de completar.");
+            }
+            return true;
+        }
+
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException("Solo el Director de Proyecto asignado puede completar la informacion inicial.");
         }
 
         Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
@@ -369,6 +367,10 @@ public class ProyectoSecurity {
 
         assertOperationalProjectReady(proyectoId, authentication);
         return true;
+    }
+
+    public boolean canChangeDescription(String proyectoId, Authentication authentication) {
+        return canChangeDeadline(proyectoId, authentication);
     }
 
     public boolean canChangeDeadline(String proyectoId, Authentication authentication) {
@@ -532,7 +534,12 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        if (!roleCodes.contains("director_proyecto") || isTransversal(roleCodes)) {
+        if (isTransversal(roleCodes)) {
+            return;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || !catalogCacheService.isAssignedToProject(username, proyectoId)) {
             return;
         }
 

@@ -9,13 +9,14 @@ import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
 import com.proyecta.api_gestion.model.config.ListaParametricaConfig;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
-import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
-import com.proyecta.api_gestion.model.enums.RespuestaFurag;
+import com.proyecta.api_gestion.model.config.MatrizRiesgo;
+import com.proyecta.api_gestion.model.enums.*;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
 import com.proyecta.api_gestion.repository.DocumentoProyectoVersionRepository;
+import com.proyecta.api_gestion.repository.RiesgoRepository;
 import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
+import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
@@ -28,6 +29,7 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityCatalogCacheService;
+import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import jakarta.persistence.criteria.Predicate;
@@ -69,6 +71,9 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final KeycloakIdentityExtractor identityExtractor;
     private final DocumentoProyectoVersionRepository documentoVersionRepository;
     private final ListaParametricaConfigRepository listaParametricaRepository;
+    private final RiesgoRepository riesgoRepository;
+    private final MatrizRiesgoRepository matrizRiesgoRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
                                FuragRespuestaRepository furagRespuestaRepository,
@@ -80,7 +85,10 @@ public class ProyectoServiceImpl implements ProyectoService {
                                NotificationEventPublisherPort notificationPublisher,
                                KeycloakIdentityExtractor identityExtractor,
                                DocumentoProyectoVersionRepository documentoVersionRepository,
-                               ListaParametricaConfigRepository listaParametricaRepository) {
+                               ListaParametricaConfigRepository listaParametricaRepository,
+                               RiesgoRepository riesgoRepository,
+                               MatrizRiesgoRepository matrizRiesgoRepository,
+                               com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.proyectoRepository = proyectoRepository;
         this.furagRespuestaRepository = furagRespuestaRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -92,6 +100,9 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.identityExtractor = identityExtractor;
         this.documentoVersionRepository = documentoVersionRepository;
         this.listaParametricaRepository = listaParametricaRepository;
+        this.riesgoRepository = riesgoRepository;
+        this.matrizRiesgoRepository = matrizRiesgoRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -365,18 +376,16 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (!proyecto.requiereCompletitudDirector()) {
             throw new BadRequestException("El proyecto no esta pendiente de completar.");
         }
-        if (!esDirectorAsignado(proyecto, username)) {
-            throw new BadRequestException("Solo el Director asignado puede completar la informacion inicial del proyecto.");
+        if (!tieneAccesoCompletitud(proyecto, username)) {
+            throw new BadRequestException("Solo el Director asignado o un Gestor puede completar la informacion inicial del proyecto.");
         }
-        if (Boolean.TRUE.equals(dto.tienePlanComunicaciones())) {
-            boolean existePlan = documentoVersionRepository
-                    .findByProyectoIdAndTipoDocumentoAndEstado(
-                            normalizedId, "PLAN_COMUNICACIONES", DocumentoProyectoVersionEstado.ACTUAL)
-                    .isPresent();
-            if (!existePlan) {
-                throw new BadRequestException(
-                        "Debe cargar el documento del Plan de Comunicaciones en la gestion documental antes de completar el proyecto.");
-            }
+        boolean existePlan = documentoVersionRepository
+                .findByProyectoIdAndTipoDocumentoAndEstado(
+                        normalizedId, "PLAN_COMUNICACIONES", DocumentoProyectoVersionEstado.ACTUAL)
+                .isPresent();
+        if (!existePlan) {
+            throw new BadRequestException(
+                    "Debe cargar el documento del Plan de Comunicaciones en la gestion documental antes de completar el proyecto.");
         }
 
         aplicarInformacionComplementaria(proyecto, dto);
@@ -384,6 +393,7 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         Proyecto guardado = proyectoRepository.save(proyecto);
         sincronizarRespuestasFurag(guardado);
+        crearRiesgosIniciales(guardado, dto.riesgosIniciales());
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_INITIAL_COMPLETED,
                 guardado.getId(),
@@ -670,6 +680,59 @@ public class ProyectoServiceImpl implements ProyectoService {
             dto.fases().stream()
                     .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, dto.fechaInicio(), faseIdx[0], hitoIdx, entIdx); })
                     .forEach(proyecto.getFases()::add);
+        }
+    }
+
+    private void crearRiesgosIniciales(Proyecto proyecto, List<RiesgoCompletitudDTO> riesgos) {
+        if (riesgos == null || riesgos.isEmpty()) {
+            return;
+        }
+        for (RiesgoCompletitudDTO dto : riesgos) {
+            Riesgo riesgo = new Riesgo();
+            riesgo.setProyecto(proyecto);
+            riesgo.setDescripcion(dto.descripcion().trim());
+            riesgo.setProbabilidad(dto.probabilidad());
+            riesgo.setImpacto(dto.impacto());
+            riesgo.setNivel(parseNivelRiesgo(calcularNivelRiesgo(dto.probabilidad(), dto.impacto())));
+            riesgo.setTratamiento(dto.tratamiento() != null ? dto.tratamiento().trim() : null);
+            riesgo.setEntidadResponsable(dto.entidadResponsable() != null ? dto.entidadResponsable().trim() : null);
+            riesgo.setAccionesMitigacion(dto.accionesMitigacion() != null ? dto.accionesMitigacion().trim() : null);
+            riesgo.setFechaAccion(dto.fechaAccion());
+            riesgo.setEstado(EstadoRiesgo.PENDIENTE);
+
+            Riesgo saved = riesgoRepository.save(riesgo);
+            saved.setCodigo("R" + String.format("%02d", saved.getId()));
+            riesgoRepository.save(saved);
+        }
+    }
+
+    private String calcularNivelRiesgo(Probabilidad prob, Impacto imp) {
+        String probabilidad = prob == null ? null : prob.name();
+        String impacto = imp == null ? null : imp.name();
+        if (probabilidad == null || impacto == null) {
+            throw new BadRequestException("La probabilidad e impacto son obligatorios para calcular el nivel de riesgo.");
+        }
+        return matrizRiesgoRepository.findByProbabilidadIgnoreCaseAndImpactoIgnoreCase(probabilidad, impacto)
+                .map(MatrizRiesgo::getNivelResultante)
+                .orElseGet(() -> {
+                    if ("BAJA".equalsIgnoreCase(probabilidad) && "BAJO".equalsIgnoreCase(impacto)) return "BAJO";
+                    if ("BAJA".equalsIgnoreCase(probabilidad) && "MEDIO".equalsIgnoreCase(impacto)) return "BAJO";
+                    if ("BAJA".equalsIgnoreCase(probabilidad) && "ALTO".equalsIgnoreCase(impacto)) return "MODERADO";
+                    if ("MEDIA".equalsIgnoreCase(probabilidad) && "BAJO".equalsIgnoreCase(impacto)) return "BAJO";
+                    if ("MEDIA".equalsIgnoreCase(probabilidad) && "MEDIO".equalsIgnoreCase(impacto)) return "MODERADO";
+                    if ("MEDIA".equalsIgnoreCase(probabilidad) && "ALTO".equalsIgnoreCase(impacto)) return "ALTO";
+                    if ("ALTA".equalsIgnoreCase(probabilidad) && "BAJO".equalsIgnoreCase(impacto)) return "MODERADO";
+                    if ("ALTA".equalsIgnoreCase(probabilidad) && "MEDIO".equalsIgnoreCase(impacto)) return "ALTO";
+                    if ("ALTA".equalsIgnoreCase(probabilidad) && "ALTO".equalsIgnoreCase(impacto)) return "EXTREMO";
+                    throw new BadRequestException("No existe una formula de matriz de riesgo para la combinacion enviada.");
+                });
+    }
+
+    private NivelRiesgo parseNivelRiesgo(String nivel) {
+        try {
+            return NivelRiesgo.valueOf(nivel);
+        } catch (IllegalArgumentException e) {
+            return NivelRiesgo.BAJO;
         }
     }
 
@@ -994,6 +1057,21 @@ public class ProyectoServiceImpl implements ProyectoService {
                 .anyMatch(usuario -> usuario.getUsername().equalsIgnoreCase(username));
     }
 
+    private boolean tieneAccesoCompletitud(Proyecto proyecto, String username) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+        SeguridadUsuario usuario = seguridadUsuarioRepository.findByUsernameIgnoreCase(username).orElse(null);
+        if (usuario == null) {
+            return false;
+        }
+        String rolNormalizado = SecurityRoleCatalog.normalize(usuario.getRolCodigo());
+        if (rolNormalizado != null && SecurityRoleCatalog.isTransversal(rolNormalizado)) {
+            return true;
+        }
+        return esDirectorAsignado(proyecto, username);
+    }
+
     private String trimToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -1310,6 +1388,101 @@ public class ProyectoServiceImpl implements ProyectoService {
                 actorUsername,
                 attributes
         ));
+    }
+
+    // ==================== COMPLETITUD POR FASES (BORRADOR) ====================
+
+    @Override
+    @Transactional
+    public CompletitudBorradorDTO guardarBorradorCompletitud(String id, CompletitudBorradorDTO dto, String username) {
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+
+        if (!proyecto.requiereCompletitudDirector()) {
+            throw new BadRequestException("El proyecto no esta pendiente de completar.");
+        }
+        if (!tieneAccesoCompletitud(proyecto, username)) {
+            throw new BadRequestException("Solo el Director asignado o un Gestor puede guardar el borrador de completitud.");
+        }
+
+        try {
+            String borradorJson = objectMapper.writeValueAsString(dto);
+            proyecto.setCompletitudBorradorJson(borradorJson);
+            proyectoRepository.save(proyecto);
+
+            return dto;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BadRequestException("Error al serializar el borrador: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CompletitudBorradorDTO obtenerBorradorCompletitud(String id, String username) {
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+
+        if (!proyecto.requiereCompletitudDirector()) {
+            throw new BadRequestException("El proyecto no esta pendiente de completar.");
+        }
+        if (!tieneAccesoCompletitud(proyecto, username)) {
+            throw new BadRequestException("Solo el Director asignado o un Gestor puede obtener el borrador de completitud.");
+        }
+
+        String borradorJson = proyecto.getCompletitudBorradorJson();
+        if (borradorJson == null || borradorJson.isBlank()) {
+            return new CompletitudBorradorDTO(
+                    1,
+                    Map.of(),
+                    null, null, null, null, null, null, null,
+                    null
+            );
+        }
+
+        try {
+            return objectMapper.readValue(borradorJson, CompletitudBorradorDTO.class);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BadRequestException("Error al deserializar el borrador: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public ProyectoResponseDTO completarFaseCompletitud(String id, Integer fase, String username) {
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+
+        if (!proyecto.requiereCompletitudDirector()) {
+            throw new BadRequestException("El proyecto no esta pendiente de completar.");
+        }
+        if (!tieneAccesoCompletitud(proyecto, username)) {
+            throw new BadRequestException("Solo el Director asignado o un Gestor puede completar fases de la completitud.");
+        }
+        if (fase < 1 || fase > 7) {
+            throw new BadRequestException("Numero de fase invalido. Debe ser entre 1 y 7.");
+        }
+
+        try {
+            String fasesCompletadasJson = proyecto.getCompletitudFasesCompletadas();
+            java.util.Map<String, Boolean> fasesCompletadas;
+            if (fasesCompletadasJson != null && !fasesCompletadasJson.isBlank()) {
+                fasesCompletadas = objectMapper.readValue(fasesCompletadasJson,
+                        new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Boolean>>() {});
+            } else {
+                fasesCompletadas = new java.util.HashMap<>();
+            }
+            fasesCompletadas.put(String.valueOf(fase), true);
+            proyecto.setCompletitudFasesCompletadas(objectMapper.writeValueAsString(fasesCompletadas));
+
+            proyectoRepository.save(proyecto);
+            return mapToResponseDto(proyecto);
+
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BadRequestException("Error al procesar las fases: " + e.getMessage());
+        }
     }
 }
 

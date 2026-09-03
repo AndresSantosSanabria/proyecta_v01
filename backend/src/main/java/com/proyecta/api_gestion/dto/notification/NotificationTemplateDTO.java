@@ -9,6 +9,7 @@ public record NotificationTemplateDTO(
         String subjectTemplate,
         String bodyTemplate,
         String targetRoles,
-        String updatedBy
+        String updatedBy,
+        String category
 ) {
 }
