@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, CheckCircle, Info, X } from 'lucide-react';
 import projectService from '../../services/projectService';
 import { usePermission } from '../../hooks/usePermission';
 import { SpellCheckInput } from '../../components/common/SpellCheckInput/SpellCheckInput';
+import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import './NewProjectPage.css';
 
 const INITIAL_STATE = {
@@ -351,25 +352,20 @@ const NewProjectPage = () => {
 
                 <div className="form-group">
                   <label className="form-label">Director de Proyecto Asignado *</label>
-                  <select
-                    className={`form-input ${errors.directorUsuarioId ? 'input-error' : ''}`}
+                  <AutocompleteSelect
+                    className={errors.directorUsuarioId ? 'input-error' : ''}
                     value={formData.directorUsuarioId}
-                    onChange={(event) => handleDirectorChange(event.target.value)}
+                    onChange={(val) => handleDirectorChange(val)}
                     disabled={directorsLoading || directorOptions.length === 0}
-                  >
-                    <option value="">
-                      {directorsLoading ? 'Cargando directores...' : 'Seleccione un usuario director'}
-                    </option>
-                    {directorOptions.map((director) => {
-                      const id = getDirectorId(director);
-                      const role = getDirectorRole(director);
-                      return (
-                        <option key={id || getDirectorEmail(director)} value={id}>
-                          {getDirectorName(director)}{role ? ` - ${role}` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    options={directorOptions.map((d) => ({
+                      value: getDirectorId(d),
+                      label: `${getDirectorName(d)}${getDirectorRole(d) ? ` - ${getDirectorRole(d)}` : ''}`,
+                    }))}
+                    placeholder={directorsLoading ? 'Cargando directores...' : 'Seleccione un usuario director'}
+                    allLabel=""
+                    allValue=""
+                    sortAlphabetically={true}
+                  />
                   {errors.directorUsuarioId && <span className="error-text">{errors.directorUsuarioId}</span>}
                   {directorsError && <span className="error-text">{directorsError}</span>}
                   {!directorsLoading && !directorsError && directorOptions.length === 0 && (

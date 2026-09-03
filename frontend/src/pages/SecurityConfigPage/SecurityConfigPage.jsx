@@ -29,6 +29,7 @@ import ClosureTemplatePanel from '../../components/security/ClosureTemplatePanel
 import ClosureQuestionsPanel from '../../components/security/ClosureQuestionsPanel';
 import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
 import SpellCheckerInput from '../../components/common/SpellCheckerInput';
+import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import ListaParametricaPanel from '../../components/security/ListaParametricaPanel';
 import StorageConfigPanel from '../../components/security/StorageConfigPanel';
 import UserPermissionMatrix from '../../components/security/UserPermissionMatrix';
@@ -1200,14 +1201,18 @@ const SecurityConfigPage = () => {
 
                     <label>
                       <span>Rol asignado *</span>
-                      <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || parametricRoles.length === 0}>
-                        <option value="">{parametricRoles.length === 0 ? 'Sin roles disponibles' : '-- Seleccione un rol --'}</option>
-                        {parametricRoles.map((item) => (
-                          <option key={item.itemCodigo} value={item.itemCodigo}>
-                            {item.itemNombre} - {item.itemCodigo}
-                          </option>
-                        ))}
-                      </select>
+                      <AutocompleteSelect
+                        value={userForm.rol}
+                        onChange={(val) => handleUserFieldChange('rol')({ target: { value: val } })}
+                        disabled={!canConfigure || parametricRoles.length === 0}
+                        options={parametricRoles.map((item) => ({
+                          value: item.itemCodigo,
+                          label: `${item.itemNombre} - ${item.itemCodigo}`,
+                        }))}
+                        placeholder={parametricRoles.length === 0 ? 'Sin roles disponibles' : '-- Seleccione un rol --'}
+                        allLabel=""
+                        allValue=""
+                      />
                     </label>
 
                     <label>
@@ -1424,63 +1429,50 @@ const SecurityConfigPage = () => {
                     <div className="assignment-form-grid">
                       <label>
                         <span>Usuario *</span>
-                        <select
+                        <AutocompleteSelect
                           value={assignmentForm.username}
-                          onChange={handleAssignmentFieldChange('username')}
+                          onChange={(val) => handleAssignmentFieldChange('username')({ target: { value: val } })}
                           disabled={!canConfigure || loading || assignableUsers.length === 0}
-                        >
-                          <option value="">
-                            {assignableUsers.length === 0
-                              ? 'No hay usuarios disponibles'
-                              : 'Selecciona un usuario'}
-                          </option>
-                          {assignableUsers.map((user) => (
-                            <option key={user.username} value={user.username}>
-                              {user.nombre || user.username} - {user.username}
-                            </option>
-                          ))}
-                        </select>
+                          options={assignableUsers.map((user) => ({
+                            value: user.username,
+                            label: `${user.nombre || user.username} - ${user.username}`,
+                          }))}
+                          placeholder={assignableUsers.length === 0 ? 'No hay usuarios disponibles' : 'Selecciona un usuario'}
+                          allLabel=""
+                          allValue=""
+                        />
                       </label>
 
                       <label>
                         <span>Proyecto *</span>
-                        <select
+                        <AutocompleteSelect
                           value={assignmentForm.proyectoId}
-                          onChange={handleAssignmentFieldChange('proyectoId')}
+                          onChange={(val) => handleAssignmentFieldChange('proyectoId')({ target: { value: val } })}
                           disabled={!canConfigure || loading || projectOptions.length === 0}
-                        >
-                          <option value="">
-                            {projectOptions.length === 0 ? 'No hay proyectos disponibles' : 'Selecciona un proyecto'}
-                          </option>
-                          {projectOptions.map((project) => {
-                            const projectId = getProjectId(project);
-                            const projectName = getProjectName(project);
-
-                            return (
-                            <option key={projectId} value={projectId}>
-                              {projectId} - {projectName}
-                            </option>
-                            );
-                          })}
-                        </select>
+                          options={projectOptions.map((project) => ({
+                            value: getProjectId(project),
+                            label: `${getProjectId(project)} - ${getProjectName(project)}`,
+                          }))}
+                          placeholder={projectOptions.length === 0 ? 'No hay proyectos disponibles' : 'Selecciona un proyecto'}
+                          allLabel=""
+                          allValue=""
+                        />
                       </label>
 
                       <label className="span-full">
                         <span>Cargo *</span>
-                        <select
+                        <AutocompleteSelect
                           value={assignmentForm.cargo}
-                          onChange={handleAssignmentFieldChange('cargo')}
+                          onChange={(val) => handleAssignmentFieldChange('cargo')({ target: { value: val } })}
                           disabled={!canConfigure || loading || assignmentCargos.length === 0}
-                        >
-                          <option value="">
-                            {assignmentCargos.length === 0 ? 'Sin cargos configurados' : 'Selecciona un cargo'}
-                          </option>
-                          {assignmentCargos.map((cargo) => (
-                            <option key={cargo} value={cargo}>
-                              {formatAssignmentCargoLabel(cargo)}
-                            </option>
-                          ))}
-                        </select>
+                          options={assignmentCargos.map((cargo) => ({
+                            value: cargo,
+                            label: formatAssignmentCargoLabel(cargo),
+                          }))}
+                          placeholder={assignmentCargos.length === 0 ? 'Sin cargos configurados' : 'Selecciona un cargo'}
+                          allLabel=""
+                          allValue=""
+                        />
                       </label>
 
                       <div className="assignment-helper span-full">
@@ -1676,14 +1668,18 @@ const SecurityConfigPage = () => {
 
                     <label className="span-full">
                       <span>Rol</span>
-                      <select value={userForm.rol} onChange={handleUserFieldChange('rol')} disabled={!canConfigure || roles.length === 0}>
-                        <option value="">{roles.length === 0 ? 'Sin roles disponibles' : 'Selecciona un rol'}</option>
-                        {roles.map((role) => (
-                          <option key={role.codigo} value={role.codigo}>
-                            {role.nombre} - {role.codigo}
-                          </option>
-                        ))}
-                      </select>
+                      <AutocompleteSelect
+                        value={userForm.rol}
+                        onChange={(val) => handleUserFieldChange('rol')({ target: { value: val } })}
+                        disabled={!canConfigure || roles.length === 0}
+                        options={roles.map((role) => ({
+                          value: role.codigo,
+                          label: `${role.nombre} - ${role.codigo}`,
+                        }))}
+                        placeholder={roles.length === 0 ? 'Sin roles disponibles' : 'Selecciona un rol'}
+                        allLabel=""
+                        allValue=""
+                      />
                     </label>
 
                     <label className="toggle-field">
@@ -1926,14 +1922,18 @@ const SecurityConfigPage = () => {
                       <div className="template-strip template-strip-role">
                         <label>
                           <span>Copiar permisos desde</span>
-                          <select value={roleTemplateCode} onChange={(event) => handleRoleTemplateChange(event.target.value)} disabled={!canConfigure || roles.length === 0}>
-                            <option value="">{roles.length === 0 ? 'Sin roles para copiar' : 'Sin plantilla'}</option>
-                            {roles.map((role) => (
-                              <option key={role.codigo} value={role.codigo}>
-                                {role.nombre} - {role.codigo}
-                              </option>
-                            ))}
-                          </select>
+                          <AutocompleteSelect
+                            value={roleTemplateCode}
+                            onChange={(val) => handleRoleTemplateChange(val)}
+                            disabled={!canConfigure || roles.length === 0}
+                            options={roles.map((role) => ({
+                              value: role.codigo,
+                              label: `${role.nombre} - ${role.codigo}`,
+                            }))}
+                            placeholder={roles.length === 0 ? 'Sin roles para copiar' : 'Sin plantilla'}
+                            allLabel=""
+                            allValue=""
+                          />
                         </label>
                       </div>
                     )}

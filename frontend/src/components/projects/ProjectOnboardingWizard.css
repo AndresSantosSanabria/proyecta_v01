@@ -1206,3 +1206,85 @@
   background: var(--primary);
   color: white;
 }
+
+/* ==================== DRAFT & PHASE COMPLETION STYLES ==================== */
+
+.project-onboarding__saving-indicator {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.project-onboarding__close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.project-onboarding__close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.project-onboarding__step.completed {
+  position: relative;
+}
+
+.project-onboarding__step.completed::before {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  width: 8px;
+  height: 8px;
+  background: var(--success, #22c55e);
+  border-radius: 50%;
+}
+
+.step-check {
+  color: var(--success, #22c55e);
+  margin-right: 0.25rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--surface, #1e293b);
+  border: 1px solid var(--border, #334155);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+  color: var(--text, #f8fafc);
+}
+
+.modal-content p {
+  margin: 0 0 1.25rem 0;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}

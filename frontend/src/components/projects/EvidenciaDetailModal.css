@@ -1,0 +1,563 @@
+.edm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(2, 6, 23, 0.68);
+  backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  animation: edmFadeIn 0.25s ease;
+}
+
+@keyframes edmFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.edm-modal {
+  width: min(820px, 100%);
+  max-height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 8%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-main)), var(--bg-card));
+  box-shadow: 0 30px 90px rgba(2, 6, 23, 0.5);
+  overflow: hidden;
+  animation: edmSlideUp 0.3s ease;
+}
+
+@keyframes edmSlideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.edm-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.35rem 1.5rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+}
+
+.edm-header-content {
+  min-width: 0;
+}
+
+.edm-kicker {
+  display: inline-block;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.edm-header h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 1.6vw, 1.6rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--text-main);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.edm-header p {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.edm-close {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 72%, var(--bg-card));
+  color: var(--text-main);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.edm-close:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+  color: var(--danger);
+}
+
+.edm-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.edm-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 200px;
+  color: var(--text-muted);
+}
+
+.edm-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-card));
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.edm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.edm-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 850;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.edm-section-title svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.edm-status-section {
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-main) 72%, var(--bg-card));
+}
+
+.edm-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.edm-status-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.edm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.edm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.edm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.edm-field-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.edm-field-label svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.edm-field-value {
+  font-size: 0.92rem;
+  color: var(--text-main);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.edm-description-box {
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-main) 68%, var(--bg-card));
+}
+
+.edm-description-box p {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.edm-description-box--warning {
+  border-color: color-mix(in srgb, var(--warning) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--warning) 6%, var(--bg-card));
+}
+
+.edm-versions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.edm-version-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-main) 68%, var(--bg-card));
+}
+
+.edm-version-item--actual {
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 6%, var(--bg-card));
+}
+
+.edm-version-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.edm-version-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.edm-version-number {
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--text-main);
+}
+
+.edm-version-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 24%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.edm-version-date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.edm-version-filename {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edm-version-observation {
+  font-size: 0.74rem;
+  color: var(--text-soft);
+  font-style: italic;
+}
+
+.edm-version-meta {
+  font-size: 0.68rem;
+  color: var(--text-soft);
+}
+
+.edm-version-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.edm-loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.edm-error-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--border-color));
+  background: color-mix(in srgb, var(--danger) 6%, var(--bg-card));
+  color: var(--danger);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.edm-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-main);
+}
+
+.edm-section-toggle .edm-section-title {
+  margin: 0;
+}
+
+.edm-field-value--danger {
+  color: var(--danger) !important;
+}
+
+.edm-field-value--success {
+  color: var(--success) !important;
+}
+
+.edm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+}
+
+.edm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.edm-btn-secondary {
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 72%, var(--bg-card));
+  color: var(--text-main);
+}
+
+.edm-btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--border-color) 100%, transparent);
+}
+
+.edm-btn-primary {
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, var(--bg-card)), var(--primary));
+  color: white;
+}
+
+.edm-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+/* Viewer overlay */
+.edm-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(4, 9, 16, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.edm-viewer-modal {
+  width: min(1000px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 22px;
+  background: var(--bg-surface);
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+.edm-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.edm-viewer-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.edm-viewer-close {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.edm-viewer-close:hover {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+}
+
+.edm-viewer-body {
+  flex: 1;
+  min-height: 60vh;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
+  background: var(--bg-surface);
+}
+
+.edm-viewer-iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 60vh;
+  border: 0;
+  display: block;
+}
+
+.edm-viewer-fallback {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.edm-viewer-fallback p {
+  margin: 0;
+}
+
+.edm-viewer-fallback-text {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.edm-viewer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+@media (max-width: 800px) {
+  .edm-modal {
+    max-height: 94vh;
+    border-radius: 18px;
+  }
+
+  .edm-header {
+    padding: 1rem 1.1rem 0.75rem;
+  }
+
+  .edm-body {
+    padding: 1rem 1.1rem;
+  }
+
+  .edm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edm-footer {
+    padding: 0.85rem 1.1rem;
+    flex-direction: column;
+  }
+
+  .edm-btn {
+    width: 100%;
+  }
+}

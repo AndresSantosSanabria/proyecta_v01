@@ -10,6 +10,12 @@ const unwrapPayload = (value) => value?.data?.data ?? value?.data ?? value;
 
 const NEEDS_COMPLETION_STATUSES = ['PENDIENTE_COMPLETAR', 'PENDIENTE', 'REGISTRADO'];
 
+const projectNeedsCompletion = (projectData, statusData) => {
+  if (statusData?.requiereCompletitud) return true;
+  const projectStatus = String(projectData?.estado || '').toUpperCase();
+  return NEEDS_COMPLETION_STATUSES.includes(projectStatus);
+};
+
 const ProjectLifecycleGuard = () => {
   const { id, codigoProyecto } = useParams();
   const location = useLocation();
@@ -17,6 +23,7 @@ const ProjectLifecycleGuard = () => {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState(null);
   const [completionStatus, setCompletionStatus] = useState(null);
+  const [completionDraft, setCompletionDraft] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -39,13 +46,29 @@ const ProjectLifecycleGuard = () => {
         const projectData = unwrapPayload(projectResponse);
         setProject(projectData);
 
+        let statusData = null;
         try {
           const statusResponse = await projectService.getCompletionStatus(projectId);
           if (!active) return;
-          setCompletionStatus(unwrapPayload(statusResponse));
+          statusData = unwrapPayload(statusResponse);
+          setCompletionStatus(statusData);
         } catch {
           if (!active) return;
           setCompletionStatus(null);
+        }
+
+        if (projectNeedsCompletion(projectData, statusData)) {
+          try {
+            const draftResponse = await projectService.getCompletionDraft(projectId, { suppressAuthToast: true });
+            if (!active) return;
+            const draftData = unwrapPayload(draftResponse);
+            setCompletionDraft(draftData);
+          } catch {
+            if (!active) return;
+            setCompletionDraft(null);
+          }
+        } else {
+          setCompletionDraft(null);
         }
       } catch (fetchError) {
         if (!active) return;
@@ -64,9 +87,7 @@ const ProjectLifecycleGuard = () => {
   }, [projectId]);
 
   const needsCompletion = useMemo(() => {
-    if (completionStatus?.requiereCompletitud) return true;
-    const projectStatus = String(project?.estado || '').toUpperCase();
-    return NEEDS_COMPLETION_STATUSES.includes(projectStatus);
+    return projectNeedsCompletion(project, completionStatus);
   }, [completionStatus, project]);
 
   const puedeCompletar = useMemo(() => {
@@ -223,6 +244,7 @@ const ProjectLifecycleGuard = () => {
         saving={saving}
         error={error}
         onComplete={handleComplete}
+        completionDraft={completionDraft}
       />
     );
   }

@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Lock,
-  FileText,
   Upload,
   CheckCircle2,
   RefreshCcw,
@@ -20,6 +19,7 @@ import {
   RotateCcw,
   Calendar,
   Clock,
+  FileEdit,
 } from 'lucide-react';
 import EvidenceUpload from '../../common/EvidenceUpload';
 import Paso3FasesHitosEntregables from '../wizard/steps/Paso3FasesHitosEntregables';
@@ -27,9 +27,11 @@ import SpellCheckerTextarea from '../../common/SpellCheckerTextarea';
 import apiClient from '../../../api/axiosConfig';
 import projectService from '../../../services/projectService';
 import { usePermission } from '../../../hooks/usePermission';
+import { useAuthContext } from '../../../context/AuthContext';
 
 import ModificarFechaModal from './ModificarFechaModal';
 import HistorialCambiosFecha from './HistorialCambiosFecha';
+import ModificarDescripcionModal from './ModificarDescripcionModal';
 
 const toNumber = (value) => {
   if (value == null) return 0;
@@ -304,11 +306,14 @@ const TreeTableRow = ({
   approvingEntregableId,
   onCambiarFecha,
   onVerHistorialFechas,
+  onCambiarDescripcion,
 }) => {
+  const { hasRole, isAdminLocal, transversal } = useAuthContext();
   const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
   const canReviewEvidence = usePermission('ENTREGABLE:APROBAR');
   const canViewDocumentHistory = usePermission('DOCUMENTO:HISTORIAL');
   const canModificarFecha = usePermission('ENTREGABLE:CAMBIAR_FECHA');
+  const canModificarDescripcion = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC') || usePermission('ENTREGABLE:CAMBIAR_DESCRIPCION');
   const ponderacionFase = toNumber(fase.ponderacion);
   const programadoFase = toNumber(fase.progresoProgramado ?? fase.avanceProgramado ?? fase.avance ?? 0);
   const ejecutadoFase = toNumber(fase.progresoEjecutado ?? fase.avance ?? 0);
@@ -549,6 +554,18 @@ const TreeTableRow = ({
                         </button>
                       )}
 
+                      {canModificarDescripcion && (
+                        <button
+                          type="button"
+                          className="btn-action-icon"
+                          title="Modificar descripción"
+                          aria-label="Modificar descripción"
+                          onClick={() => onCambiarDescripcion(ent)}
+                        >
+                          <FileEdit size={15} />
+                        </button>
+                      )}
+
                       {canModificarFecha && ent.tieneHistorialCambiosFecha && (
                         <button
                           type="button"
@@ -575,8 +592,8 @@ const TreeTableRow = ({
 const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded, toggleNode, proyectoId, onEvidenceUploaded }) => {
   const [showEvidenceModal, setShowEvidenceModal] = React.useState(null);
   const canEditProject = usePermission('PROYECTO:EDITAR');
-  const canManageHierarchy = canEditProject || usePermission('PROYECTO:EDITAR_ESTRUCTURA');
-  const canGenerateReport = usePermission('REPORTE:VER');
+  const isProjectClosed = String(projectInfo?.estado || '').toUpperCase() === 'CERRADO';
+  const canManageHierarchy = (canEditProject || usePermission('PROYECTO:EDITAR_ESTRUCTURA')) && !isProjectClosed;
   const [reviewModal, setReviewModal] = React.useState({
     open: false,
     entregableId: null,
@@ -622,6 +639,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   });
   const [approvingEntregableId, setApprovingEntregableId] = React.useState(null);
   const [showCambiarFechaModal, setShowCambiarFechaModal] = React.useState(null);
+  const [showCambiarDescripcionModal, setShowCambiarDescripcionModal] = React.useState(null);
   const [showHistorialFechasModal, setShowHistorialFechasModal] = React.useState(null);
 
   React.useEffect(() => {
@@ -711,9 +729,12 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   const buildFasePayload = (fase, includeChildren = false) => {
     const payload = {
       nombre: String(fase.nombre || '').trim(),
-      descripcion: trimOrNull(fase.descripcion),
       ponderacion: Math.round(toHierarchyNumber(fase.ponderacion)),
     };
+
+    if (!getFaseId(fase)) {
+      payload.descripcion = trimOrNull(fase.descripcion);
+    }
 
     if (includeChildren) {
       payload.hitos = sortHitosBySequence(fase.hitos || []).map((hito) => buildHitoPayload(hito, true));
@@ -725,9 +746,12 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   const buildHitoPayload = (hito, includeChildren = false) => {
     const payload = {
       nombre: String(hito.nombre || '').trim(),
-      descripcion: trimOrNull(hito.descripcion),
       ponderacion: Math.round(toHierarchyNumber(hito.ponderacion)),
     };
+
+    if (!getHitoId(hito)) {
+      payload.descripcion = trimOrNull(hito.descripcion);
+    }
 
     if (includeChildren) {
       payload.entregables = sortEntregablesBySchedule(hito.entregables || [])
@@ -1212,11 +1236,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
               <Pencil size={16} /> Editar estructura
             </button>
           )}
-          {canGenerateReport && (
-            <button className="btn-report" type="button">
-              <FileText size={16} /> Generar reporte
-            </button>
-          )}
+
         </div>
       </div>
 
@@ -1281,6 +1301,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
                 approvingEntregableId={approvingEntregableId}
                 onCambiarFecha={(ent) => setShowCambiarFechaModal(ent)}
                 onVerHistorialFechas={(ent) => setShowHistorialFechasModal(ent)}
+                onCambiarDescripcion={(ent) => setShowCambiarDescripcionModal(ent)}
               />
             ))}
           </tbody>
@@ -1304,7 +1325,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
               <div>
                 <span className="review-modal-kicker hierarchy">Jerarquia del proyecto</span>
                 <h3>Editar fases, hitos y entregables</h3>
-                <p>Agrega nuevos elementos o edita textos y pesos. Las fechas de entregables existentes quedan bloqueadas.</p>
+                <p>Agrega nuevos elementos o edita pesos. Las descripciones y fechas de elementos existentes quedan bloqueadas.</p>
               </div>
               <button
                 type="button"
@@ -1332,6 +1353,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
                   onChange={handleHierarchyTreeChange}
                   errors={hierarchyModal.errors}
                   lockExistingDates
+                  lockExistingDescriptions
                   protectExistingItems
                   allowEmpty
                   onFileChange={handleHierarchyFileChange}
@@ -1679,6 +1701,15 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
           entregable={showHistorialFechasModal}
           proyectoId={proyectoId}
           onClose={() => setShowHistorialFechasModal(null)}
+        />
+      )}
+
+      {showCambiarDescripcionModal && (
+        <ModificarDescripcionModal
+          entregable={showCambiarDescripcionModal}
+          proyectoId={proyectoId}
+          onClose={() => setShowCambiarDescripcionModal(null)}
+          onSaved={() => { if (onEvidenceUploaded) onEvidenceUploaded(); }}
         />
       )}
     </div>

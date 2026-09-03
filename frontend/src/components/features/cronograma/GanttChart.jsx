@@ -52,6 +52,7 @@ const buildTimeline = (displayCronograma, year, today) => {
   const startYear = Math.min(minYear, maxYear);
   const endYear = Math.max(minYear, maxYear);
   const start = new Date(Date.UTC(startYear, 0, 1));
+  const end = new Date(Date.UTC(endYear + 1, 0, 1));
   const monthCount = ((endYear - startYear) + 1) * 12;
   const months = Array.from({ length: monthCount }, (_, index) => {
     const date = addUtcMonths(start, index);
@@ -72,14 +73,16 @@ const buildTimeline = (displayCronograma, year, today) => {
     }
   });
 
-  const todayOffset = monthDiff(start, toUtcMonthStart(today));
-  const todayPosition = todayOffset >= 0 && todayOffset < monthCount
-    ? ((todayOffset + 0.5) / monthCount) * 100
+  const totalDays = Math.max(1, diffDays(start, end));
+  const todayPosition = today >= start && today < end
+    ? (diffDays(start, today) / totalDays) * 100
     : null;
   const label = startYear === endYear ? String(startYear) : `${startYear} - ${endYear}`;
 
   return {
     start,
+    end,
+    totalDays,
     monthCount,
     months,
     yearGroups,
@@ -136,25 +139,27 @@ const formatStatus = (task, today) => {
 const buildTaskFrame = (task, timeline) => {
   const startDate = safeDate(task.fechaInicio);
   const endDate = safeDate(task.fechaFin) || startDate;
-  let startMonth;
-  let endMonth;
+  let startOffsetDays;
+  let endOffsetDays;
 
   if (startDate) {
-    startMonth = monthDiff(timeline.start, toUtcMonthStart(startDate));
-    endMonth = monthDiff(timeline.start, toUtcMonthStart(endDate || startDate));
+    const clampedStartDate = new Date(Math.min(Math.max(startDate.getTime(), timeline.start.getTime()), timeline.end.getTime() - DAY_MS));
+    const clampedEndDate = new Date(Math.min(Math.max((endDate || startDate).getTime(), clampedStartDate.getTime()), timeline.end.getTime() - DAY_MS));
+    startOffsetDays = diffDays(timeline.start, clampedStartDate);
+    endOffsetDays = diffDays(timeline.start, clampedEndDate);
   } else {
-    startMonth = Number(task.mesInicio) || 0;
-    endMonth = startMonth + Math.max(1, Math.ceil(Number(task.duracionMeses) || 1)) - 1;
+    startOffsetDays = (Number(task.mesInicio) || 0) * 30;
+    endOffsetDays = startOffsetDays + (Math.max(1, Math.ceil(Number(task.duracionMeses) || 1)) * 30) - 1;
   }
 
-  startMonth = clamp(startMonth, 0, timeline.monthCount - 1);
-  endMonth = clamp(endMonth, startMonth, timeline.monthCount - 1);
-  const widthMonths = Math.max(1, (endMonth - startMonth) + 1);
+  startOffsetDays = clamp(startOffsetDays, 0, timeline.totalDays - 1);
+  endOffsetDays = clamp(endOffsetDays, startOffsetDays, timeline.totalDays - 1);
+  const widthDays = Math.max(1, (endOffsetDays - startOffsetDays) + 1);
 
   return {
-    startMonth,
-    widthPercent: (widthMonths / timeline.monthCount) * 100,
-    leftPercent: (startMonth / timeline.monthCount) * 100,
+    startOffsetDays,
+    widthPercent: (widthDays / timeline.totalDays) * 100,
+    leftPercent: (startOffsetDays / timeline.totalDays) * 100,
   };
 };
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellRing, CheckCheck, LoaderCircle, X, FolderKanban, CheckCheckIcon } from 'lucide-react';
+import { BellRing, CheckCheck, Clock3, LoaderCircle, X, FolderKanban, Filter, AlertTriangle, FileCheck, Send, RotateCcw } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
 import { formatDateTime } from '../../utils/locale';
@@ -65,6 +65,29 @@ const getEventTone = (item) => {
   return 'neutral';
 };
 
+const filterGroups = [
+  {
+    label: 'Recordatorios',
+    icon: Clock3,
+    codes: ['ENTREGABLE_DEADLINE_WARNING', 'ENTREGABLE_OVERDUE_REMINDER'],
+  },
+  {
+    label: 'Aprobaciones',
+    icon: FileCheck,
+    codes: ['DELIVERABLE_APPROVED', 'PROJECT_BENEFIT_IMPACT_REVIEWED', 'CLOSURE_APPROVED'],
+  },
+  {
+    label: 'Observaciones',
+    icon: AlertTriangle,
+    codes: ['DELIVERABLE_REJECTED', 'OBSERVATION_SUBSANATED', 'CLOSURE_REJECTED'],
+  },
+  {
+    label: 'Envíos',
+    icon: Send,
+    codes: ['DELIVERABLE_EVIDENCE_UPLOADED', 'PROJECT_DOCUMENT_UPLOADED', 'PROJECT_BENEFIT_IMPACT_SUBMITTED', 'PROJECT_BENEFIT_IMPACT_RESUBMITTED'],
+  },
+];
+
 const NOTIFICATION_REFRESH_EVENT = 'proyecta:notificaciones:refresh';
 
 const NotificationBell = () => {
@@ -74,13 +97,29 @@ const NotificationBell = () => {
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(0);
   const [items, setItems] = useState([]);
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [readFilter, setReadFilter] = useState('unread');
+
+  const buildFilterParams = () => {
+    const params = { page: 0, size: 100 };
+    if (readFilter === 'unread') params.leido = false;
+    else if (readFilter === 'read') params.leido = true;
+    if (typeFilter !== 'ALL') {
+      const group = filterGroups.find((g) => g.label === typeFilter);
+      if (group && group.codes.length === 1) {
+        params.eventCode = group.codes[0];
+      }
+    }
+    return params;
+  };
 
   const load = async () => {
     if (backendLoading) return;
     try {
+      const params = buildFilterParams();
       const [countResponse, listResponse] = await Promise.all([
         securityService.countUnreadNotifications(),
-        securityService.listInAppNotifications({ page: 0, size: 100 }),
+        securityService.listInAppNotifications(params),
       ]);
       const countPayload = countResponse?.data?.data ?? countResponse?.data ?? countResponse ?? 0;
       const listPayload = listResponse?.data?.data ?? listResponse?.data ?? listResponse ?? {};
@@ -111,9 +150,22 @@ const NotificationBell = () => {
       window.clearInterval(interval);
       window.removeEventListener(NOTIFICATION_REFRESH_EVENT, handleRefresh);
     };
-  }, [backendLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backendLoading, typeFilter, readFilter]);
 
-  const unreadItems = useMemo(() => items.filter((item) => !item.readStatus), [items]);
+  const filteredItems = useMemo(() => {
+    if (typeFilter === 'ALL') return items;
+    const group = filterGroups.find((g) => g.label === typeFilter);
+    if (!group) return items;
+    return items.filter((item) => {
+      const code = String(item?.eventCode || '').toUpperCase();
+      return group.codes.some((c) => code.includes(c) || code === c);
+    });
+  }, [items, typeFilter]);
+
+  const displayItems = readFilter === 'unread'
+    ? filteredItems.filter((item) => !item.readStatus)
+    : filteredItems;
 
   const handleNotificationClick = async (item) => {
     try {
@@ -149,7 +201,7 @@ const NotificationBell = () => {
               <span>{count} sin leer</span>
             </div>
             <div className="notification-bell__header-actions">
-              {unreadItems.length > 0 && (
+              {displayItems.length > 0 && (
                 <button type="button" className="notification-bell__mark-all" onClick={handleMarkAllRead} title="Marcar todas como leídas">
                   <CheckCheck size={14} />
                 </button>
@@ -160,19 +212,74 @@ const NotificationBell = () => {
             </div>
           </div>
 
+          <div className="notification-bell__filters">
+            <div className="notification-bell__filter-row">
+              <span className="notification-bell__filter-label"><Filter size={12} /> Tipo</span>
+              <div className="notification-bell__filter-chips">
+                <button
+                  type="button"
+                  className={`notification-bell__chip ${typeFilter === 'ALL' ? 'active' : ''}`}
+                  onClick={() => setTypeFilter('ALL')}
+                >
+                  Todas
+                </button>
+                {filterGroups.map((group) => {
+                  const GroupIcon = group.icon;
+                  return (
+                    <button
+                      key={group.label}
+                      type="button"
+                      className={`notification-bell__chip ${typeFilter === group.label ? 'active' : ''}`}
+                      onClick={() => setTypeFilter(group.label)}
+                    >
+                      <GroupIcon size={12} />
+                      {group.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="notification-bell__filter-row">
+              <span className="notification-bell__filter-label"><RotateCcw size={12} /> Estado</span>
+              <div className="notification-bell__filter-chips">
+                <button
+                  type="button"
+                  className={`notification-bell__chip ${readFilter === 'unread' ? 'active' : ''}`}
+                  onClick={() => setReadFilter('unread')}
+                >
+                  No leídas
+                </button>
+                <button
+                  type="button"
+                  className={`notification-bell__chip ${readFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setReadFilter('all')}
+                >
+                  Todas
+                </button>
+                <button
+                  type="button"
+                  className={`notification-bell__chip ${readFilter === 'read' ? 'active' : ''}`}
+                  onClick={() => setReadFilter('read')}
+                >
+                  Leídas
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="notification-bell__modal-body">
             {loading ? (
               <div className="notification-bell__state">
                 <LoaderCircle size={16} className="animate-spin" />
                 <span>Cargando...</span>
               </div>
-            ) : unreadItems.length === 0 ? (
+            ) : displayItems.length === 0 ? (
               <div className="notification-bell__state">
                 <CheckCheck size={16} />
-                <span>No hay notificaciones pendientes.</span>
+                <span>{readFilter === 'unread' ? 'No hay notificaciones pendientes.' : 'No hay notificaciones para este filtro.'}</span>
               </div>
             ) : (
-              unreadItems.map((item) => {
+              displayItems.map((item) => {
                 const projectId = extractProjectId(item.title);
                 const projectName = extractProjectName(item);
                 const eventLabel = getEventLabel(item);

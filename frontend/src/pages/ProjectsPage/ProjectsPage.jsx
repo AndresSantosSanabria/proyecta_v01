@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Filter, Plus, RefreshCw, Search, X } from 'lucide-react';
 import ProjectListTable from '../../components/features/projects/ProjectListTable';
+import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
 import reportService from '../../services/reportService';
@@ -220,49 +221,52 @@ const ProjectsPage = () => {
         <div className="select-filters">
           <div className="filter-field">
             <label className="filter-label" htmlFor="project-dependency">Dependencia</label>
-            <select
+            <AutocompleteSelect
               id="project-dependency"
               className="filter-select"
               value={filters.dependency}
-              onChange={(event) => updateFilter('dependency', event.target.value)}
-            >
-              <option value="all">Todas las dependencias</option>
-              {dependencyOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => updateFilter('dependency', val)}
+              options={dependencyOptions}
+              placeholder="Buscar dependencia..."
+              allLabel="Todas las dependencias"
+              allValue="all"
+            />
           </div>
 
           <div className="filter-field">
             <label className="filter-label" htmlFor="project-peti">PETI</label>
-            <select
+            <AutocompleteSelect
               id="project-peti"
               className="filter-select"
               value={filters.peti}
-              onChange={(event) => updateFilter('peti', event.target.value)}
-            >
-              <option value="all">PETI y No PETI</option>
-              <option value="peti">Solo PETI</option>
-              <option value="no_peti">Solo No PETI</option>
-            </select>
+              onChange={(val) => updateFilter('peti', val)}
+              options={[
+                { value: 'peti', label: 'Solo PETI' },
+                { value: 'no_peti', label: 'Solo No PETI' },
+              ]}
+              placeholder="Filtrar por PETI..."
+              allLabel="PETI y No PETI"
+              allValue="all"
+            />
           </div>
 
           <div className="filter-field">
             <label className="filter-label" htmlFor="project-status">Estado</label>
-            <select
+            <AutocompleteSelect
               id="project-status"
               className="filter-select"
               value={filters.status}
-              onChange={(event) => updateFilter('status', event.target.value)}
-            >
-              <option value="all">Todos los estados</option>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="ACTIVO">Activo</option>
-              <option value="CON_RETRASOS">Con retrasos</option>
-              <option value="CERRADO">Cerrado</option>
-            </select>
+              onChange={(val) => updateFilter('status', val)}
+              options={[
+                { value: 'PENDIENTE_COMPLETAR', label: 'Pendiente completar' },
+                { value: 'ACTIVO', label: 'Activo' },
+                { value: 'CON_RETRASOS', label: 'Con retrasos' },
+                { value: 'CERRADO', label: 'Cerrado' },
+              ]}
+              placeholder="Buscar estado..."
+              allLabel="Todos los estados"
+              allValue="all"
+            />
           </div>
         </div>
 

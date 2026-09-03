@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BellRing,
   ChevronLeft,
@@ -21,6 +21,9 @@ import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
 import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import SpellCheckerInput from '../common/SpellCheckerInput';
+import { AutocompleteSelect } from '../common/AutocompleteSelect';
+import useDebouncedValue from '../../hooks/useDebouncedValue';
+import NotificationFailuresModal from './NotificationFailuresModal';
 import './NotificationTemplatesPanel.css';
 
 const emptyForm = {
@@ -160,6 +163,7 @@ const NotificationTemplatesPanel = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -167,10 +171,15 @@ const NotificationTemplatesPanel = () => {
   const [selectedCode, setSelectedCode] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [showInactive, setShowInactive] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('BUSINESS');
+  const [severityFilter, setSeverityFilter] = useState('ALL');
+  const [enabledFilter, setEnabledFilter] = useState('ALL');
   const [globalNotifCheck, setGlobalNotifCheck] = useState(false);
   const [notifStats, setNotifStats] = useState(null);
+  const [isFailuresOpen, setIsFailuresOpen] = useState(false);
+
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const isInitialMount = useRef(true);
 
   const preferenceUsername = authUser?.profile?.preferred_username
     || authUser?.profile?.username
@@ -243,10 +252,37 @@ const NotificationTemplatesPanel = () => {
     }
   };
 
+  const loadTemplates = async (filters) => {
+    try {
+      setTemplatesLoading(true);
+      const result = await securityService.listNotificationTemplates(filters);
+      const templateData = result?.data || result || [];
+      setTemplates(Array.isArray(templateData) ? templateData : []);
+    } catch (err) {
+      setError(`No fue posible filtrar las plantillas. ${extractApiDetail(err)}`);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadData();
   }, []);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    setPage(1);
+    void loadTemplates({
+      category: categoryFilter,
+      severity: severityFilter,
+      enabled: enabledFilter,
+      search: debouncedSearch,
+    });
+  }, [categoryFilter, severityFilter, enabledFilter, debouncedSearch]);
 
   const categoryOptions = useMemo(() => {
     const catalogCategories = Array.from(new Set(events.map((event) => event.category).filter(Boolean)));
@@ -254,9 +290,8 @@ const NotificationTemplatesPanel = () => {
   }, [events]);
 
   const visibleEvents = useMemo(() => events.filter((event) => {
-    const isActive = event?.active !== false;
     const matchesCategory = categoryFilter === 'ALL' || event?.category === categoryFilter;
-    return matchesCategory && (showInactive ? true : isActive);
+    return matchesCategory;
   }).sort((left, right) => {
     const leftPriority = categoryPriority[left?.category] ?? 99;
     const rightPriority = categoryPriority[right?.category] ?? 99;
@@ -269,11 +304,10 @@ const NotificationTemplatesPanel = () => {
       return leftActive - rightActive;
     }
     return String(left?.name || left?.code || '').localeCompare(String(right?.name || right?.code || ''));
-  }), [categoryFilter, events, showInactive]);
+  }), [categoryFilter, events]);
 
   const rows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const merged = visibleEvents.map((event) => {
+    return visibleEvents.map((event) => {
       const template = templates.find((item) => item.eventCode === event.code) || null;
       const preference = preferences.find((item) => item.eventCode === event.code) || null;
 
@@ -285,25 +319,7 @@ const NotificationTemplatesPanel = () => {
         updatedAt: template?.updatedAt || template?.updated_at || null,
       };
     });
-
-    if (!query) return merged;
-
-    return merged.filter(({ event, template }) => {
-      const haystack = [
-        event?.name,
-        event?.code,
-        event?.category,
-        template?.subjectTemplate,
-        template?.bodyTemplate,
-      ].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [preferences, search, templates, visibleEvents]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPage(1);
-  }, [search]);
+  }, [preferences, templates, visibleEvents]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentRows = rows.slice((page - 1) * pageSize, page * pageSize);
@@ -546,7 +562,14 @@ const NotificationTemplatesPanel = () => {
               <strong>{stats.totalSent + stats.inAppSent}</strong>
               <small>{stats.totalSent} email · {stats.inAppSent} in-app</small>
             </article>
-            <article className={`templates-stat ${stats.totalFailed + stats.inAppFailed > 0 ? 'danger' : 'light'}`}>
+            <article
+              className={`templates-stat ${stats.totalFailed + stats.inAppFailed > 0 ? 'danger' : 'light'}`}
+              style={{ cursor: 'pointer' }}
+              onClick={() => setIsFailuresOpen(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsFailuresOpen(true); }}
+            >
               <span>Notificaciones fallidas</span>
               <strong>{stats.totalFailed + stats.inAppFailed}</strong>
               <small>{stats.totalFailed} email · {stats.inAppFailed} in-app</small>
@@ -564,28 +587,49 @@ const NotificationTemplatesPanel = () => {
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Buscar plantilla, evento o asunto"
                   />
+                  {templatesLoading && <LoaderCircle size={14} className="animate-spin search-spinner" />}
                 </div>
-                <select
+                <AutocompleteSelect
                   className="catalog-filter"
                   value={categoryFilter}
-                  onChange={(event) => setCategoryFilter(event.target.value)}
-                >
-                  <option value="ALL">Todas las categorías</option>
-                  {categoryOptions.filter((option) => option !== 'ALL').map((option) => (
-                    <option key={option} value={option}>
-                      {categoryMeta[option]?.label || option}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className={`catalog-switch ${showInactive ? 'active' : ''}`}
-                  onClick={() => setShowInactive((current) => !current)}
-                >
-                  {showInactive ? 'Mostrando activos e inactivos' : 'Mostrar solo activos'}
-                </button>
+                  onChange={(val) => setCategoryFilter(val)}
+                  options={categoryOptions.filter((option) => option !== 'ALL').map((option) => ({
+                    value: option,
+                    label: categoryMeta[option]?.label || option,
+                  }))}
+                  placeholder="Buscar categoría..."
+                  allLabel="Todas las categorías"
+                  allValue="ALL"
+                />
+                <AutocompleteSelect
+                  className="catalog-filter"
+                  value={severityFilter}
+                  onChange={(val) => setSeverityFilter(val)}
+                  options={Object.entries(severityMeta).map(([key, meta]) => ({
+                    value: key,
+                    label: meta.label,
+                  }))}
+                  placeholder="Buscar severidad..."
+                  allLabel="Todas las severidades"
+                  allValue="ALL"
+                />
+                <AutocompleteSelect
+                  className="catalog-filter"
+                  value={enabledFilter}
+                  onChange={(val) => setEnabledFilter(val)}
+                  options={[
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' },
+                  ]}
+                  placeholder="Estado..."
+                  allLabel="Todos los estados"
+                  allValue="ALL"
+                />
               </div>
-              <div className="soft-pill">{currentRows.length} visibles</div>
+              <div className="soft-pill">
+                {templatesLoading ? <LoaderCircle size={12} className="animate-spin" /> : null}
+                {' '}{currentRows.length} visibles
+              </div>
             </div>
 
             <table className="data-table templates-table">
@@ -677,7 +721,7 @@ const NotificationTemplatesPanel = () => {
                 <button type="button" className="pagination-btn" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>
                   <ChevronLeft size={16} />
                 </button>
-                {Array.from({ length: Math.min(totalPages, 3) }, (_, index) => index + 1).map((item) => (
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((item) => (
                   <button
                     key={item}
                     type="button"
@@ -845,6 +889,11 @@ const NotificationTemplatesPanel = () => {
           </article>
         </div>
       ) : null}
+
+      <NotificationFailuresModal
+        isOpen={isFailuresOpen}
+        onClose={() => setIsFailuresOpen(false)}
+      />
     </section>
   );
 };

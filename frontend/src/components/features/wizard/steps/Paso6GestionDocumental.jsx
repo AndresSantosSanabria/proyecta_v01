@@ -55,16 +55,16 @@ const Paso6GestionDocumental = ({ data, onChange, errors }) => {
     }
   };
 
-  const docs = [...DOC_CONFIG];
-  if (data.tienePlanComunicaciones === true) {
-    docs.push({
+  const docs = [
+    ...DOC_CONFIG,
+    {
       field: 'planComunicacionesPdf',
       label: 'Plan de Comunicaciones',
       icon: FileText,
       required: true,
-      note: 'Obligatorio porque indicó que el proyecto cuenta con un Plan de Comunicaciones.',
-    });
-  }
+      note: null,
+    },
+  ];
 
   return (
     <div className="step-form">

@@ -40,6 +40,7 @@ import {
   PieChart,
 } from 'recharts';
 import analyticsService from '../../services/analyticsService';
+import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import './AnalyticsPage.css';
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -477,27 +478,41 @@ const AnalyticsPage = () => {
 
           <label className="analytics-filter">
             <span><Building2 size={14} /> Dependencia</span>
-            <select value={filters.dependencia} onChange={(e) => updateFilter('dependencia', e.target.value)}>
-              <option value="ALL">Todas</option>
-              {dependencyOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <AutocompleteSelect
+              value={filters.dependencia}
+              onChange={(val) => updateFilter('dependencia', val)}
+              options={dependencyOptions}
+              placeholder="Buscar dependencia..."
+              allLabel="Todas"
+              allValue="ALL"
+            />
           </label>
 
           <label className="analytics-filter">
             <span><Sparkles size={14} /> Clasificación</span>
-            <select value={filters.peti} onChange={(e) => updateFilter('peti', e.target.value)}>
-              <option value="ALL">PETI y NO PETI</option>
-              <option value="PETI">Solo PETI</option>
-              <option value="NO_PETI">Solo NO PETI</option>
-            </select>
+            <AutocompleteSelect
+              value={filters.peti}
+              onChange={(val) => updateFilter('peti', val)}
+              options={[
+                { value: 'PETI', label: 'Solo PETI' },
+                { value: 'NO_PETI', label: 'Solo NO PETI' },
+              ]}
+              placeholder="Filtrar por PETI..."
+              allLabel="PETI y NO PETI"
+              allValue="ALL"
+            />
           </label>
 
           <label className="analytics-filter">
             <span><Activity size={14} /> Estado</span>
-            <select value={filters.estado} onChange={(e) => updateFilter('estado', e.target.value)}>
-              <option value="ALL">Todos</option>
-              {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <AutocompleteSelect
+              value={filters.estado}
+              onChange={(val) => updateFilter('estado', val)}
+              options={statusOptions}
+              placeholder="Buscar estado..."
+              allLabel="Todos"
+              allValue="ALL"
+            />
           </label>
 
           <label className="analytics-filter">
@@ -512,9 +527,13 @@ const AnalyticsPage = () => {
 
           <label className="analytics-filter">
             <span><SlidersHorizontal size={14} /> Ordenar por</span>
-            <select value={filters.sortBy} onChange={(e) => updateFilter('sortBy', e.target.value)}>
-              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <AutocompleteSelect
+              value={filters.sortBy}
+              onChange={(val) => updateFilter('sortBy', val)}
+              options={SORT_OPTIONS}
+              placeholder="Seleccionar orden..."
+              sortAlphabetically={false}
+            />
           </label>
 
           <div className="analytics-filter analytics-filter--summary">

@@ -20,6 +20,7 @@ import riskService from '../../services/riskService';
 import { usePermission } from '../../hooks/usePermission';
 import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
 import SpellCheckerInput from '../../components/common/SpellCheckerInput';
+import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import './RiesgosPage.css';
 
 const DEFAULT_PROBABILIDADES = ['BAJA', 'MEDIA', 'ALTA'];
@@ -663,71 +664,23 @@ const RiesgosPage = () => {
               <div className="form-grid form-grid-2">
                 <label>
                   Probabilidad
-                  <div className="custom-select">
-                    <button
-                      type="button"
-                      className="custom-select-trigger"
-                      onClick={() => toggleSelect('probabilidad')}
-                      aria-haspopup="listbox"
-                      aria-expanded={openSelect === 'probabilidad'}
-                    >
-                      <span>{form.probabilidad}</span>
-                      <span className="custom-select-arrow">⌄</span>
-                    </button>
-                    {openSelect === 'probabilidad' && (
-                      <div className="custom-select-menu" role="listbox" aria-label="Probabilidad">
-                        {matrixProbabilidades.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className={`custom-select-option ${form.probabilidad === item ? 'active' : ''}`}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, probabilidad: item }));
-                              setOpenSelect(null);
-                            }}
-                            role="option"
-                            aria-selected={form.probabilidad === item}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <AutocompleteSelect
+                    value={form.probabilidad}
+                    onChange={(val) => setForm((prev) => ({ ...prev, probabilidad: val }))}
+                    options={matrixProbabilidades.map((item) => ({ value: item, label: item }))}
+                    placeholder="Seleccionar..."
+                    sortAlphabetically={false}
+                  />
                 </label>
                 <label>
                   Impacto
-                  <div className="custom-select">
-                    <button
-                      type="button"
-                      className="custom-select-trigger"
-                      onClick={() => toggleSelect('impacto')}
-                      aria-haspopup="listbox"
-                      aria-expanded={openSelect === 'impacto'}
-                    >
-                      <span>{form.impacto}</span>
-                      <span className="custom-select-arrow">⌄</span>
-                    </button>
-                    {openSelect === 'impacto' && (
-                      <div className="custom-select-menu" role="listbox" aria-label="Impacto">
-                        {matrixImpactos.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className={`custom-select-option ${form.impacto === item ? 'active' : ''}`}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, impacto: item }));
-                              setOpenSelect(null);
-                            }}
-                            role="option"
-                            aria-selected={form.impacto === item}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <AutocompleteSelect
+                    value={form.impacto}
+                    onChange={(val) => setForm((prev) => ({ ...prev, impacto: val }))}
+                    options={matrixImpactos.map((item) => ({ value: item, label: item }))}
+                    placeholder="Seleccionar..."
+                    sortAlphabetically={false}
+                  />
                 </label>
               </div>
 
@@ -771,37 +724,13 @@ const RiesgosPage = () => {
 
               <label>
                 Estado del riesgo
-                <div className="custom-select">
-                  <button
-                    type="button"
-                    className="custom-select-trigger"
-                    onClick={() => toggleSelect('estado')}
-                    aria-haspopup="listbox"
-                    aria-expanded={openSelect === 'estado'}
-                  >
-                    <span>{form.estado}</span>
-                    <span className="custom-select-arrow">⌄</span>
-                  </button>
-                  {openSelect === 'estado' && (
-                    <div className="custom-select-menu" role="listbox" aria-label="Estado del riesgo">
-                      {ESTADOS.map((item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          className={`custom-select-option ${form.estado === item ? 'active' : ''}`}
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, estado: item }));
-                            setOpenSelect(null);
-                          }}
-                          role="option"
-                          aria-selected={form.estado === item}
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <AutocompleteSelect
+                  value={form.estado}
+                  onChange={(val) => setForm((prev) => ({ ...prev, estado: val }))}
+                  options={ESTADOS.map((item) => ({ value: item, label: item }))}
+                  placeholder="Seleccionar estado..."
+                  sortAlphabetically={false}
+                />
               </label>
 
               {form.estado === 'TRATADO' && (

@@ -7,6 +7,7 @@ import {
 import securityService from '../../services/securityService';
 import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import SpellCheckerInput from '../common/SpellCheckerInput';
+import { AutocompleteSelect } from '../common/AutocompleteSelect';
 import './ClosureQuestionsPanel.css';
 
 const TIPO_RESPUESTA = [
@@ -199,15 +200,14 @@ const ClosureQuestionsPanel = () => {
             <div className="cqp-form-row">
               <div className="cqp-form-field">
                 <label>Tipo de Respuesta</label>
-                <select
+                <AutocompleteSelect
                   className="cqp-select"
                   value={form.tipoRespuesta}
-                  onChange={(e) => setForm((f) => ({ ...f, tipoRespuesta: e.target.value, opciones: [] }))}
-                >
-                  {TIPO_RESPUESTA.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setForm((f) => ({ ...f, tipoRespuesta: val, opciones: [] }))}
+                  options={TIPO_RESPUESTA.map((t) => ({ value: t.value, label: t.label }))}
+                  placeholder="Seleccionar tipo..."
+                  sortAlphabetically={false}
+                />
               </div>
               <div className="cqp-form-field">
                 <label>Estado</label>

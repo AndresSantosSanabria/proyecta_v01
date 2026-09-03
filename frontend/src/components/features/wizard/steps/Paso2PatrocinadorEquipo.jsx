@@ -3,6 +3,7 @@ import configCatalogService from '../../../../services/configCatalogService';
 import projectService from '../../../../services/projectService';
 import SpellCheckerTextarea from '../../../common/SpellCheckerTextarea';
 import SpellCheckerInput from '../../../common/SpellCheckerInput';
+import { AutocompleteSelect } from '../../../common/AutocompleteSelect';
 
 const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
   const [rolesEquipo, setRolesEquipo] = useState([]);
@@ -162,16 +163,14 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
             </div>
             <div className="form-group">
               <label className="form-label">Rol en el Proyecto</label>
-              <select
-                className="form-input"
+              <AutocompleteSelect
                 value={miembro.rol || ''}
-                onChange={(e) => handleIntegranteChange(i, 'rol', e.target.value)}
-              >
-                <option value="">Seleccione un rol</option>
-                {rolesEquipo.map((rol) => (
-                  <option key={rol} value={rol}>{rol}</option>
-                ))}
-              </select>
+                onChange={(val) => handleIntegranteChange(i, 'rol', val)}
+                options={rolesEquipo.map((rol) => ({ value: rol, label: rol }))}
+                placeholder="Seleccione un rol"
+                allLabel=""
+                allValue=""
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Dependencia</label>

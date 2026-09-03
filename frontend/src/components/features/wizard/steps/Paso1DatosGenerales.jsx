@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import SpellCheckerTextarea from '../../../common/SpellCheckerTextarea';
 import SpellCheckerInput from '../../../common/SpellCheckerInput';
+import { AutocompleteSelect } from '../../../common/AutocompleteSelect';
 
 const DEPENDENCIAS = [
   'Infraestructura',
@@ -110,43 +111,15 @@ const Paso1DatosGenerales = ({
 
         <div className="form-group">
           <label className="form-label">Dependencia Responsable *</label>
-          <div className="custom-select" ref={dependenciaRef}>
-            <button
-              type="button"
-              className={`form-input custom-select-trigger ${errors.dependencia ? 'input-error' : ''} ${dependenciaOpen ? 'open' : ''}`}
-              onClick={() => setDependenciaOpen((current) => !current)}
-              aria-haspopup="listbox"
-              aria-expanded={dependenciaOpen}
-            >
-              <span className={`custom-select-value ${data.dependencia ? 'selected' : 'placeholder'}`}>
-                {data.dependencia || 'Seleccione una dependencia'}
-              </span>
-              <span className={`custom-select-caret ${dependenciaOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
-            </button>
-
-            {dependenciaOpen && (
-              <div className="custom-select-menu" role="listbox" aria-label="Dependencia Responsable">
-                {DEPENDENCIAS.map((dep) => {
-                  const selected = data.dependencia === dep;
-                  return (
-                    <button
-                      key={dep}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      className={`custom-select-option ${selected ? 'selected' : ''}`}
-                      onClick={() => {
-                        handleChange('dependencia', dep);
-                        setDependenciaOpen(false);
-                      }}
-                    >
-                      {dep}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <AutocompleteSelect
+            value={data.dependencia || ''}
+            onChange={(val) => handleChange('dependencia', val)}
+            options={DEPENDENCIAS.map((dep) => ({ value: dep, label: dep }))}
+            placeholder="Seleccione una dependencia"
+            allLabel=""
+            allValue=""
+            className={errors.dependencia ? 'input-error' : ''}
+          />
           {errors.dependencia && <span className="error-text">{errors.dependencia}</span>}
         </div>
 
@@ -163,25 +136,19 @@ const Paso1DatosGenerales = ({
 
         <div className="form-group">
           <label className="form-label">Director TIC *</label>
-          <select
-            className={`form-input ${errors.directorUsuarioId || errors.director ? 'input-error' : ''}`}
+          <AutocompleteSelect
             value={data.directorUsuarioId || ''}
-            onChange={(e) => handleDirectorSelect(e.target.value)}
+            onChange={(val) => handleDirectorSelect(val)}
             disabled={directorsLoading || directorOptions.length === 0}
-          >
-            <option value="">
-              {directorsLoading ? 'Cargando directores...' : 'Seleccione un usuario director'}
-            </option>
-            {directorOptions.map((director) => {
-              const id = getDirectorId(director);
-              const role = getDirectorRole(director);
-              return (
-                <option key={id || getDirectorEmail(director)} value={id}>
-                  {getDirectorName(director)}{role ? ` - ${role}` : ''}
-                </option>
-              );
-            })}
-          </select>
+            options={directorOptions.map((d) => ({
+              value: getDirectorId(d),
+              label: `${getDirectorName(d)}${getDirectorRole(d) ? ` - ${getDirectorRole(d)}` : ''}`,
+            }))}
+            placeholder={directorsLoading ? 'Cargando directores...' : 'Seleccione un usuario director'}
+            allLabel=""
+            allValue=""
+            className={errors.directorUsuarioId || errors.director ? 'input-error' : ''}
+          />
           {directorsError && <span className="error-text">{directorsError}</span>}
           {!directorsLoading && !directorsError && directorOptions.length === 0 && (
             <span className="help-text">No hay usuarios con rol directivo disponibles para asignar.</span>

@@ -26,6 +26,7 @@ const canonicalRoleKeys = new Set([
   'GESTOR_TIC',
   'AUDITOR',
   'CONSULTA',
+  'VISUALIZADOR',
 ]);
 
 const normalizeRoleKey = (role) => String(role || '')
@@ -49,10 +50,13 @@ const normalizeAliasMap = (aliases = {}) => Object.entries(aliases || {}).reduce
 const defaultRoleAliases = normalizeAliasMap(roleFallbackAliases);
 
 const normalizeRole = (role, roleAliases = defaultRoleAliases) => {
-  if (!role) return '';
+  if (!role) return 'VISUALIZADOR';
   const cleaned = normalizeRoleKey(role);
+  if (cleaned.includes('ADMIN')) return 'ADMIN';
   if (canonicalRoleKeys.has(cleaned)) return cleaned;
-  return roleAliases[cleaned] || defaultRoleAliases[cleaned] || cleaned;
+  const mapped = roleAliases[cleaned] || defaultRoleAliases[cleaned] || cleaned;
+  if (canonicalRoleKeys.has(mapped)) return mapped;
+  return 'VISUALIZADOR';
 };
 
 const resolveRoleList = (roles, roleAliases = defaultRoleAliases) => (
@@ -76,9 +80,11 @@ const roleDisplayLabels = {
 };
 
 const formatRoleLabel = (role) => {
+  if (!role || role === 'Sin Rol' || role === 'SIN_ROL') return '';
   const cleaned = normalizeRoleKey(role);
   if (!cleaned) return '';
-  return roleDisplayLabels[cleaned] || cleaned
+  const mappedKey = roleFallbackAliases[cleaned] || cleaned;
+  return roleDisplayLabels[mappedKey] || roleDisplayLabels[cleaned] || cleaned
     .toLowerCase()
     .split('_')
     .filter(Boolean)
@@ -196,34 +202,51 @@ const syncBackendUserFromToken = async (currentUser, roleAliases = defaultRoleAl
   }
 };
 
-const extractRoleList = (backendUser) => {
-  const rawRoles = backendUser?.roles
-    || backendUser?.role
-    || backendUser?.rol
-    || backendUser?.rolCodigo
-    || backendUser?.rolNombre
-    || [];
+const isValidRole = (r) => {
+  if (!r) return false;
+  const str = String(r).trim().toUpperCase();
+  return str !== '' && str !== 'SIN ROL' && str !== 'SIN_ROL' && str !== 'UNDEFINED' && str !== 'NULL';
+};
 
-  if (Array.isArray(rawRoles)) {
-    return rawRoles
-      .flatMap((role) => (typeof role === 'object' && role !== null ? [role.codigo, role.nombre] : role))
-      .filter(Boolean)
-      .map((role) => role.toString().trim())
-      .filter(Boolean);
+const extractRoleList = (backendUser, authzUser) => {
+  const rawList = [];
+
+  const addCandidate = (candidate) => {
+    if (!candidate) return;
+    if (Array.isArray(candidate)) {
+      candidate.forEach((r) => {
+        const val = typeof r === 'object' && r !== null ? (r.codigo || r.nombre) : r;
+        if (isValidRole(val)) rawList.push(String(val).trim());
+      });
+    } else if (typeof candidate === 'string' && isValidRole(candidate)) {
+      candidate.split(',').forEach((r) => {
+        if (isValidRole(r)) rawList.push(r.trim());
+      });
+    }
+  };
+
+  addCandidate(backendUser?.rolCodigo);
+  addCandidate(backendUser?.rol_codigo);
+  addCandidate(backendUser?.rol);
+  addCandidate(backendUser?.rolNombre);
+  addCandidate(backendUser?.rol_nombre);
+  addCandidate(backendUser?.role);
+  addCandidate(backendUser?.roles);
+  addCandidate(authzUser?.roles);
+  addCandidate(authzUser?.role);
+  addCandidate(authzUser?.rol);
+
+  const functionalRoles = rawList.filter((r) => normalizeRoleKey(r) !== 'VISUALIZADOR');
+  if (functionalRoles.length > 0) {
+    return functionalRoles;
   }
 
-  return rawRoles
-    .toString()
-    .split(',')
-    .map((role) => role.trim())
-    .filter(Boolean);
+  return rawList;
 };
 
 const extractAssignedProjects = (authzUser) => {
   const rawProjects = authzUser?.proyectosAsignados
     || authzUser?.proyectos_asignados
-    || authzUser?.projectsAssigned
-    || authzUser?.assignedProjects
     || authzUser?.proyectos
     || authzUser?.projects
     || [];
@@ -280,7 +303,7 @@ export function AuthProvider({ children }) {
       }
 
       setBackendProfile(backendUser);
-      setBackendRoles(extractRoleList(backendUser));
+      setBackendRoles(extractRoleList(backendUser, authzUser));
       setPermissions(Array.isArray(authzUser?.permisos) ? authzUser.permisos : []);
       setAssignedProjects(extractAssignedProjects(authzUser));
       setTransversal(Boolean(authzUser?.transversal));
@@ -439,12 +462,12 @@ export function AuthProvider({ children }) {
     [resolvedTokenRoles]
   );
   const roles = useMemo(
-    () => Array.from(new Set([...resolvedTokenRoles, ...resolvedBackendRoles])),
+    () => Array.from(new Set([...resolvedBackendRoles, ...resolvedTokenRoles])),
     [resolvedTokenRoles, resolvedBackendRoles]
   );
   const primaryRole = useMemo(
-    () => businessTokenRoles[0] || resolvedBackendRoles[0] || resolvedTokenRoles[0] || '',
-    [businessTokenRoles, resolvedBackendRoles, resolvedTokenRoles]
+    () => resolvedBackendRoles[0] || businessTokenRoles[0] || resolvedTokenRoles[0] || '',
+    [resolvedBackendRoles, businessTokenRoles, resolvedTokenRoles]
   );
   const isAuthenticated = Boolean(user && user.access_token && !user.expired);
   const can = (permissionCode) => permissions.includes(permissionCode);
@@ -464,6 +487,12 @@ export function AuthProvider({ children }) {
     backendLoading,
     error,
     user,
+    backendProfile,
+    roles,
+    tokenRoles: resolvedTokenRoles,
+    businessTokenRoles,
+    primaryRole,
+    formatRoleLabel,
     backendProfile,
     roles,
     tokenRoles: resolvedTokenRoles,

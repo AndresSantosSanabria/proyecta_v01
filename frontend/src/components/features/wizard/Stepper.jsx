@@ -8,7 +8,8 @@ const STEPS = [
   { num: 3, label: 'Fases, Hitos\ny Entregables' },
   { num: 4, label: 'PETI y\nComunicaciones' },
   { num: 5, label: 'Cuestionario\nFURAG' },
-  { num: 6, label: 'Gestión\nDocumental' },
+  { num: 6, label: 'Matriz de\nRiesgos' },
+  { num: 7, label: 'Gestión\nDocumental' },
 ];
 
 const Stepper = ({ currentStep }) => {

@@ -93,8 +93,13 @@ const securityService = {
     return unwrap(response);
   },
 
-  listNotificationTemplates: async () => {
-    const response = await apiClient.get('/admin/notificaciones/plantillas');
+  listNotificationTemplates: async ({ category, severity, enabled, search } = {}) => {
+    const params = {};
+    if (category && category !== 'ALL') params.category = category;
+    if (severity && severity !== 'ALL') params.severity = severity;
+    if (enabled !== undefined && enabled !== null && enabled !== 'ALL') params.enabled = enabled;
+    if (search && search.trim()) params.search = search.trim();
+    const response = await apiClient.get('/admin/notificaciones/plantillas', { params });
     return unwrap(response);
   },
 
@@ -133,8 +138,31 @@ const securityService = {
     return unwrap(response);
   },
 
-  listInAppNotifications: async ({ page = 0, size = 10 } = {}) => {
-    const response = await apiClient.get('/notificaciones', { params: { page, size } });
+  getFailedNotifications: async ({ page = 0, size = 20, channel, eventCode, recipient, from, to } = {}) => {
+    const params = { page, size };
+    if (channel && channel !== 'ALL') params.channel = channel;
+    if (eventCode && eventCode !== 'ALL') params.eventCode = eventCode;
+    if (recipient && recipient.trim()) params.recipient = recipient.trim();
+    if (from) params.from = from;
+    if (to) params.to = to;
+    const response = await apiClient.get('/admin/notificaciones/fallidas', { params });
+    return unwrap(response);
+  },
+
+  getFailedDispatchLogs: async ({ page = 0, size = 20, recipient, from, to } = {}) => {
+    const params = { page, size };
+    if (recipient && recipient.trim()) params.recipient = recipient.trim();
+    if (from) params.from = from;
+    if (to) params.to = to;
+    const response = await apiClient.get('/admin/notificaciones/fallidas/detalle-dispatch', { params });
+    return unwrap(response);
+  },
+
+  listInAppNotifications: async ({ page = 0, size = 10, leido, eventCode } = {}) => {
+    const params = { page, size };
+    if (leido !== undefined && leido !== null) params.leido = leido;
+    if (eventCode && eventCode !== 'ALL') params.eventCode = eventCode;
+    const response = await apiClient.get('/notificaciones', { params });
     return unwrap(response);
   },
 

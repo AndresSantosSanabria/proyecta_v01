@@ -1,3 +1,5 @@
+import { AutocompleteSelect } from '../../../common/AutocompleteSelect';
+
 const VIGENCIAS_PETI = [
   '2020-2024',
   '2024-2027',
@@ -48,7 +50,7 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
 
       <div className="form-group">
         <label className="form-label">
-          ¿El proyecto está definido en el Plan Estratégico de Tecnologías de la Información (PETI)? *
+          ¿El proyecto pertenece al portafolio del Plan Estratégico de Tecnologías de la Información (PETI)? *
         </label>
         <div className="radio-group">
           <label className="radio-label">
@@ -76,71 +78,45 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
         <div className="form-grid">
           <div className="form-group">
             <label className="form-label">Vigencia PETI *</label>
-            <select
-              className={`form-input ${errors.vigenciaPeti ? 'input-error' : ''}`}
+            <AutocompleteSelect
               value={data.vigenciaPeti || ''}
-              onChange={(e) => onChange({ vigenciaPeti: e.target.value })}
+              onChange={(val) => onChange({ vigenciaPeti: val })}
               disabled={loadingCatalog}
-            >
-              <option value="">{loadingCatalog ? 'Cargando vigencias...' : 'Seleccione la vigencia'}</option>
-              {vigencias.map((vigencia) => (
-                <option key={vigencia} value={vigencia}>{vigencia}</option>
-              ))}
-            </select>
+              options={vigencias.map((v) => ({ value: v, label: v }))}
+              placeholder={loadingCatalog ? 'Cargando vigencias...' : 'Seleccione la vigencia'}
+              allLabel=""
+              allValue=""
+              className={errors.vigenciaPeti ? 'input-error' : ''}
+            />
             {errors.vigenciaPeti && <span className="error-text">{errors.vigenciaPeti}</span>}
             <p className="help-text">Opciones administradas desde Configuracion Seguridad &gt; Listas: VIGENCIA_PETI.</p>
           </div>
 
           <div className="form-group">
             <label className="form-label">Estrategia PETI *</label>
-            <select
-              className={`form-input ${errors.estrategiaPeti ? 'input-error' : ''}`}
+            <AutocompleteSelect
               value={data.estrategiaPeti || ''}
-              onChange={(e) => onChange({ estrategiaPeti: e.target.value })}
+              onChange={(val) => onChange({ estrategiaPeti: val })}
               disabled={loadingCatalog}
-            >
-              <option value="">{loadingCatalog ? 'Cargando estrategias...' : 'Seleccione la estrategia'}</option>
-              {estrategias.map((estrategia) => (
-                <option key={estrategia.value} value={estrategia.value}>{estrategia.label}</option>
-              ))}
-            </select>
+              options={estrategias.map((e) => ({ value: e.value, label: e.label }))}
+              placeholder={loadingCatalog ? 'Cargando estrategias...' : 'Seleccione la estrategia'}
+              allLabel=""
+              allValue=""
+              className={errors.estrategiaPeti ? 'input-error' : ''}
+            />
             {errors.estrategiaPeti && <span className="error-text">{errors.estrategiaPeti}</span>}
             <p className="help-text">Opciones administradas desde Configuracion Seguridad &gt; Listas: ESTRATEGIA_PETI.</p>
           </div>
         </div>
       )}
 
-      <h3 className="step-title" style={{ marginTop: '2rem' }}>Plan de Comunicaciones</h3>
-
       <div className="form-group">
-        <label className="form-label">
-          ¿El proyecto cuenta con un Plan de Comunicaciones? *
+        <label className="form-label" style={{ marginTop: '2rem', color: '#60a5fa', fontWeight: 600 }}>
+          Plan de Comunicaciones
         </label>
-        <div className="radio-group">
-          <label className="radio-label">
-            <input
-              type="radio"
-              name="tienePlanComunicaciones"
-              checked={data.tienePlanComunicaciones === true}
-              onChange={() => onChange({ tienePlanComunicaciones: true })}
-            />
-            Sí
-          </label>
-          <label className="radio-label">
-            <input
-              type="radio"
-              name="tienePlanComunicaciones"
-              checked={data.tienePlanComunicaciones === false}
-              onChange={() => onChange({ tienePlanComunicaciones: false })}
-            />
-            No
-          </label>
-        </div>
-        {data.tienePlanComunicaciones === true && (
-          <p className="help-text" style={{ marginTop: '0.5rem', color: '#d97706' }}>
-            Recuerde: debe cargar el documento del Plan de Comunicaciones en la gestión documental.
-          </p>
-        )}
+        <p className="help-text">
+          El Plan de Comunicaciones es un documento obligatorio. Deberá cargarlo en la gestión documental.
+        </p>
       </div>
     </div>
   );

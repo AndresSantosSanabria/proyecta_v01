@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   CheckSquare,
   BarChart3,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import dashboardService from '../../../services/dashboardService';
@@ -29,7 +30,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
-  const { user, roles, primaryRole, logout, assignedProjects } = useAuthContext();
+  const { user, roles, primaryRole, backendProfile, formatRoleLabel, logout, assignedProjects } = useAuthContext();
   const canViewDashboard = usePermission('DASHBOARD:VER');
   const canViewProjects = usePermission('PROYECTO:VER')
     || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
@@ -86,8 +87,26 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     }
   };
 
-  const displayName = user?.profile?.name || user?.profile?.preferred_username || 'Usuario';
-  const displayRole = primaryRole || (roles.length ? roles.join(', ') : '');
+  const isValidRoleStr = (r) => {
+    if (!r) return false;
+    const str = String(r).trim().toUpperCase();
+    return str !== '' && str !== 'SIN ROL' && str !== 'SIN_ROL' && str !== 'UNDEFINED' && str !== 'NULL';
+  };
+
+  const displayName = backendProfile?.nombre || user?.profile?.name || user?.profile?.preferred_username || 'Usuario';
+  const roleCandidates = [
+    backendProfile?.rolNombre,
+    backendProfile?.rol_nombre,
+    backendProfile?.rolCodigo,
+    backendProfile?.rol,
+    primaryRole,
+    Array.isArray(roles) ? roles.find((r) => r && String(r).toUpperCase() !== 'VISUALIZADOR') : null,
+    Array.isArray(roles) ? roles[0] : null,
+    (Array.isArray(assignedProjects) && assignedProjects.length > 0) ? 'DIRECTOR_PROYECTO' : null,
+  ];
+
+  const rawRole = roleCandidates.find(isValidRoleStr) || 'Visualizador';
+  const displayRole = formatRoleLabel ? formatRoleLabel(rawRole) : rawRole;
   const initials = displayName
     .split(' ')
     .filter(Boolean)
@@ -116,6 +135,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
         (sidebarProyectos) ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
+        (sidebarProyectos) ? { name: 'Evidencias', path: `/projects/${currentProjectId}/evidences`, icon: <ClipboardCheck size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,
       ].filter(Boolean) : []
     },
@@ -186,17 +206,18 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="user-profile">
-          <div className="user-avatar">{initials}</div>
-          {!isCollapsed && (
+        {!isCollapsed && (
+          <div className="user-profile">
+            <div className="user-avatar">{initials}</div>
             <div className="user-info">
-              <span className="user-name">{displayName}</span>
-              {displayRole ? <span className="user-role">{displayRole}</span> : null}
+              <span className="user-name" title={displayName}>{displayName}</span>
+              {displayRole ? <span className="user-role" title={displayRole}>{displayRole}</span> : null}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="sidebar-footer-actions">
+          {isCollapsed && <div className="user-avatar user-avatar--collapsed" title={displayName}>{initials}</div>}
           <NotificationBell />
           <button
             className="theme-toggle-btn"

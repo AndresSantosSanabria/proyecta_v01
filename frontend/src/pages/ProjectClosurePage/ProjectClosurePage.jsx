@@ -550,17 +550,19 @@ const ProjectClosurePage = () => {
           <h1>Cierre del Proyecto</h1>
           <p className="subtitle">{summaryData.id} - {summaryData.nombre || 'Proyecto'}</p>
         </div>
-        <div className="closure-header-actions">
-          <button type="button" className="btn-secondary-closure" onClick={handleSaveDraft} disabled={savingDraft || isDisabled}>
-            {savingDraft ? 'Guardando...' : 'Guardar borrador'}
-          </button>
-          {canDownloadActa && (
-            <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa}>
-              <Download size={16} style={{ marginRight: '8px' }} />
-              {downloadingActa ? 'Descargando acta...' : 'Descargar acta'}
+        {summaryData.estado !== 'CERRADO' && (
+          <div className="closure-header-actions">
+            <button type="button" className="btn-secondary-closure" onClick={handleSaveDraft} disabled={savingDraft || isDisabled}>
+              {savingDraft ? 'Guardando...' : 'Guardar borrador'}
             </button>
-          )}
-        </div>
+            {canDownloadActa && (
+              <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa}>
+                <Download size={16} style={{ marginRight: '8px' }} />
+                {downloadingActa ? 'Descargando acta...' : 'Descargar acta'}
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       {successMsg && (

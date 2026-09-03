@@ -831,7 +831,6 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                   <Field label="Estrategia" value={project.estrategiaPeti} />
                 </>
               )}
-              <Field label="Plan de comunicaciones" value={project.tienePlanComunicaciones ? 'Si' : 'No'} />
             </div>
           </Section>
 

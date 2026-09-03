@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import securityService from '../../services/securityService';
 import SpellCheckerInput from '../common/SpellCheckerInput';
+import { AutocompleteSelect } from '../common/AutocompleteSelect';
 import './ClosureTemplatePanel.css';
 
 const COMPONENT_TYPES = [
@@ -401,11 +402,11 @@ const ClosureTemplatePanel = () => {
                       </div>
                       <div className="ctp-field-question">
                         <label className="ctp-question-label">Pregunta del Banco (variable dinamica)</label>
-                        <select
+                        <AutocompleteSelect
                           className="ctp-question-select"
                           value={block.questionId || ''}
-                          onChange={(e) => {
-                            const qId = e.target.value ? Number(e.target.value) : null;
+                          onChange={(val) => {
+                            const qId = val ? Number(val) : null;
                             const q = questions.find((q) => q.id === qId);
                             const tipoMap = {
                               texto_libre: 'texto_largo',
@@ -420,12 +421,14 @@ const ClosureTemplatePanel = () => {
                               tipo_input: q ? (tipoMap[q.tipo_respuesta] || 'texto_corto') : block.tipo_input,
                             });
                           }}
-                        >
-                          <option value="">Sin vinculo ( campo manual )</option>
-                          {questions.filter((q) => q.activo).map((q) => (
-                            <option key={q.id} value={q.id}>{q.texto}</option>
-                          ))}
-                        </select>
+                          options={questions.filter((q) => q.activo).map((q) => ({
+                            value: q.id,
+                            label: q.texto,
+                          }))}
+                          placeholder="Buscar pregunta..."
+                          allLabel="Sin vinculo ( campo manual )"
+                          allValue=""
+                        />
                         {block.questionId && (
                           <span className="ctp-question-hint">El valor se resuelve desde la respuesta de esta pregunta</span>
                         )}

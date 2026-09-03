@@ -130,6 +130,40 @@ const projectService = {
     return data;
   },
 
+  // ==================== BORRADOR DE COMPLETITUD POR FASES ====================
+  
+  /**
+   * Guarda el borrador de completitud del proyecto (datos parciales por fase).
+   * @param {string} id - ID del proyecto
+   * @param {Object} draftData - Datos del borrador (CompletitudBorradorDTO)
+   * @returns {Promise<Object>}
+   */
+  saveCompletionDraft: async (id, draftData) => {
+    const { data } = await apiClient.patch(`/proyectos/${normalizeProjectId(id)}/completitud-borrador`, draftData);
+    return data;
+  },
+
+  /**
+   * Obtiene el borrador de completitud guardado del proyecto.
+   * @param {string} id - ID del proyecto
+   * @returns {Promise<Object>}
+   */
+  getCompletionDraft: async (id, config = {}) => {
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(id)}/completitud-borrador`, config);
+    return data;
+  },
+
+  /**
+   * Marca una fase de completitud como completada.
+   * @param {string} id - ID del proyecto
+   * @param {number} fase - Numero de fase (1-7)
+   * @returns {Promise<Object>}
+   */
+  completePhase: async (id, fase) => {
+    const { data } = await apiClient.patch(`/proyectos/${normalizeProjectId(id)}/completitud-fase/${fase}`);
+    return data;
+  },
+
   /**
    * Actualiza un proyecto existente.
    * @param {string|number} id
@@ -341,6 +375,23 @@ const projectService = {
     return data;
   },
 
+  getEvidenciasByProyecto: async (proyectoId) => {
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(proyectoId)}/evidencias`);
+    const payload = data?.data ?? data;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.content)) return payload.content;
+    if (Array.isArray(payload?.evidencias)) return payload.evidencias;
+    if (Array.isArray(payload?.items)) return payload.items;
+    return [];
+  },
+
+  getEvidenciaDetalle: async (proyectoId, entregableId) => {
+    const { data } = await apiClient.get(
+      `/proyectos/${normalizeProjectId(proyectoId)}/avance/entregables/${entregableId}/evidencia`
+    );
+    return data?.data ?? data;
+  },
+
   cambiarFechaEntregable: async (proyectoId, entregableId, formData) => {
     const { data } = await apiClient.post(
       `/proyectos/${normalizeProjectId(proyectoId)}/entregables/${entregableId}/cambiar-fecha`,
@@ -353,6 +404,15 @@ const projectService = {
   obtenerHistorialFechas: async (proyectoId, entregableId) => {
     const { data } = await apiClient.get(
       `/proyectos/${normalizeProjectId(proyectoId)}/entregables/${entregableId}/historial-fechas`
+    );
+    return data;
+  },
+
+  cambiarDescripcionEntregable: async (proyectoId, entregableId, formData) => {
+    const { data } = await apiClient.post(
+      `/proyectos/${normalizeProjectId(proyectoId)}/entregables/${entregableId}/cambiar-descripcion`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
     );
     return data;
   },

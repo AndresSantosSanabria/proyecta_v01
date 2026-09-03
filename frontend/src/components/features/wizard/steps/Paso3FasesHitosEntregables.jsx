@@ -73,6 +73,7 @@ const Paso3FasesHitosEntregables = ({
   onChange,
   errors = {},
   lockExistingDates = false,
+  lockExistingDescriptions = false,
   protectExistingItems = false,
   allowEmpty = true,
   onFileChange,
@@ -243,6 +244,7 @@ const Paso3FasesHitosEntregables = ({
       {fases.map((fase, fIndex) => {
         const sumaHitos = sumPonderacion(fase.hitos || []);
         const canRemoveFase = !protectExistingItems || !hasPersistentId(fase);
+        const faseDescriptionLocked = lockExistingDescriptions && hasPersistentId(fase);
 
         return (
           <div key={fase.id || `fase-${fIndex}`} className="jerarquia-card fase-card">
@@ -282,16 +284,22 @@ const Paso3FasesHitosEntregables = ({
             <div className="form-group">
               <label className="form-label">Descripcion</label>
               <SpellCheckerInput
-                className="form-input"
+                className={`form-input ${faseDescriptionLocked ? 'form-input-muted' : ''}`}
                 value={fase.descripcion || ''}
-                onChange={(e) => updateFase(fIndex, 'descripcion', e.target.value)}
+                onChange={faseDescriptionLocked ? undefined : (e) => updateFase(fIndex, 'descripcion', e.target.value)}
                 placeholder="Descripcion opcional de la fase"
+                readOnly={faseDescriptionLocked}
+                aria-readonly={faseDescriptionLocked}
               />
+              {faseDescriptionLocked && (
+                <span className="field-help">La descripcion de fases existentes no se puede editar.</span>
+              )}
             </div>
 
             {(fase.hitos || []).map((hito, hIndex) => {
               const sumaEntregables = sumPonderacion(hito.entregables || []);
               const canRemoveHito = !protectExistingItems || !hasPersistentId(hito);
+              const hitoDescriptionLocked = lockExistingDescriptions && hasPersistentId(hito);
 
               return (
                 <div key={hito.id || `hito-${fIndex}-${hIndex}`} className="jerarquia-card hito-card">
@@ -331,16 +339,22 @@ const Paso3FasesHitosEntregables = ({
                   <div className="form-group">
                     <label className="form-label">Descripcion</label>
                     <SpellCheckerInput
-                      className="form-input"
+                      className={`form-input ${hitoDescriptionLocked ? 'form-input-muted' : ''}`}
                       value={hito.descripcion || ''}
-                      onChange={(e) => updateHito(fIndex, hIndex, 'descripcion', e.target.value)}
+                      onChange={hitoDescriptionLocked ? undefined : (e) => updateHito(fIndex, hIndex, 'descripcion', e.target.value)}
                       placeholder="Descripcion opcional del hito"
+                      readOnly={hitoDescriptionLocked}
+                      aria-readonly={hitoDescriptionLocked}
                     />
+                    {hitoDescriptionLocked && (
+                      <span className="field-help">La descripcion de hitos existentes no se puede editar.</span>
+                    )}
                   </div>
 
                   {(hito.entregables || []).map((ent, eIndex) => {
                     const canRemoveEntregable = !protectExistingItems || !hasPersistentId(ent);
                     const dateLocked = lockExistingDates && hasPersistentId(ent);
+                    const entregableDescriptionLocked = lockExistingDescriptions && hasPersistentId(ent);
 
                     return (
                       <div key={ent.id || `entregable-${fIndex}-${hIndex}-${eIndex}`} className="jerarquia-card entregable-card">
@@ -439,11 +453,16 @@ const Paso3FasesHitosEntregables = ({
                           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                             <label className="form-label">Descripcion</label>
                             <SpellCheckerInput
-                              className="form-input"
+                              className={`form-input ${entregableDescriptionLocked ? 'form-input-muted' : ''}`}
                               value={ent.descripcion || ''}
-                              onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'descripcion', e.target.value)}
+                              onChange={entregableDescriptionLocked ? undefined : (e) => updateEntregable(fIndex, hIndex, eIndex, 'descripcion', e.target.value)}
                               placeholder="Descripcion opcional del entregable"
+                              readOnly={entregableDescriptionLocked}
+                              aria-readonly={entregableDescriptionLocked}
                             />
+                            {entregableDescriptionLocked && (
+                              <span className="field-help">La descripcion de entregables existentes no se puede editar.</span>
+                            )}
                           </div>
                         </div>
                       </div>

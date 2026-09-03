@@ -283,3 +283,68 @@
   color: var(--text-muted);
   font-size: 13px;
 }
+
+/* ── Filters ── */
+.notification-bell__filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+.notification-bell__filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-bell__filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  min-width: 52px;
+}
+
+.notification-bell__filter-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-bell__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.notification-bell__chip:hover {
+  background: var(--bg-elevated);
+  border-color: var(--text-muted);
+  color: var(--text-main);
+}
+
+.notification-bell__chip.active {
+  background: var(--text-main);
+  color: var(--bg-surface);
+  border-color: var(--text-main);
+}

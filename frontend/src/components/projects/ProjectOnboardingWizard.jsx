@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, LockKeyhole, Save } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, LockKeyhole, Save, X } from 'lucide-react';
 import { usePermission } from '../../hooks/usePermission';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
 import { SpellCheckInput } from '../common/SpellCheckInput/SpellCheckInput';
+import { AutocompleteSelect } from '../common/AutocompleteSelect';
 import Paso4PetiComunicaciones from '../features/wizard/steps/Paso4PetiComunicaciones';
 import Paso5Furag from '../features/wizard/steps/Paso5Furag';
-import Paso6GestionDocumental from '../features/wizard/steps/Paso6GestionDocumental';
+import Paso6MatrizRiesgos from '../features/wizard/steps/Paso6MatrizRiesgos';
+import Paso7GestionDocumental from '../features/wizard/steps/Paso6GestionDocumental';
 import configCatalogService from '../../services/configCatalogService';
+import projectService from '../../services/projectService';
+import { emitToast } from '../../utils/feedback';
 import '../../pages/NewProjectPage/NewProjectPage.css';
 import './ProjectOnboardingWizard.css';
 
@@ -17,7 +21,8 @@ const STEPS = [
   { id: 3, label: 'Fases / hitos / entregables' },
   { id: 4, label: 'PETI y comunicaciones' },
   { id: 5, label: 'FURAG' },
-  { id: 6, label: 'Gestion documental' },
+  { id: 6, label: 'Matriz de riesgos' },
+  { id: 7, label: 'Gestion documental' },
 ];
 
 const initialForm = (project) => ({
@@ -33,9 +38,9 @@ const initialForm = (project) => ({
   peti: project?.peti ?? null,
   vigenciaPeti: project?.vigenciaPeti || '',
   estrategiaPeti: project?.estrategiaPeti || null,
-  tienePlanComunicaciones: project?.tienePlanComunicaciones ?? null,
   // furag stores { [fieldKey]: 'SI'|'NO'|'NO_APLICA' } keyed by the catalog question key
   furag: project?.furag || {},
+  riesgosIniciales: Array.isArray(project?.riesgosIniciales) ? project.riesgosIniciales : [],
   viabilizacionPdf: null,
   actaConstitucionPdf: null,
   cronogramaPdf: null,
@@ -133,11 +138,47 @@ const clearSavedState = (project) => {
   }
 };
 
+const buildDraftPayload = (step, form, fasesCompletadas) => ({
+  faseActual: step,
+  fasesCompletadas: fasesCompletadas || {},
+  datosFase1: {
+    dependencia: form.dependencia || '',
+    fechaInicio: form.fechaInicio || '',
+    presupuestoEstimado: form.presupuestoEstimado || '',
+    alcance: form.alcanceDetallado || '',
+    objetivosEspecificos: form.objetivosEspecificos || [],
+  },
+  datosFase2: {
+    patrocinador: form.patrocinador || null,
+    equipoTrabajo: form.equipoTrabajo || [],
+    stakeholders: form.stakeholders || [],
+  },
+  datosFase3: {
+    fases: form.fases || [],
+  },
+    datosFase4: {
+      peti: form.peti,
+      vigenciaPeti: form.vigenciaPeti || null,
+      estrategiaPeti: form.estrategiaPeti || null,
+    },
+  datosFase5: {
+    furag: form.furag || {},
+  },
+  datosFase6: {
+    riesgos: form.riesgosIniciales || [],
+  },
+  datosFase7: {
+    documentos: {},
+  },
+  ultimoGuardado: new Date().toISOString(),
+});
+
 const ProjectOnboardingWizard = ({
   project,
   saving = false,
   error = '',
   onComplete,
+  completionDraft = null,
 }) => {
   const canEditFechaRegistro = usePermission('PROYECTO:EDITAR_FECHA_REGISTRO');
   const [savedState] = useState(() => loadSavedState(project));
@@ -149,6 +190,13 @@ const ProjectOnboardingWizard = ({
   const [dependencias, setDependencias] = useState([]);
   const [entregableFiles, setEntregableFiles] = useState({});
   const [spellingErrors, setSpellingErrors] = useState(0);
+  
+  // Backend draft states
+  const [fasesCompletadas, setFasesCompletadas] = useState({});
+  const [loadingDraft, setLoadingDraft] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -166,9 +214,81 @@ const ProjectOnboardingWizard = ({
     return () => { active = false; };
   }, []);
 
+  // Load draft from backend on mount
   useEffect(() => {
-    saveState(project, step, form);
-  }, [project, step, form]);
+    let active = true;
+    const loadBackendDraft = async () => {
+      if (!project?.id) return;
+      
+      setLoadingDraft(true);
+      try {
+        const response = await projectService.getCompletionDraft(project.id);
+        const draft = response?.data?.data ?? response?.data ?? response;
+        
+        console.log('[DRAFT] Response completa:', response);
+        console.log('[DRAFT] Draft parseado:', draft);
+        
+        if (!active || !draft) return;
+        
+        // Restore form data from draft
+        const restoredForm = { ...initialForm(project) };
+        
+        if (draft.datosFase1) {
+          restoredForm.dependencia = draft.datosFase1.dependencia || restoredForm.dependencia;
+          restoredForm.fechaInicio = draft.datosFase1.fechaInicio || restoredForm.fechaInicio;
+          restoredForm.alcanceDetallado = draft.datosFase1.alcance || restoredForm.alcanceDetallado;
+          restoredForm.presupuestoEstimado = draft.datosFase1.presupuestoEstimado || restoredForm.presupuestoEstimado;
+          restoredForm.objetivosEspecificos = draft.datosFase1.objetivosEspecificos || restoredForm.objetivosEspecificos;
+        }
+        
+        if (draft.datosFase2) {
+          restoredForm.patrocinador = draft.datosFase2.patrocinador || restoredForm.patrocinador;
+          restoredForm.equipoTrabajo = draft.datosFase2.equipoTrabajo || restoredForm.equipoTrabajo;
+          restoredForm.stakeholders = draft.datosFase2.stakeholders || restoredForm.stakeholders;
+        }
+        
+        if (draft.datosFase3) {
+          restoredForm.fases = draft.datosFase3.fases || restoredForm.fases;
+        }
+        
+        if (draft.datosFase4) {
+          restoredForm.peti = draft.datosFase4.peti ?? restoredForm.peti;
+          restoredForm.vigenciaPeti = draft.datosFase4.vigenciaPeti || restoredForm.vigenciaPeti;
+          restoredForm.estrategiaPeti = draft.datosFase4.estrategiaPeti || restoredForm.estrategiaPeti;
+        }
+        
+        if (draft.datosFase5) {
+          restoredForm.furag = draft.datosFase5.furag || restoredForm.furag;
+        }
+        
+        if (draft.datosFase6) {
+          restoredForm.riesgosIniciales = draft.datosFase6.riesgos || restoredForm.riesgosIniciales;
+        }
+        
+        console.log('[DRAFT] Form restaurado:', restoredForm);
+        console.log('[DRAFT] Fases completadas:', draft.fasesCompletadas);
+        console.log('[DRAFT] Paso a restaurar:', draft.faseActual);
+        
+        setForm(restoredForm);
+        setFasesCompletadas(draft.fasesCompletadas || {});
+        
+        // Restore step from draft or localStorage
+        const targetStep = draft.faseActual || savedState?.step || 1;
+        setStep(targetStep);
+        
+        isInitializedRef.current = true;
+      } catch (err) {
+        console.error('Error cargando borrador del backend:', err);
+        // Fallback to localStorage state
+        isInitializedRef.current = true;
+      } finally {
+        if (active) setLoadingDraft(false);
+      }
+    };
+    
+    loadBackendDraft();
+    return () => { active = false; };
+  }, [project?.id]);
 
   const projectSummary = useMemo(() => ({
     codigo: project?.codigo || project?.id || 'PENDIENTE',
@@ -330,9 +450,6 @@ const ProjectOnboardingWizard = ({
         if (!source.vigenciaPeti) nextErrors.vigenciaPeti = 'Seleccione la vigencia PETI.';
         if (!source.estrategiaPeti) nextErrors.estrategiaPeti = 'Seleccione la estrategia PETI.';
       }
-      if (source.tienePlanComunicaciones === null) {
-        nextErrors.tienePlanComunicaciones = 'Debe indicar si cuenta con plan de comunicaciones.';
-      }
     }
 
     if (targetStep === 5) {
@@ -351,6 +468,18 @@ const ProjectOnboardingWizard = ({
     }
 
     if (targetStep === 6) {
+      const riesgos = source.riesgosIniciales || [];
+      if (riesgos.length < 2) {
+        nextErrors.riesgosIniciales = 'Debe registrar al menos 2 riesgos en la matriz de riesgos.';
+      }
+      riesgos.forEach((r, i) => {
+        if (!r.descripcion?.trim()) nextErrors[`riesgo_${i}_descripcion`] = 'La descripcion del riesgo es obligatoria.';
+        if (!r.probabilidad) nextErrors[`riesgo_${i}_probabilidad`] = 'La probabilidad es obligatoria.';
+        if (!r.impacto) nextErrors[`riesgo_${i}_impacto`] = 'El impacto es obligatorio.';
+      });
+    }
+
+    if (targetStep === 7) {
       if (!source.viabilizacionPdf) nextErrors.viabilizacionPdf = 'El documento de viabilidad es obligatorio.';
     }
 
@@ -363,11 +492,57 @@ const ProjectOnboardingWizard = ({
     return firstKey ? nextErrors[firstKey] : 'Revise los campos marcados.';
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const nextErrors = validateStep(step);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+    
+    const newFasesCompletadas = { ...fasesCompletadas, [step]: true };
+    setFasesCompletadas(newFasesCompletadas);
+    
+    try {
+      setSavingDraft(true);
+      const nextStep = Math.min(step + 1, STEPS.length);
+      const draftData = buildDraftPayload(nextStep, form, newFasesCompletadas);
+      console.log('[SAVE] Guardando borrador:', JSON.stringify(draftData, null, 2));
+      // Guardar borrador PRIMERO, luego marcar fase (secuencial para evitar race condition)
+      await projectService.saveCompletionDraft(project.id, draftData);
+      await projectService.completePhase(project.id, step);
+      saveState(project, nextStep, form);
+    } catch (err) {
+      console.error('Error guardando borrador/marcando fase:', err);
+      saveState(project, step + 1, form);
+    } finally {
+      setSavingDraft(false);
+    }
+    
     setStep((current) => Math.min(current + 1, STEPS.length));
+  };
+
+  const handleCloseWizard = () => {
+    setShowCloseConfirm(true);
+  };
+
+  const confirmCloseWizard = async () => {
+    setShowCloseConfirm(false);
+    // Save draft before closing
+    try {
+      setSavingDraft(true);
+      const draftData = buildDraftPayload(step, form, fasesCompletadas);
+      await projectService.saveCompletionDraft(project.id, draftData);
+      saveState(project, step, form);
+    } catch (err) {
+      console.error('Error guardando borrador al cerrar:', err);
+      saveState(project, step, form);
+    } finally {
+      setSavingDraft(false);
+    }
+    clearSavedState(project);
+    window.location.href = '/projects';
+  };
+
+  const cancelCloseWizard = () => {
+    setShowCloseConfirm(false);
   };
 
   const buildPayload = () => {
@@ -485,9 +660,18 @@ const ProjectOnboardingWizard = ({
       peti: form.peti,
       vigenciaPeti: form.peti === true ? form.vigenciaPeti : null,
       estrategiaPeti: form.peti === true ? form.estrategiaPeti : null,
-      tienePlanComunicaciones: form.tienePlanComunicaciones,
+      tienePlanComunicaciones: true,
       // FuragDTO expects { respuestas: Map<String, RespuestaFurag> }
       furag: { respuestas: furagRespuestas },
+      riesgosIniciales: (form.riesgosIniciales || []).map((r) => ({
+        descripcion: r.descripcion || '',
+        probabilidad: r.probabilidad || 'MEDIA',
+        impacto: r.impacto || 'MEDIO',
+        tratamiento: r.tratamiento || null,
+        entidadResponsable: r.entidadResponsable || '',
+        accionesMitigacion: r.accionesMitigacion || null,
+        fechaAccion: r.fechaAccion || null,
+      })),
     };
   };
 
@@ -526,16 +710,15 @@ const ProjectOnboardingWizard = ({
           <div className="form-grid">
             <div className="form-group">
               <label className="form-label">Dependencia y/o Secretaria Responsable *</label>
-              <select
-                className={`form-input ${errors.dependencia ? 'input-error' : ''}`}
+              <AutocompleteSelect
                 value={form.dependencia || ''}
-                onChange={(event) => handleChange({ dependencia: event.target.value })}
-              >
-                <option value="">Seleccione una dependencia</option>
-                {dependencias.map((dependencia) => (
-                  <option key={dependencia} value={dependencia}>{dependencia}</option>
-                ))}
-              </select>
+                onChange={(val) => handleChange({ dependencia: val })}
+                options={dependencias.map((d) => ({ value: d, label: d }))}
+                placeholder="Seleccione una dependencia"
+                allLabel=""
+                allValue=""
+                className={errors.dependencia ? 'input-error' : ''}
+              />
               {errors.dependencia && <span className="error-text">{errors.dependencia}</span>}
             </div>
 
@@ -608,6 +791,8 @@ const ProjectOnboardingWizard = ({
     }
 
     if (step === 2) {
+      console.log('[RENDER Paso2] form.patrocinador:', form.patrocinador);
+      console.log('[RENDER Paso2] form.equipoTrabajo:', form.equipoTrabajo);
       return <Paso2PatrocinadorEquipo data={form} onChange={handleChange} errors={errors} />;
     }
 
@@ -640,7 +825,11 @@ const ProjectOnboardingWizard = ({
       return <Paso5Furag data={form} onChange={handleChange} errors={errors} preguntas={petiCatalog?.furagPreguntas} />;
     }
 
-    return <Paso6GestionDocumental data={form} onChange={handleChange} errors={errors} />;
+    if (step === 6) {
+      return <Paso6MatrizRiesgos data={form} onChange={handleChange} errors={errors} />;
+    }
+
+    return <Paso7GestionDocumental data={form} onChange={handleChange} errors={errors} />;
   };
 
   return (
@@ -659,7 +848,20 @@ const ProjectOnboardingWizard = ({
               <span>Estado actual</span>
               <strong>Pendiente de Completar</strong>
               <small>Los modulos operativos siguen bloqueados hasta guardar este asistente.</small>
+              {savingDraft && (
+                <small className="project-onboarding__saving-indicator">
+                  Guardando borrador...
+                </small>
+              )}
             </div>
+            <button
+              type="button"
+              className="btn-ghost project-onboarding__close-btn"
+              onClick={handleCloseWizard}
+              title="Cerrar y guardar progreso"
+            >
+              <X size={18} />
+            </button>
           </div>
 
           <div className="project-onboarding__locked info-banner">
@@ -699,11 +901,14 @@ const ProjectOnboardingWizard = ({
               <button
                 key={item.id}
                 type="button"
-                className={`project-onboarding__step ${step === item.id ? 'active' : ''}`}
+                className={`project-onboarding__step ${step === item.id ? 'active' : ''} ${fasesCompletadas[item.id] ? 'completed' : ''}`}
                 onClick={() => {
                   if (item.id <= step) setStep(item.id);
                 }}
               >
+                {fasesCompletadas[item.id] ? (
+                  <Check size={14} className="step-check" />
+                ) : null}
                 {String(item.id).padStart(2, '0')} {item.label}
               </button>
             ))}
@@ -747,6 +952,27 @@ const ProjectOnboardingWizard = ({
           </div>
         </form>
       </div>
+
+      {/* Close confirmation modal */}
+      {showCloseConfirm && (
+        <div className="modal-overlay" onClick={cancelCloseWizard}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Cerrar asistente</h3>
+            <p>
+              Su progreso se ha guardado automaticamente. Puede continuar donde se quedo 
+              la proxima vez que abra este proyecto.
+            </p>
+            <div className="modal-actions">
+              <button type="button" className="btn-ghost" onClick={cancelCloseWizard}>
+                Continuar editando
+              </button>
+              <button type="button" className="btn-primary" onClick={confirmCloseWizard}>
+                Cerrar y guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

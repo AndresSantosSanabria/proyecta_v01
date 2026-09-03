@@ -17,6 +17,7 @@ import ProjectProgressPage from './pages/ProjectProgressPage/ProjectProgressPage
 import CronogramaPage from './pages/CronogramaPage/CronogramaPage';
 import ProjectClosurePage from './pages/ProjectClosurePage/ProjectClosurePage';
 import RiesgosPage from './pages/RiesgosPage/RiesgosPage';
+import EvidenciasProyectoPage from './pages/EvidenciasProyectoPage/EvidenciasProyectoPage';
 import CallbackPage from './pages/CallbackPage/CallbackPage';
 import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
 import { hasProjectScopePermission, hasAdminScopePermission } from './utils/permissions';
@@ -61,24 +62,12 @@ const DefaultEntryRoute = () => {
   const canViewReports = hasPermission('REPORTE:VER');
   const canViewAnalytics = hasPermission('ANALITICA:VER');
   const canViewAdmin = hasAdminScopePermission(permissions);
-  const shouldRedirectToLogin = !backendLoading
+  const isRestricted = !backendLoading
     && !canViewDashboard
     && !canViewProjects
     && !canViewReports
     && !canViewAnalytics
     && !canViewAdmin;
-
-  useEffect(() => {
-    if (!shouldRedirectToLogin || loginTriggeredRef.current) {
-      return;
-    }
-
-    loginTriggeredRef.current = true;
-    startLoginRedirect().catch((error) => {
-      loginTriggeredRef.current = false;
-      console.error('No fue posible redirigir al login:', error);
-    });
-  }, [shouldRedirectToLogin]);
 
   if (backendLoading) {
     return <LoadingRedirectState title="Cargando perfil de usuario..." />;
@@ -106,8 +95,8 @@ const DefaultEntryRoute = () => {
 
   return (
     <LoadingRedirectState
-      title="Redirigiendo a Keycloak..."
-      subtitle="No tienes acceso efectivo desde la matriz de permisos, asi que te enviaremos al login."
+      title="Acceso Restringido"
+      subtitle="Tu cuenta no tiene permisos para acceder a ninguna vista. Por favor contacta al administrador del sistema."
     />
   );
 };
@@ -140,10 +129,12 @@ function App() {
                 <Route path="schedule" element={<CronogramaPage />} />
                 <Route path="risks" element={<RiesgosPage />} />
                 <Route path="closure" element={<ProjectClosurePage />} />
+                <Route path="evidences" element={<EvidenciasProyectoPage />} />
               </Route>
               <Route path="proyectos/:codigoProyecto" element={<Outlet />}>
                 <Route path="avance" element={<ProjectProgressPage />} />
                 <Route path="riesgos" element={<RiesgosPage />} />
+                <Route path="evidencias" element={<EvidenciasProyectoPage />} />
               </Route>
             </Route>
           </Route>
