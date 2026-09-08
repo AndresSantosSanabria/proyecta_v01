@@ -481,6 +481,7 @@ const ProjectOnboardingWizard = ({
 
     if (targetStep === 7) {
       if (!source.viabilizacionPdf) nextErrors.viabilizacionPdf = 'El documento de viabilidad es obligatorio.';
+      if (!source.planComunicacionesPdf) nextErrors.planComunicacionesPdf = 'El Plan de Comunicaciones es obligatorio.';
     }
 
     return nextErrors;
@@ -665,8 +666,8 @@ const ProjectOnboardingWizard = ({
       furag: { respuestas: furagRespuestas },
       riesgosIniciales: (form.riesgosIniciales || []).map((r) => ({
         descripcion: r.descripcion || '',
-        probabilidad: r.probabilidad || 'MEDIA',
-        impacto: r.impacto || 'MEDIO',
+        probabilidad: r.probabilidad || 'TRES',
+        impacto: r.impacto || 'TRES',
         tratamiento: r.tratamiento || null,
         entidadResponsable: r.entidadResponsable || '',
         accionesMitigacion: r.accionesMitigacion || null,

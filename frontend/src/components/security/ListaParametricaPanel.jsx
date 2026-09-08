@@ -77,7 +77,7 @@ const ListaParametricaPanel = () => {
       setError(null);
       const valores = form.valores
         .split('\n')
-        .map((v) => v.trim())
+        .map((v) => v.trim().replace(/^["']+|["']+$/g, ''))
         .filter((v) => v.length > 0);
       await configCatalogService.guardarValoresLista(editingKey, {
         nombreCampo: form.nombreCampo.trim(),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Info, Lock, Maximize2, X, FileText, Eye } from 'lucide-react';
+import { Info, Lock, Maximize2, X, FileText, Eye, Bell } from 'lucide-react';
 import projectService from '../../services/projectService';
 import { usePermission } from '../../hooks/usePermission';
 import ProgressHeader from '../../components/features/progress/ProgressHeader';
@@ -10,6 +10,7 @@ import ProjectBenefitImpactPanel from '../../components/projects/ProjectBenefitI
 import BenefitImpactReviewModal from '../../components/projects/BenefitImpactReviewModal';
 import ProjectInfoModal from '../../components/projects/ProjectInfoModal';
 import { formatDate } from '../../utils/locale';
+import { emitToast } from '../../utils/feedback';
 import './ProjectProgressPage.css';
 
 const normalizeProgressPayload = (payload, fallbackCode) => {
@@ -91,6 +92,8 @@ const ProjectProgressPage = () => {
   const [projectInfoModalOpen, setProjectInfoModalOpen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [benefitImpactData, setBenefitImpactData] = useState(null);
+  const [notifying, setNotifying] = useState(false);
+  const [notified, setNotified] = useState(false);
 
   const showBenefitImpact = useMemo(() => {
     if (toNumber(progressData.progresoEjecutado) >= 100 || toNumber(progressData.avanceTotal) >= 100) {
@@ -112,6 +115,7 @@ const ProjectProgressPage = () => {
   const hasBenefitData = benefitImpactData && ['DILIGENCIADO', 'OBSERVADO', 'RECHAZADO', 'APROBADO'].includes(benefitImpactData.estado);
   const canReview = canApproveBenefits && hasBenefitData;
   const canViewBenefitModal = hasBenefitData && (canApproveBenefits || canViewBenefits);
+  const canNotifyDirector = usePermission('PROYECTO:VER');
 
   useEffect(() => {
     if (!codigoProyecto) return;
@@ -197,6 +201,30 @@ const ProjectProgressPage = () => {
     setRefreshKey((prev) => prev + 1);
   };
 
+  const handleNotifyDirector = async () => {
+    if (notifying || notified) return;
+    try {
+      setNotifying(true);
+      await projectService.notifyDirector(codigoProyecto);
+      setNotified(true);
+      emitToast({
+        title: 'Notificacion enviada',
+        message: 'Se envio la alerta de avance al director del proyecto via correo electronico e notificacion in-app.',
+        tone: 'success',
+      });
+    } catch (err) {
+      console.error('Error notifying director:', err);
+      const message = err?.response?.data?.message || err?.message || 'No se pudo enviar la notificacion al director.';
+      emitToast({
+        title: 'Error al enviar notificacion',
+        message,
+        tone: 'error',
+      });
+    } finally {
+      setNotifying(false);
+    }
+  };
+
   const resumenExcel = useMemo(() => {
     const entregables = flattenEntregables(progressData.fases || []);
     const corte = progressData.corte ? new Date(progressData.corte) : new Date();
@@ -278,6 +306,17 @@ const ProjectProgressPage = () => {
           >
             <Eye size={16} />
             {canApproveBenefits ? 'Revisar Beneficios e Impacto' : 'Ver Beneficios e Impacto'}
+          </button>
+        )}
+        {canNotifyDirector && (
+          <button
+            type="button"
+            className={`pim-trigger notify-director-btn ${notified ? 'notified' : ''}`}
+            onClick={handleNotifyDirector}
+            disabled={notifying || notified}
+          >
+            <Bell size={16} />
+            {notifying ? 'Enviando...' : notified ? 'Notificacion enviada' : 'Notificar Director'}
           </button>
         )}
         <button

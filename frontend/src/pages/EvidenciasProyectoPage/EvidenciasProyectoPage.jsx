@@ -3,9 +3,9 @@ import { useParams } from 'react-router-dom';
 import {
   FileText, Search, Eye, Calendar, User, Tag, ChevronDown, ChevronUp,
   AlertCircle, LoaderCircle, FolderOpen, ClipboardCheck, Clock, Shield, FileEdit,
+  FileStack, FileBadge, Archive,
 } from 'lucide-react';
 import projectService from '../../services/projectService';
-import documentService from '../../services/documentService';
 import { formatDate } from '../../utils/locale';
 import EvidenciaDetailModal from '../../components/projects/EvidenciaDetailModal';
 import './EvidenciasProyectoPage.css';
@@ -13,85 +13,15 @@ import './EvidenciasProyectoPage.css';
 const CATEGORIAS = [
   { key: 'TODOS', label: 'Todos', icon: FolderOpen },
   { key: 'DOCUMENTO_PROYECTO', label: 'Documentos del Proyecto', icon: FileText },
+  { key: 'DOCUMENTO_PROYECTO_AVANZADO', label: 'Documentos Avanzados', icon: FileBadge },
+  { key: 'DOCUMENTO_DINAMICO', label: 'Documentos Dinamicos', icon: FileStack },
   { key: 'EVIDENCIA_ENTREGABLE', label: 'Evidencias de Entregables', icon: ClipboardCheck },
   { key: 'CRONOGRAMA', label: 'Cronograma', icon: FileText },
-  { key: 'RIESGO', label: 'Soluciones de Riesgos', icon: Shield },
+  { key: 'MATRIZ_RIESGOS', label: 'Matriz de Riesgos', icon: Shield },
   { key: 'CAMBIO_FECHA', label: 'Cambios de Fecha', icon: Clock },
-  { key: 'CAMBIO_DESCRIPCION', label: 'Cambios de Descripción', icon: FileEdit },
+  { key: 'CAMBIO_DESCRIPCION', label: 'Cambios de Descripcion', icon: FileEdit },
+  { key: 'ACTA_CIERRE', label: 'Acta de Cierre', icon: Archive },
 ];
-
-const DOCUMENT_LABELS = {
-  VIABILIZACION: 'Documento de viabilidad',
-  ACTA_CONSTITUCION: 'Acta de constitucion',
-  CRONOGRAMA: 'Cronograma del proyecto',
-  PLAN_COMUNICACIONES: 'Plan de comunicaciones',
-};
-
-const unwrapDocuments = (response) => {
-  const payload = response?.data?.data ?? response?.data ?? response;
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.documentos)) return payload.documentos;
-  if (Array.isArray(payload?.items)) return payload.items;
-  return [];
-};
-
-const getUserDisplayName = (user) => {
-  if (!user) return '';
-  if (typeof user === 'string') return user;
-  return user?.nombre || user?.name || user?.username || user?.correo || user?.email || '';
-};
-
-const mapProjectDocument = (doc, index, projectData) => {
-  const tipoDocumento = String(
-    doc?.tipoDocumentoCodigo
-      || doc?.tipo_documento_codigo
-      || doc?.tipoDocumento
-      || doc?.tipo_documento
-      || ''
-  ).toUpperCase();
-  const nombreArchivo = doc?.nombreOriginal
-    || doc?.nombre_original
-    || doc?.nombreAlmacenado
-    || doc?.nombre_almacenado
-    || '';
-  const fechaRegistro = doc?.fechaCarga || doc?.fecha_carga || doc?.fechaRegistro || doc?.fecha_registro || null;
-  const usuario = getUserDisplayName(
-    doc?.usuario
-      || doc?.usuarioCarga
-      || doc?.usuario_carga
-      || doc?.usuarioNombre
-      || doc?.usuario_nombre
-      || doc?.nombreUsuario
-      || doc?.nombre_usuario
-      || doc?.cargadoPor
-      || doc?.cargado_por
-      || doc?.uploadedBy
-      || doc?.createdBy
-  ) || getUserDisplayName(projectData?.directorNombre || projectData?.director);
-
-  return {
-    id: `documento-${doc?.id || tipoDocumento || index}`,
-    categoria: 'DOCUMENTO_PROYECTO',
-    nombre: DOCUMENT_LABELS[tipoDocumento] || tipoDocumento || 'Documento del proyecto',
-    nombreArchivo,
-    evidenciaUrl: null,
-    fechaRegistro,
-    fechaEntrega: null,
-    fechaLimite: null,
-    estado: 'CARGADO',
-    estadoCodigo: 'CARGADO',
-    usuario,
-    tipo: tipoDocumento || 'DOCUMENTO_PROYECTO',
-    tipoDocumento,
-    faseNombre: null,
-    hitoNombre: null,
-    entregableNombre: null,
-    entregableId: null,
-    descripcion: doc?.observacion || doc?.observacionCarga || doc?.observacion_carga || '',
-    observaciones: doc?.observacion || doc?.observacionCarga || doc?.observacion_carga || '',
-    archivoPdf: null,
-  };
-};
 
 const EvidenciasProyectoPage = () => {
   const params = useParams();
@@ -112,23 +42,21 @@ const EvidenciasProyectoPage = () => {
       setLoading(true);
       setError(null);
 
-      const [evidenciasResponse, projectResponse, documentosResponse] = await Promise.allSettled([
+      const [evidenciasResponse, projectResponse] = await Promise.allSettled([
         projectService.getEvidenciasByProyecto(codigoProyecto),
         projectService.getById(codigoProyecto),
-        documentService.listarDocumentos(codigoProyecto),
       ]);
 
       const evidenciasData = evidenciasResponse.status === 'fulfilled'
-        ? (evidenciasResponse.value?.data?.data ?? evidenciasResponse.value?.data ?? [])
+        ? (Array.isArray(evidenciasResponse.value) ? evidenciasResponse.value : [])
         : [];
       const projectData = projectResponse.status === 'fulfilled'
         ? (projectResponse.value?.data?.data ?? projectResponse.value?.data ?? null)
         : null;
-      const documentosData = documentosResponse.status === 'fulfilled'
-        ? unwrapDocuments(documentosResponse.value)
-        : [];
 
-      const items = Array.isArray(evidenciasData) ? evidenciasData.map((ev) => ({
+      const items = evidenciasData
+        .filter((ev) => ev.categoria !== 'RIESGO')
+        .map((ev) => ({
         id: ev.id,
         categoria: ev.categoria,
         nombre: ev.nombre || 'Sin nombre',
@@ -157,12 +85,10 @@ const EvidenciasProyectoPage = () => {
         descripcionAnterior: ev.descripcionAnterior || null,
         descripcionNueva: ev.descripcionNueva || null,
         justificacion: ev.justificacion || '',
-      })) : [];
+        solucionesCount: ev.solucionesCount || 0,
+      }));
 
-      setAllItems([
-        ...documentosData.map((doc, index) => mapProjectDocument(doc, index, projectData)),
-        ...items,
-      ]);
+      setAllItems(items);
       setProjectInfo(projectData);
     } catch (err) {
       console.error('Error fetching evidencias:', err);
@@ -243,11 +169,15 @@ const EvidenciasProyectoPage = () => {
   const getCategoriaBadge = (cat) => {
     const map = {
       DOCUMENTO_PROYECTO: { bg: 'var(--primary-soft)', color: 'var(--primary)', label: 'Documento' },
+      DOCUMENTO_PROYECTO_AVANZADO: { bg: 'var(--info-soft, #e0f2fe)', color: 'var(--info, #0284c7)', label: 'Doc. Avanzado' },
+      DOCUMENTO_DINAMICO: { bg: '#f3e8ff', color: '#7c3aed', label: 'Doc. Dinamico' },
       EVIDENCIA_ENTREGABLE: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Evidencia' },
       CRONOGRAMA: { bg: 'var(--info-soft, #e0f2fe)', color: 'var(--info, #0284c7)', label: 'Cronograma' },
       RIESGO: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Riesgo' },
+      MATRIZ_RIESGOS: { bg: '#fef2f2', color: '#b91c1c', label: 'Matriz Riesgos' },
       CAMBIO_FECHA: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Cambio fecha' },
-      CAMBIO_DESCRIPCION: { bg: 'var(--primary-soft)', color: 'var(--primary)', label: 'Cambio descripción' },
+      CAMBIO_DESCRIPCION: { bg: 'var(--primary-soft)', color: 'var(--primary)', label: 'Cambio descripcion' },
+      ACTA_CIERRE: { bg: '#fef3c7', color: '#d97706', label: 'Acta cierre' },
     };
     return map[cat] || { bg: 'var(--bg-muted)', color: 'var(--text-muted)', label: cat };
   };
@@ -278,15 +208,19 @@ const EvidenciasProyectoPage = () => {
           </div>
           <div className="evp-stat-card evp-stat-primary">
             <span className="evp-stat-label">Documentos</span>
-            <strong className="evp-stat-value">{getCatCount('DOCUMENTO_PROYECTO')}</strong>
+            <strong className="evp-stat-value">{getCatCount('DOCUMENTO_PROYECTO') + getCatCount('DOCUMENTO_PROYECTO_AVANZADO') + getCatCount('DOCUMENTO_DINAMICO')}</strong>
           </div>
           <div className="evp-stat-card evp-stat-success">
             <span className="evp-stat-label">Evidencias</span>
             <strong className="evp-stat-value">{getCatCount('EVIDENCIA_ENTREGABLE')}</strong>
           </div>
           <div className="evp-stat-card evp-stat-warning">
-            <span className="evp-stat-label">Cambios Fecha</span>
-            <strong className="evp-stat-value">{getCatCount('CAMBIO_FECHA')}</strong>
+            <span className="evp-stat-label">Cambios</span>
+            <strong className="evp-stat-value">{getCatCount('CAMBIO_FECHA') + getCatCount('CAMBIO_DESCRIPCION')}</strong>
+          </div>
+          <div className="evp-stat-card evp-stat-danger">
+            <span className="evp-stat-label">Riesgos</span>
+            <strong className="evp-stat-value">{getCatCount('MATRIZ_RIESGOS')}</strong>
           </div>
         </div>
       </div>
@@ -378,15 +312,24 @@ const EvidenciasProyectoPage = () => {
                         <td className="evp-td-name">
                           <div className="evp-td-name-content">
                             {item.categoria === 'DOCUMENTO_PROYECTO' && <FileText size={16} className="evp-td-icon evp-td-icon--primary" />}
+                            {item.categoria === 'DOCUMENTO_PROYECTO_AVANZADO' && <FileBadge size={16} className="evp-td-icon" style={{ color: 'var(--info, #0284c7)' }} />}
+                            {item.categoria === 'DOCUMENTO_DINAMICO' && <FileStack size={16} className="evp-td-icon" style={{ color: '#7c3aed' }} />}
                             {item.categoria === 'EVIDENCIA_ENTREGABLE' && <ClipboardCheck size={16} className="evp-td-icon evp-td-icon--success" />}
                             {item.categoria === 'CRONOGRAMA' && <FileText size={16} className="evp-td-icon" style={{ color: 'var(--info, #0284c7)' }} />}
                             {item.categoria === 'RIESGO' && <Shield size={16} className="evp-td-icon" style={{ color: 'var(--danger)' }} />}
+                            {item.categoria === 'MATRIZ_RIESGOS' && <Shield size={16} className="evp-td-icon" style={{ color: '#b91c1c' }} />}
                             {item.categoria === 'CAMBIO_FECHA' && <Clock size={16} className="evp-td-icon evp-td-icon--warning" />}
                             {item.categoria === 'CAMBIO_DESCRIPCION' && <FileEdit size={16} className="evp-td-icon evp-td-icon--primary" />}
+                            {item.categoria === 'ACTA_CIERRE' && <Archive size={16} className="evp-td-icon" style={{ color: '#d97706' }} />}
                             <div>
                               <strong>{item.nombre || 'Sin nombre'}</strong>
-                              {item.entregableNombre && <span className="evp-td-subtitle">{item.entregableNombre}</span>}
                               {item.nombreArchivo && item.nombre !== item.nombreArchivo && <span className="evp-td-subtitle">{item.nombreArchivo}</span>}
+                              {item.categoria === 'MATRIZ_RIESGOS' && item.solucionesCount > 0 && (
+                                <span className="evp-td-subtitle" style={{ color: 'var(--danger)' }}>
+                                  {item.solucionesCount} solucion{item.solucionesCount !== 1 ? 'es' : ''}
+                                </span>
+                              )}
+                              {item.entregableNombre && <span className="evp-td-subtitle">{item.entregableNombre}</span>}
                             </div>
                           </div>
                         </td>
@@ -427,11 +370,23 @@ const EvidenciasProyectoPage = () => {
                           {!item.faseNombre && item.categoria === 'DOCUMENTO_PROYECTO' && (
                             <span>Documento del proyecto</span>
                           )}
+                          {!item.faseNombre && item.categoria === 'DOCUMENTO_PROYECTO_AVANZADO' && (
+                            <span>Documento avanzado</span>
+                          )}
+                          {!item.faseNombre && item.categoria === 'DOCUMENTO_DINAMICO' && (
+                            <span>Documento dinamico</span>
+                          )}
                           {!item.faseNombre && item.categoria === 'CRONOGRAMA' && (
                             <span>Cronograma del proyecto</span>
                           )}
                           {!item.faseNombre && item.categoria === 'RIESGO' && (
                             <span>Solucion de riesgo</span>
+                          )}
+                          {!item.faseNombre && item.categoria === 'MATRIZ_RIESGOS' && (
+                            <span>Matriz de riesgos</span>
+                          )}
+                          {!item.faseNombre && item.categoria === 'ACTA_CIERRE' && (
+                            <span>Acta de cierre</span>
                           )}
                         </td>
                         <td className="evp-td-actions">

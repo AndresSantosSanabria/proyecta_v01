@@ -23,10 +23,13 @@ import SpellCheckerInput from '../../components/common/SpellCheckerInput';
 import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import './RiesgosPage.css';
 
-const DEFAULT_PROBABILIDADES = ['BAJA', 'MEDIA', 'ALTA'];
-const DEFAULT_IMPACTOS = ['BAJO', 'MEDIO', 'ALTO'];
+const DEFAULT_PROBABILIDADES = ['UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO'];
+const DEFAULT_IMPACTOS = ['UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO'];
 const ESTADOS = ['PENDIENTE', 'TRATADO'];
 const DEFAULT_NIVELES = ['BAJO', 'MODERADO', 'ALTO', 'EXTREMO'];
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const MAX_TOTAL_SIZE_BYTES = 200 * 1024 * 1024;
+const MAX_FILES_PER_BATCH = 10;
 const RISK_LEVEL_LABELS = {
   BAJO: 'Bajo',
   MODERADO: 'Moderado',
@@ -37,8 +40,8 @@ const RISK_LEVEL_LABELS = {
 
 const emptyForm = {
   descripcion: '',
-  probabilidad: 'MEDIA',
-  impacto: 'MEDIO',
+  probabilidad: 'TRES',
+  impacto: 'TRES',
   tratamiento: '',
   entidadResponsable: '',
   accionesMitigacion: '',
@@ -47,18 +50,18 @@ const emptyForm = {
 };
 
 const deriveInherentScore = (probability, impact) => {
-  const p = String(probability || '').toUpperCase();
-  const i = String(impact || '').toUpperCase();
-  const pMap = { BAJA: 1, MEDIA: 2, ALTA: 3 };
-  const iMap = { BAJO: 1, MEDIO: 2, ALTO: 3 };
-  return (pMap[p] || 0) + (iMap[i] || 0);
+  const pMap = { UNO: 1, DOS: 2, TRES: 3, CUATRO: 4, CINCO: 5 };
+  const iMap = { UNO: 1, DOS: 2, TRES: 3, CUATRO: 4, CINCO: 5 };
+  const p = pMap[String(probability || '').toUpperCase()] || 0;
+  const i = iMap[String(impact || '').toUpperCase()] || 0;
+  return p + i;
 };
 
 const getRiskLevelFromScore = (score) => {
   if (score >= 2 && score <= 4) return 'BAJO';
-  if (score === 5) return 'MODERADO';
-  if (score >= 6 && score <= 7) return 'ALTO';
-  if (score >= 8 && score <= 10) return 'EXTREMO';
+  if (score >= 5 && score <= 6) return 'MODERADO';
+  if (score >= 7 && score <= 8) return 'ALTO';
+  if (score >= 9) return 'EXTREMO';
   return 'BAJO';
 };
 
@@ -107,6 +110,7 @@ const RiesgosPage = () => {
   const [solutionFiles, setSolutionFiles] = useState([]);
   const [solutionSaving, setSolutionSaving] = useState(false);
   const [solutionError, setSolutionError] = useState(null);
+  const [solutionMitigacion, setSolutionMitigacion] = useState('');
   const [previewSolution, setPreviewSolution] = useState(null);
   const [matrixHelpOpen, setMatrixHelpOpen] = useState(false);
   const [openSelect, setOpenSelect] = useState(null);
@@ -266,6 +270,7 @@ const RiesgosPage = () => {
     if (!canEdit || !risk) return;
     setSolutionRisk(risk);
     setSolutionFiles([]);
+    setSolutionMitigacion(risk.accionesMitigacion || '');
     setSolutionError(null);
     setSolutionModalOpen(true);
   };
@@ -274,32 +279,43 @@ const RiesgosPage = () => {
     const selectedFiles = Array.from(event.target.files || []);
     if (selectedFiles.length === 0) return;
 
-    const pdfFiles = selectedFiles.filter((file) => {
+    const pdfFiles = [];
+    const errors = [];
+    selectedFiles.forEach((file) => {
       const type = String(file.type || '').toLowerCase();
       const name = String(file.name || '').toLowerCase();
-      return type === 'application/pdf' || name.endsWith('.pdf');
+      const isPdf = type === 'application/pdf' || name.endsWith('.pdf');
+      if (!isPdf) {
+        errors.push(`${file.name}: solo se permiten archivos PDF.`);
+      } else if (file.size > MAX_FILE_SIZE_BYTES) {
+        errors.push(`${file.name}: excede el tamaño máximo de 50 MB.`);
+      } else {
+        pdfFiles.push(file);
+      }
     });
 
-    const rejected = selectedFiles.length - pdfFiles.length;
-    if (rejected > 0) {
-      setSolutionError('Solo se permiten archivos PDF.');
-    } else {
-      setSolutionError(null);
-    }
-
+    let atLimit = false;
     setSolutionFiles((current) => {
       const existingKeys = new Set(current.map((file) => `${file.name}_${file.size}_${file.lastModified}`));
       const nextFiles = [...current];
       pdfFiles.forEach((file) => {
         const key = `${file.name}_${file.size}_${file.lastModified}`;
-        if (!existingKeys.has(key)) {
-          existingKeys.add(key);
-          nextFiles.push(file);
+        if (existingKeys.has(key)) return;
+        if (nextFiles.length >= MAX_FILES_PER_BATCH) {
+          atLimit = true;
+          return;
         }
+        existingKeys.add(key);
+        nextFiles.push(file);
       });
       return nextFiles;
     });
 
+    if (atLimit) {
+      errors.push(`Solo se pueden cargar ${MAX_FILES_PER_BATCH} archivos por tanda. Guarda los primeros y luego carga los siguientes.`);
+    }
+
+    setSolutionError(errors.length > 0 ? errors.join(' ') : null);
     event.target.value = '';
   };
 
@@ -341,15 +357,39 @@ const RiesgosPage = () => {
     event.preventDefault();
     if (!canEdit || !solutionRisk) return;
 
+    const totalSize = solutionFiles.reduce((acc, file) => acc + file.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+      setSolutionError('El tamaño total de los archivos excede el límite de 200 MB. Reduce la cantidad de archivos.');
+      return;
+    }
+
     try {
       setSolutionSaving(true);
       setSolutionError(null);
-      await riskService.uploadRiskSolutions(proyectoId, solutionRisk.id, solutionFiles);
+
+      const mitigacionCambio = solutionMitigacion !== (solutionRisk.accionesMitigacion || '');
+      if (mitigacionCambio) {
+        await riskService.updateRisk(proyectoId, solutionRisk.id, {
+          descripcion: solutionRisk.descripcion,
+          probabilidad: solutionRisk.probabilidad,
+          impacto: solutionRisk.impacto,
+          tratamiento: solutionRisk.tratamiento || '',
+          entidadResponsable: solutionRisk.entidadResponsable || '',
+          accionesMitigacion: solutionMitigacion || null,
+          fechaAccion: solutionRisk.fechaAccion || null,
+          estado: solutionRisk.estado || 'PENDIENTE',
+        });
+      }
+
+      if (solutionFiles.length > 0) {
+        await riskService.uploadRiskSolutions(proyectoId, solutionRisk.id, solutionFiles);
+      }
+
       closeSolutionModal();
       await fetchData();
     } catch (err) {
       console.error(err);
-      setSolutionError(err?.response?.data?.detail || 'No fue posible cargar las soluciones.');
+      setSolutionError(err?.response?.data?.detail || 'No fue posible guardar las soluciones.');
     } finally {
       setSolutionSaving(false);
     }
@@ -390,8 +430,8 @@ const RiesgosPage = () => {
     setEditingId(risk.id);
     setForm({
       descripcion: risk.descripcion || '',
-      probabilidad: risk.probabilidad || 'MEDIA',
-      impacto: risk.impacto || 'MEDIO',
+      probabilidad: risk.probabilidad || 'TRES',
+      impacto: risk.impacto || 'TRES',
       tratamiento: risk.tratamiento || '',
       entidadResponsable: risk.entidadResponsable || '',
       accionesMitigacion: risk.accionesMitigacion || '',
@@ -587,7 +627,7 @@ const RiesgosPage = () => {
                         <span className={`risk-badge ${level.toLowerCase()}`}>{formatRiskLevelLabel(level)}</span>
                       </td>
                       <td className="risk-cell-left">
-                        <span>{formatLongText(risk.tratamiento)}</span>
+                        <span>{formatLongText(risk.accionesMitigacion)}</span>
                       </td>
                       <td className="risk-cell-left">
                         <span>{formatLongText(risk.entidadResponsable)}</span>
@@ -667,7 +707,13 @@ const RiesgosPage = () => {
                   <AutocompleteSelect
                     value={form.probabilidad}
                     onChange={(val) => setForm((prev) => ({ ...prev, probabilidad: val }))}
-                    options={matrixProbabilidades.map((item) => ({ value: item, label: item }))}
+                    options={[
+                      { value: 'UNO', label: '1 - Muy baja' },
+                      { value: 'DOS', label: '2 - Baja' },
+                      { value: 'TRES', label: '3 - Media' },
+                      { value: 'CUATRO', label: '4 - Alta' },
+                      { value: 'CINCO', label: '5 - Muy alta' },
+                    ]}
                     placeholder="Seleccionar..."
                     sortAlphabetically={false}
                   />
@@ -677,10 +723,52 @@ const RiesgosPage = () => {
                   <AutocompleteSelect
                     value={form.impacto}
                     onChange={(val) => setForm((prev) => ({ ...prev, impacto: val }))}
-                    options={matrixImpactos.map((item) => ({ value: item, label: item }))}
+                    options={[
+                      { value: 'UNO', label: '1 - Muy bajo' },
+                      { value: 'DOS', label: '2 - Bajo' },
+                      { value: 'TRES', label: '3 - Medio' },
+                      { value: 'CUATRO', label: '4 - Alto' },
+                      { value: 'CINCO', label: '5 - Muy alto' },
+                    ]}
                     placeholder="Seleccionar..."
                     sortAlphabetically={false}
                   />
+                </label>
+              </div>
+
+              <div className="form-grid form-grid-2">
+                <label>
+                  Calificación (P + I)
+                  <input
+                    type="text"
+                    className="form-input form-input-readonly"
+                    value={deriveInherentScore(form.probabilidad, form.impacto) || '—'}
+                    readOnly
+                  />
+                </label>
+                <label>
+                  Nivel de riesgo
+                  {(() => {
+                    const score = deriveInherentScore(form.probabilidad, form.impacto);
+                    const level = getRiskLevelFromScore(score);
+                    const levelKey = normalizeRiskLevel(level);
+                    const colorMap = {
+                      BAJO: { bg: '#dcfce7', color: '#166534' },
+                      MODERADO: { bg: '#fef9c3', color: '#854d0e' },
+                      ALTO: { bg: '#fed7aa', color: '#9a3412' },
+                      EXTREMO: { bg: '#fecaca', color: '#991b1b' },
+                    };
+                    const colors = colorMap[levelKey] || colorMap.BAJO;
+                    return (
+                      <input
+                        type="text"
+                        className="form-input form-input-readonly"
+                        value={formatRiskLevelLabel(level)}
+                        readOnly
+                        style={{ background: colors.bg, color: colors.color, fontWeight: 700, border: `1px solid ${colors.color}22` }}
+                      />
+                    );
+                  })()}
                 </label>
               </div>
 
@@ -859,11 +947,32 @@ const RiesgosPage = () => {
                 <div className="panel-title compact">
                   <div>
                     <h3>Agregar PDFs</h3>
-                    <span className="panel-subtitle">Selecciona uno o varios archivos</span>
+                    <span className="panel-subtitle">
+                      {solutionFiles.length === 0
+                        ? 'Selecciona uno o varios archivos'
+                        : `${solutionFiles.length} de ${MAX_FILES_PER_BATCH} archivos seleccionados`}
+                    </span>
                   </div>
                 </div>
 
                 <form className="risk-form solution-form" onSubmit={handleSolutionSubmit}>
+                  {!solutionRisk?.accionesMitigacion && (
+                    <label className="field-label">
+                      Cómo mitigar <span className="required">*</span>
+                    </label>
+                  )}
+                  {solutionRisk?.accionesMitigacion && (
+                    <label className="field-label">Cómo mitigar</label>
+                  )}
+                  <textarea
+                    className="risk-textarea"
+                    rows={3}
+                    placeholder="Describe cómo se mitigará este riesgo..."
+                    value={solutionMitigacion}
+                    onChange={(e) => setSolutionMitigacion(e.target.value)}
+                    required={!solutionRisk?.accionesMitigacion}
+                  />
+
                   <label className="file-picker">
                     <span>Archivos PDF</span>
                     <input
@@ -871,8 +980,14 @@ const RiesgosPage = () => {
                       accept=".pdf,application/pdf"
                       multiple
                       onChange={handleSolutionFiles}
+                      disabled={solutionFiles.length >= MAX_FILES_PER_BATCH}
                     />
                   </label>
+                  {solutionFiles.length >= MAX_FILES_PER_BATCH && (
+                    <div className="empty-box" style={{ fontSize: '0.8rem', color: 'var(--color-warning, #f59e0b)' }}>
+                      Límite alcanzado. Guarda los archivos actuales antes de cargar más.
+                    </div>
+                  )}
 
                   <div className="pending-files">
                     {solutionFiles.length === 0 ? (
@@ -901,7 +1016,15 @@ const RiesgosPage = () => {
                     <button type="button" className="btn-secondary" onClick={closeSolutionModal}>
                       Cancelar
                     </button>
-                    <button className="btn-primary" disabled={!canEdit || solutionSaving || solutionFiles.length === 0} type="submit">
+                    <button
+                      className="btn-primary"
+                      disabled={
+                        !canEdit
+                        || solutionSaving
+                        || (!solutionRisk?.accionesMitigacion && !solutionMitigacion.trim())
+                      }
+                      type="submit"
+                    >
                       <Save size={16} /> {solutionSaving ? 'Guardando...' : 'Guardar soluciones'}
                     </button>
                   </div>

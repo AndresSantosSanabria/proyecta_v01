@@ -150,6 +150,17 @@
 
 /* ── Responsive ────────────────────────────────────── */
 
+.form-input-readonly {
+  cursor: default;
+  user-select: none;
+  opacity: 0.92;
+}
+
+.form-input-readonly:focus {
+  transform: none;
+  box-shadow: none;
+}
+
 @media (max-width: 768px) {
   .riesgo-field-row {
     grid-template-columns: 1fr;

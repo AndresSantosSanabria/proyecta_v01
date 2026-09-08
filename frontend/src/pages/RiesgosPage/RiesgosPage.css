@@ -773,8 +773,10 @@
 
 .solution-modal {
   width: min(1180px, 100%);
-  max-height: min(90vh, 1000px);
-  overflow: auto;
+  max-height: min(85vh, 900px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 24px;
   border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
   background:
@@ -788,17 +790,26 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .solution-panel {
   display: grid;
+  grid-template-rows: auto 1fr;
   gap: 0.9rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .solution-list,
 .pending-files {
   display: grid;
   gap: 0.65rem;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: calc(min(85vh, 900px) - 200px);
 }
 
 .solution-item,
@@ -953,6 +964,19 @@
   min-height: 96px;
 }
 
+.solution-form .field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+}
+
+.solution-form .required {
+  color: #ef4444;
+  margin-left: 2px;
+}
+
 .custom-select {
   position: relative;
   min-width: 0;
@@ -1034,6 +1058,17 @@
 
 .form-grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-input-readonly {
+  cursor: default;
+  user-select: none;
+  opacity: 0.92;
+}
+
+.form-input-readonly:focus {
+  transform: none;
+  box-shadow: none;
 }
 
 .form-actions {

@@ -6,6 +6,7 @@ import {
 import apiClient from '../../api/axiosConfig';
 import projectService from '../../services/projectService';
 import documentService from '../../services/documentService';
+import riskService from '../../services/riskService';
 import { formatDate, formatDateTime } from '../../utils/locale';
 import './EvidenciaDetailModal.css';
 
@@ -53,6 +54,10 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [versionsError, setVersionsError] = useState('');
   const [showVersions, setShowVersions] = useState(false);
+
+  const [riskSolutions, setRiskSolutions] = useState([]);
+  const [loadingRiskSolutions, setLoadingRiskSolutions] = useState(false);
+  const [riskSolutionsError, setRiskSolutionsError] = useState('');
 
   const [viewerBlob, setViewerBlob] = useState(null);
   const [viewerNombre, setViewerNombre] = useState('');
@@ -108,6 +113,33 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
     }
   }, [open, evidencia, fetchVersions]);
 
+  useEffect(() => {
+    if (!open || !evidencia || evidencia.categoria !== 'MATRIZ_RIESGOS' || !evidencia.riesgoId) {
+      setRiskSolutions([]);
+      setRiskSolutionsError('');
+      return;
+    }
+    let cancelled = false;
+    const fetchRiskSolutions = async () => {
+      setLoadingRiskSolutions(true);
+      setRiskSolutionsError('');
+      setRiskSolutions([]);
+      try {
+        const response = await riskService.getRiskSolutions(proyectoId, evidencia.riesgoId);
+        const payload = response?.data ?? response;
+        const data = payload?.data ?? payload;
+        if (!cancelled) setRiskSolutions(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Error fetching risk solutions:', err);
+        if (!cancelled) setRiskSolutionsError('No se pudieron cargar las soluciones del riesgo.');
+      } finally {
+        if (!cancelled) setLoadingRiskSolutions(false);
+      }
+    };
+    fetchRiskSolutions();
+    return () => { cancelled = true; };
+  }, [open, evidencia, proyectoId]);
+
   const handleViewFile = async () => {
     let url = null;
 
@@ -128,6 +160,33 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
         setLoadingViewer(false);
       }
       return;
+    }
+
+    if (evidencia?.categoria === 'DOCUMENTO_PROYECTO_AVANZADO' && evidencia.tipoDocumento) {
+      try {
+        setLoadingViewer(true);
+        setViewerError('');
+        setViewerBlob(null);
+        const blob = await documentService.descargarDocumento(proyectoId, evidencia.tipoDocumento);
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        const objectUrl = URL.createObjectURL(blob);
+        objectUrlRef.current = objectUrl;
+        setViewerBlob(objectUrl);
+        setViewerNombre(evidencia.nombreArchivo || evidencia.nombre || 'documento.pdf');
+      } catch {
+        setViewerError('No fue posible cargar el documento.');
+      } finally {
+        setLoadingViewer(false);
+      }
+      return;
+    }
+
+    if (evidencia?.categoria === 'DOCUMENTO_DINAMICO' && evidencia.evidenciaUrl) {
+      url = evidencia.evidenciaUrl;
+    }
+
+    if (evidencia?.categoria === 'ACTA_CIERRE' && evidencia.evidenciaUrl) {
+      url = evidencia.evidenciaUrl;
     }
 
     if ((evidencia?.categoria === 'CAMBIO_FECHA' || evidencia?.categoria === 'CAMBIO_DESCRIPCION') && evidencia.cambioId) {
@@ -188,6 +247,21 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
 
   const handleDownloadFile = async () => {
     if (evidencia?.categoria === 'DOCUMENTO_PROYECTO' && evidencia.tipoDocumento) {
+      try {
+        const blob = await documentService.descargarDocumento(proyectoId, evidencia.tipoDocumento);
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', evidencia.nombreArchivo || 'documento.pdf');
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      } catch (err) { console.error('Error downloading:', err); }
+      return;
+    }
+
+    if (evidencia?.categoria === 'DOCUMENTO_PROYECTO_AVANZADO' && evidencia.tipoDocumento) {
       try {
         const blob = await documentService.descargarDocumento(proyectoId, evidencia.tipoDocumento);
         const blobUrl = URL.createObjectURL(blob);
@@ -301,7 +375,15 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
   const entregableNombre = data.entregableNombre || '';
   const hitoNombre = data.hitoNombre || '';
   const faseNombre = data.faseNombre || '';
-  const tieneArchivo = data.categoria === 'DOCUMENTO_PROYECTO'
+  const tieneArchivo = data.categoria === 'MATRIZ_RIESGOS'
+    ? false
+    : data.categoria === 'DOCUMENTO_PROYECTO'
+    ? true
+    : data.categoria === 'DOCUMENTO_PROYECTO_AVANZADO'
+    ? true
+    : data.categoria === 'DOCUMENTO_DINAMICO'
+    ? true
+    : data.categoria === 'ACTA_CIERRE'
     ? true
     : Boolean(data.evidenciaUrl || data.archivoPdf);
   const isDateChange = data.categoria === 'CAMBIO_FECHA';
@@ -313,11 +395,15 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
           <div className="edm-header-content">
             <span className="edm-kicker">
               {data.categoria === 'DOCUMENTO_PROYECTO' && 'Documento del Proyecto'}
+              {data.categoria === 'DOCUMENTO_PROYECTO_AVANZADO' && 'Documento Avanzado'}
+              {data.categoria === 'DOCUMENTO_DINAMICO' && 'Documento Dinamico'}
               {data.categoria === 'EVIDENCIA_ENTREGABLE' && 'Evidencia de Entregable'}
               {data.categoria === 'CRONOGRAMA' && 'Cronograma del Proyecto'}
               {data.categoria === 'RIESGO' && 'Solucion de Riesgo'}
+              {data.categoria === 'MATRIZ_RIESGOS' && 'Matriz de Riesgos'}
               {data.categoria === 'CAMBIO_FECHA' && 'Cambio de Fecha'}
-              {data.categoria === 'CAMBIO_DESCRIPCION' && 'Cambio de Descripción'}
+              {data.categoria === 'CAMBIO_DESCRIPCION' && 'Cambio de Descripcion'}
+              {data.categoria === 'ACTA_CIERRE' && 'Acta de Cierre'}
             </span>
             <h2>{nombreArchivo}</h2>
             <p>{proyectoId}{entregableNombre ? ` - ${entregableNombre}` : ''}</p>
@@ -441,6 +527,75 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
             <section className="edm-section">
               <h3 className="edm-section-title"><Info size={16} /> Descripcion</h3>
               <div className="edm-description-box"><p>{descripcion}</p></div>
+            </section>
+          )}
+
+          {data.categoria === 'MATRIZ_RIESGOS' && (
+            <section className="edm-section">
+              <h3 className="edm-section-title"><FileText size={16} /> Soluciones del Riesgo ({riskSolutions.length})</h3>
+              {loadingRiskSolutions && (
+                <div className="edm-loading-inline">
+                  <LoaderCircle size={16} className="animate-spin" /> Cargando soluciones...
+                </div>
+              )}
+              {riskSolutionsError && (
+                <div className="edm-error-inline">
+                  <AlertCircle size={14} /> {riskSolutionsError}
+                </div>
+              )}
+              {!loadingRiskSolutions && !riskSolutionsError && riskSolutions.length === 0 && (
+                <div className="edm-description-box"><p style={{ color: 'var(--text-muted)', margin: 0 }}>Este riesgo aun no tiene soluciones registradas.</p></div>
+              )}
+              {riskSolutions.length > 0 && (
+                <div className="edm-versions-list">
+                  {riskSolutions.map((sol, idx) => (
+                    <div key={sol.id || idx} className="edm-version-item">
+                      <div className="edm-version-info">
+                        <div className="edm-version-header-row">
+                          <span className="edm-version-number" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
+                            #{idx + 1}
+                          </span>
+                          <span className="edm-version-date">{formatDate(sol.fechaCarga)}</span>
+                        </div>
+                        <span className="edm-version-filename">{sol.nombreOriginal || `Solucion ${idx + 1}`}</span>
+                        {sol.tamanoBytes && (
+                          <span className="edm-version-meta">
+                            {(sol.tamanoBytes / 1024).toFixed(1)} KB
+                          </span>
+                        )}
+                      </div>
+                      {sol.urlDescarga && (
+                        <div className="edm-version-actions">
+                          <button
+                            type="button"
+                            className="evp-btn-view"
+                            title="Ver evidencia"
+                            onClick={async () => {
+                              try {
+                                setLoadingViewer(true);
+                                setViewerError('');
+                                setViewerBlob(null);
+                                const blob = await getEvidenceBlob(sol.urlDescarga);
+                                if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+                                const objectUrl = URL.createObjectURL(blob);
+                                objectUrlRef.current = objectUrl;
+                                setViewerBlob(objectUrl);
+                                setViewerNombre(sol.nombreOriginal || `solucion-${idx + 1}.pdf`);
+                              } catch {
+                                setViewerError('No fue posible cargar la evidencia.');
+                              } finally {
+                                setLoadingViewer(false);
+                              }
+                            }}
+                          >
+                            <Eye size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 

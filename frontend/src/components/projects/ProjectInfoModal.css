@@ -759,3 +759,216 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── FURAG Edit Button ── */
+.pim-furag-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.pim-furag-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.7rem;
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.pim-furag-edit-btn:hover {
+  background: var(--bg-muted);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.pim-furag-edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── FURAG Edit Modal ── */
+.pim-furag-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.pim-furag-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 650px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-main);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+}
+
+.pim-furag-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+}
+
+.pim-furag-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.pim-furag-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-soft);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pim-furag-modal-close:hover {
+  background: var(--bg-muted);
+  color: var(--primary);
+}
+
+.pim-furag-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.pim-furag-modal-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--primary);
+}
+
+.pim-furag-edit-item {
+  margin-bottom: 1.25rem;
+}
+
+.pim-furag-edit-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.pim-furag-edit-question {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.pim-furag-edit-options {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.pim-furag-edit-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.pim-furag-edit-radio:hover {
+  color: var(--text-main);
+}
+
+.pim-furag-edit-radio input[type="radio"] {
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.pim-furag-edit-error {
+  color: #ef6461;
+  font-size: 0.8rem;
+  margin: 1rem 0 0 0;
+  padding: 0.6rem 0.75rem;
+  background: color-mix(in srgb, #ef6461 8%, transparent);
+  border: 1px solid color-mix(in srgb, #ef6461 25%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.pim-furag-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+}
+
+.pim-furag-btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pim-furag-btn-cancel:hover {
+  background: var(--bg-muted);
+  color: var(--text-main);
+}
+
+.pim-furag-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.pim-furag-btn-save:hover {
+  opacity: 0.9;
+}
+
+.pim-furag-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

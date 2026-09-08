@@ -1,7 +1,16 @@
 import React from 'react';
+import { Calendar } from 'lucide-react';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MONTH_LABELS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+const MONTH_FULL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+const ZOOM_LEVELS = [
+  { key: 'month', label: 'Mes', months: 1 },
+  { key: 'quarter', label: 'Trimestre', months: 3 },
+  { key: 'semester', label: 'Semestre', months: 6 },
+  { key: 'year', label: 'Año', months: 12 },
+];
 
 const safeDate = (value) => {
   if (!value) return null;
@@ -16,11 +25,6 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const toUtcMonthStart = (date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 
 const addUtcMonths = (date, months) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
-
-const monthDiff = (from, to) => (
-  ((to.getUTCFullYear() - from.getUTCFullYear()) * 12)
-  + (to.getUTCMonth() - from.getUTCMonth())
-);
 
 const parseYear = (value) => {
   const parsed = Number(value);
@@ -40,20 +44,54 @@ const taskDates = (displayCronograma = []) => displayCronograma.flatMap((fase) =
   ]),
 ]).filter(Boolean);
 
-const buildTimeline = (displayCronograma, year, today) => {
-  const dates = taskDates(displayCronograma);
-  const fallbackYear = parseYear(year);
-  const minYear = dates.length
-    ? Math.min(...dates.map((date) => date.getUTCFullYear()))
-    : fallbackYear;
-  const maxYear = dates.length
-    ? Math.max(...dates.map((date) => date.getUTCFullYear()))
-    : fallbackYear;
-  const startYear = Math.min(minYear, maxYear);
-  const endYear = Math.max(minYear, maxYear);
-  const start = new Date(Date.UTC(startYear, 0, 1));
-  const end = new Date(Date.UTC(endYear + 1, 0, 1));
-  const monthCount = ((endYear - startYear) + 1) * 12;
+const getZoomWindow = (focusDate, monthsCount) => {
+  const start = toUtcMonthStart(focusDate);
+  const end = addUtcMonths(start, monthsCount);
+  return { start, end };
+};
+
+const formatZoomLabel = (focusDate, monthsCount) => {
+  if (monthsCount === 1) {
+    return `${MONTH_FULL[focusDate.getUTCMonth()]} ${focusDate.getUTCFullYear()}`;
+  }
+  if (monthsCount === 3) {
+    const quarterStart = MONTH_FULL[focusDate.getUTCMonth()];
+    const quarterEnd = MONTH_FULL[(focusDate.getUTCMonth() + 2) % 12];
+    const year = focusDate.getUTCFullYear();
+    return `${quarterStart} - ${quarterEnd} ${year}`;
+  }
+  if (monthsCount === 6) {
+    const semStart = MONTH_FULL[focusDate.getUTCMonth()];
+    const semEnd = MONTH_FULL[(focusDate.getUTCMonth() + 5) % 12];
+    const year = focusDate.getUTCFullYear();
+    return `${semStart} - ${semEnd} ${year}`;
+  }
+  return `${focusDate.getUTCFullYear()}`;
+};
+
+const buildTimeline = (displayCronograma, year, today, zoomWindow) => {
+  let start;
+  let end;
+
+  if (zoomWindow) {
+    start = zoomWindow.start;
+    end = zoomWindow.end;
+  } else {
+    const dates = taskDates(displayCronograma);
+    const fallbackYear = parseYear(year);
+    const minYear = dates.length
+      ? Math.min(...dates.map((date) => date.getUTCFullYear()))
+      : fallbackYear;
+    const maxYear = dates.length
+      ? Math.max(...dates.map((date) => date.getUTCFullYear()))
+      : fallbackYear;
+    const startYear = Math.min(minYear, maxYear);
+    const endYear = Math.max(minYear, maxYear);
+    start = new Date(Date.UTC(startYear, 0, 1));
+    end = new Date(Date.UTC(endYear + 1, 0, 1));
+  }
+
+  const monthCount = Math.max(1, ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) + (end.getUTCMonth() - start.getUTCMonth()));
   const months = Array.from({ length: monthCount }, (_, index) => {
     const date = addUtcMonths(start, index);
     return {
@@ -77,7 +115,11 @@ const buildTimeline = (displayCronograma, year, today) => {
   const todayPosition = today >= start && today < end
     ? (diffDays(start, today) / totalDays) * 100
     : null;
-  const label = startYear === endYear ? String(startYear) : `${startYear} - ${endYear}`;
+  const label = months.length === 1
+    ? `${MONTH_FULL[start.getUTCMonth()]} ${start.getUTCFullYear()}`
+    : start.getUTCFullYear() === end.getUTCFullYear()
+      ? String(start.getUTCFullYear())
+      : `${start.getUTCFullYear()} - ${end.getUTCFullYear() - (end.getUTCMonth() === 0 ? 1 : 0)}`;
 
   return {
     start,
@@ -166,9 +208,42 @@ const buildTaskFrame = (task, timeline) => {
 const GanttChart = ({ displayCronograma, year }) => {
   const today = new Date();
   const todayLabel = today.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).toUpperCase();
-  const timeline = buildTimeline(displayCronograma, year, today);
-  const tableMinWidth = Math.max(920, 260 + (timeline.monthCount * 76));
+  const [zoomLevel, setZoomLevel] = React.useState('year');
+  const [focusDate, setFocusDate] = React.useState(() => toUtcMonthStart(today));
   const [expandedHitos, setExpandedHitos] = React.useState({});
+
+  const zoomConfig = ZOOM_LEVELS.find((z) => z.key === zoomLevel) || ZOOM_LEVELS[3];
+  const zoomWindow = getZoomWindow(focusDate, zoomConfig.months);
+  const timeline = buildTimeline(displayCronograma, year, today, zoomWindow);
+  const tableMinWidth = Math.max(920, 260 + (timeline.monthCount * 76));
+  const zoomLabel = formatZoomLabel(focusDate, zoomConfig.months);
+
+  const hasPrev = (() => {
+    const allDates = taskDates(displayCronograma);
+    if (!allDates.length) return false;
+    const earliest = allDates.reduce((min, d) => (d < min ? d : min), allDates[0]);
+    return zoomWindow.start > earliest;
+  })();
+
+  const hasNext = (() => {
+    const allDates = taskDates(displayCronograma);
+    if (!allDates.length) return false;
+    const latest = allDates.reduce((max, d) => (d > max ? d : max), allDates[0]);
+    return zoomWindow.end < addUtcMonths(latest, 1);
+  })();
+
+  const goToPrev = () => {
+    setFocusDate((current) => addUtcMonths(current, -zoomConfig.months));
+  };
+
+  const goToNext = () => {
+    setFocusDate((current) => addUtcMonths(current, zoomConfig.months));
+  };
+
+  const goToToday = () => {
+    setFocusDate(toUtcMonthStart(today));
+  };
+
   const toggleHito = (hitoId) => {
     setExpandedHitos((current) => ({
       ...current,
@@ -191,6 +266,34 @@ const GanttChart = ({ displayCronograma, year }) => {
           <span className="legend-chip legend-warning">Alerta</span>
           <span className="legend-chip legend-danger">Atraso</span>
           <span className="legend-chip legend-today">Hoy {todayLabel}</span>
+        </div>
+      </div>
+
+      <div className="gantt-zoom-controls">
+        <div className="gantt-zoom-nav">
+          <button type="button" className="gantt-nav-btn" onClick={goToPrev} disabled={!hasPrev} title="Anterior">
+            &#8249;
+          </button>
+          <span className="gantt-zoom-date-label">{zoomLabel}</span>
+          <button type="button" className="gantt-nav-btn" onClick={goToNext} disabled={!hasNext} title="Siguiente">
+            &#8250;
+          </button>
+          <button type="button" className="gantt-today-btn" onClick={goToToday} title="Ir a hoy">
+            <Calendar size={14} />
+            Hoy
+          </button>
+        </div>
+        <div className="gantt-zoom-levels">
+          {ZOOM_LEVELS.map((level) => (
+            <button
+              key={level.key}
+              type="button"
+              className={`gantt-zoom-btn ${zoomLevel === level.key ? 'active' : ''}`}
+              onClick={() => setZoomLevel(level.key)}
+            >
+              {level.label}
+            </button>
+          ))}
         </div>
       </div>
 

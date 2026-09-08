@@ -99,6 +99,11 @@ const projectService = {
     return data;
   },
 
+  updateFurag: async (id, furagData) => {
+    const { data } = await apiClient.put(`/proyectos/${normalizeProjectId(id)}/furag`, furagData);
+    return data;
+  },
+
   /**
    * Crea un nuevo proyecto.
    * @param {Object} projectData 
@@ -413,6 +418,13 @@ const projectService = {
       `/proyectos/${normalizeProjectId(proyectoId)}/entregables/${entregableId}/cambiar-descripcion`,
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return data;
+  },
+
+  notifyDirector: async (proyectoId) => {
+    const { data } = await apiClient.post(
+      `/proyectos/${normalizeProjectId(proyectoId)}/avance/alertar-director`
     );
     return data;
   },

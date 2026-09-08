@@ -59,7 +59,7 @@
 }
 
 .acs-dropdown {
-  position: absolute;
+  position: fixed;
   z-index: 99999;
   background: var(--bg-surface);
   border: 1px solid var(--border-color);

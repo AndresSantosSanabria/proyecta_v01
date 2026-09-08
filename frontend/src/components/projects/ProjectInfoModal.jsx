@@ -1,5 +1,5 @@
-﻿import { useRef, useState, useEffect, useCallback } from 'react';
-import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle, Eye, History } from 'lucide-react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle, Eye, History, Pencil } from 'lucide-react';
 import documentService from '../../services/documentService';
 import projectService from '../../services/projectService';
 import configCatalogService from '../../services/configCatalogService';
@@ -295,17 +295,20 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchCount = async () => {
       if (!proyectoId || !tipoDocumento) return;
       try {
         const response = await documentService.listarVersiones(proyectoId, tipoDocumento);
+        if (controller.signal.aborted) return;
         const data = response?.data?.versiones || response?.versiones || [];
         setVersionCount(data.length);
       } catch {
-        setVersionCount(0);
+        if (!controller.signal.aborted) setVersionCount(0);
       }
     };
     fetchCount();
+    return () => controller.abort();
   }, [proyectoId, tipoDocumento, onUploaded]);
 
   const handleDownload = async () => {
@@ -553,6 +556,15 @@ const mapFuragValue = (val) => {
   return val;
 };
 
+const reverseMapFuragValue = (val) => {
+  if (!val) return '';
+  const str = String(val).toUpperCase().trim();
+  if (str === 'SÍ' || str === 'SI' || str === 'TRUE' || str === '1') return 'SI';
+  if (str === 'NO' || str === 'FALSE' || str === '0') return 'NO';
+  if (str === 'NA' || str === 'NO_APLICA' || str === 'NO APLICA') return 'NO_APLICA';
+  return val;
+};
+
 const DEFAULT_FURAG_LABELS = {
   infraestructuraDatos: '¿El proyecto incluye uso de infraestructura de datos (datos abiertos, big data, analytics)?',
   interoperabilidad: '¿El proyecto requiere interoperabilidad con otros sistemas de la entidad o del Estado?',
@@ -648,14 +660,19 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const [furagQuestions, setFuragQuestions] = useState(
     DEFAULT_FURAG_ORDER.map((key) => ({ key, label: DEFAULT_FURAG_LABELS[key] }))
   );
+  const [showFuragEdit, setShowFuragEdit] = useState(false);
+  const [furagEditData, setFuragEditData] = useState({});
+  const [savingFurag, setSavingFurag] = useState(false);
+  const [furagEditError, setFuragEditError] = useState('');
 
   const proyectoId = project?.codigo || project?.id;
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (signal) => {
     if (!proyectoId) return;
     try {
       setLoadingDocs(true);
       const response = await documentService.listarDocumentos(proyectoId);
+      if (signal?.aborted) return;
       const docs = response?.data?.documentos || response?.documentos || [];
       const map = {};
       docs.forEach((doc) => {
@@ -664,9 +681,9 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       });
       setExistingDocs(map);
     } catch {
-      setExistingDocs({});
+      if (!signal?.aborted) setExistingDocs({});
     } finally {
-      setLoadingDocs(false);
+      if (!signal?.aborted) setLoadingDocs(false);
     }
   }, [proyectoId]);
 
@@ -698,12 +715,19 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     if (open && proyectoId) {
-      fetchDocuments();
+      fetchDocuments(controller.signal);
       fetchFurag();
       fetchFuragLabels();
     }
+    return () => controller.abort();
   }, [open, proyectoId, fetchDocuments, fetchFurag, fetchFuragLabels]);
+
+  const handleDocumentUploaded = useCallback(() => {
+    fetchDocuments();
+    onDocumentUploaded?.();
+  }, [fetchDocuments, onDocumentUploaded]);
 
   if (!open || !project) return null;
 
@@ -716,9 +740,56 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const furagAnswers = furagData?.respuestas || furagData || {};
   const furagDetail = Array.isArray(furagData?.detalle) ? furagData.detalle : [];
 
-  const handleDocumentUploaded = () => {
-    fetchDocuments();
-    onDocumentUploaded?.();
+  const openFuragEdit = () => {
+    const initial = {};
+
+    if (furagDetail.length > 0) {
+      const answersMap = {};
+      furagDetail.forEach((d) => {
+        answersMap[d.key] = d.response;
+        if (d.label) answersMap[d.label] = d.response;
+      });
+      furagQuestions.forEach((q) => {
+        initial[q.key] = reverseMapFuragValue(resolveFuragAnswer(answersMap, q)) || '';
+      });
+    } else {
+      const answers = furagData?.respuestas || furagData || {};
+      furagQuestions.forEach((q) => {
+        initial[q.key] = reverseMapFuragValue(resolveFuragAnswer(answers, q)) || '';
+      });
+    }
+
+    setFuragEditData(initial);
+    setFuragEditError('');
+    setShowFuragEdit(true);
+  };
+
+  const handleFuragEditChange = (key, value) => {
+    setFuragEditData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const saveFuragEdit = async () => {
+    const unanswered = furagQuestions.filter((q) => !furagEditData[q.key]);
+    if (unanswered.length > 0) {
+      setFuragEditError('Debe responder todas las preguntas antes de guardar.');
+      return;
+    }
+    try {
+      setSavingFurag(true);
+      setFuragEditError('');
+      const respuestas = {};
+      furagQuestions.forEach((q) => {
+        respuestas[q.key] = furagEditData[q.key];
+      });
+      await projectService.updateFurag(proyectoId, { respuestas });
+      setShowFuragEdit(false);
+      fetchFurag();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error al guardar FURAG.';
+      setFuragEditError(detail);
+    } finally {
+      setSavingFurag(false);
+    }
   };
 
   return (
@@ -835,6 +906,12 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
           </Section>
 
           <Section title="FURAG" icon={Target} defaultOpen={false}>
+            <div className="pim-furag-header">
+              <button type="button" className="pim-furag-edit-btn" onClick={openFuragEdit} disabled={loadingFurag}>
+                <Pencil size={14} />
+                <span>Editar</span>
+              </button>
+            </div>
             <div className="pim-furag-list">
               {loadingFurag ? (
                 <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando FURAG...</p>
@@ -886,6 +963,60 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
           </Section>
         </div>
       </div>
+
+      {showFuragEdit && (
+        <div className="pim-furag-modal-overlay" role="presentation" onClick={() => setShowFuragEdit(false)}>
+          <div className="pim-furag-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <header className="pim-furag-modal-header">
+              <div className="pim-furag-modal-title">
+                <Target size={16} />
+                <span>Editar Cuestionario FURAG</span>
+              </div>
+              <button type="button" className="pim-furag-modal-close" onClick={() => setShowFuragEdit(false)} aria-label="Cerrar">
+                <X size={18} />
+              </button>
+            </header>
+            <div className="pim-furag-modal-body">
+              <p className="pim-furag-modal-hint">
+                Modifique las respuestas que desee. Las respuestas actuales estan pre-seleccionadas.
+              </p>
+              {furagQuestions.map((pregunta) => (
+                <div key={pregunta.key} className="pim-furag-edit-item">
+                  <p className="pim-furag-edit-question">{pregunta.label} *</p>
+                  <div className="pim-furag-edit-options">
+                    {[
+                      { value: 'SI', label: 'Si' },
+                      { value: 'NO', label: 'No' },
+                      { value: 'NO_APLICA', label: 'No aplica' },
+                    ].map((opt) => (
+                      <label key={opt.value} className="pim-furag-edit-radio">
+                        <input
+                          type="radio"
+                          name={`furag_edit_${pregunta.key}`}
+                          value={opt.value}
+                          checked={furagEditData[pregunta.key] === opt.value}
+                          onChange={() => handleFuragEditChange(pregunta.key, opt.value)}
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {furagEditError && <p className="pim-furag-edit-error">{furagEditError}</p>}
+            </div>
+            <footer className="pim-furag-modal-footer">
+              <button type="button" className="pim-furag-btn-cancel" onClick={() => setShowFuragEdit(false)} disabled={savingFurag}>
+                Cancelar
+              </button>
+              <button type="button" className="pim-furag-btn-save" onClick={saveFuragEdit} disabled={savingFurag}>
+                {savingFurag ? <LoaderCircle size={14} className="animate-spin" /> : null}
+                <span>{savingFurag ? 'Guardando...' : 'Guardar cambios'}</span>
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

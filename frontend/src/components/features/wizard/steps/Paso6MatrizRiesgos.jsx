@@ -2,25 +2,45 @@ import { Plus, Trash2, ShieldAlert, AlertCircle } from 'lucide-react';
 import './Paso6MatrizRiesgos.css';
 
 const PROBABILIDADES = [
-  { value: 'BAJA', label: 'Baja' },
-  { value: 'MEDIA', label: 'Media' },
-  { value: 'ALTA', label: 'Alta' },
+  { value: 'UNO', label: '1 - Muy baja' },
+  { value: 'DOS', label: '2 - Baja' },
+  { value: 'TRES', label: '3 - Media' },
+  { value: 'CUATRO', label: '4 - Alta' },
+  { value: 'CINCO', label: '5 - Muy alta' },
 ];
 
 const IMPACTOS = [
-  { value: 'BAJO', label: 'Bajo' },
-  { value: 'MEDIO', label: 'Medio' },
-  { value: 'ALTO', label: 'Alto' },
+  { value: 'UNO', label: '1 - Muy bajo' },
+  { value: 'DOS', label: '2 - Bajo' },
+  { value: 'TRES', label: '3 - Medio' },
+  { value: 'CUATRO', label: '4 - Alto' },
+  { value: 'CINCO', label: '5 - Muy alto' },
 ];
+
+const P_MAP = { UNO: 1, DOS: 2, TRES: 3, CUATRO: 4, CINCO: 5 };
+const I_MAP = { UNO: 1, DOS: 2, TRES: 3, CUATRO: 4, CINCO: 5 };
+
+const calcScore = (prob, imp) => (P_MAP[prob] || 0) + (I_MAP[imp] || 0);
+
+const calcLevel = (score) => {
+  if (score >= 2 && score <= 4) return 'BAJO';
+  if (score >= 5 && score <= 6) return 'MODERADO';
+  if (score >= 7 && score <= 8) return 'ALTO';
+  return 'EXTREMO';
+};
+
+const LEVEL_COLORS = {
+  BAJO: { bg: '#dcfce7', color: '#166534' },
+  MODERADO: { bg: '#fef9c3', color: '#854d0e' },
+  ALTO: { bg: '#fed7aa', color: '#9a3412' },
+  EXTREMO: { bg: '#fecaca', color: '#991b1b' },
+};
 
 const emptyRiesgo = () => ({
   descripcion: '',
-  probabilidad: 'MEDIA',
-  impacto: 'MEDIO',
-  tratamiento: '',
+  probabilidad: 'TRES',
+  impacto: 'TRES',
   entidadResponsable: '',
-  accionesMitigacion: '',
-  fechaAccion: '',
 });
 
 const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
@@ -126,48 +146,43 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
                 </div>
               </div>
 
-              <div className="riesgo-field">
-                <label className="form-label">Cómo mitigar el riesgo</label>
-                <textarea
-                  className="form-input form-textarea"
-                  value={riesgo.tratamiento}
-                  onChange={(e) => handleChange(index, 'tratamiento', e.target.value)}
-                  rows={2}
-                  placeholder="Plan de tratamiento: aceptar, mitigar, transferir, evitar"
-                />
-              </div>
-
               <div className="riesgo-field-row">
                 <div className="riesgo-field">
-                  <label className="form-label">Responsable</label>
+                  <label className="form-label">Calificación (P + I)</label>
                   <input
                     type="text"
-                    className="form-input"
-                    value={riesgo.entidadResponsable}
-                    onChange={(e) => handleChange(index, 'entidadResponsable', e.target.value)}
-                    placeholder="Entidad o persona responsable"
+                    className="form-input form-input-readonly"
+                    value={calcScore(riesgo.probabilidad, riesgo.impacto) || '—'}
+                    readOnly
                   />
                 </div>
-
                 <div className="riesgo-field">
-                  <label className="form-label">Fecha de acción</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={riesgo.fechaAccion}
-                    onChange={(e) => handleChange(index, 'fechaAccion', e.target.value)}
-                  />
+                  <label className="form-label">Nivel de riesgo</label>
+                  {(() => {
+                    const score = calcScore(riesgo.probabilidad, riesgo.impacto);
+                    const level = calcLevel(score);
+                    const colors = LEVEL_COLORS[level] || LEVEL_COLORS.BAJO;
+                    return (
+                      <input
+                        type="text"
+                        className="form-input form-input-readonly"
+                        value={level}
+                        readOnly
+                        style={{ background: colors.bg, color: colors.color, fontWeight: 700, border: `1px solid ${colors.color}22` }}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
 
               <div className="riesgo-field">
-                <label className="form-label">Acciones de mitigación</label>
-                <textarea
-                  className="form-input form-textarea"
-                  value={riesgo.accionesMitigacion}
-                  onChange={(e) => handleChange(index, 'accionesMitigacion', e.target.value)}
-                  rows={2}
-                  placeholder="Acciones concretas realizadas para mitigar el riesgo"
+                <label className="form-label">Responsable</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={riesgo.entidadResponsable}
+                  onChange={(e) => handleChange(index, 'entidadResponsable', e.target.value)}
+                  placeholder="Entidad o persona responsable"
                 />
               </div>
             </div>

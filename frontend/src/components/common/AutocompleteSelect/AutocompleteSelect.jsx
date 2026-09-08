@@ -35,16 +35,16 @@ export default function AutocompleteSelect({
     let top;
     let effectiveMaxHeight;
     if (spaceBelow >= 180 || spaceBelow >= spaceAbove) {
-      top = rect.bottom + window.scrollY + 4;
+      top = rect.bottom + 4;
       effectiveMaxHeight = Math.min(maxDropdownHeight, spaceBelow - 8);
     } else {
       effectiveMaxHeight = Math.min(maxDropdownHeight, spaceAbove - 8);
-      top = rect.top + window.scrollY - effectiveMaxHeight - 4;
+      top = rect.top - effectiveMaxHeight - 4;
     }
     setDropdownStyle({
-      position: 'absolute',
+      position: 'fixed',
       top,
-      left: rect.left + window.scrollX,
+      left: rect.left,
       width: rect.width,
       maxHeight: effectiveMaxHeight,
       zIndex: 99999,
