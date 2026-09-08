@@ -687,7 +687,7 @@ Envía un correo de prueba al usuario autenticado.
 | `fechaEntrega` | date (ISO) | Sí | Fecha de entrega |
 | `evidencia` | MultipartFile | Sí | Archivo PDF de evidencia |
 
-**Response 200:** `EntregableConformidadResponseDTO`
+**Response 200:** `EntregableAprobadoResponseDTO`
 
 ---
 
@@ -698,7 +698,7 @@ Envía un correo de prueba al usuario autenticado.
 { "motivo": "La versión anterior era la correcta" }
 ```
 
-**Response 200:** `EntregableConformidadResponseDTO`
+**Response 200:** `EntregableAprobadoResponseDTO`
 
 ---
 
@@ -856,12 +856,12 @@ Permite acceder a la evidencia de un entregable mediante un token seguro, sin au
 | `peti`        | boolean | ¿Es proyecto PETI?           |
 | `avance`      | number  | Porcentaje de avance         |
 
-### EntregableConformidadResponseDTO
+### EntregableAprobadoResponseDTO
 
 | Campo            | Tipo    | Descripción                    |
 | ---------------- | ------- | ------------------------------ |
 | `entregableId`   | int     | ID del entregable              |
-| `estado`         | string  | Estado de conformidad          |
+| `estado`         | string  | Estado de aprobación           |
 | `versionActual`  | int     | Número de versión actual       |
 | `fechaEntrega`   | date    | Fecha de entrega               |
 

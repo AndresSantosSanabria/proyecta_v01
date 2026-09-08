@@ -94,7 +94,7 @@ public class Entregable {
         this.conforme = esConforme;
         this.observacionRevision = null;
         this.estadoConfig = null;
-        this.estado = esConforme ? EstadoEntregable.A_CONFORMIDAD : EstadoEntregable.COMPLETADO;
+        this.estado = esConforme ? EstadoEntregable.APROBADO : EstadoEntregable.COMPLETADO;
     }
 
     public void aprobarEvidencia() {
@@ -108,7 +108,7 @@ public class Entregable {
         this.conforme = true;
         this.observacionRevision = null;
         this.estadoConfig = null;
-        this.estado = EstadoEntregable.A_CONFORMIDAD;
+        this.estado = EstadoEntregable.APROBADO;
     }
 
     public void rechazarEvidencia(String observacion) {
@@ -126,7 +126,7 @@ public class Entregable {
     }
 
     public boolean estaCompletado() {
-        return EstadoEntregable.COMPLETADO.equals(this.estado) || EstadoEntregable.A_CONFORMIDAD.equals(this.estado);
+        return EstadoEntregable.COMPLETADO.equals(this.estado) || EstadoEntregable.APROBADO.equals(this.estado);
     }
 
     public boolean esConforme() {
@@ -141,7 +141,7 @@ public class Entregable {
     }
 
     private boolean estaAprobadoFinal() {
-        return EstadoEntregable.A_CONFORMIDAD.equals(this.estado) || Boolean.TRUE.equals(this.conforme);
+        return EstadoEntregable.APROBADO.equals(this.estado) || Boolean.TRUE.equals(this.conforme);
     }
 
     private void asegurarTieneEvidencia(String accion) {

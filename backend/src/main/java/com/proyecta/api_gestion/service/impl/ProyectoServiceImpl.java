@@ -715,17 +715,37 @@ public class ProyectoServiceImpl implements ProyectoService {
         return matrizRiesgoRepository.findByProbabilidadIgnoreCaseAndImpactoIgnoreCase(probabilidad, impacto)
                 .map(MatrizRiesgo::getNivelResultante)
                 .orElseGet(() -> {
-                    if ("BAJA".equalsIgnoreCase(probabilidad) && "BAJO".equalsIgnoreCase(impacto)) return "BAJO";
-                    if ("BAJA".equalsIgnoreCase(probabilidad) && "MEDIO".equalsIgnoreCase(impacto)) return "BAJO";
-                    if ("BAJA".equalsIgnoreCase(probabilidad) && "ALTO".equalsIgnoreCase(impacto)) return "MODERADO";
-                    if ("MEDIA".equalsIgnoreCase(probabilidad) && "BAJO".equalsIgnoreCase(impacto)) return "BAJO";
-                    if ("MEDIA".equalsIgnoreCase(probabilidad) && "MEDIO".equalsIgnoreCase(impacto)) return "MODERADO";
-                    if ("MEDIA".equalsIgnoreCase(probabilidad) && "ALTO".equalsIgnoreCase(impacto)) return "ALTO";
-                    if ("ALTA".equalsIgnoreCase(probabilidad) && "BAJO".equalsIgnoreCase(impacto)) return "MODERADO";
-                    if ("ALTA".equalsIgnoreCase(probabilidad) && "MEDIO".equalsIgnoreCase(impacto)) return "ALTO";
-                    if ("ALTA".equalsIgnoreCase(probabilidad) && "ALTO".equalsIgnoreCase(impacto)) return "EXTREMO";
-                    throw new BadRequestException("No existe una formula de matriz de riesgo para la combinacion enviada.");
+                    int p = escalaProbabilidad(probabilidad);
+                    int i = escalaImpacto(impacto);
+                    int score = p + i;
+                    if (score >= 2 && score <= 4) return "BAJO";
+                    if (score >= 5 && score <= 6) return "MODERADO";
+                    if (score >= 7 && score <= 8) return "ALTO";
+                    if (score >= 9) return "EXTREMO";
+                    return "BAJO";
                 });
+    }
+
+    private int escalaProbabilidad(String probabilidad) {
+        return switch (probabilidad.toUpperCase()) {
+            case "UNO" -> 1;
+            case "DOS" -> 2;
+            case "TRES" -> 3;
+            case "CUATRO" -> 4;
+            case "CINCO" -> 5;
+            default -> 0;
+        };
+    }
+
+    private int escalaImpacto(String impacto) {
+        return switch (impacto.toUpperCase()) {
+            case "UNO" -> 1;
+            case "DOS" -> 2;
+            case "TRES" -> 3;
+            case "CUATRO" -> 4;
+            case "CINCO" -> 5;
+            default -> 0;
+        };
     }
 
     private NivelRiesgo parseNivelRiesgo(String nivel) {

@@ -11,7 +11,7 @@ public final class ProyectoAvanceSwaggerConstants {
 
     // --- Tag ---
     public static final String TAG_NAME        = "Avance de Proyecto";
-    public static final String TAG_DESCRIPTION = "Consulta de métricas detalladas de avance, conformidad de entregables "
+    public static final String TAG_DESCRIPTION = "Consulta de métricas detalladas de avance, aprobación de entregables "
                                                + "y alertas de vencimiento para un proyecto específico";
 
     // --- Operación GET /{proyectoId}/avance ---
@@ -28,7 +28,7 @@ public final class ProyectoAvanceSwaggerConstants {
     // --- Operación PATCH /{proyectoId}/avance/entregables/{entregableId}/aprobar ---
     public static final String SUMMARY_PATCH_APROBAR     = "Aprobar entregable";
     public static final String DESCRIPTION_PATCH_APROBAR =
-            "Marca un entregable como 'A conformidad' después de que el gestor valide la evidencia cargada. "
+            "Marca un entregable como 'Aprobado' después de que el gestor valide la evidencia cargada. "
             + "El avance total del proyecto se recalcula automáticamente.";
 
     // --- Operación PATCH /{proyectoId}/avance/entregables/{entregableId}/rechazar ---

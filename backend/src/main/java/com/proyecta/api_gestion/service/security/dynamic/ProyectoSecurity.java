@@ -22,6 +22,7 @@ public class ProyectoSecurity {
     private static final Set<String> PROJECT_STRUCTURE_MANAGER_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
     private static final Set<String> PROJECT_STRUCTURE_EDITOR_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos", "director_proyecto");
     private static final Set<String> CHANGE_DEADLINE_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
+    private static final Set<String> DIRECTOR_NOTIFICATION_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
     private static final Set<String> DIRECTOR_BLOCKED_PERMISSIONS = Set.of(
             "PROYECTO:CREAR",
             "PROYECTO:CERRAR",
@@ -149,6 +150,46 @@ public class ProyectoSecurity {
     public boolean canAccessOperational(String permissionCode, String proyectoId, Authentication authentication) {
         canAccess(permissionCode, proyectoId, authentication);
         assertOperationalProjectReady(proyectoId, authentication, permissionCode);
+        return true;
+    }
+
+    public boolean canSendDirectorNotification(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean allowedRole = roleCodes.stream().anyMatch(DIRECTOR_NOTIFICATION_ROLE_CODES::contains);
+        if (!allowedRole) {
+            throw new ForbiddenException("Solo el Administrador o un Gestor pueden enviar notificaciones al director.");
+        }
+
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
+                .map(this::normalize)
+                .anyMatch("PROYECTO:VER"::equals);
+
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: PROYECTO:VER");
+        }
+
+        if (isTransversal(roleCodes)) {
+            return true;
+        }
+
+        if (proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+        }
+
         return true;
     }
 

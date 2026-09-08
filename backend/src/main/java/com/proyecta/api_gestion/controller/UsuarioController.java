@@ -37,7 +37,7 @@ public class UsuarioController implements IUsuarioController {
     }
 
     @Override
-    @Transactional(readOnly = false) // readOnly = false because validateAndTouch saves the entity
+    @Transactional(readOnly = false)
     public ResponseEntity<ApiResponse<UsuarioDTO>> getMe(@AuthenticationPrincipal Jwt jwt, Authentication authentication) {
         Usuario usuario = localUserAuthorizationService.validateAndTouch(authentication);
 
@@ -82,7 +82,6 @@ public class UsuarioController implements IUsuarioController {
                 jwt.getClaimAsString("preferred_username"),
                 "No definida");
 
-        String username = identityExtractor.resolveUsername(authentication);
         Boolean recibirNotificacionesGlobales = resolveGlobalNotificationsFlag(username);
 
         UsuarioDTO user = new UsuarioDTO(

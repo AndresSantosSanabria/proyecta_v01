@@ -31,8 +31,8 @@ public record ProjectEvidenceDTO(
         String fechaNueva,
         String justificacion,
         Long tamanoBytes,
-        Long tamanoBytes,
         String mimeType,
         String descripcionAnterior,
-        String descripcionNueva
+        String descripcionNueva,
+        Integer solucionesCount
 ) {}

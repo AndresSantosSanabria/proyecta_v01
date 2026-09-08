@@ -8,6 +8,7 @@ import java.util.Locale;
 public enum RespuestaFurag {
     SI("SI"),
     NO("NO"),
+    NA("NA"),
     NO_APLICA("NO_APLICA");
 
     private final String value;
@@ -35,7 +36,8 @@ public enum RespuestaFurag {
         return switch (normalized) {
             case "SI", "S" -> SI;
             case "NO", "N" -> NO;
-            case "NO_APLICA", "NA", "N/A", "NOAPLICA" -> NO_APLICA;
+            case "NA" -> NA;
+            case "NO_APLICA", "N/A", "NOAPLICA" -> NO_APLICA;
             default -> throw new IllegalArgumentException("Valor FURAG inválido: " + value);
         };
     }

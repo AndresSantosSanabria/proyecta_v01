@@ -836,7 +836,7 @@ public class ReporteServiceImpl implements ReporteService {
             return false;
         }
         return EstadoEntregable.COMPLETADO.equals(entregable.getEstado())
-                || EstadoEntregable.A_CONFORMIDAD.equals(entregable.getEstado())
+                || EstadoEntregable.APROBADO.equals(entregable.getEstado())
                 || Boolean.TRUE.equals(entregable.getConforme());
     }
 
@@ -844,8 +844,8 @@ public class ReporteServiceImpl implements ReporteService {
         if (entregable == null) {
             return "No disponible";
         }
-        if (EstadoEntregable.A_CONFORMIDAD.equals(entregable.getEstado()) || Boolean.TRUE.equals(entregable.getConforme())) {
-            return "A conformidad";
+        if (EstadoEntregable.APROBADO.equals(entregable.getEstado()) || Boolean.TRUE.equals(entregable.getConforme())) {
+            return "Aprobado";
         }
         if (EstadoEntregable.COMPLETADO.equals(entregable.getEstado())) {
             return "Completado";

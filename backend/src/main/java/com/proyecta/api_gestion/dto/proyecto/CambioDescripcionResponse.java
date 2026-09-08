@@ -1,4 +1,4 @@
-﻿package com.proyecta.api_gestion.dto.proyecto;
+package com.proyecta.api_gestion.dto.proyecto;
 
 import java.time.LocalDateTime;
 

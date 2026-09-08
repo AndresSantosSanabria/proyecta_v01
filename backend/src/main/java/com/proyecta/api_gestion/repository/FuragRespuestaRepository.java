@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.repository;
 import com.proyecta.api_gestion.model.FuragRespuesta;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public interface FuragRespuestaRepository extends JpaRepository<FuragRespuesta, 
 
     List<FuragRespuesta> findByProyecto_IdOrderByCodigoPreguntaAsc(String proyectoId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM FuragRespuesta fr WHERE fr.proyecto.id = :proyectoId")
     void deleteByProyecto_Id(@Param("proyectoId") String proyectoId);
 }

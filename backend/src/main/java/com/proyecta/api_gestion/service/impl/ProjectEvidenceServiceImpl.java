@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.dto.avance.ProjectEvidenceDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
+import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.service.interfaces.ProjectEvidenceService;
@@ -16,9 +17,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Service
 public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
@@ -39,6 +42,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     private final RiesgoSolucionAdjuntoRepository riesgoSolucionAdjuntoRepository;
     private final EntregableCambioFechaRepository entregableCambioFechaRepository;
     private final EntregableCambioDescripcionRepository entregableCambioDescripcionRepository;
+    private final DocumentoDinamicoRepository documentoDinamicoRepository;
+    private final ActaCierreRepository actaCierreRepository;
+    private final DocumentoVersionRepository documentoVersionRepository;
 
     public ProjectEvidenceServiceImpl(ProyectoRepository proyectoRepository,
                                       EntregableRepository entregableRepository,
@@ -46,7 +52,10 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                                       RiesgoRepository riesgoRepository,
                                       RiesgoSolucionAdjuntoRepository riesgoSolucionAdjuntoRepository,
                                       EntregableCambioFechaRepository entregableCambioFechaRepository,
-                                      EntregableCambioDescripcionRepository entregableCambioDescripcionRepository) {
+                                      EntregableCambioDescripcionRepository entregableCambioDescripcionRepository,
+                                      DocumentoDinamicoRepository documentoDinamicoRepository,
+                                      ActaCierreRepository actaCierreRepository,
+                                      DocumentoVersionRepository documentoVersionRepository) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.documentoProyectoVersionRepository = documentoProyectoVersionRepository;
@@ -54,6 +63,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         this.riesgoSolucionAdjuntoRepository = riesgoSolucionAdjuntoRepository;
         this.entregableCambioFechaRepository = entregableCambioFechaRepository;
         this.entregableCambioDescripcionRepository = entregableCambioDescripcionRepository;
+        this.documentoDinamicoRepository = documentoDinamicoRepository;
+        this.actaCierreRepository = actaCierreRepository;
+        this.documentoVersionRepository = documentoVersionRepository;
     }
 
     @Override
@@ -67,25 +79,48 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         boolean shouldCollectAll = (categoria == null || categoria.isBlank() || "TODOS".equals(categoria));
 
         if (shouldCollectAll || "DOCUMENTO_PROYECTO".equals(categoria)) {
-            evidencias.addAll(colDocumentosProyecto(proyectoId));
+            safeAddAll(evidencias, () -> colDocumentosProyecto(proyectoId), "DOCUMENTO_PROYECTO");
+        }
+        if (shouldCollectAll || "DOCUMENTO_PROYECTO_AVANZADO".equals(categoria)) {
+            safeAddAll(evidencias, () -> colDocumentosProyectoAvanzado(proyecto), "DOCUMENTO_PROYECTO_AVANZADO");
+        }
+        if (shouldCollectAll || "DOCUMENTO_DINAMICO".equals(categoria)) {
+            safeAddAll(evidencias, () -> colDocumentosDinamicos(proyectoId), "DOCUMENTO_DINAMICO");
         }
         if (shouldCollectAll || "EVIDENCIA_ENTREGABLE".equals(categoria)) {
-            evidencias.addAll(colEvidenciasEntregables(proyectoId));
+            safeAddAll(evidencias, () -> colEvidenciasEntregables(proyectoId), "EVIDENCIA_ENTREGABLE");
         }
         if (shouldCollectAll || "CRONOGRAMA".equals(categoria)) {
-            evidencias.addAll(colCronograma(proyecto));
+            safeAddAll(evidencias, () -> colCronograma(proyecto), "CRONOGRAMA");
         }
         if (shouldCollectAll || "RIESGO".equals(categoria)) {
-            evidencias.addAll(colSolucionesRiesgos(proyectoId));
+            safeAddAll(evidencias, () -> colSolucionesRiesgos(proyectoId), "RIESGO");
+        }
+        if (shouldCollectAll || "MATRIZ_RIESGOS".equals(categoria)) {
+            safeAddAll(evidencias, () -> colMatrizRiesgos(proyectoId), "MATRIZ_RIESGOS");
         }
         if (shouldCollectAll || "CAMBIO_FECHA".equals(categoria)) {
-            evidencias.addAll(colCambiosFecha(proyectoId));
+            safeAddAll(evidencias, () -> colCambiosFecha(proyectoId), "CAMBIO_FECHA");
         }
         if (shouldCollectAll || "CAMBIO_DESCRIPCION".equals(categoria)) {
-            evidencias.addAll(colCambiosDescripcion(proyectoId));
+            safeAddAll(evidencias, () -> colCambiosDescripcion(proyectoId), "CAMBIO_DESCRIPCION");
+        }
+        if (shouldCollectAll || "ACTA_CIERRE".equals(categoria)) {
+            safeAddAll(evidencias, () -> colActaCierre(proyectoId), "ACTA_CIERRE");
         }
 
         return evidencias;
+    }
+
+    private void safeAddAll(List<ProjectEvidenceDTO> target, Supplier<List<ProjectEvidenceDTO>> source, String categoria) {
+        try {
+            List<ProjectEvidenceDTO> result = source.get();
+            if (result != null) {
+                target.addAll(result);
+            }
+        } catch (Exception e) {
+            log.warn("Error al colectar evidencias de categoria {}: {}", categoria, e.getMessage(), e);
+        }
     }
 
     private List<ProjectEvidenceDTO> colDocumentosProyecto(String proyectoId) {
@@ -126,7 +161,118 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                             null,
                             null,
                             v.getTamanoBytes(),
-                            v.getMimeType()
+                            v.getMimeType(),
+                            null,
+                            null,
+                            null
+                    );
+                })
+                .toList();
+    }
+
+    private List<ProjectEvidenceDTO> colDocumentosProyectoAvanzado(Proyecto proyecto) {
+        List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
+        String proyectoId = proyecto.getId();
+
+        List<Map.Entry<String, String>> proyectoPdfFields = List.of(
+                Map.entry("VIABILIZACION", proyecto.getViabilizacionPdf()),
+                Map.entry("ACTA_CONSTITUCION", proyecto.getActaConstitucionPdf()),
+                Map.entry("PLAN_COMUNICACIONES", proyecto.getPlanComunicacionesPdf())
+        );
+
+        for (Map.Entry<String, String> entry : proyectoPdfFields) {
+            String codigo = entry.getKey();
+            String pdfPath = entry.getValue();
+
+            if (pdfPath == null || pdfPath.isBlank()) {
+                continue;
+            }
+
+            String nombreDisplay = DOC_TYPE_NAMES.getOrDefault(codigo, codigo);
+            String nombreArchivo = extractFileName(pdfPath);
+            String urlDescarga = "/api/v1/proyectos/" + proyectoId + "/documentos/" + codigo + "/descargar";
+
+            evidencias.add(new ProjectEvidenceDTO(
+                    "doc-proy-" + codigo,
+                    "DOCUMENTO_PROYECTO_AVANZADO",
+                    nombreDisplay,
+                    nombreArchivo,
+                    urlDescarga,
+                    null,
+                    null,
+                    null,
+                    "CARGADO",
+                    "CARGADO",
+                    null,
+                    nombreDisplay,
+                    codigo,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            ));
+        }
+
+        return evidencias;
+    }
+
+    private List<ProjectEvidenceDTO> colDocumentosDinamicos(String proyectoId) {
+        List<DocumentoDinamico> documentos = documentoDinamicoRepository
+                .findByProyectoIdOrderByFechaCargaDesc(proyectoId);
+
+        return documentos.stream()
+                .map(doc -> {
+                    String nombreDisplay = doc.getTipoDocumento() != null ? doc.getTipoDocumento() : "Documento dinamico";
+                    String urlDescarga = doc.getUrlDescarga() != null
+                            ? doc.getUrlDescarga()
+                            : "/api/v1/proyectos/" + proyectoId + "/documentos-dinamicos/" + doc.getId() + "/descargar";
+
+                    return new ProjectEvidenceDTO(
+                            "doc-din-" + doc.getId(),
+                            "DOCUMENTO_DINAMICO",
+                            nombreDisplay,
+                            doc.getNombreOriginal(),
+                            urlDescarga,
+                            doc.getFechaCarga() != null ? doc.getFechaCarga().toLocalDate() : null,
+                            null,
+                            null,
+                            "CARGADO",
+                            "CARGADO",
+                            null,
+                            nombreDisplay,
+                            doc.getTipoDocumento(),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            doc.getTamanoBytes(),
+                            doc.getMimeType(),
+                            null,
+                            null,
+                            null
                     );
                 })
                 .toList();
@@ -184,6 +330,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                     null,
                     null,
                     null,
+                    null,
+                    null,
+                    null,
                     null
             ));
         }
@@ -211,6 +360,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                     "CARGADO",
                     null,
                     "Cronograma PDF",
+                    null,
+                    null,
+                    null,
                     null,
                     null,
                     null,
@@ -272,12 +424,72 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                         null,
                         null,
                         null,
+                        null,
                         solucion.getTamanoBytes(),
-                        solucion.getMimeType()
+                        solucion.getMimeType(),
+                        null,
+                        null,
+                        null
                 ));
             }
         }
 
+        return evidencias;
+    }
+
+    private List<ProjectEvidenceDTO> colMatrizRiesgos(String proyectoId) {
+        List<Riesgo> riesgos = riesgoRepository.findByProyectoId(proyectoId);
+        log.info("colMatrizRiesgos: proyectoId={}, riesgos encontrados={}", proyectoId, riesgos.size());
+        List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
+
+        for (Riesgo riesgo : riesgos) {
+            String nivelDisplay = riesgo.getNivel() != null ? riesgo.getNivel().name() : "SIN_NIVEL";
+            String estadoDisplay = riesgo.getEstado() != null ? riesgo.getEstado().name() : "PENDIENTE";
+            String descripcion = "Riesgo: "
+                    + (riesgo.getCodigo() != null ? riesgo.getCodigo() : riesgo.getId())
+                    + " - " + truncate(riesgo.getDescripcion(), 80);
+
+            int solucionesCount = (riesgo.getSoluciones() != null) ? riesgo.getSoluciones().size() : 0;
+
+            String usuarioResponsable = riesgo.getCreatedBy() != null && !riesgo.getCreatedBy().isBlank()
+                    ? riesgo.getCreatedBy() : "Sin usuario";
+
+            evidencias.add(new ProjectEvidenceDTO(
+                    "riesgo-matriz-" + riesgo.getId(),
+                    "MATRIZ_RIESGOS",
+                    truncate(riesgo.getDescripcion(), 100),
+                    riesgo.getCodigo(),
+                    null,
+                    riesgo.getFechaActualizacion() != null ? riesgo.getFechaActualizacion().toLocalDate() : null,
+                    null,
+                    null,
+                    nivelDisplay,
+                    nivelDisplay,
+                    usuarioResponsable,
+                    "Matriz de riesgos",
+                    null,
+                    null,
+                    null,
+                    null,
+                    descripcion,
+                    null,
+                    null,
+                    null,
+                    riesgo.getId().longValue(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    solucionesCount
+            ));
+        }
+
+        log.info("colMatrizRiesgos: evidencias generadas={}", evidencias.size());
         return evidencias;
     }
 
@@ -333,6 +545,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                         cambio.getFechaNueva() != null ? cambio.getFechaNueva().toString() : null,
                         cambio.getJustificacion(),
                         null,
+                        null,
+                        null,
+                        null,
                         null
                 ));
             }
@@ -344,18 +559,19 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     private String mapEstado(Entregable entregable) {
         if (entregable.getEstado() == null) return "PENDIENTE";
         return switch (entregable.getEstado()) {
-            case A_CONFORMIDAD -> "A_CONFORMIDAD";
+            case APROBADO -> "APROBADO";
             case COMPLETADO -> "COMPLETADO";
             case EN_PROCESO -> "EN_PROCESO";
             case RECHAZADO -> "RECHAZADO";
             case PENDIENTE -> "PENDIENTE";
+            case ATRASADO -> "ATRASADO";
         };
     }
 
     private String mapEstadoDisplay(String estadoCodigo) {
         if (estadoCodigo == null) return "Pendiente";
         return switch (estadoCodigo) {
-            case "A_CONFORMIDAD" -> "A Conformidad";
+            case "APROBADO" -> "Aprobado";
             case "COMPLETADO" -> "Completado";
             case "EN_PROCESO" -> "En Proceso";
             case "RECHAZADO" -> "Rechazado";
@@ -379,7 +595,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
         if (proyecto == null) return evidencias;
 
-        List<Entregable> entregables = entregableRepository.findAllByProyectoId(proyectoId);
+        List<Entregable> entregables = entregableRepository.findByProyectoId(proyectoId);
 
         for (Entregable entregable : entregables) {
             List<EntregableCambioDescripcion> cambios = entregableCambioDescripcionRepository
@@ -430,10 +646,93 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                         null,
                         null,
                         cambio.getDescripcionAnterior(),
-                        cambio.getDescripcionNueva()
+                        cambio.getDescripcionNueva(),
+                        null
                 ));
             }
         }
+
+        return evidencias;
+    }
+
+    private List<ProjectEvidenceDTO> colActaCierre(String proyectoId) {
+        List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
+
+        actaCierreRepository.findByProyectoId(proyectoId).ifPresent(acta -> {
+            if (acta.getArchivoPdf() != null && !acta.getArchivoPdf().isBlank()) {
+                String urlPdf = "/api/v1/proyectos/" + proyectoId + "/cierre/descargar";
+                evidencias.add(new ProjectEvidenceDTO(
+                        "cierre-pdf-" + acta.getId(),
+                        "ACTA_CIERRE",
+                        "Acta de cierre (PDF)",
+                        acta.getArchivoPdf(),
+                        urlPdf,
+                        acta.getFechaCierre() != null ? acta.getFechaCierre().toLocalDate() : null,
+                        null,
+                        null,
+                        "COMPLETADO",
+                        "COMPLETADO",
+                        null,
+                        "Acta de cierre",
+                        null,
+                        null,
+                        null,
+                        null,
+                        acta.getResumenEjecutivo(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ));
+            }
+
+            if (acta.getArchivoDocx() != null && !acta.getArchivoDocx().isBlank()) {
+                String urlDocx = "/api/v1/proyectos/" + proyectoId + "/cierre/descargar?formato=docx";
+                evidencias.add(new ProjectEvidenceDTO(
+                        "cierre-docx-" + acta.getId(),
+                        "ACTA_CIERRE",
+                        "Acta de cierre (DOCX)",
+                        acta.getArchivoDocx(),
+                        urlDocx,
+                        acta.getFechaCierre() != null ? acta.getFechaCierre().toLocalDate() : null,
+                        null,
+                        null,
+                        "COMPLETADO",
+                        "COMPLETADO",
+                        null,
+                        "Acta de cierre",
+                        null,
+                        null,
+                        null,
+                        null,
+                        acta.getResumenEjecutivo(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ));
+            }
+        });
 
         return evidencias;
     }

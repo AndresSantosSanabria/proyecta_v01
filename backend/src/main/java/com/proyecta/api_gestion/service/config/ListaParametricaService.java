@@ -96,7 +96,7 @@ public class ListaParametricaService {
         List<ListaParametricaConfig> existentes = repository.findByListaClaveOrderByOrdenAsc(listaClave);
 
         for (int i = 0; i < valores.size(); i++) {
-            String nombre = valores.get(i).trim();
+            String nombre = valores.get(i).trim().replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", "");
             if (nombre.isEmpty()) continue;
 
             String codigo = nombre.toUpperCase().replaceAll("\\s+", "_");
@@ -122,9 +122,10 @@ public class ListaParametricaService {
         }
 
         java.util.Set<String> nuevosCodigos = valores.stream()
-                .filter(v -> !v.trim().isEmpty())
+                .map(v -> v.trim().replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", ""))
+                .filter(v -> !v.isEmpty())
                 .map(v -> {
-                    String c = v.trim().toUpperCase().replaceAll("\\s+", "_");
+                    String c = v.toUpperCase().replaceAll("\\s+", "_");
                     return c.length() > 190 ? c.substring(0, 190) : c;
                 })
                 .collect(java.util.stream.Collectors.toSet());

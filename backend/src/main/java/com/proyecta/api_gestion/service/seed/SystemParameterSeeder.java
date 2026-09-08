@@ -75,19 +75,19 @@ public class SystemParameterSeeder {
 
         crearParametroSiNoExiste(
             SystemParameterKeys.RIESGO_PROBABILIDADES,
-            "BAJA,MEDIA,ALTA",
+            "UNO,DOS,TRES,CUATRO,CINCO",
             "Catálogo de probabilidades de riesgo"
         );
 
         crearParametroSiNoExiste(
             SystemParameterKeys.RIESGO_IMPACTOS,
-            "BAJO,MEDIO,ALTO",
+            "UNO,DOS,TRES,CUATRO,CINCO",
             "Catálogo de impactos de riesgo"
         );
 
         crearParametroSiNoExiste(
             SystemParameterKeys.RIESGO_NIVELES,
-            "BAJO,MEDIO,ALTO",
+            "BAJO,MODERADO,ALTO,EXTREMO",
             "Catálogo de niveles de riesgo"
         );
 

@@ -65,12 +65,12 @@ CREATE INDEX idx_documento_dinamico_proyecto_tipo ON documento_dinamico(proyecto
 
 -- Migration: Fix entregable_estado_check constraint
 -- Date: 2026-05-20
--- Description: Adds COMPLETADO and A_CONFORMIDAD to the CHECK constraint
+-- Description: Adds COMPLETADO and APROBADO to the CHECK constraint
 
 ALTER TABLE proyecta_db.entregable DROP CONSTRAINT IF EXISTS entregable_estado_check;
 
 ALTER TABLE proyecta_db.entregable ADD CONSTRAINT entregable_estado_check
-    CHECK (estado IN ('PENDIENTE', 'EN_PROCESO', 'A_CONFORMIDAD', 'COMPLETADO', 'ATRASADO'));
+    CHECK (estado IN ('PENDIENTE', 'EN_PROCESO', 'APROBADO', 'COMPLETADO', 'ATRASADO'));
 
 -- ================================================================
 -- V3: recalculate_all_advances
@@ -78,7 +78,7 @@ ALTER TABLE proyecta_db.entregable ADD CONSTRAINT entregable_estado_check
 
 -- Migration: Recalculate all project advances based on current deliverable states
 -- Date: 2026-05-20
--- Description: Updates avance_total for all projects based on COMPLETADO/A_CONFORMIDAD deliverables
+-- Description: Updates avance_total for all projects based on COMPLETADO/APROBADO deliverables
 
 -- Recalculate hito advances
 UPDATE proyecta_db.hito h
@@ -86,7 +86,7 @@ SET avance_calculado = (
     SELECT COALESCE(SUM(e.ponderacion), 0)
     FROM proyecta_db.entregable e
     WHERE e.hito_id = h.hito_id
-    AND e.estado IN ('COMPLETADO', 'A_CONFORMIDAD')
+    AND e.estado IN ('COMPLETADO', 'APROBADO')
 );
 
 -- Recalculate fase advances

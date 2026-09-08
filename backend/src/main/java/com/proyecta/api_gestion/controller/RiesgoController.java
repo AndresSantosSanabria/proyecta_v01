@@ -60,8 +60,9 @@ public class RiesgoController implements IRiesgoController {
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<RiesgoCreatedResponseDTO>> crearRiesgo(
             @PathVariable String proyectoId,
-            @Valid @RequestBody RiesgoRequestDTO requestDto) {
-        RiesgoCreatedResponseDTO response = riesgoService.createRisk(proyectoId, requestDto);
+            @Valid @RequestBody RiesgoRequestDTO requestDto,
+            org.springframework.security.core.Authentication authentication) {
+        RiesgoCreatedResponseDTO response = riesgoService.createRisk(proyectoId, requestDto, authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(response, response.mensaje()));
     }

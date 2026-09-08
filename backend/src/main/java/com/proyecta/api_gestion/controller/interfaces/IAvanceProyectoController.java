@@ -4,7 +4,7 @@ import com.proyecta.api_gestion.config.openapi.ProyectoAvanceSwaggerConstants;
 import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
-import com.proyecta.api_gestion.dto.avance.EntregableConformidadResponseDTO;
+import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
 import java.time.LocalDate;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -47,11 +47,11 @@ public interface IAvanceProyectoController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
             description  = "Evidencia registrada exitosamente",
-            content = @Content(schema = @Schema(implementation = EntregableConformidadResponseDTO.class))
+            content = @Content(schema = @Schema(implementation = EntregableAprobadoResponseDTO.class))
         )
     })
     @StandardApiResponses
-    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> registrarEvidencia(
+    ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> registrarEvidencia(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @Parameter(description = "fecha real de entrega (yyyy-MM-dd)") @RequestParam LocalDate fechaEntrega,
@@ -66,11 +66,11 @@ public interface IAvanceProyectoController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
             description  = "Entregable aprobado por el gestor",
-            content = @Content(schema = @Schema(implementation = EntregableConformidadResponseDTO.class))
+            content = @Content(schema = @Schema(implementation = EntregableAprobadoResponseDTO.class))
         )
     })
     @StandardApiResponses
-    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> aprobarEntregable(
+    ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> aprobarEntregable(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @Parameter(description = "Observacion opcional de aprobacion") @RequestParam(required = false) String observacion,
@@ -84,13 +84,29 @@ public interface IAvanceProyectoController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
             description  = "Entregable rechazado por el gestor",
-            content = @Content(schema = @Schema(implementation = EntregableConformidadResponseDTO.class))
+            content = @Content(schema = @Schema(implementation = EntregableAprobadoResponseDTO.class))
         )
     })
     @StandardApiResponses
-    ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> rechazarEntregable(
+    ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> rechazarEntregable(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @Parameter(description = "Motivo del rechazo") @RequestParam String observacion,
+            Authentication authentication);
+
+    @Operation(
+        summary     = "Enviar alerta de avance al director",
+        description = "Envia una notificacion via correo electronico e in-app al director del proyecto con el resumen de avance, riesgos pendientes, entregables sin evidencia y documentos faltantes. Solo permitido para gestores y administradores."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description  = "Notificacion enviada exitosamente al director del proyecto"
+        )
+    })
+    @StandardApiResponses
+    ResponseEntity<ApiResponse<String>> enviarAlertaDirector(
+            @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001")
+            @PathVariable String proyectoId,
             Authentication authentication);
 }

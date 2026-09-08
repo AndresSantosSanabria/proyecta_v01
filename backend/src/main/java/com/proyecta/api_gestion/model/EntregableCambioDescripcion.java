@@ -1,4 +1,4 @@
-﻿package com.proyecta.api_gestion.model;
+package com.proyecta.api_gestion.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;

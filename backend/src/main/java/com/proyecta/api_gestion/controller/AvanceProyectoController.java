@@ -8,7 +8,7 @@ import com.proyecta.api_gestion.dto.avance.DocumentoReversionRequest;
 import com.proyecta.api_gestion.dto.avance.DocumentoSubsanacionRequest;
 import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
-import com.proyecta.api_gestion.dto.avance.EntregableConformidadResponseDTO;
+import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
@@ -62,27 +62,27 @@ public class AvanceProyectoController implements IAvanceProyectoController {
     @Override
     @PostMapping(value = {"/{proyectoId}/avance/entregables/{entregableId}/evidencia", "/{proyectoId}/avance/entregables/{entregableId}/completar"}, consumes = "multipart/form-data")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('EVIDENCIA:CARGAR', #proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> registrarEvidencia(
+    public ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> registrarEvidencia(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fechaEntrega,
             @RequestPart("evidencia") MultipartFile evidencia,
             Authentication authentication) {
 
-        EntregableConformidadResponseDTO result = proyectoAvanceService.registrarEvidencia(proyectoId, entregableId, fechaEntrega, evidencia, authentication);
+        EntregableAprobadoResponseDTO result = proyectoAvanceService.registrarEvidencia(proyectoId, entregableId, fechaEntrega, evidencia, authentication);
         return ResponseEntity.ok(ApiResponse.success(result, "Evidencia registrada exitosamente. Queda pendiente de aprobacion."));
     }
 
     @Override
     @RequestMapping(value = "/{proyectoId}/avance/entregables/{entregableId}/aprobar", method = {RequestMethod.PATCH, RequestMethod.POST})
     @PreAuthorize("@proyectoSecurity.canReviewEvidence(#proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> aprobarEntregable(
+    public ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> aprobarEntregable(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @RequestParam(required = false) String observacion,
             Authentication authentication) {
 
-        EntregableConformidadResponseDTO result = proyectoAvanceService.aprobarEntregable(proyectoId, entregableId, authentication);
+        EntregableAprobadoResponseDTO result = proyectoAvanceService.aprobarEntregable(proyectoId, entregableId, authentication);
         String message = (observacion == null || observacion.isBlank())
                 ? "Entregable aprobado exitosamente."
                 : "Entregable aprobado exitosamente. Observacion registrada: " + observacion;
@@ -92,13 +92,13 @@ public class AvanceProyectoController implements IAvanceProyectoController {
     @Override
     @RequestMapping(value = "/{proyectoId}/avance/entregables/{entregableId}/rechazar", method = {RequestMethod.PATCH, RequestMethod.POST})
     @PreAuthorize("@proyectoSecurity.canReviewEvidence(#proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> rechazarEntregable(
+    public ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> rechazarEntregable(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @RequestParam String observacion,
             Authentication authentication) {
 
-        EntregableConformidadResponseDTO result = proyectoAvanceService.rechazarEntregable(proyectoId, entregableId, observacion, authentication);
+        EntregableAprobadoResponseDTO result = proyectoAvanceService.rechazarEntregable(proyectoId, entregableId, observacion, authentication);
         String message = "Entregable rechazado. El asignado debe corregir la evidencia.";
         if (observacion != null && !observacion.isBlank()) {
             message += " Observacion: " + observacion;
@@ -144,7 +144,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
 
     @PostMapping("/{proyectoId}/avance/entregables/{entregableId}/versiones/{versionId}/revertir")
     @PreAuthorize("@proyectoSecurity.canRevertDocumentVersion(#proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<EntregableConformidadResponseDTO>> revertirVersion(
+    public ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> revertirVersion(
             @PathVariable String proyectoId,
             @PathVariable Integer entregableId,
             @PathVariable Long versionId,
@@ -190,6 +190,16 @@ public class AvanceProyectoController implements IAvanceProyectoController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, inlinePdfName(nombreDescarga))
                 .body(resource);
+    }
+
+    @Override
+    @PostMapping("/{proyectoId}/avance/alertar-director")
+    @PreAuthorize("@proyectoSecurity.canSendDirectorNotification(#proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<String>> enviarAlertaDirector(
+            @PathVariable String proyectoId,
+            Authentication authentication) {
+        proyectoAvanceService.enviarAlertaDirector(proyectoId, authentication);
+        return ResponseEntity.ok(ApiResponse.success("Notificacion enviada exitosamente al director del proyecto.", "Alerta al director enviada"));
     }
 
     private String inlinePdfName(String fileName) {

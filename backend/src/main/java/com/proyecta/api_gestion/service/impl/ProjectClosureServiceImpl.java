@@ -641,7 +641,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
 
     private String construirEstadoEntregable(Entregable entregable, LocalDate corteCalculo) {
         if (entregable.esConforme()) {
-            return "A conformidad";
+            return "Aprobado";
         }
         if (entregable.getFechaLimite() != null && entregable.getFechaLimite().isBefore(corteCalculo)) {
             return "Vencido";

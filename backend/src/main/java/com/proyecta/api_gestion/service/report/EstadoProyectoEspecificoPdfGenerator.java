@@ -264,7 +264,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             drawRule(y - 8f);
             y -= 28f;
 
-            drawSubsection("4.2 Entregables a conformidad (Ok)", y);
+            drawSubsection("4.2 Entregables aprobados (Ok)", y);
             y -= 28f;
             TableBlock conformes = new TableBlock(
                     new String[]{"Entregable", "Fase / Hito asociado", "Fecha de entrega", "Fecha de aprobación", "Aprobado por"},
@@ -349,7 +349,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                 }
             }
             if (rows.isEmpty()) {
-                rows.add(List.of("Sin entregables a conformidad", "No aplica", "No aplica", "No aplica", "No aplica"));
+                rows.add(List.of("Sin entregables aprobados", "No aplica", "No aplica", "No aplica", "No aplica"));
             }
             return rows;
         }
@@ -707,8 +707,8 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             if (entregable == null) {
                 return "Pendiente";
             }
-            if (EstadoEntregable.A_CONFORMIDAD.equals(entregable.getEstado()) || Boolean.TRUE.equals(entregable.getConforme())) {
-                return "Cumplido";
+            if (EstadoEntregable.APROBADO.equals(entregable.getEstado()) || Boolean.TRUE.equals(entregable.getConforme())) {
+                return "Aprobado";
             }
             if (EstadoEntregable.COMPLETADO.equals(entregable.getEstado())) {
                 return "En revisión";

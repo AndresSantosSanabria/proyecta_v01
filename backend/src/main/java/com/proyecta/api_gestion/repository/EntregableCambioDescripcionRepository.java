@@ -1,4 +1,4 @@
-﻿package com.proyecta.api_gestion.repository;
+package com.proyecta.api_gestion.repository;
 
 import com.proyecta.api_gestion.model.EntregableCambioDescripcion;
 import org.springframework.data.jpa.repository.JpaRepository;

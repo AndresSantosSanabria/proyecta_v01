@@ -3,7 +3,7 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.avance.DocumentoArchivoDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
-import com.proyecta.api_gestion.dto.avance.EntregableConformidadResponseDTO;
+import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoSummaryDTO;
 import com.proyecta.api_gestion.exception.ForbiddenException;
@@ -15,16 +15,20 @@ import com.proyecta.api_gestion.model.DocumentoObservacion;
 import com.proyecta.api_gestion.model.DocumentoVersion;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.Riesgo;
 import com.proyecta.api_gestion.model.Usuario;
 import com.proyecta.api_gestion.model.enums.DocumentoObservacionEstado;
 import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
+import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.repository.ActaCierreRepository;
 import com.proyecta.api_gestion.repository.DocumentoAuditoriaRepository;
 import com.proyecta.api_gestion.repository.DocumentoObservacionRepository;
 import com.proyecta.api_gestion.repository.DocumentoVersionRepository;
 import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.RiesgoRepository;
+import com.proyecta.api_gestion.config.PublicUrlProperties;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProyectoBeneficioImpactoService;
@@ -47,8 +51,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.nio.charset.StandardCharsets;
 
 @Service
@@ -69,6 +77,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     private final NotificationEventPublisherPort notificationPublisher;
     private final ProyectoBeneficioImpactoService beneficioImpactoService;
     private final PublicEvidenceAccessService publicEvidenceAccessService;
+    private final RiesgoRepository riesgoRepository;
+    private final PublicUrlProperties publicUrlProperties;
 
     public ProjectAdvanceServiceImpl(ProyectoRepository proyectoRepository,
                                      EntregableRepository entregableRepository,
@@ -84,7 +94,9 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                                      KeycloakIdentityExtractor identityExtractor,
                                      NotificationEventPublisherPort notificationPublisher,
                                      ProyectoBeneficioImpactoService beneficioImpactoService,
-                                     PublicEvidenceAccessService publicEvidenceAccessService) {
+                                     PublicEvidenceAccessService publicEvidenceAccessService,
+                                     RiesgoRepository riesgoRepository,
+                                     PublicUrlProperties publicUrlProperties) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.progressCalculator = progressCalculator;
@@ -100,6 +112,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         this.notificationPublisher = notificationPublisher;
         this.beneficioImpactoService = beneficioImpactoService;
         this.publicEvidenceAccessService = publicEvidenceAccessService;
+        this.riesgoRepository = riesgoRepository;
+        this.publicUrlProperties = publicUrlProperties;
     }
 
     @Override
@@ -139,7 +153,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     @Override
     @Transactional
-    public EntregableConformidadResponseDTO registrarEvidencia(String proyectoId, Integer entregableId, LocalDate fechaEntrega, MultipartFile evidencia, Authentication authentication) {
+    public EntregableAprobadoResponseDTO registrarEvidencia(String proyectoId, Integer entregableId, LocalDate fechaEntrega, MultipartFile evidencia, Authentication authentication) {
         if (evidencia == null || evidencia.isEmpty()) {
             throw new UnprocessableEntityException("El archivo de evidencia es requerido");
         }
@@ -219,7 +233,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
             String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
-            return new EntregableConformidadResponseDTO(
+            return new EntregableAprobadoResponseDTO(
                     entregable.getId(),
                     entregable.getEstadoCodigo(),
                     entregable.getFechaEntregaReal(),
@@ -239,7 +253,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     @Override
     @Transactional
-    public EntregableConformidadResponseDTO aprobarEntregable(String proyectoId, Integer entregableId, Authentication authentication) {
+    public EntregableAprobadoResponseDTO aprobarEntregable(String proyectoId, Integer entregableId, Authentication authentication) {
         Entregable entregable = entregableRepository.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
 
@@ -262,7 +276,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         }
         ActorContext actor = actorContext(authentication);
         cerrarObservaciones(entregable, actor);
-        auditar(entregable, versionActual(entregable).orElse(null), null, "APROBAR", actor, "estado=A_CONFORMIDAD");
+        auditar(entregable, versionActual(entregable).orElse(null), null, "APROBAR", actor, "estado=APROBADO");
         entregableRepository.save(entregable);
         entityManager.flush();
 
@@ -287,7 +301,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
         String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
-        return new EntregableConformidadResponseDTO(
+        return new EntregableAprobadoResponseDTO(
                 entregable.getId(),
                 entregable.getEstadoCodigo(),
                 entregable.getFechaEntregaReal(),
@@ -298,7 +312,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     @Override
     @Transactional
-    public EntregableConformidadResponseDTO rechazarEntregable(String proyectoId, Integer entregableId, String observacion, Authentication authentication) {
+    public EntregableAprobadoResponseDTO rechazarEntregable(String proyectoId, Integer entregableId, String observacion, Authentication authentication) {
         if (observacion == null || observacion.isBlank()) {
             throw new UnprocessableEntityException("La observacion de rechazo es obligatoria.");
         }
@@ -352,7 +366,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
         String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
-        return new EntregableConformidadResponseDTO(
+        return new EntregableAprobadoResponseDTO(
                 entregable.getId(),
                 entregable.getEstadoCodigo(),
                 entregable.getFechaEntregaReal(),
@@ -424,7 +438,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     @Override
     @Transactional
-    public EntregableConformidadResponseDTO revertirVersion(String proyectoId, Integer entregableId, Long versionId, String motivo, Authentication authentication) {
+    public EntregableAprobadoResponseDTO revertirVersion(String proyectoId, Integer entregableId, Long versionId, String motivo, Authentication authentication) {
         if (motivo == null || motivo.isBlank()) {
             throw new UnprocessableEntityException("El motivo de reversion es obligatorio.");
         }
@@ -482,6 +496,143 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         }
 
         return new DocumentoArchivoDTO(version.getArchivoStorage(), version.getNombreArchivoOriginal(), version.getMimeType());
+    }
+
+    @Override
+    @Transactional
+    public void enviarAlertaDirector(String proyectoId, Authentication authentication) {
+        Proyecto proyecto = cargarProyecto(proyectoId);
+
+        if (proyecto.getCorreoDirector() == null || proyecto.getCorreoDirector().isBlank()) {
+            throw new UnprocessableEntityException("El proyecto no tiene un correo de director registrado para enviar la notificacion.");
+        }
+
+        ActorContext actor = actorContext(authentication);
+
+        List<Riesgo> riesgosPendientes = riesgoRepository.findByProyectoId(proyectoId).stream()
+                .filter(r -> r.getEstado() == EstadoRiesgo.PENDIENTE)
+                .toList();
+
+        List<Entregable> todosEntregables = entregableRepository.findByProyectoId(proyectoId);
+        List<Entregable> entregablesPendientes = todosEntregables.stream()
+                .filter(e -> {
+                    String estadoCodigo = e.getEstadoCodigo();
+                    boolean esTerminal = "COMPLETADO".equals(estadoCodigo) || "APROBADO".equals(estadoCodigo);
+                    return !esTerminal && (e.getArchivoPdf() == null || e.getArchivoPdf().isBlank());
+                })
+                .toList();
+
+        LocalDate hoy = LocalDate.now();
+        List<Entregable> entregablesVencidos = todosEntregables.stream()
+                .filter(e -> {
+                    String estadoCodigo = e.getEstadoCodigo();
+                    boolean esTerminal = "COMPLETADO".equals(estadoCodigo) || "APROBADO".equals(estadoCodigo);
+                    return !esTerminal && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy);
+                })
+                .toList();
+
+        List<String> documentosFaltantes = new ArrayList<>();
+        if (proyecto.getCronogramaPdf() == null || proyecto.getCronogramaPdf().isBlank()) {
+            documentosFaltantes.add("Cronograma del proyecto");
+        }
+        if (proyecto.getActaConstitucionPdf() == null || proyecto.getActaConstitucionPdf().isBlank()) {
+            documentosFaltantes.add("Acta de constitucion del proyecto");
+        }
+        if (proyecto.getPlanComunicacionesPdf() == null || proyecto.getPlanComunicacionesPdf().isBlank()) {
+            documentosFaltantes.add("Plan de comunicaciones del proyecto");
+        }
+
+        String baseUrl = publicUrlProperties.getBase() != null ? publicUrlProperties.getBase() : "";
+        String projectUrl = baseUrl + "/projects/" + proyectoId.toLowerCase() + "/progress";
+
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a");
+        String sentAt = LocalDateTime.now().format(dtf);
+
+        StringBuilder riesgosDetail = new StringBuilder();
+        if (riesgosPendientes.isEmpty()) {
+            riesgosDetail.append("  No tiene riesgos pendientes por tratar.");
+        } else {
+            for (Riesgo r : riesgosPendientes) {
+                String nivel = r.getNivel() != null ? r.getNivel().name() : "SIN NIVEL";
+                String desc = r.getDescripcion() != null ? r.getDescripcion() : "Sin descripcion";
+                if (desc.length() > 80) {
+                    desc = desc.substring(0, 80) + "...";
+                }
+                riesgosDetail.append("  - ")
+                        .append(r.getCodigo() != null ? r.getCodigo() : "S/C")
+                        .append(" | Nivel: ").append(nivel)
+                        .append(" | ").append(desc)
+                        .append("\n");
+            }
+        }
+
+        StringBuilder entregablesDetail = new StringBuilder();
+        if (entregablesPendientes.isEmpty()) {
+            entregablesDetail.append("  No tiene entregables pendientes por cargar evidencia.");
+        } else {
+            for (Entregable e : entregablesPendientes) {
+                String faseNombre = "N/A";
+                if (e.getHito() != null && e.getHito().getFase() != null && e.getHito().getFase().getDescripcion() != null) {
+                    faseNombre = e.getHito().getFase().getDescripcion();
+                }
+                String fechaLimite = e.getFechaLimite() != null
+                        ? e.getFechaLimite().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        : "Sin fecha";
+                entregablesDetail.append("  - ")
+                        .append(e.getNombre())
+                        .append(" (Fase: ").append(faseNombre).append(")")
+                        .append(" | Fecha limite: ").append(fechaLimite)
+                        .append("\n");
+            }
+        }
+
+        StringBuilder vencidosDetail = new StringBuilder();
+        for (Entregable e : entregablesVencidos) {
+            String faseNombre = "N/A";
+            if (e.getHito() != null && e.getHito().getFase() != null && e.getHito().getFase().getDescripcion() != null) {
+                faseNombre = e.getHito().getFase().getDescripcion();
+            }
+            String fechaVencida = e.getFechaLimite() != null
+                    ? e.getFechaLimite().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    : "S/F";
+            vencidosDetail.append("  - ")
+                    .append(e.getNombre())
+                    .append(" (Fase: ").append(faseNombre.isEmpty() ? "N/A" : faseNombre).append(")")
+                    .append(" | Vencido el: ").append(fechaVencida)
+                    .append("\n");
+        }
+
+        StringBuilder documentosDetail = new StringBuilder();
+        for (String doc : documentosFaltantes) {
+            documentosDetail.append("  - ").append(doc).append("\n");
+        }
+
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("directorName", proyecto.getDirector() != null ? proyecto.getDirector() : "Director");
+        attributes.put("projectName", proyecto.getNombre());
+        attributes.put("projectId", proyecto.getId());
+        attributes.put("projectState", proyecto.getEstadoCodigo() != null ? proyecto.getEstadoCodigo() : "DESCONOCIDO");
+        attributes.put("avanceTotal", proyecto.getAvanceTotal() != null ? proyecto.getAvanceTotal().toPlainString() : "0.00");
+        attributes.put("pendingRisksCount", String.valueOf(riesgosPendientes.size()));
+        attributes.put("pendingRisksDetail", riesgosDetail.toString());
+        attributes.put("pendingDeliverablesCount", String.valueOf(entregablesPendientes.size()));
+        attributes.put("pendingDeliverablesDetail", entregablesDetail.toString());
+        attributes.put("overdueCount", String.valueOf(entregablesVencidos.size()));
+        attributes.put("overdueDetail", vencidosDetail.toString());
+        attributes.put("hasOverdue", !entregablesVencidos.isEmpty());
+        attributes.put("hasMissingDocuments", !documentosFaltantes.isEmpty());
+        attributes.put("missingDocumentsDetail", documentosDetail.toString());
+        attributes.put("projectUrl", projectUrl);
+        attributes.put("sentBy", actor.username());
+        attributes.put("sentAt", sentAt);
+        attributes.put("recipients", List.of(proyecto.getCorreoDirector()));
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_DIRECTOR_ALERT,
+                proyectoId,
+                actor.username(),
+                attributes
+        ));
     }
 
     private void validarPdfReal(MultipartFile evidencia) {
@@ -607,12 +758,12 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         return entregable;
     }
 
-    private EntregableConformidadResponseDTO responseConAvance(String proyectoId, Entregable entregable) {
+    private EntregableAprobadoResponseDTO responseConAvance(String proyectoId, Entregable entregable) {
         Proyecto proyectoActualizado = cargarProyecto(proyectoId);
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
         String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
-        return new EntregableConformidadResponseDTO(
+        return new EntregableAprobadoResponseDTO(
                 entregable.getId(),
                 entregable.getEstadoCodigo(),
                 entregable.getFechaEntregaReal(),

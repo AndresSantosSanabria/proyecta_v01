@@ -1,5 +1,5 @@
 package com.proyecta.api_gestion.model.enums;
 
 public enum EstadoEntregable {
-    PENDIENTE, EN_PROCESO, RECHAZADO, A_CONFORMIDAD, COMPLETADO, ATRASADO
+    PENDIENTE, EN_PROCESO, RECHAZADO, APROBADO, COMPLETADO, ATRASADO
 }

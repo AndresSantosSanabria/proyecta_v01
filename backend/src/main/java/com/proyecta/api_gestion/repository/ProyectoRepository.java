@@ -42,7 +42,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
         JOIN h.fase f 
         JOIN f.proyecto p 
         LEFT JOIN e.estadoConfig ec
-        WHERE ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD))) AND e.fechaLimite < :hoy
+        WHERE ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'APROBADO')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.APROBADO))) AND e.fechaLimite < :hoy
     """)
     long countEntregablesAtrasados(@Param("hoy") LocalDate hoy);
 
@@ -52,7 +52,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
         JOIN h.fase f 
         JOIN f.proyecto p 
         LEFT JOIN e.estadoConfig ec
-        WHERE ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'A_CONFORMIDAD')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD)))
+        WHERE ((ec IS NOT NULL AND ec.codigo NOT IN ('COMPLETADO', 'APROBADO')) OR (ec IS NULL AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.APROBADO)))
         AND e.fechaLimite >= :hoy 
         AND e.fechaLimite <= :umbral
     """)
@@ -77,18 +77,18 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
         )
         SELECT
             COALESCE(MAX(avance_total), 0)                                               AS avance_total,
-            COUNT(entregable_id) FILTER (WHERE estado IN ('COMPLETADO', 'A_CONFORMIDAD'))  AS entregables_conformes,
+            COUNT(entregable_id) FILTER (WHERE estado IN ('COMPLETADO', 'APROBADO'))  AS entregables_conformes,
             COUNT(entregable_id)                                                             AS total_entregables,
             CONCAT(
-                COUNT(entregable_id) FILTER (WHERE estado IN ('COMPLETADO', 'A_CONFORMIDAD')),
+                COUNT(entregable_id) FILTER (WHERE estado IN ('COMPLETADO', 'APROBADO')),
                 '/',
                 COUNT(entregable_id)
             )                                                                                AS entregables_label,
             COUNT(entregable_id) FILTER (
-                WHERE estado NOT IN ('COMPLETADO', 'A_CONFORMIDAD') AND fecha_limite < CURRENT_DATE
+                WHERE estado NOT IN ('COMPLETADO', 'APROBADO') AND fecha_limite < CURRENT_DATE
             )                                                                                AS atrasados,
             COUNT(entregable_id) FILTER (
-                WHERE estado NOT IN ('COMPLETADO', 'A_CONFORMIDAD')
+                WHERE estado NOT IN ('COMPLETADO', 'APROBADO')
                 AND fecha_limite >= CURRENT_DATE
                 AND fecha_limite <= (CURRENT_DATE + (
                     SELECT (param_value || ' days')::INTERVAL
@@ -103,7 +103,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     @Query("""
         SELECT new com.proyecta.api_gestion.dto.report.ProyectoReporteResumenDTO(
             p.id, p.nombre, p.avanceTotal, p.dependencia, CAST(p.estado AS string),
-            (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD) AND e.fechaLimite < :now)
+            (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.APROBADO) AND e.fechaLimite < :now)
         )
         FROM Proyecto p
         LEFT JOIN p.estadoConfig ec
@@ -114,7 +114,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     @Query("""
         SELECT new com.proyecta.api_gestion.dto.report.ProyectoReporteResumenDTO(
             p.id, p.nombre, p.avanceTotal, p.dependencia, CAST(p.estado AS string),
-            (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD) AND e.fechaLimite < :now)
+            (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.APROBADO) AND e.fechaLimite < :now)
         )
         FROM Proyecto p
         WHERE p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS
@@ -128,7 +128,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
             p.dependencia, 
             p.avanceTotal, 
             CAST(p.estado AS string), 
-            (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.A_CONFORMIDAD) AND e.fechaLimite < :now)
+            (SELECT COUNT(e) FROM Entregable e JOIN e.hito h JOIN h.fase f WHERE f.proyecto.id = p.id AND e.estado NOT IN (com.proyecta.api_gestion.model.enums.EstadoEntregable.COMPLETADO, com.proyecta.api_gestion.model.enums.EstadoEntregable.APROBADO) AND e.fechaLimite < :now)
         )
         FROM Proyecto p
         LEFT JOIN p.estadoConfig ec

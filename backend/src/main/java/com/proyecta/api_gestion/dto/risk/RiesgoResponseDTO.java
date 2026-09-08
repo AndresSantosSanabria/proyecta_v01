@@ -24,5 +24,6 @@ public record RiesgoResponseDTO(
         String evidenciaIndicador,
         EstadoRiesgo estado,
         LocalDateTime fechaActualizacion,
-        List<RiesgoSolucionAdjuntoDTO> soluciones
+        List<RiesgoSolucionAdjuntoDTO> soluciones,
+        String createdBy
 ) {}

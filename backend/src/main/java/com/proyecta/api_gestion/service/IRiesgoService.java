@@ -7,6 +7,7 @@ import com.proyecta.api_gestion.dto.risk.RiesgoRequestDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoSolucionAdjuntoDTO;
 import org.springframework.core.io.Resource;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -14,7 +15,7 @@ import java.util.List;
 public interface IRiesgoService {
     RiesgoListResponseDTO getRisksByProject(String projectId);
     List<MatrizRiesgoDTO> getRiskMatrix();
-    RiesgoCreatedResponseDTO createRisk(String projectId, RiesgoRequestDTO requestDto);
+    RiesgoCreatedResponseDTO createRisk(String projectId, RiesgoRequestDTO requestDto, Authentication authentication);
     RiesgoResponseDTO updateRisk(String projectId, Integer riesgoId, RiesgoRequestDTO requestDto);
     void deleteRisk(String projectId, Integer riesgoId);
     void verificarTratamiento(String projectId, Integer riesgoId, String verificacion);

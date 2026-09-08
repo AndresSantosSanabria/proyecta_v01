@@ -224,15 +224,19 @@ public class RiesgoExcelExporter {
 
     private int score(Object probabilidad, Object impacto) {
         int p = switch (String.valueOf(probabilidad)) {
-            case "BAJA" -> 1;
-            case "MEDIA" -> 2;
-            case "ALTA" -> 3;
+            case "UNO" -> 1;
+            case "DOS" -> 2;
+            case "TRES" -> 3;
+            case "CUATRO" -> 4;
+            case "CINCO" -> 5;
             default -> 0;
         };
         int i = switch (String.valueOf(impacto)) {
-            case "BAJO" -> 1;
-            case "MEDIO" -> 2;
-            case "ALTO" -> 3;
+            case "UNO" -> 1;
+            case "DOS" -> 2;
+            case "TRES" -> 3;
+            case "CUATRO" -> 4;
+            case "CINCO" -> 5;
             default -> 0;
         };
         return p + i;

@@ -51,6 +51,7 @@ public class NotificationOrchestratorService {
         tmp.put("ENTREGABLE_FECHA_CAMBIADA", "/schedule");
         tmp.put("ENTREGABLE_DEADLINE_WARNING", "/progress");
         tmp.put("ENTREGABLE_OVERDUE_REMINDER", "/progress");
+        tmp.put("PROJECT_DIRECTOR_ALERT", "/progress");
         EVENT_ROUTE_MAP = Map.copyOf(tmp);
     }
 
@@ -124,10 +125,6 @@ public class NotificationOrchestratorService {
             List<SeguridadUsuario> globalRecipients = usuarioRepository.findByRecibirNotificacionesGlobalesTrue();
             for (SeguridadUsuario user : globalRecipients) {
                 if (user == null) {
-                    continue;
-                }
-                if (actorResolver.isActor(user.getUsername(), actorIdentifiers) || actorResolver.isActor(user.getCorreo(), actorIdentifiers)) {
-                    log.info("[Notification] Omitido Admin: {} (Regla 2 - Actor Original)", user.getUsername());
                     continue;
                 }
                 finalRecipients.add(user.getUsername());

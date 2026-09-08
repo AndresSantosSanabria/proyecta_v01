@@ -92,6 +92,9 @@ public class Riesgo {
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
 
+    @Column(name = "created_by", length = 150)
+    private String createdBy;
+
     @OneToMany(mappedBy = "riesgo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RiesgoSolucionAdjunto> soluciones = new ArrayList<>();
 
@@ -290,6 +293,14 @@ public class Riesgo {
 
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) {
         this.fechaActualizacion = fechaActualizacion;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
     }
 
     public List<RiesgoSolucionAdjunto> getSoluciones() {

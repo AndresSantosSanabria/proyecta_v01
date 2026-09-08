@@ -40,6 +40,11 @@ import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,16 +59,34 @@ import java.util.UUID;
 @Service
 public class RiesgoServiceImpl implements IRiesgoService {
 
+    private static final Logger log = LoggerFactory.getLogger(RiesgoServiceImpl.class);
+
     private static final List<MatrixRule> MATRIX_RULES = List.of(
-            new MatrixRule("BAJA", "BAJO", "BAJO", "#22c55e"),
-            new MatrixRule("BAJA", "MEDIO", "BAJO", "#22c55e"),
-            new MatrixRule("BAJA", "ALTO", "MODERADO", "#f59e0b"),
-            new MatrixRule("MEDIA", "BAJO", "BAJO", "#22c55e"),
-            new MatrixRule("MEDIA", "MEDIO", "MODERADO", "#f59e0b"),
-            new MatrixRule("MEDIA", "ALTO", "ALTO", "#ef4444"),
-            new MatrixRule("ALTA", "BAJO", "MODERADO", "#f59e0b"),
-            new MatrixRule("ALTA", "MEDIO", "ALTO", "#ef4444"),
-            new MatrixRule("ALTA", "ALTO", "EXTREMO", "#dc2626")
+            new MatrixRule("UNO", "UNO", "BAJO", "#22c55e"),
+            new MatrixRule("UNO", "DOS", "BAJO", "#22c55e"),
+            new MatrixRule("UNO", "TRES", "BAJO", "#22c55e"),
+            new MatrixRule("UNO", "CUATRO", "MODERADO", "#f59e0b"),
+            new MatrixRule("UNO", "CINCO", "MODERADO", "#f59e0b"),
+            new MatrixRule("DOS", "UNO", "BAJO", "#22c55e"),
+            new MatrixRule("DOS", "DOS", "BAJO", "#22c55e"),
+            new MatrixRule("DOS", "TRES", "MODERADO", "#f59e0b"),
+            new MatrixRule("DOS", "CUATRO", "MODERADO", "#f59e0b"),
+            new MatrixRule("DOS", "CINCO", "ALTO", "#ef4444"),
+            new MatrixRule("TRES", "UNO", "BAJO", "#22c55e"),
+            new MatrixRule("TRES", "DOS", "MODERADO", "#f59e0b"),
+            new MatrixRule("TRES", "TRES", "MODERADO", "#f59e0b"),
+            new MatrixRule("TRES", "CUATRO", "ALTO", "#ef4444"),
+            new MatrixRule("TRES", "CINCO", "ALTO", "#ef4444"),
+            new MatrixRule("CUATRO", "UNO", "MODERADO", "#f59e0b"),
+            new MatrixRule("CUATRO", "DOS", "MODERADO", "#f59e0b"),
+            new MatrixRule("CUATRO", "TRES", "ALTO", "#ef4444"),
+            new MatrixRule("CUATRO", "CUATRO", "ALTO", "#ef4444"),
+            new MatrixRule("CUATRO", "CINCO", "EXTREMO", "#dc2626"),
+            new MatrixRule("CINCO", "UNO", "MODERADO", "#f59e0b"),
+            new MatrixRule("CINCO", "DOS", "ALTO", "#ef4444"),
+            new MatrixRule("CINCO", "TRES", "ALTO", "#ef4444"),
+            new MatrixRule("CINCO", "CUATRO", "EXTREMO", "#dc2626"),
+            new MatrixRule("CINCO", "CINCO", "EXTREMO", "#dc2626")
     );
 
     private final RiesgoRepository riesgoRepository;
@@ -125,7 +148,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
     @Override
     @Transactional
-    public RiesgoCreatedResponseDTO createRisk(String projectId, RiesgoRequestDTO requestDto) {
+    public RiesgoCreatedResponseDTO createRisk(String projectId, RiesgoRequestDTO requestDto, Authentication authentication) {
         Proyecto proyecto = cargarProyecto(projectId);
         if (esEstadoCerrado(proyecto)) {
             throw new ForbiddenException("No se pueden agregar riesgos a un proyecto cerrado.");
@@ -133,6 +156,9 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
         Riesgo riesgo = new Riesgo();
         aplicarRequest(riesgo, requestDto, proyecto);
+        String resolvedUser = resolveUsername(authentication);
+        riesgo.setCreatedBy(resolvedUser);
+        log.info("[createRisk] createdBy seteado: '{}' para riesgo en proyecto {}", resolvedUser, projectId);
 
         Riesgo savedRisk = riesgoRepository.save(riesgo);
         savedRisk.setCodigo("R" + String.format("%02d", savedRisk.getId()));
@@ -539,7 +565,8 @@ public class RiesgoServiceImpl implements IRiesgoService {
                 riesgo.getEvidenciaIndicador(),
                 riesgo.getEstado(),
                 riesgo.getFechaActualizacion(),
-                riesgo.getSoluciones() == null ? List.of() : riesgo.getSoluciones().stream().map(this::toSolutionDto).toList()
+                riesgo.getSoluciones() == null ? List.of() : riesgo.getSoluciones().stream().map(this::toSolutionDto).toList(),
+                riesgo.getCreatedBy()
         );
     }
 
@@ -587,9 +614,11 @@ public class RiesgoServiceImpl implements IRiesgoService {
             return 0;
         }
         return switch (probabilidad) {
-            case BAJA -> 1;
-            case MEDIA -> 2;
-            case ALTA -> 3;
+            case UNO -> 1;
+            case DOS -> 2;
+            case TRES -> 3;
+            case CUATRO -> 4;
+            case CINCO -> 5;
         };
     }
 
@@ -598,9 +627,11 @@ public class RiesgoServiceImpl implements IRiesgoService {
             return 0;
         }
         return switch (impacto) {
-            case BAJO -> 1;
-            case MEDIO -> 2;
-            case ALTO -> 3;
+            case UNO -> 1;
+            case DOS -> 2;
+            case TRES -> 3;
+            case CUATRO -> 4;
+            case CINCO -> 5;
         };
     }
 
@@ -685,6 +716,37 @@ public class RiesgoServiceImpl implements IRiesgoService {
         }
         String trimmed = value.trim();
         return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private String resolveUsername(Authentication authentication) {
+        if (authentication == null) {
+            log.warn("[resolveUsername] authentication es null");
+            return "desconocido";
+        }
+        Object principal = authentication.getPrincipal();
+        log.debug("[resolveUsername] principal class={}, name={}", principal.getClass().getName(), authentication.getName());
+        if (principal instanceof Jwt jwt) {
+            String username = jwt.getClaimAsString("preferred_username");
+            if (username != null && !username.isBlank()) {
+                log.debug("[resolveUsername] resolved from preferred_username: {}", username);
+                return username;
+            }
+            username = jwt.getClaimAsString("email");
+            if (username != null && !username.isBlank()) {
+                log.debug("[resolveUsername] resolved from email: {}", username);
+                return username;
+            }
+            username = jwt.getSubject();
+            if (username != null && !username.isBlank()) {
+                log.debug("[resolveUsername] resolved from subject: {}", username);
+                return username;
+            }
+            log.warn("[resolveUsername] JWT no tiene preferred_username, email ni subject");
+            return "desconocido";
+        }
+        String name = authentication.getName();
+        log.debug("[resolveUsername] resolved from authentication.getName(): {}", name);
+        return name != null && !name.isBlank() ? name : "desconocido";
     }
 
     private record MatrixRule(String probabilidad, String impacto, String nivel, String color) {}

@@ -92,4 +92,18 @@ public interface IDocumentoController {
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
             @Parameter(description = "Tipo de documento") @PathVariable String tipoDocumento,
             @Parameter(description = "Numero de version") @PathVariable Integer numeroVersion);
+
+    @Operation(summary = "EP-DOC-06 - Descargar un documento dinamico por su ID")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Archivo descargado correctamente",
+            content = @Content(mediaType = "application/octet-stream")
+        )
+    })
+    @StandardApiResponses
+    @GetMapping(value = "/{proyectoId}/documentos-dinamicos/{documentoId}/descargar")
+    ResponseEntity<Resource> descargarDocumentoDinamico(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "ID del documento dinamico") @PathVariable Long documentoId);
 }

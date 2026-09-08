@@ -47,7 +47,8 @@ public interface IRiesgoController {
     @PostMapping("/{proyectoId}/riesgos")
     ResponseEntity<ApiResponse<RiesgoCreatedResponseDTO>> crearRiesgo(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Valid @RequestBody RiesgoRequestDTO requestDto);
+            @Valid @RequestBody RiesgoRequestDTO requestDto,
+            org.springframework.security.core.Authentication authentication);
 
     @Operation(summary = "EP-RIESG-03 · Editar un riesgo existente")
     @ApiResponses(value = {
