@@ -62,23 +62,29 @@ public interface IReporteController {
 
     @Operation(summary = "Descargar reporte PDF de portafolio", description = "Genera y descarga un PDF con el estado de todo el portafolio.")
     @GetMapping("/portafolio/descargar")
-    ResponseEntity<byte[]> descargarReportePortafolioPdf();
+    ResponseEntity<byte[]> descargarReportePortafolioPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode);
 
     @Operation(summary = "Descargar reporte PDF de proyectos con retrasos", description = "Genera y descarga un PDF con los proyectos que presentan retrasos.")
     @GetMapping("/proyectos-con-retrasos/descargar")
-    ResponseEntity<byte[]> descargarReporteProyectosConRetrasosPdf();
+    ResponseEntity<byte[]> descargarReporteProyectosConRetrasosPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode);
 
     @Operation(summary = "Descargar reporte PDF de plan de comunicaciones", description = "Genera y descarga un PDF consolidado de proyectos No PETI con plan de comunicaciones.")
     @GetMapping("/plan-comunicaciones/descargar")
-    ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf();
+    ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode);
 
     @Operation(summary = "Descargar reporte PDF FURAG", description = "Genera y descarga un PDF con el reporte FURAG de un proyecto.")
     @GetMapping("/furag/{proyectoId}/descargar")
-    ResponseEntity<byte[]> descargarReporteFuragPdf(@PathVariable String proyectoId);
+    ResponseEntity<byte[]> descargarReporteFuragPdf(
+            @PathVariable String proyectoId,
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode);
 
     @Operation(summary = "Descargar reporte PDF de riesgos", description = "Genera y descarga un PDF institucional de verificacion de tratamiento a riesgos.")
     @GetMapping("/riesgos/descargar")
-    ResponseEntity<byte[]> descargarReporteRiesgosPdf();
+    ResponseEntity<byte[]> descargarReporteRiesgosPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode);
 
     @Operation(summary = "Exportar portafolio a Excel", description = "Genera y descarga un Excel con la analitica del portafolio.")
     @GetMapping("/portafolio/excel")
@@ -88,4 +94,8 @@ public interface IReporteController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String peti,
             Authentication authentication);
+
+    @Operation(summary = "Descargar reporte actual del proyecto en Excel", description = "Genera el reporte de seguimiento del proyecto con la plantilla PETI institucional.")
+    @GetMapping("/proyecto/{proyectoId}/excel")
+    ResponseEntity<byte[]> descargarReporteActualProyectoExcel(@PathVariable String proyectoId);
 }

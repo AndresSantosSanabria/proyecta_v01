@@ -16,11 +16,12 @@ public interface ReporteService {
     
     // Reportes Binarios
     byte[] generarReporteProyectoPdf(String id, String detailMode);
-    byte[] generarReportePortafolioPdf();
-    byte[] generarReporteProyectosConRetrasosPdf();
-    byte[] generarReportePlanComunicacionesPdf();
-    byte[] generarReporteFuragPdf(String proyectoId);
-    byte[] generarReporteRiesgosPdf();
+    byte[] generarReportePortafolioPdf(String detailMode);
+    byte[] generarReporteProyectosConRetrasosPdf(String detailMode);
+    byte[] generarReportePlanComunicacionesPdf(String detailMode);
+    byte[] generarReporteFuragPdf(String proyectoId, String detailMode);
+    byte[] generarReporteRiesgosPdf(String detailMode);
     byte[] generarReportePortafolioExcel();
     byte[] generarReportePortafolioExcel(Authentication authentication, String query, String dependency, String status, String peti);
+    byte[] generarReporteActualProyectoExcel(String proyectoId);
 }

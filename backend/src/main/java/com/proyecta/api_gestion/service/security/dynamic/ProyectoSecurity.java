@@ -2,11 +2,14 @@ package com.proyecta.api_gestion.service.security.dynamic;
 
 import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.EstadoBeneficioImpacto;
+
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.repository.ProyectoBeneficioImpactoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
-import com.proyecta.api_gestion.model.Usuario;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +20,8 @@ import java.util.Set;
 
 @Component("proyectoSecurity")
 public class ProyectoSecurity {
+    private static final Logger logger = LoggerFactory.getLogger(ProyectoSecurity.class);
+
     private static final Set<String> EVIDENCE_REVIEW_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
     private static final Set<String> DOCUMENT_HISTORY_ROLE_CODES = Set.of("gestor_proyectos");
     private static final Set<String> PROJECT_STRUCTURE_MANAGER_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
@@ -50,6 +55,7 @@ public class ProyectoSecurity {
     private final SecurityCatalogCacheService catalogCacheService;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final PermisoUsuarioService permisoUsuarioService;
+    private final SeguridadUsuarioRepository seguridadUsuarioRepository;
     private final ProyectoRepository proyectoRepository;
     private final ProyectoBeneficioImpactoRepository beneficioImpactoRepository;
 
@@ -58,12 +64,14 @@ public class ProyectoSecurity {
             SecurityCatalogCacheService catalogCacheService,
             LocalUserAuthorizationService localUserAuthorizationService,
             PermisoUsuarioService permisoUsuarioService,
+            SeguridadUsuarioRepository seguridadUsuarioRepository,
             ProyectoRepository proyectoRepository,
             ProyectoBeneficioImpactoRepository beneficioImpactoRepository) {
         this.identityExtractor = identityExtractor;
         this.catalogCacheService = catalogCacheService;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.permisoUsuarioService = permisoUsuarioService;
+        this.seguridadUsuarioRepository = seguridadUsuarioRepository;
         this.proyectoRepository = proyectoRepository;
         this.beneficioImpactoRepository = beneficioImpactoRepository;
     }
@@ -129,12 +137,11 @@ public class ProyectoSecurity {
             throw new ForbiddenException("No se pudo evaluar el permiso solicitado.");
         }
 
-        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        if (!isTransversal(roleCodes)) {
-            throw new ForbiddenException("El acceso global solo esta permitido para roles transversales.");
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
         }
 
-        String username = identityExtractor.resolveUsername(authentication);
         Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
@@ -142,6 +149,11 @@ public class ProyectoSecurity {
 
         if (!hasPermission) {
             throw new ForbiddenException("El usuario no posee el permiso funcional requerido: " + normalizedPermission);
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        if (!isTransversal(roleCodes)) {
+            throw new ForbiddenException("El acceso global solo esta permitido para roles transversales. Use el endpoint de proyectos asignados.");
         }
 
         return true;
@@ -213,20 +225,10 @@ public class ProyectoSecurity {
             throw new ForbiddenException("El usuario no posee el permiso funcional requerido: BENEFICIO_IMPACTO:VER");
         }
 
-        if (proyectoId == null || proyectoId.isBlank() || catalogCacheService.isAssignedToProject(username, proyectoId)) {
+        if (isTransversal(roleCodes)) {
             return true;
         }
 
-        if (proyectoId == null || proyectoId.isBlank()) {
-            return true;
-        }
-
-        Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
-                .orElseThrow(() -> new ForbiddenException("El proyecto solicitado no existe."));
-        var record = beneficioImpactoRepository.findByProyecto_Id(proyecto.getId()).orElse(null);
-        if (record == null || record.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO) {
-            throw new ForbiddenException("La informacion de beneficio e impacto aun no esta disponible para consulta.");
-        }
         return true;
     }
 
@@ -490,14 +492,6 @@ public class ProyectoSecurity {
             return true;
         }
 
-        if (roleCodes.contains("director_proyecto")) {
-            return true;
-        }
-
-        if (roleCodes.contains("consulta")) {
-            return true;
-        }
-
         Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         boolean canViewProjects = effectivePermissions.stream()
                 .map(this::normalize)
@@ -515,8 +509,8 @@ public class ProyectoSecurity {
         }
 
         try {
-            Usuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
-            return usuario != null && usuario.esAdministrador();
+            SeguridadUsuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
+            return LocalUserAuthorizationService.esAdministrador(usuario);
         } catch (RuntimeException ex) {
             return false;
         }
@@ -537,15 +531,22 @@ public class ProyectoSecurity {
 
     private Set<String> resolveEffectiveRoleCodes(Authentication authentication) {
         Set<String> roleCodes = new LinkedHashSet<>(resolveRoleCodes(authentication));
+
         try {
-            Usuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
-            String localRole = SecurityRoleCatalog.normalize(usuario.getRolCodigo());
-            if (localRole != null && !localRole.isBlank()) {
-                roleCodes.add(localRole);
+            String username = identityExtractor.resolveUsername(authentication);
+            if (username != null && !username.isBlank()) {
+                SeguridadUsuario segUsuario = seguridadUsuarioRepository.findByUsernameIgnoreCase(username).orElse(null);
+                if (segUsuario != null && segUsuario.getRolCodigo() != null && !segUsuario.getRolCodigo().isBlank()) {
+                    String securityRole = SecurityRoleCatalog.normalize(segUsuario.getRolCodigo());
+                    if (securityRole != null && !securityRole.isBlank()) {
+                        roleCodes.add(securityRole);
+                    }
+                }
             }
         } catch (RuntimeException ignored) {
-            // hasBaseAccess already validates local users; keep JWT roles as fallback here.
+            logger.debug("No se pudo resolver rol desde SeguridadUsuario para resolveEffectiveRoleCodes");
         }
+
         return roleCodes;
     }
 

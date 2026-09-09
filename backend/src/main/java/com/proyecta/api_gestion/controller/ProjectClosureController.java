@@ -136,4 +136,16 @@ public class ProjectClosureController implements IProjectClosureController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
+
+    @Override
+    @PostMapping("/{id}/cierre/extraordinario")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:EXTRAORDINARIO', #id, authentication)")
+    public ResponseEntity<CierreProyectoResponse> cierreExtraordinario(
+            @PathVariable String id,
+            @RequestBody(required = false) CierreProyectoRequest request,
+            Authentication authentication) {
+
+        CierreProyectoResponse response = closureService.cierreExtraordinario(id, request, authentication);
+        return ResponseEntity.ok(response);
+    }
 }

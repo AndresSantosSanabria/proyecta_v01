@@ -1,6 +1,10 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.report.*;
+import com.proyecta.api_gestion.dto.avance.FaseAvanceDTO;
+import com.proyecta.api_gestion.dto.avance.HitoAvanceDTO;
+import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
+import com.proyecta.api_gestion.config.PublicUrlProperties;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Fase;
@@ -15,6 +19,7 @@ import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.ReporteService;
+import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.report.EstadoTodosProyectosPdfGenerator;
 import com.proyecta.api_gestion.service.report.FuragPdfGenerator;
 import com.proyecta.api_gestion.service.report.ProyectosConRetrasosPdfGenerator;
@@ -25,6 +30,7 @@ import com.proyecta.api_gestion.service.security.dynamic.ProyectoSecurity;
 import com.proyecta.api_gestion.service.report.EstadoProyectoEspecificoPdfGenerator;
 import com.proyecta.api_gestion.service.report.SimplePdfReportBuilder;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +46,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,6 +67,8 @@ public class ReporteServiceImpl implements ReporteService {
     private final SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository;
     private final KeycloakIdentityExtractor identityExtractor;
     private final ProyectoSecurity proyectoSecurity;
+    private final PublicEvidenceAccessService publicEvidenceAccessService;
+    private final PublicUrlProperties publicUrlProperties;
 
     public ReporteServiceImpl(ProyectoRepository proyectoRepository,
                               EntregableRepository entregableRepository,
@@ -68,7 +77,9 @@ public class ReporteServiceImpl implements ReporteService {
                               ProjectProgressMetricsService progressMetricsService,
                               SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository,
                               KeycloakIdentityExtractor identityExtractor,
-                              ProyectoSecurity proyectoSecurity) {
+                              ProyectoSecurity proyectoSecurity,
+                              PublicEvidenceAccessService publicEvidenceAccessService,
+                              PublicUrlProperties publicUrlProperties) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.riesgoRepository = riesgoRepository;
@@ -77,6 +88,8 @@ public class ReporteServiceImpl implements ReporteService {
         this.seguridadUsuarioProyectoRepository = seguridadUsuarioProyectoRepository;
         this.identityExtractor = identityExtractor;
         this.proyectoSecurity = proyectoSecurity;
+        this.publicEvidenceAccessService = publicEvidenceAccessService;
+        this.publicUrlProperties = publicUrlProperties;
     }
 
     @Override
@@ -200,35 +213,35 @@ public class ReporteServiceImpl implements ReporteService {
     }
 
     @Override
-    public byte[] generarReportePortafolioPdf() {
+    public byte[] generarReportePortafolioPdf(String detailMode) {
         List<ProyectoReporteResumenDTO> proyectos = obtenerTodosLosProyectos();
-        return new EstadoTodosProyectosPdfGenerator().build(proyectos, LocalDate.now());
+        return new EstadoTodosProyectosPdfGenerator().build(proyectos, LocalDate.now(), detailMode);
     }
 
     @Override
-    public byte[] generarReporteProyectosConRetrasosPdf() {
+    public byte[] generarReporteProyectosConRetrasosPdf(String detailMode) {
         List<ProyectoReporteResumenDTO> proyectos = obtenerProyectosConRetrasos();
         List<EntregablePendienteDTO> entregables = proyectos.isEmpty()
                 ? List.of()
                 : entregableRepository.findPendientesVencidosByProyecto(proyectos.get(0).id(), LocalDate.now()).stream()
                 .limit(3)
                 .toList();
-        return new ProyectosConRetrasosPdfGenerator().build(proyectos, entregables, LocalDate.now());
+        return new ProyectosConRetrasosPdfGenerator().build(proyectos, entregables, LocalDate.now(), detailMode);
     }
 
     @Override
-    public byte[] generarReportePlanComunicacionesPdf() {
+    public byte[] generarReportePlanComunicacionesPdf(String detailMode) {
         List<Proyecto> proyectos = proyectoRepository.findAll().stream()
                 .filter(p -> !Boolean.TRUE.equals(p.getPeti()))
                 .filter(p -> !esPendienteCompletar(p))
                 .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
-        return new PlanComunicacionesPdfGenerator().build(proyectos, LocalDate.now());
+        return new PlanComunicacionesPdfGenerator().build(proyectos, LocalDate.now(), detailMode);
     }
 
     @Override
-    public byte[] generarReporteFuragPdf(String proyectoId) {
+    public byte[] generarReporteFuragPdf(String proyectoId, String detailMode) {
         Proyecto proyecto = cargarProyecto(proyectoId);
         String dependencia = safe(proyecto.getDependencia());
 
@@ -238,13 +251,13 @@ public class ReporteServiceImpl implements ReporteService {
                 .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
-        return new FuragPdfGenerator().build(proyecto, proyectosDependencia, LocalDate.now());
+        return new FuragPdfGenerator().build(proyecto, proyectosDependencia, LocalDate.now(), detailMode);
     }
 
     @Override
-    public byte[] generarReporteRiesgosPdf() {
+    public byte[] generarReporteRiesgosPdf(String detailMode) {
         List<RiesgoVerificacionReporteDTO> reportes = obtenerVerificacionRiesgos();
-        return new RiesgosVerificacionPdfGenerator().build(reportes, LocalDate.now());
+        return new RiesgosVerificacionPdfGenerator().build(reportes, LocalDate.now(), detailMode);
     }
 
     @Override
@@ -265,6 +278,249 @@ public class ReporteServiceImpl implements ReporteService {
         List<Proyecto> filtrados = aplicarFiltrosPortafolio(proyectos, query, dependency, status, peti);
         return construirExcelPortafolio(filtrados, LocalDate.now());
     }
+
+    @Override
+    @Transactional
+    public byte[] generarReporteActualProyectoExcel(String proyectoId) {
+        Proyecto proyecto = cargarProyecto(proyectoId);
+        LocalDate corte = LocalDate.now();
+        ProyectoAvanceResponseDTO avance = progressMetricsService.construir(proyecto, corte);
+
+        try (
+                InputStream templateStream = new ClassPathResource("report-assets/Reporte actual proyecto PETI.xlsx").getInputStream();
+                Workbook workbook = new XSSFWorkbook(templateStream);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+        ) {
+            poblarFichaProyecto(workbook.getSheetAt(0), proyecto);
+            poblarSeguimientoProyecto(workbook.getSheetAt(1), proyecto, avance, corte);
+            poblarAvancesProyecto(workbook.getSheetAt(2), proyecto, avance);
+            workbook.setForceFormulaRecalculation(true);
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException ex) {
+            throw new IllegalStateException("No fue posible generar el reporte actual Excel del proyecto.", ex);
+        }
+    }
+
+    private void poblarFichaProyecto(Sheet sheet, Proyecto proyecto) {
+        setCellText(ensureRow(sheet, 1), 2, safe(proyecto.getId()));
+        setCellText(ensureRow(sheet, 2), 2, safe(proyecto.getNombre()));
+        setCellText(ensureRow(sheet, 3), 2, safe(proyecto.getAlcanceDetallado()));
+        setCellText(ensureRow(sheet, 4), 2, proyecto.getPatrocinador() == null ? "" : safe(proyecto.getPatrocinador().getNombre()));
+        setCellText(ensureRow(sheet, 5), 2, "");
+        setCellText(ensureRow(sheet, 6), 2, safe(proyecto.getDependencia()));
+        setCellText(ensureRow(sheet, 7), 2, safe(resolveDirectorAsignado(proyecto)));
+        setCellText(ensureRow(sheet, 8), 2, safe(proyecto.getCorreoDirector()));
+        setCellText(ensureRow(sheet, 9), 2, safe(proyecto.getObjetivoGeneral()));
+        setCellText(ensureRow(sheet, 10), 2, objetivosEspecificos(proyecto));
+        setCellText(ensureRow(sheet, 11), 2, formatYear(proyecto.getFechaInicio()));
+        setCellText(ensureRow(sheet, 12), 2, formatYear(fechaFinProyecto(proyecto)));
+        setCellNumber(ensureRow(sheet, 13), 2, proyecto.getPresupuestoEstimado());
+        setCellText(ensureRow(sheet, 14), 2, Boolean.TRUE.equals(proyecto.getPeti()) ? "SI" : "NO");
+        setCellText(ensureRow(sheet, 15), 2, estrategiaPeti(proyecto));
+        setCellText(ensureRow(sheet, 16), 2, "No registrado");
+    }
+
+    private void poblarSeguimientoProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
+        setCellText(ensureRow(sheet, 1), 1, safe(proyecto.getId()) + " " + safe(proyecto.getNombre()));
+        List<DetalleSeguimiento> detalles = detallesSeguimiento(proyecto, avance, corte);
+        prepararFilasDetalle(sheet, detalles.size());
+
+        int rowIndex = 4;
+        for (DetalleSeguimiento detalle : detalles) {
+            Row row = ensureRow(sheet, rowIndex++);
+            setCellText(row, 1, detalle.fase());
+            setCellPercent(row, 2, detalle.ponderacionFase());
+            setCellText(row, 3, detalle.hito());
+            setCellPercent(row, 4, detalle.ponderacionHito());
+            setCellText(row, 5, detalle.entregable());
+            setCellPercent(row, 6, detalle.ponderacionEntregable());
+            setCellText(row, 7, detalle.descripcion());
+            setCellDate(row, 8, toDate(detalle.fechaLimite()));
+            setCellDate(row, 9, toDate(detalle.fechaEntrega()));
+            setCellFormula(row, 10, formulaAtraso(rowIndex));
+            setCellFormula(row, 11, "IF(J" + rowIndex + "=\"\",0,1)");
+            setCellHyperlink(row, 12, detalle.evidencia(), detalle.evidenciaPublica());
+            setCellText(row, 13, detalle.observacion());
+            setCellFormula(row, 14, formulaPromedioPorHito(rowIndex, detalles.size(), "L"));
+            setCellFormula(row, 15, formulaPromedioPorFase(rowIndex, detalles.size(), "O"));
+            setCellFormula(row, 16, "AVERAGE($P$5:$P$" + (4 + Math.max(detalles.size(), 1)) + ")");
+            setCellDate(row, 17, toDate(corte));
+            setCellFormula(row, 18, "IF(I" + rowIndex + "=\"\",\"\",I" + rowIndex + "-R" + rowIndex + ")");
+            setCellFormula(row, 19, "IF(AND(J" + rowIndex + "<>\"\",J" + rowIndex + "<=I" + rowIndex + "),1,0)");
+            setCellFormula(row, 20, formulaPromedioPorHito(rowIndex, detalles.size(), "T"));
+            setCellFormula(row, 21, formulaPromedioPorFase(rowIndex, detalles.size(), "U"));
+            setCellFormula(row, 22, "AVERAGE($V$5:$V$" + (4 + Math.max(detalles.size(), 1)) + ")");
+            setCellFormula(row, 23, "IF(I" + rowIndex + "<=R" + rowIndex + ",\"Si\",\"No\")");
+            setCellFormula(row, 24, "IF(AND(I" + rowIndex + "<=R" + rowIndex + ",L" + rowIndex + "=1),\"Si\",\"\")");
+            setCellFormula(row, 25, "IF(AND(Y" + rowIndex + "=\"Si\",J" + rowIndex + "<=I" + rowIndex + "),\"Si\",\"\")");
+        }
+
+        int indicadorFila = 4 + Math.max(20, detalles.size()) + 2;
+        Row title = ensureRow(sheet, indicadorFila);
+        setCellText(title, 23, "INDICADORES AL CORTE");
+        setCellText(ensureRow(sheet, indicadorFila + 1), 23, "Fecha de corte");
+        setCellDate(ensureRow(sheet, indicadorFila + 1), 24, toDate(corte));
+        setCellText(ensureRow(sheet, indicadorFila + 2), 23, "Programados al corte");
+        setCellFormula(ensureRow(sheet, indicadorFila + 2), 24, "COUNTIF($X$5:$X$" + (4 + Math.max(detalles.size(), 1)) + ",\"Si\")");
+        setCellText(ensureRow(sheet, indicadorFila + 3), 23, "Entregados al corte");
+        setCellFormula(ensureRow(sheet, indicadorFila + 3), 24, "COUNTIF($Y$5:$Y$" + (4 + Math.max(detalles.size(), 1)) + ",\"Si\")");
+        setCellText(ensureRow(sheet, indicadorFila + 4), 23, "Entregados a tiempo");
+        setCellFormula(ensureRow(sheet, indicadorFila + 4), 24, "COUNTIF($Z$5:$Z$" + (4 + Math.max(detalles.size(), 1)) + ",\"Si\")");
+        setCellText(ensureRow(sheet, indicadorFila + 5), 23, "Eficacia");
+        setCellFormula(ensureRow(sheet, indicadorFila + 5), 24, "IFERROR(Y" + (indicadorFila + 4) + "/Y" + (indicadorFila + 3) + ",0)");
+        setCellText(ensureRow(sheet, indicadorFila + 6), 23, "Eficiencia");
+        setCellFormula(ensureRow(sheet, indicadorFila + 6), 24, "IFERROR(Y" + (indicadorFila + 5) + "/Y" + (indicadorFila + 4) + ",0)");
+        setCellText(ensureRow(sheet, indicadorFila + 7), 23, "total entregables");
+        setCellFormula(ensureRow(sheet, indicadorFila + 7), 24, "COUNTA($F$5:$F$" + (4 + Math.max(detalles.size(), 1)) + ")");
+    }
+
+    private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance) {
+        setCellText(ensureRow(sheet, 3), 2, "AVANCES DEL PROYECTO " + safe(proyecto.getId()));
+        int rowIndex = 7;
+        limpiarFilas(sheet, rowIndex, sheet.getLastRowNum(), 2, 6);
+        rowIndex = escribirAvance(sheet, rowIndex, "PROYECTO", avance.progresoProgramado(), avance.progresoEjecutado(), avance.estado());
+        for (FaseAvanceDTO fase : safeList(avance.fases())) {
+            rowIndex = escribirAvance(sheet, rowIndex + 1, safe(fase.nombre()), fase.progresoProgramado(), fase.progresoEjecutado(), fase.estado());
+            for (HitoAvanceDTO hito : safeList(fase.hitos())) {
+                rowIndex = escribirAvance(sheet, rowIndex, safe(hito.nombre()), hito.progresoProgramado(), hito.progresoEjecutado(), hito.estado());
+            }
+        }
+    }
+
+    private int escribirAvance(Sheet sheet, int rowIndex, String nombre, BigDecimal programado, BigDecimal ejecutado, String estado) {
+        Row row = ensureRow(sheet, rowIndex);
+        setCellText(row, 2, nombre);
+        setCellPercent(row, 3, ratioDesdePorcentaje(programado));
+        setCellPercent(row, 4, ratioDesdePorcentaje(ejecutado));
+        setCellPercent(row, 5, ratioDesdePorcentaje(safeDecimal(programado).subtract(safeDecimal(ejecutado))));
+        setCellText(row, 6, safe(estado).replace('_', ' '));
+        return rowIndex + 1;
+    }
+
+    private void prepararFilasDetalle(Sheet sheet, int totalFilas) {
+        int firstDataRow = 4;
+        int templateRows = 20;
+        if (totalFilas > templateRows) {
+            sheet.shiftRows(firstDataRow + templateRows, sheet.getLastRowNum(), totalFilas - templateRows, true, false);
+        }
+        Row plantilla = sheet.getRow(firstDataRow);
+        for (int rowIndex = firstDataRow; rowIndex < firstDataRow + Math.max(templateRows, totalFilas); rowIndex++) {
+            Row row = ensureRow(sheet, rowIndex);
+            if (row != plantilla) copiarEstilosFila(plantilla, row, 1, 25);
+            clearTemplateRow(row, 1, 25);
+        }
+    }
+
+    private void copiarEstilosFila(Row source, Row target, int fromColumnInclusive, int toColumnInclusive) {
+        if (source == null) return;
+        target.setHeight(source.getHeight());
+        for (int column = fromColumnInclusive; column <= toColumnInclusive; column++) {
+            Cell sourceCell = source.getCell(column);
+            Cell targetCell = target.getCell(column);
+            if (targetCell == null) targetCell = target.createCell(column);
+            if (sourceCell != null) targetCell.setCellStyle(sourceCell.getCellStyle());
+        }
+    }
+
+    private String formulaAtraso(int row) {
+        return "IF(I" + row + "=\"\",\"\",IF(J" + row + "=\"\",R" + row + "-I" + row + ",I" + row + "-J" + row + "))";
+    }
+
+    private String formulaPromedioPorHito(int row, int totalFilas, String column) {
+        int lastRow = 4 + Math.max(totalFilas, 1);
+        return "IFERROR(AVERAGEIFS($" + column + "$5:$" + column + "$" + lastRow + ",$D$5:$D$" + lastRow + ",D" + row + "),0)";
+    }
+
+    private String formulaPromedioPorFase(int row, int totalFilas, String column) {
+        int lastRow = 4 + Math.max(totalFilas, 1);
+        return "IFERROR(AVERAGEIFS($" + column + "$5:$" + column + "$" + lastRow + ",$B$5:$B$" + lastRow + ",B" + row + "),0)";
+    }
+
+    private void limpiarFilas(Sheet sheet, int fromRow, int toRow, int fromColumn, int toColumn) {
+        for (int row = fromRow; row <= toRow; row++) clearTemplateRow(ensureRow(sheet, row), fromColumn, toColumn);
+    }
+
+    private List<DetalleSeguimiento> detallesSeguimiento(Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
+        Map<Integer, FaseAvanceDTO> fases = safeList(avance.fases()).stream()
+                .collect(Collectors.toMap(FaseAvanceDTO::id, fase -> fase, (left, right) -> left));
+        List<DetalleSeguimiento> detalles = new ArrayList<>();
+        for (Fase fase : safeList(proyecto.getFases()).stream().sorted(Comparator.comparing(Fase::getId, Comparator.nullsLast(Integer::compareTo))).toList()) {
+            FaseAvanceDTO avanceFase = fases.get(fase.getId());
+            Map<Integer, HitoAvanceDTO> hitos = avanceFase == null ? Map.of() : safeList(avanceFase.hitos()).stream()
+                    .collect(Collectors.toMap(HitoAvanceDTO::id, hito -> hito, (left, right) -> left));
+            for (Hito hito : safeList(fase.getHitos()).stream().sorted(Comparator.comparing(Hito::getId, Comparator.nullsLast(Integer::compareTo))).toList()) {
+                HitoAvanceDTO avanceHito = hitos.get(hito.getId());
+                for (Entregable entregable : safeList(hito.getEntregables()).stream().sorted(Comparator.comparing(Entregable::getId, Comparator.nullsLast(Integer::compareTo))).toList()) {
+                    LocalDate limite = entregable.getFechaLimite();
+                    LocalDate entrega = entregable.getFechaEntregaReal();
+                    boolean conforme = entregable.esConforme();
+                    boolean programado = limite != null && !limite.isAfter(corte);
+                    boolean eficaz = programado && conforme && (entrega == null || !entrega.isAfter(corte));
+                    boolean eficiente = eficaz && entrega != null && !entrega.isAfter(limite);
+                    Long diasAtraso = limite == null ? null : ChronoUnit.DAYS.between(limite, entrega == null ? corte : entrega);
+                    String evidenciaPublica = crearUrlEvidenciaPublica(entregable);
+                    detalles.add(new DetalleSeguimiento(
+                            safe(fase.getNombre()), ratioDesdePonderacion(fase.getPonderacion()), safe(hito.getNombre()), ratioDesdePonderacion(hito.getPonderacion()),
+                            safe(entregable.getNombre()), ratioDesdePonderacion(entregable.getPonderacion()), nombreEntregable(entregable), limite, entrega,
+                            diasAtraso, conforme, safe(entregable.getArchivoPdf()), evidenciaPublica, safe(entregable.getObservacionRevision()),
+                            avanceHito == null ? BigDecimal.ZERO : ratioDesdePorcentaje(avanceHito.progresoEjecutado()),
+                            avanceFase == null ? BigDecimal.ZERO : ratioDesdePorcentaje(avanceFase.progresoEjecutado()),
+                            ratioDesdePorcentaje(avance.progresoEjecutado()), limite == null ? null : ChronoUnit.DAYS.between(corte, limite),
+                            avanceHito == null ? BigDecimal.ZERO : ratioDesdePorcentaje(avanceHito.progresoProgramado()),
+                            avanceFase == null ? BigDecimal.ZERO : ratioDesdePorcentaje(avanceFase.progresoProgramado()),
+                            ratioDesdePorcentaje(avance.progresoProgramado()), programado, eficaz, eficiente
+                    ));
+                }
+            }
+        }
+        return detalles;
+    }
+
+    private String objetivosEspecificos(Proyecto proyecto) {
+        return safeList(proyecto.getObjetivosEspecificos()).stream()
+                .sorted(Comparator.comparing(ObjetivoEspecifico::getOrden, Comparator.nullsLast(Short::compareTo)))
+                .map(ObjetivoEspecifico::getDescripcion)
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining("\n"));
+    }
+
+    private LocalDate fechaFinProyecto(Proyecto proyecto) {
+        return safeList(proyecto.getFases()).stream().flatMap(fase -> safeList(fase.getHitos()).stream())
+                .flatMap(hito -> safeList(hito.getEntregables()).stream()).map(Entregable::getFechaLimite)
+                .filter(java.util.Objects::nonNull).max(LocalDate::compareTo).orElse(null);
+    }
+
+    private String estrategiaPeti(Proyecto proyecto) {
+        if (proyecto.getEstrategiaPetiConfig() != null) return safe(proyecto.getEstrategiaPetiConfig().getNombre());
+        return proyecto.getEstrategiaPeti() == null ? "" : proyecto.getEstrategiaPeti().name().replace('_', ' ');
+    }
+
+    private String nombreEntregable(Entregable entregable) {
+        String descripcion = safe(entregable.getDescripcion());
+        return descripcion.isBlank() ? safe(entregable.getNombre()) : descripcion;
+    }
+
+    private String crearUrlEvidenciaPublica(Entregable entregable) {
+        if (entregable.getArchivoPdf() == null || entregable.getArchivoPdf().isBlank()) return "";
+        String token = publicEvidenceAccessService.getOrCreateToken(entregable, "reporte-excel");
+        String base = safe(publicUrlProperties.getBase()).replaceAll("/+$", "");
+        return base + "/api/v1/public/evidencia/" + token;
+    }
+
+    private String formatYear(LocalDate date) { return date == null ? "" : String.valueOf(date.getYear()); }
+    private Date toDate(LocalDate date) { return date == null ? null : Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()); }
+    private BigDecimal safeDecimal(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
+    private BigDecimal ratioDesdePorcentaje(BigDecimal value) { return safeDecimal(value).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP); }
+    private BigDecimal ratioDesdePonderacion(BigDecimal value) { return value != null && value.compareTo(BigDecimal.ONE) > 0 ? ratioDesdePorcentaje(value) : safeDecimal(value); }
+    private <T> List<T> safeList(List<T> values) { return values == null ? List.of() : values; }
+
+    private record DetalleSeguimiento(
+            String fase, BigDecimal ponderacionFase, String hito, BigDecimal ponderacionHito, String entregable,
+            BigDecimal ponderacionEntregable, String descripcion, LocalDate fechaLimite, LocalDate fechaEntrega,
+            Long diasAtraso, boolean conforme, String evidencia, String evidenciaPublica, String observacion, BigDecimal ejecutadoHito,
+            BigDecimal ejecutadoFase, BigDecimal ejecutadoProyecto, Long diasParaLimite, BigDecimal programadoHito,
+            BigDecimal programadoFase, BigDecimal programadoProyecto, boolean programadoAlCorte, boolean eficaz, boolean eficiente) { }
 
     private List<Proyecto> obtenerProyectosPortafolio(Authentication authentication) {
         if (authentication != null) {
@@ -490,6 +746,21 @@ public class ReporteServiceImpl implements ReporteService {
             cell = row.createCell(columnIndex);
         }
         cell.setBlank();
+    }
+
+    private void setCellFormula(Row row, int columnIndex, String formula) {
+        Cell cell = row.getCell(columnIndex);
+        if (cell == null) cell = row.createCell(columnIndex);
+        cell.setCellFormula(formula);
+    }
+
+    private void setCellHyperlink(Row row, int columnIndex, String label, String url) {
+        setCellText(row, columnIndex, label);
+        if (url == null || url.isBlank()) return;
+        Cell cell = row.getCell(columnIndex);
+        Hyperlink hyperlink = row.getSheet().getWorkbook().getCreationHelper().createHyperlink(HyperlinkType.URL);
+        hyperlink.setAddress(url);
+        cell.setHyperlink(hyperlink);
     }
 
     private RowSnapshot buildRowSnapshot(Proyecto proyecto, LocalDate corte) {

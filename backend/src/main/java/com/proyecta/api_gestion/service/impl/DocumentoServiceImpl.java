@@ -7,7 +7,7 @@ import com.proyecta.api_gestion.exception.UnauthorizedException;
 import com.proyecta.api_gestion.model.Documento;
 import com.proyecta.api_gestion.model.DocumentoProyectoVersion;
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.Usuario;
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.model.config.TipoDocumentoConfig;
 import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
 import com.proyecta.api_gestion.model.enums.TipoDocumento;
@@ -389,7 +389,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private ActorContext actorContext(Authentication authentication) {
-        Usuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
+        SeguridadUsuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
         String username = firstNonBlank(usuario.getNombre(), usuario.getCorreo(), identityExtractor.resolveUsername(authentication));
         if (username == null) {
             throw new UnauthorizedException("No fue posible identificar el usuario que carga el documento.");

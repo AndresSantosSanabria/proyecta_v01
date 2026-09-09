@@ -16,7 +16,7 @@ import com.proyecta.api_gestion.model.DocumentoVersion;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.Riesgo;
-import com.proyecta.api_gestion.model.Usuario;
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.model.enums.DocumentoObservacionEstado;
 import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
@@ -819,7 +819,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     private ActorContext actorContext(Authentication authentication) {
         try {
-            Usuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
+            SeguridadUsuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
             String username = firstNonBlank(usuario.getCorreo(), usuario.getNombre(), identityExtractor.resolveUsername(authentication), "sistema");
             String role = firstNonBlank(SecurityRoleCatalog.normalize(usuario.getRolCodigo()), "sin_rol");
             return new ActorContext(username, role);

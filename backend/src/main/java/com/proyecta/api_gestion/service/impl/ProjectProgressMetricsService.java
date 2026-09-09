@@ -9,6 +9,7 @@ import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.model.DocumentoVersion;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Fase;
+import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
@@ -81,7 +82,7 @@ public class ProjectProgressMetricsService {
         long entregablesEntregadosAlCorte = contarEntregablesEntregadosAlCorte(proyecto, corte);
         long entregablesEntregadosATiempo = contarEntregablesEntregadosATiempo(proyecto, corte);
         BigDecimal eficaciaCorte = clampRatio(calcularRatio(entregablesEntregadosAlCorte, entregablesProgramadosAlCorte));
-        BigDecimal eficienciaCorte = clampRatio(calcularRatio(entregablesEntregadosATiempo, entregablesProgramadosAlCorte));
+        BigDecimal eficienciaCorte = clampRatio(calcularRatio(entregablesEntregadosATiempo, entregablesEntregadosAlCorte));
         long entregablesConformes = contarEntregablesConformes(proyecto, corte);
         long entregablesTotal = contarEntregablesTotales(proyecto, corte);
         long entregablesAtrasados = contarEntregablesAtrasados(proyecto, corte);
@@ -390,8 +391,10 @@ public class ProjectProgressMetricsService {
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
                 .filter(e -> isEntregableIniciado(e, corte))
-                .filter(Entregable::esConforme)
-                .filter(entregable -> entregable.getFechaEntregaReal() == null || !entregable.getFechaEntregaReal().isAfter(corte))
+                .filter(entregable -> entregable.getFechaLimite() != null
+                        && !entregable.getFechaLimite().isAfter(corte))
+                .filter(entregable -> entregable.getFechaEntregaReal() != null)
+                .filter(entregable -> !EstadoEntregable.RECHAZADO.equals(entregable.getEstado()))
                 .count();
     }
 
@@ -403,11 +406,11 @@ public class ProjectProgressMetricsService {
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
                 .filter(e -> isEntregableIniciado(e, corte))
-                .filter(Entregable::esConforme)
-                .filter(entregable -> entregable.getFechaEntregaReal() == null || !entregable.getFechaEntregaReal().isAfter(corte))
-                .filter(entregable -> entregable.getFechaEntregaReal() != null
-                        && entregable.getFechaLimite() != null
-                        && !entregable.getFechaEntregaReal().isAfter(entregable.getFechaLimite()))
+                .filter(entregable -> entregable.getFechaLimite() != null
+                        && !entregable.getFechaLimite().isAfter(corte))
+                .filter(entregable -> entregable.getFechaEntregaReal() != null)
+                .filter(entregable -> !EstadoEntregable.RECHAZADO.equals(entregable.getEstado()))
+                .filter(entregable -> !entregable.getFechaEntregaReal().isAfter(entregable.getFechaLimite()))
                 .count();
     }
 

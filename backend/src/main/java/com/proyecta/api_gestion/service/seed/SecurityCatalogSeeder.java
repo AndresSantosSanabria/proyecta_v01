@@ -36,6 +36,7 @@ public class SecurityCatalogSeeder {
             new PermissionSeed("PROYECTO:EDITAR", "Editar proyecto", "Permite editar proyectos existentes"),
             new PermissionSeed("PROYECTO:CERRAR", "Cerrar proyecto", "Permite cerrar proyectos"),
             new PermissionSeed("REPORTE:VER", "Ver reportes", "Permite acceder al modulo de reportes"),
+            new PermissionSeed("REPORTE:DESCARGAR_ACTUAL", "Descargar reporte actual del proyecto", "Permite descargar el reporte Excel actualizado de cada proyecto"),
             new PermissionSeed("ANALITICA:VER", "Ver analiticas", "Permite acceder al modulo de analiticas"),
             new PermissionSeed("CONFIGURACION:VER", "Ver configuracion", "Permite mostrar la pantalla de administracion y seguridad"),
             new PermissionSeed("ENTREGABLE:VER", "Ver entregable", "Permite consultar el detalle de entregables"),
@@ -72,13 +73,14 @@ public class SecurityCatalogSeeder {
             new PermissionSeed("SIDEBAR:PROYECTOS", "Mostrar Proyectos en menu", "Controla la visibilidad del modulo Proyectos en el sidebar"),
             new PermissionSeed("SIDEBAR:REPORTES", "Mostrar Reportes en menu", "Controla la visibilidad del modulo Reportes en el sidebar"),
             new PermissionSeed("SIDEBAR:ANALITICAS", "Mostrar Analiticas en menu", "Controla la visibilidad del modulo Analiticas en el sidebar"),
-            new PermissionSeed("SIDEBAR:SEGURIDAD", "Mostrar Configuracion Seguridad en menu", "Controla la visibilidad del modulo Configuracion y Seguridad en el sidebar")
+            new PermissionSeed("SIDEBAR:SEGURIDAD", "Mostrar Configuracion Seguridad en menu", "Controla la visibilidad del modulo Configuracion y Seguridad en el sidebar"),
+            new PermissionSeed("AUDITORIA:VER", "Ver auditoria", "Permite consultar el registro de auditoria de acciones y logs del sistema")
     );
 
     private static final Map<String, List<String>> ROLE_PERMISSIONS = Map.of(
             "admin", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
+                    "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER", "CONFIGURACION:VER",
                     "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
                     "AVANCE:VER", "AVANCE:EDITAR", "AVANCE:APROBAR",
                     "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
@@ -87,10 +89,11 @@ public class SecurityCatalogSeeder {
                     "BENEFICIO_IMPACTO:VER", "BENEFICIO_IMPACTO:EDITAR",
                     "CIERRE:SOLICITAR", "CIERRE:APROBAR",
                     "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD"),
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD",
+                    "AUDITORIA:VER"),
             "gestor_tic", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "REPORTE:VER", "ANALITICA:VER", "CONFIGURACION:VER",
+                    "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER", "CONFIGURACION:VER",
                     "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
                     "AVANCE:VER", "AVANCE:EDITAR", "AVANCE:APROBAR",
                     "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
@@ -102,7 +105,7 @@ public class SecurityCatalogSeeder {
                     "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD"),
             "gestor_proyectos", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "REPORTE:VER", "ANALITICA:VER",
+                    "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER",
                     "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
                     "AVANCE:VER", "AVANCE:EDITAR",
                     "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",

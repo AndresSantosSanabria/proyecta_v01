@@ -45,6 +45,7 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
             UserProvisioningFilter userProvisioningFilter,
+            SystemAuditFilter systemAuditFilter,
             JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -69,7 +70,8 @@ public class SecurityConfig {
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
             )
-            .addFilterAfter(userProvisioningFilter, BearerTokenAuthenticationFilter.class);
+            .addFilterAfter(userProvisioningFilter, BearerTokenAuthenticationFilter.class)
+            .addFilterAfter(systemAuditFilter, UserProvisioningFilter.class);
 
         return http.build();
     }

@@ -13,8 +13,6 @@ import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.Usuario;
-import com.proyecta.api_gestion.model.config.RolConfig;
 import com.proyecta.api_gestion.model.security.SeguridadPermiso;
 import com.proyecta.api_gestion.model.security.SeguridadRol;
 import com.proyecta.api_gestion.model.security.SeguridadRolPermiso;
@@ -542,11 +540,7 @@ public class SecurityAdministrationService {
         usuarioRepository.save(usuario);
 
         List<String> projects = catalogCacheService.getProjectsForUser(username);
-        try {
-            Usuario localUser = localUserAuthorizationService.requireLocalUser(authentication);
-            administradorLocal = administradorLocal || localUser.esAdministrador();
-        } catch (RuntimeException ignored) {
-        }
+        administradorLocal = administradorLocal || LocalUserAuthorizationService.esAdministrador(usuario);
 
         log.info("[AuthzDebug] user={}, roles={}, permissionsCount={}, projectsCount={}",
                 username, roleCodes, permissions.size(), projects.size());

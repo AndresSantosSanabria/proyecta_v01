@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.dto.report.ProyectoReporteResumenDTO;
+import com.proyecta.api_gestion.model.enums.DetailMode;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -45,16 +46,18 @@ public final class EstadoTodosProyectosPdfGenerator {
     private static final Color COLOR_TEXT = new Color(22, 24, 28);
     private static final Color COLOR_MUTED = new Color(94, 104, 117);
     private static final Color COLOR_BORDER = new Color(197, 207, 219);
-    public byte[] build(List<ProyectoReporteResumenDTO> proyectos, LocalDate corte) {
+    public byte[] build(List<ProyectoReporteResumenDTO> proyectos, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             FontPack fonts = loadFonts(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
+            DetailMode mode = DetailMode.from(detailMode);
             canvas.startPage();
             canvas.renderHeader();
             canvas.renderTitle();
             canvas.renderMeta(corte);
-            canvas.renderTable(proyectos);
+            canvas.renderDetailMode(mode);
+            canvas.renderTable(proyectos, mode);
             canvas.finishPage();
             document.save(out);
             return out.toByteArray();
@@ -143,20 +146,64 @@ public final class EstadoTodosProyectosPdfGenerator {
             cursorY -= 30f;
         }
 
-        void renderTable(List<ProyectoReporteResumenDTO> proyectos) throws IOException {
-            float[] widths = normalize(new float[]{18f, 36f, 22f, 24f});
+        void renderDetailMode(DetailMode mode) throws IOException {
+            if (mode.isDetailed()) {
+                drawLabelValue("NIVEL DE DETALLE:", "[Detallado]", cursorY, true);
+            } else {
+                drawLabelValue("NIVEL DE DETALLE:", "[Resumido]", cursorY, true);
+            }
+            cursorY -= 28f;
+        }
+
+        void renderTable(List<ProyectoReporteResumenDTO> proyectos, DetailMode mode) throws IOException {
+            float[] widths;
+            String[] headers;
+            float[] headerSizes;
+
+            if (mode.isDetailed()) {
+                widths = normalize(new float[]{14f, 32f, 18f, 18f, 18f});
+                headers = new String[]{
+                        "Código del proyecto",
+                        "Nombre del proyecto",
+                        "Avance total (%)",
+                        "Estado del proyecto",
+                        "Dependencia"
+                };
+                headerSizes = new float[]{7.5f, 7.5f, 7.2f, 7.0f, 7.2f};
+            } else {
+                widths = normalize(new float[]{18f, 36f, 22f, 24f});
+                headers = new String[]{
+                        "Código del proyecto",
+                        "Nombre del proyecto",
+                        "Avance total del proyecto (%)",
+                        "Estado del proyecto (En desarrollo - cerrado)"
+                };
+                headerSizes = new float[]{8.6f, 8.6f, 8.3f, 8.0f};
+            }
+
             List<List<String>> rows = proyectos == null ? List.of() : proyectos.stream()
                     .sorted(Comparator.comparing(ProyectoReporteResumenDTO::id, Comparator.nullsLast(String::compareToIgnoreCase)))
-                    .map(p -> List.of(
-                            safe(p.id()),
-                            safe(p.nombre()),
-                            formatPercent(p.avance()),
-                            estadoTexto(p.estado())
-                    ))
+                    .map(p -> {
+                        if (mode.isDetailed()) {
+                            return List.of(
+                                    safe(p.id()),
+                                    safe(p.nombre()),
+                                    formatPercent(p.avance()),
+                                    estadoTexto(p.estado()),
+                                    safe(p.dependencia())
+                            );
+                        }
+                        return List.of(
+                                safe(p.id()),
+                                safe(p.nombre()),
+                                formatPercent(p.avance()),
+                                estadoTexto(p.estado())
+                        );
+                    })
                     .toList();
 
             float headerTop = cursorY;
-            float headerHeight = drawTableHeader(widths, headerTop);
+            float headerHeight = drawTableHeader(headers, widths, headerSizes, headerTop);
             cursorY = headerTop - headerHeight;
 
             if (rows.isEmpty()) {
@@ -171,8 +218,9 @@ public final class EstadoTodosProyectosPdfGenerator {
                     renderHeader();
                     renderTitle();
                     renderMeta(LocalDate.now());
+                    renderDetailMode(mode);
                     headerTop = cursorY;
-                    headerHeight = drawTableHeader(widths, headerTop);
+                    headerHeight = drawTableHeader(headers, widths, headerSizes, headerTop);
                     cursorY = headerTop - headerHeight;
                 }
                 drawTableRow(row, widths, rowHeight, 8.7f);
@@ -180,14 +228,7 @@ public final class EstadoTodosProyectosPdfGenerator {
             }
         }
 
-        private float drawTableHeader(float[] widths, float topY) throws IOException {
-            String[] headers = {
-                    "Código del proyecto",
-                    "Nombre del proyecto",
-                    "Avance total del proyecto (%)",
-                    "Estado del proyecto (En desarrollo - cerrado)"
-            };
-            float[] headerSizes = {8.6f, 8.6f, 8.3f, 8.0f};
+        private float drawTableHeader(String[] headers, float[] widths, float[] headerSizes, float topY) throws IOException {
             float maxHeight = 0f;
             float x = LEFT;
             for (int i = 0; i < headers.length; i++) {

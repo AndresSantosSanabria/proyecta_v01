@@ -144,4 +144,39 @@ public interface IProjectClosureController {
     ResponseEntity<Resource> descargarEvidenciaTransferencia(
             @Parameter(description = "ID del proyecto") @PathVariable String id,
             @Parameter(description = "Nombre del archivo") @PathVariable String fileName);
+
+    @Operation(
+        summary = "Cierre extraordinario del proyecto",
+        description = """
+            Cierra formalmente un proyecto de forma extraordinaria, omitiendo todas las validaciones
+            estandar del flujo de cierre (entregables conformes, archivos cargados, beneficio/impacto, datos del acta).
+            Esta accion es irreversible y el proyecto no podra ser reabierto.
+            **Roles requeridos:** ADMINISTRADOR o GESTOR_DE_PROYECTOS.
+            """
+    )
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Proyecto cerrado extraordinariamente",
+            content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "El proyecto ya se encuentra cerrado o finalizado"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Acceso denegado: se requiere rol ADMINISTRADOR o GESTOR_DE_PROYECTOS"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Proyecto no encontrado"
+        )
+    })
+    @StandardApiResponses
+    @PostMapping("/{id}/cierre/extraordinario")
+    ResponseEntity<CierreProyectoResponse> cierreExtraordinario(
+            @Parameter(description = "ID del proyecto a cerrar extraordinariamente", required = true) @PathVariable String id,
+            @RequestBody(required = false) CierreProyectoRequest request,
+            Authentication authentication);
 }

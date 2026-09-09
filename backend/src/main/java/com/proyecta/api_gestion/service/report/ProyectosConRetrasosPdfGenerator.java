@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.dto.report.EntregablePendienteDTO;
 import com.proyecta.api_gestion.dto.report.ProyectoReporteResumenDTO;
+import com.proyecta.api_gestion.model.enums.DetailMode;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -50,12 +51,13 @@ public final class ProyectosConRetrasosPdfGenerator {
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_BORDER = new Color(152, 152, 152);
 
-    public byte[] build(List<ProyectoReporteResumenDTO> proyectos, List<EntregablePendienteDTO> entregables, LocalDate corte) {
+    public byte[] build(List<ProyectoReporteResumenDTO> proyectos, List<EntregablePendienteDTO> entregables, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             FontPack fonts = loadFonts(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
-            canvas.render(proyectos, entregables, corte);
+            DetailMode mode = DetailMode.from(detailMode);
+            canvas.render(proyectos, entregables, corte, mode);
             document.save(out);
             return out.toByteArray();
         } catch (IOException ex) {
@@ -140,7 +142,7 @@ public final class ProyectosConRetrasosPdfGenerator {
             this.footerLogo = loadImage(document, "/report-assets/STD.png");
         }
 
-        void render(List<ProyectoReporteResumenDTO> proyectos, List<EntregablePendienteDTO> entregables, LocalDate corte) throws IOException {
+        void render(List<ProyectoReporteResumenDTO> proyectos, List<EntregablePendienteDTO> entregables, LocalDate corte, DetailMode mode) throws IOException {
             List<ProyectoReporteResumenDTO> rows = proyectos == null ? List.of() : proyectos.stream()
                     .sorted(Comparator.comparing(ProyectoReporteResumenDTO::id, Comparator.nullsLast(String::compareToIgnoreCase)))
                     .toList();
@@ -150,10 +152,19 @@ public final class ProyectosConRetrasosPdfGenerator {
             renderHeader();
             renderTitle();
             renderMeta(corte);
-            renderProjectsTable(rows);
+            renderDetailMode(mode);
+            renderProjectsTable(rows, mode);
             renderDeliverablesHeading();
             renderDeliverablesTable(detailRows);
             finishPage();
+        }
+
+        private void renderDetailMode(DetailMode mode) throws IOException {
+            if (mode.isDetailed()) {
+                drawLabelValue("NIVEL DE DETALLE:", "[Detallado]", 570f, true);
+            } else {
+                drawLabelValue("NIVEL DE DETALLE:", "[Resumido]", 570f, true);
+            }
         }
 
         private List<DeliverableRow> buildDeliverableRows(List<EntregablePendienteDTO> entregables) {
@@ -207,14 +218,30 @@ public final class ProyectosConRetrasosPdfGenerator {
             cursorY = 530f;
         }
 
-        private void renderProjectsTable(List<ProyectoReporteResumenDTO> rows) throws IOException {
-            float[] widths = new float[]{0.20f, 0.45f, 0.35f};
-            String[] headers = {
-                    "Codigo del\nproyecto",
-                    "Nombre del proyecto",
-                    "Avance total del proyecto (%)"
-            };
-            float[] sizes = {8.8f, 8.8f, 8.6f};
+        private void renderProjectsTable(List<ProyectoReporteResumenDTO> rows, DetailMode mode) throws IOException {
+            float[] widths;
+            String[] headers;
+            float[] sizes;
+
+            if (mode.isDetailed()) {
+                widths = new float[]{0.15f, 0.35f, 0.20f, 0.30f};
+                headers = new String[]{
+                        "Codigo del\nproyecto",
+                        "Nombre del proyecto",
+                        "Avance total (%)",
+                        "Dependencia"
+                };
+                sizes = new float[]{8.5f, 8.5f, 8.3f, 8.5f};
+            } else {
+                widths = new float[]{0.20f, 0.45f, 0.35f};
+                headers = new String[]{
+                        "Codigo del\nproyecto",
+                        "Nombre del proyecto",
+                        "Avance total del proyecto (%)"
+                };
+                sizes = new float[]{8.8f, 8.8f, 8.6f};
+            }
+
             float topY = cursorY;
             float headerHeight = drawTableHeader(topY, headers, widths, sizes);
             cursorY = topY - headerHeight;
@@ -226,7 +253,7 @@ public final class ProyectosConRetrasosPdfGenerator {
 
             for (ProyectoReporteResumenDTO row : rows) {
                 float rowHeight = 22f;
-                drawProjectRow(row, widths, rowHeight);
+                drawProjectRow(row, widths, rowHeight, mode);
                 cursorY -= rowHeight;
             }
 
@@ -278,10 +305,15 @@ public final class ProyectosConRetrasosPdfGenerator {
             return maxHeight;
         }
 
-        private void drawProjectRow(ProyectoReporteResumenDTO row, float[] widths, float rowHeight) throws IOException {
+        private void drawProjectRow(ProyectoReporteResumenDTO row, float[] widths, float rowHeight, DetailMode mode) throws IOException {
             float x = LEFT;
             float y = cursorY;
-            String[] values = {safe(row.id()), safe(row.nombre()), formatPercent(row.avance())};
+            String[] values;
+            if (mode.isDetailed()) {
+                values = new String[]{safe(row.id()), safe(row.nombre()), formatPercent(row.avance()), safe(row.dependencia())};
+            } else {
+                values = new String[]{safe(row.id()), safe(row.nombre()), formatPercent(row.avance())};
+            }
             drawFilledRect(x, y - rowHeight, CONTENT_WIDTH, rowHeight, Color.WHITE);
             drawRect(x, y - rowHeight, CONTENT_WIDTH, rowHeight, COLOR_BORDER, 0.6f);
             for (int i = 0; i < widths.length; i++) {

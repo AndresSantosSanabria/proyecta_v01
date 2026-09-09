@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.model.Furag;
 import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.enums.DetailMode;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -53,12 +54,13 @@ public final class FuragPdfGenerator {
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_BORDER = new Color(152, 152, 152);
 
-    public byte[] build(Proyecto proyecto, List<Proyecto> proyectosDependencia, LocalDate corte) {
+    public byte[] build(Proyecto proyecto, List<Proyecto> proyectosDependencia, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             FontPack fonts = loadFonts(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
-            canvas.render(proyecto, proyectosDependencia, corte);
+            DetailMode mode = DetailMode.from(detailMode);
+            canvas.render(proyecto, proyectosDependencia, corte, mode);
             document.save(out);
             return out.toByteArray();
         } catch (IOException ex) {
@@ -178,7 +180,7 @@ public final class FuragPdfGenerator {
             this.footerLogo = loadImage(document, "/report-assets/STD.png");
         }
 
-        void render(Proyecto proyecto, List<Proyecto> proyectosDependencia, LocalDate corte) throws IOException {
+        void render(Proyecto proyecto, List<Proyecto> proyectosDependencia, LocalDate corte, DetailMode mode) throws IOException {
             List<FuragRow> rows = buildRows(proyectosDependencia);
             int countYes = (int) rows.stream().filter(FuragRow::responde).count();
             int countNo = rows.size() - countYes;
@@ -188,6 +190,7 @@ public final class FuragPdfGenerator {
             renderHeader();
             renderTitle();
             renderMeta(proyecto, corte);
+            renderDetailMode(mode);
             renderSummary(countYes, countNo);
             renderTableHeading();
 
@@ -202,6 +205,7 @@ public final class FuragPdfGenerator {
                         renderHeader();
                         renderTitle();
                         renderMeta(proyecto, corte);
+                        renderDetailMode(mode);
                         renderSummary(countYes, countNo);
                         renderTableHeading();
                     }
@@ -211,6 +215,14 @@ public final class FuragPdfGenerator {
             }
 
             finishPage();
+        }
+
+        private void renderDetailMode(DetailMode mode) throws IOException {
+            if (mode.isDetailed()) {
+                drawLabelValue("NIVEL DE DETALLE:", "[Detallado - Incluye respuestas por pregunta]", 570f, true);
+            } else {
+                drawLabelValue("NIVEL DE DETALLE:", "[Resumido]", 570f, true);
+            }
         }
 
         private void startPage() throws IOException {

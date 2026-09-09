@@ -210,6 +210,7 @@ public class PermisoUsuarioService {
                 case "SISTEMA" -> "Sistema";
                 case "CONFIGURACION" -> "Configuracion";
                 case "SIDEBAR" -> "Modulos Sidebar";
+                case "AUDITORIA" -> "Auditoria";
                 default -> prefix;
             };
         }

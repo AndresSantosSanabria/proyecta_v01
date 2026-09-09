@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.enums.DetailMode;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -49,12 +50,13 @@ public final class PlanComunicacionesPdfGenerator {
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_BORDER = new Color(152, 152, 152);
 
-    public byte[] build(List<Proyecto> proyectos, LocalDate corte) {
+    public byte[] build(List<Proyecto> proyectos, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             FontPack fonts = loadFonts(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
-            canvas.render(proyectos, corte);
+            DetailMode mode = DetailMode.from(detailMode);
+            canvas.render(proyectos, corte, mode);
             document.save(out);
             return out.toByteArray();
         } catch (IOException ex) {
@@ -134,7 +136,7 @@ public final class PlanComunicacionesPdfGenerator {
             this.footerLogo = loadImage(document, "/report-assets/STD.png");
         }
 
-        void render(List<Proyecto> proyectos, LocalDate corte) throws IOException {
+        void render(List<Proyecto> proyectos, LocalDate corte, DetailMode mode) throws IOException {
             List<RowData> rows = buildRows(proyectos);
             int countYes = (int) rows.stream().filter(RowData::tienePlan).count();
             int countNo = rows.size() - countYes;
@@ -143,6 +145,7 @@ public final class PlanComunicacionesPdfGenerator {
             renderHeader();
             renderTitle();
             renderMeta(corte);
+            renderDetailMode(mode);
             renderSummary(countYes, countNo);
             renderTableHeading();
 
@@ -157,6 +160,7 @@ public final class PlanComunicacionesPdfGenerator {
                         renderHeader();
                         renderTitle();
                         renderMeta(corte);
+                        renderDetailMode(mode);
                         renderSummary(countYes, countNo);
                         renderTableHeading();
                     }
@@ -166,6 +170,14 @@ public final class PlanComunicacionesPdfGenerator {
             }
 
             finishPage();
+        }
+
+        private void renderDetailMode(DetailMode mode) throws IOException {
+            if (mode.isDetailed()) {
+                drawLabelValue("NIVEL DE DETALLE:", "[Detallado - Incluye detalle del plan]", 570f, true);
+            } else {
+                drawLabelValue("NIVEL DE DETALLE:", "[Resumido]", 570f, true);
+            }
         }
 
         private static List<RowData> buildRows(List<Proyecto> proyectos) {

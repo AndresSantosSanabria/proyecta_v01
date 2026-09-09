@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.avance.IndicadoresEficienciaDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Entregable;
+import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
@@ -52,18 +53,19 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
 
         long entregadosAlCorte = iniciados.stream()
                 .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
-                .filter(Entregable::esConforme)
+                .filter(e -> e.getFechaEntregaReal() != null)
+                .filter(e -> !EstadoEntregable.RECHAZADO.equals(e.getEstado()))
                 .count();
 
         long entregadosATiempo = iniciados.stream()
                 .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
-                .filter(Entregable::esConforme)
-                .filter(e -> e.getFechaEntregaReal() != null
-                        && !e.getFechaEntregaReal().isAfter(e.getFechaLimite()))
+                .filter(e -> e.getFechaEntregaReal() != null)
+                .filter(e -> !EstadoEntregable.RECHAZADO.equals(e.getEstado()))
+                .filter(e -> !e.getFechaEntregaReal().isAfter(e.getFechaLimite()))
                 .count();
 
         BigDecimal eficacia = clampRatio(calcularRatio(entregadosAlCorte, programadosAlCorte));
-        BigDecimal eficiencia = clampRatio(calcularRatio(entregadosATiempo, programadosAlCorte));
+        BigDecimal eficiencia = clampRatio(calcularRatio(entregadosATiempo, entregadosAlCorte));
 
         return new IndicadoresEficienciaDTO(
                 proyecto.getId(),

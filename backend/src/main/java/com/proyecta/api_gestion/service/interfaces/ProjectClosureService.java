@@ -11,4 +11,5 @@ public interface ProjectClosureService {
     CierreProyectoResponse aprobarCierre(String projectId, Authentication authentication);
     CierreProyectoResponse rechazarCierre(String projectId, String observaciones, Authentication authentication);
     Resource descargarActaCierre(String projectId);
+    CierreProyectoResponse cierreExtraordinario(String projectId, CierreProyectoRequest request, Authentication authentication);
 }

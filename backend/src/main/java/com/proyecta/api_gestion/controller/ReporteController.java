@@ -93,8 +93,9 @@ public class ReporteController implements IReporteController {
     @Override
     @GetMapping("/portafolio/descargar")
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
-    public ResponseEntity<byte[]> descargarReportePortafolioPdf() {
-        byte[] content = reporteService.generarReportePortafolioPdf();
+    public ResponseEntity<byte[]> descargarReportePortafolioPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
+        byte[] content = reporteService.generarReportePortafolioPdf(detailMode);
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
@@ -106,8 +107,9 @@ public class ReporteController implements IReporteController {
     @Override
     @GetMapping("/proyectos-con-retrasos/descargar")
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
-    public ResponseEntity<byte[]> descargarReporteProyectosConRetrasosPdf() {
-        byte[] content = reporteService.generarReporteProyectosConRetrasosPdf();
+    public ResponseEntity<byte[]> descargarReporteProyectosConRetrasosPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
+        byte[] content = reporteService.generarReporteProyectosConRetrasosPdf(detailMode);
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
@@ -119,8 +121,9 @@ public class ReporteController implements IReporteController {
     @Override
     @GetMapping("/plan-comunicaciones/descargar")
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
-    public ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf() {
-        byte[] content = reporteService.generarReportePlanComunicacionesPdf();
+    public ResponseEntity<byte[]> descargarReportePlanComunicacionesPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
+        byte[] content = reporteService.generarReportePlanComunicacionesPdf(detailMode);
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
@@ -132,8 +135,10 @@ public class ReporteController implements IReporteController {
     @Override
     @GetMapping("/furag/{proyectoId}/descargar")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<byte[]> descargarReporteFuragPdf(@PathVariable String proyectoId) {
-        byte[] content = reporteService.generarReporteFuragPdf(proyectoId);
+    public ResponseEntity<byte[]> descargarReporteFuragPdf(
+            @PathVariable String proyectoId,
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
+        byte[] content = reporteService.generarReporteFuragPdf(proyectoId, detailMode);
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
@@ -145,8 +150,9 @@ public class ReporteController implements IReporteController {
     @Override
     @GetMapping("/riesgos/descargar")
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
-    public ResponseEntity<byte[]> descargarReporteRiesgosPdf() {
-        byte[] content = reporteService.generarReporteRiesgosPdf();
+    public ResponseEntity<byte[]> descargarReporteRiesgosPdf(
+            @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
+        byte[] content = reporteService.generarReporteRiesgosPdf(detailMode);
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 .header("Pragma", "no-cache")
@@ -167,6 +173,19 @@ public class ReporteController implements IReporteController {
         byte[] content = reporteService.generarReportePortafolioExcel(authentication, query, dependency, status, peti);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=Consolidado Seguimiento Proyectos PETI.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(content);
+    }
+
+    @Override
+    @GetMapping("/proyecto/{proyectoId}/excel")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('REPORTE:DESCARGAR_ACTUAL', #proyectoId, authentication)")
+    public ResponseEntity<byte[]> descargarReporteActualProyectoExcel(@PathVariable String proyectoId) {
+        byte[] content = reporteService.generarReporteActualProyectoExcel(proyectoId);
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+                .header("Pragma", "no-cache")
+                .header("Content-Disposition", "attachment; filename=reporte-actual-proyecto-" + proyectoId + ".xlsx")
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(content);
     }

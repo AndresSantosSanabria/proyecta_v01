@@ -76,14 +76,11 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         AuthInfo auth = authInfo(authentication);
 
         if (record == null) {
-            if (esGestor(auth)) {
-                throw new ForbiddenException("La informacion de beneficio e impacto aun no ha sido diligenciada.");
-            }
             return toResponse(nuevoPlaceholder(proyecto), auth);
         }
 
         if (esGestor(auth) && record.getEstado() == EstadoBeneficioImpacto.PENDIENTE) {
-            throw new ForbiddenException("La informacion de beneficio e impacto aun no esta disponible para consulta.");
+            return toResponse(nuevoPlaceholder(proyecto), auth);
         }
 
         return toResponse(record, auth);
@@ -285,7 +282,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
 
         try {
             var usuario = localUserAuthorizationService.requireLocalUser(authentication);
-            admin = usuario.esAdministrador();
+            admin = LocalUserAuthorizationService.esAdministrador(usuario);
             String localRole = SecurityRoleCatalog.normalize(usuario.getRolCodigo());
             if (localRole != null) {
                 roles.add(localRole);

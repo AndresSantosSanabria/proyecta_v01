@@ -4,7 +4,6 @@ import com.proyecta.api_gestion.controller.interfaces.IUsuarioController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.user.GlobalNotificationUpdateRequest;
 import com.proyecta.api_gestion.dto.user.UsuarioDTO;
-import com.proyecta.api_gestion.model.Usuario;
 import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
@@ -39,7 +38,7 @@ public class UsuarioController implements IUsuarioController {
     @Override
     @Transactional(readOnly = false)
     public ResponseEntity<ApiResponse<UsuarioDTO>> getMe(@AuthenticationPrincipal Jwt jwt, Authentication authentication) {
-        Usuario usuario = localUserAuthorizationService.validateAndTouch(authentication);
+        SeguridadUsuario usuario = localUserAuthorizationService.validateAndTouch(authentication);
 
         String nombre = firstNonBlank(
                 usuario.getNombre(),
@@ -56,17 +55,7 @@ public class UsuarioController implements IUsuarioController {
         String username = identityExtractor.resolveUsername(authentication);
 
         String rolCodigo = usuario.getRolCodigo();
-        String rolNombre = usuario.getRolConfig() != null ? usuario.getRolConfig().getNombre() : null;
-
-        if (rolCodigo == null || "SIN_ROL".equalsIgnoreCase(rolCodigo) || "VISUALIZADOR".equalsIgnoreCase(rolCodigo)) {
-            if (username != null && !username.isBlank()) {
-                var segOpt = seguridadUsuarioRepository.findByUsernameIgnoreCase(username);
-                if (segOpt.isPresent() && segOpt.get().getRolCodigo() != null) {
-                    rolCodigo = segOpt.get().getRolCodigo();
-                    rolNombre = segOpt.get().getRolNombre() != null ? segOpt.get().getRolNombre() : segOpt.get().getRolCodigo();
-                }
-            }
-        }
+        String rolNombre = usuario.getRolNombre();
 
         if (rolCodigo == null || rolCodigo.isBlank()) {
             rolCodigo = "SIN_ROL";
@@ -74,9 +63,9 @@ public class UsuarioController implements IUsuarioController {
         if (rolNombre == null || rolNombre.isBlank()) {
             rolNombre = rolCodigo;
         }
-        Integer nivelAcceso = usuario.getRolConfig() != null ? usuario.getRolConfig().getNivelAcceso() : null;
 
         String dependencia = firstNonBlank(
+                usuario.getDependencia(),
                 jwt.getClaimAsString("department"),
                 jwt.getClaimAsString("organizational_unit"),
                 jwt.getClaimAsString("preferred_username"),
@@ -85,12 +74,12 @@ public class UsuarioController implements IUsuarioController {
         Boolean recibirNotificacionesGlobales = resolveGlobalNotificationsFlag(username);
 
         UsuarioDTO user = new UsuarioDTO(
-                usuario.getId(),
+                usuario.getId().intValue(),
                 nombre,
                 correo,
                 rolCodigo,
                 rolNombre,
-                nivelAcceso,
+                null,
                 dependencia,
                 usuario.getActivo(),
                 usuario.getUltimoAcceso(),

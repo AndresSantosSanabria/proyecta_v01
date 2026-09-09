@@ -34,6 +34,10 @@ gob.security.logout.post-redirect-uri=${GOB_LOGOUT_POST_REDIRECT_URI:http://loca
 spring.flyway.enabled=true
 spring.flyway.locations=classpath:db/migration
 
+# Public base URL used by anonymous evidence links in exported reports.
+# In deployed environments set this to the externally reachable API domain.
+app.public-url.base=${APP_PUBLIC_URL_BASE:http://localhost:8082}
+
 # Mail / Notifications
 spring.mail.host=${MAIL_HOST:smtp.office365.com}
 spring.mail.port=${MAIL_PORT:587}

@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.dto.report.RiesgoVerificacionReporteDTO;
+import com.proyecta.api_gestion.model.enums.DetailMode;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -49,12 +50,13 @@ public final class RiesgosVerificacionPdfGenerator {
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_BORDER = new Color(152, 152, 152);
 
-    public byte[] build(List<RiesgoVerificacionReporteDTO> reportes, LocalDate corte) {
+    public byte[] build(List<RiesgoVerificacionReporteDTO> reportes, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             FontPack fonts = loadFonts(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
-            canvas.render(reportes, corte);
+            DetailMode mode = DetailMode.from(detailMode);
+            canvas.render(reportes, corte, mode);
             document.save(out);
             return out.toByteArray();
         } catch (IOException ex) {
@@ -123,7 +125,7 @@ public final class RiesgosVerificacionPdfGenerator {
             this.footerLogo = loadImage(document, "/report-assets/STD.png");
         }
 
-        void render(List<RiesgoVerificacionReporteDTO> reportes, LocalDate corte) throws IOException {
+        void render(List<RiesgoVerificacionReporteDTO> reportes, LocalDate corte, DetailMode mode) throws IOException {
             List<RiskRow> rows = buildRows(reportes);
             int totalYes = (int) rows.stream().filter(RiskRow::diligencio).count();
             int totalNo = rows.size() - totalYes;
@@ -132,6 +134,7 @@ public final class RiesgosVerificacionPdfGenerator {
             renderHeader();
             renderTitle();
             renderMeta(corte);
+            renderDetailMode(mode);
             renderSummary(totalYes, totalNo);
             renderTableHeading();
 
@@ -146,6 +149,7 @@ public final class RiesgosVerificacionPdfGenerator {
                         renderHeader();
                         renderTitle();
                         renderMeta(corte);
+                        renderDetailMode(mode);
                         renderSummary(totalYes, totalNo);
                         renderTableHeading();
                     }
@@ -155,6 +159,14 @@ public final class RiesgosVerificacionPdfGenerator {
             }
 
             finishPage();
+        }
+
+        private void renderDetailMode(DetailMode mode) throws IOException {
+            if (mode.isDetailed()) {
+                drawLabelValue("NIVEL DE DETALLE:", "[Detallado - Incluye detalle por proyecto]", 570f, true);
+            } else {
+                drawLabelValue("NIVEL DE DETALLE:", "[Resumido]", 570f, true);
+            }
         }
 
         private List<RiskRow> buildRows(List<RiesgoVerificacionReporteDTO> reportes) {
