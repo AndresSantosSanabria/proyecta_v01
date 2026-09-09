@@ -870,6 +870,16 @@
 
 .solution-form {
   gap: 0.9rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.solution-form .form-actions {
+  position: sticky;
+  bottom: 0;
+  background: color-mix(in srgb, var(--bg-card) 96%, var(--bg-main));
+  padding-bottom: 0.25rem;
+  z-index: 1;
 }
 
 .solution-alert {

@@ -27,7 +27,7 @@ const REPORT_BEHAVIORS = {
     previewIcon: FileSearch,
     kind: 'project',
     filename: (projectId) => `reporte-estado-proyecto-especifico-${projectId}.pdf`,
-    download: (projectId) => reportService.downloadProjectPdf(projectId),
+    download: (projectId, detailMode) => reportService.downloadProjectPdf(projectId, detailMode),
     fetchData: (projectId) => reportService.getProjectPreview(projectId),
   },
   TODOS_LOS_PROYECTOS: {
@@ -37,7 +37,7 @@ const REPORT_BEHAVIORS = {
     previewIcon: FileBarChart2,
     kind: 'portfolio',
     filename: () => 'reporte-estado-todos-los-proyectos.pdf',
-    download: () => reportService.downloadPortafolioPdf(),
+    download: (detailMode) => reportService.downloadPortafolioPdf(detailMode),
     downloadExcel: () => reportService.downloadPortafolioExcel(),
     fetchData: () => reportService.getAllProjectsSummary(),
   },
@@ -48,7 +48,7 @@ const REPORT_BEHAVIORS = {
     previewIcon: TimerReset,
     kind: 'delays',
     filename: () => 'reporte-proyectos-con-retrasos-en-la-fecha-de-entrega.pdf',
-    download: () => reportService.downloadDelayedProjectsPdf(),
+    download: (detailMode) => reportService.downloadDelayedProjectsPdf(detailMode),
     fetchData: () => reportService.getDelayedProjects(),
   },
   PLAN_COMUNICACIONES: {
@@ -58,7 +58,7 @@ const REPORT_BEHAVIORS = {
     previewIcon: BookText,
     kind: 'plan',
     filename: () => 'reporte-plan-comunicaciones.pdf',
-    download: () => reportService.downloadPlanComunicacionesPdf(),
+    download: (detailMode) => reportService.downloadPlanComunicacionesPdf(detailMode),
     fetchData: async () => ({}),
   },
   FURAG: {
@@ -68,7 +68,7 @@ const REPORT_BEHAVIORS = {
     previewIcon: ClipboardList,
     kind: 'furag',
     filename: (projectId) => `reporte-furag-${projectId}.pdf`,
-    download: (projectId) => reportService.downloadFuragPdf(projectId),
+    download: (projectId, detailMode) => reportService.downloadFuragPdf(projectId, detailMode),
     fetchData: (projectId) => reportService.getFurag(projectId),
   },
   VERIFICACION_RIESGOS: {
@@ -78,7 +78,7 @@ const REPORT_BEHAVIORS = {
     previewIcon: Radar,
     kind: 'risks',
     filename: () => 'reporte-verificacion-tratamiento-a-riesgos.pdf',
-    download: () => reportService.downloadRiesgosPdf(),
+    download: (detailMode) => reportService.downloadRiesgosPdf(detailMode),
     fetchData: () => reportService.getRiesgosVerificacion(),
   },
 };

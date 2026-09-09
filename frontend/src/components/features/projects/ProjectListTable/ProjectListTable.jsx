@@ -52,7 +52,11 @@ const openProject = (navigate, projectId) => (event) => {
   navigate(buildProjectProgressPath(projectId));
 };
 
-const ProjectListTable = ({ projects = [], loading = false, canEditProject = false }) => {
+const ProjectListTable = ({
+  projects = [],
+  loading = false,
+  canEditProject = false,
+}) => {
   const navigate = useNavigate();
 
   if (loading) {

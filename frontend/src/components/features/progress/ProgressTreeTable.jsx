@@ -227,7 +227,7 @@ const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '', pendingF
 const statusClassByState = (estadoRevision, fallback) => {
   if (estadoRevision === 'RECHAZADO') return 'danger';
   if (estadoRevision === 'EN_PROCESO' || estadoRevision === 'EN_REVISION' || estadoRevision === 'COMPLETADO') return 'warning';
-  if (estadoRevision === 'A_CONFORMIDAD') return 'success';
+  if (estadoRevision === 'A_CONFORMIDAD' || estadoRevision === 'APROBADO') return 'success';
   return fallback;
 };
 
@@ -235,6 +235,7 @@ const statusLabelByState = (estadoRevision, fallback) => {
   if (estadoRevision === 'RECHAZADO') return 'OBSERVADO';
   if (estadoRevision === 'EN_PROCESO' || estadoRevision === 'EN_REVISION' || estadoRevision === 'COMPLETADO') return 'EN REVISION';
   if (estadoRevision === 'A_CONFORMIDAD') return 'A CONFORMIDAD';
+  if (estadoRevision === 'APROBADO') return 'APROBADO';
   return fallback || 'PENDIENTE';
 };
 
@@ -397,7 +398,7 @@ const TreeTableRow = ({
               const tieneDocumento = Boolean(evidenciaUrl);
               const estadoRevision = getEstadoRevision(ent);
               const observacionRevision = getObservacionRevision(ent);
-              const estaAprobado = estadoRevision === 'A_CONFORMIDAD' || ent.conforme === true;
+              const estaAprobado = estadoRevision === 'A_CONFORMIDAD' || estadoRevision === 'APROBADO' || ent.conforme === true;
               const estaRechazado = estadoRevision === 'RECHAZADO';
               const enRevision = !estaRechazado && (estadoRevision === 'EN_PROCESO' || estadoRevision === 'EN_REVISION' || estadoRevision === 'COMPLETADO' || (tieneDocumento && !estaAprobado));
               const programadoEnt = toNumber(ent.progresoProgramado ?? ent.avanceProgramado ?? ent.avance ?? 0);
@@ -542,7 +543,7 @@ const TreeTableRow = ({
 
                       {!tieneDocumento && !canUploadEvidence && <span className="action-placeholder">--</span>}
 
-                      {canModificarFecha && (
+                      {canModificarFecha && !estaAprobado && (
                         <button
                           type="button"
                           className="btn-action-icon"
@@ -554,7 +555,7 @@ const TreeTableRow = ({
                         </button>
                       )}
 
-                      {canModificarDescripcion && (
+                      {canModificarDescripcion && !estaAprobado && (
                         <button
                           type="button"
                           className="btn-action-icon"
@@ -566,7 +567,7 @@ const TreeTableRow = ({
                         </button>
                       )}
 
-                      {canModificarFecha && ent.tieneHistorialCambiosFecha && (
+                      {canModificarFecha && !estaAprobado && ent.tieneHistorialCambiosFecha && (
                         <button
                           type="button"
                           className="btn-action-icon info"

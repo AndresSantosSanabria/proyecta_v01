@@ -305,18 +305,26 @@ const projectService = {
     return data;
   },
 
+  /**
+   * Ejecuta el cierre extraordinario de un proyecto (omite validaciones estandar).
+   * @param {string|number} id
+   * @param {Object} closureData datos opcionales del acta
+   * @returns {Promise<Object>}
+   */
+  cierreExtraordinario: async (id, closureData) => {
+    const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/extraordinario`, closureData);
+    return data;
+  },
+
   uploadEvidencia: async (proyectoId, entregableId, file, fechaEntrega, onUploadProgress) => {
     const formData = new FormData();
     formData.append('evidencia', file);
-    formData.append('fechaEntrega', fechaEntrega || new Date().toISOString().split('T')[0]);
 
     const { data } = await apiClient.post(
       `/proyectos/${normalizeProjectId(proyectoId)}/avance/entregables/${entregableId}/evidencia`,
       formData,
       {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        params: { fechaEntrega: fechaEntrega || new Date().toISOString().split('T')[0] },
         onUploadProgress: (progressEvent) => {
           if (onUploadProgress && progressEvent.total) {
             const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);

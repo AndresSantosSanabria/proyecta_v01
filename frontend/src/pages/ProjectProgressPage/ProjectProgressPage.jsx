@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Info, Lock, Maximize2, X, FileText, Eye, Bell } from 'lucide-react';
+import { Info, Lock, Maximize2, X, FileText, Eye, Bell, Download } from 'lucide-react';
 import projectService from '../../services/projectService';
+import reportService from '../../services/reportService';
 import { usePermission } from '../../hooks/usePermission';
+import { useAuthContext } from '../../context/AuthContext';
 import ProgressHeader from '../../components/features/progress/ProgressHeader';
 import ProgressKPIs from '../../components/features/progress/ProgressKPIs';
 import ProgressTreeTable from '../../components/features/progress/ProgressTreeTable';
@@ -59,6 +61,7 @@ const flattenEntregables = (fases = []) => {
 };
 
 const ProjectProgressPage = () => {
+  const { hasRole } = useAuthContext();
   const params = useParams();
   const codigoProyecto = (params.codigoProyecto || params.id || '').toUpperCase();
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,7 @@ const ProjectProgressPage = () => {
   const [benefitImpactData, setBenefitImpactData] = useState(null);
   const [notifying, setNotifying] = useState(false);
   const [notified, setNotified] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   const showBenefitImpact = useMemo(() => {
     if (toNumber(progressData.progresoEjecutado) >= 100 || toNumber(progressData.avanceTotal) >= 100) {
@@ -115,7 +119,8 @@ const ProjectProgressPage = () => {
   const hasBenefitData = benefitImpactData && ['DILIGENCIADO', 'OBSERVADO', 'RECHAZADO', 'APROBADO'].includes(benefitImpactData.estado);
   const canReview = canApproveBenefits && hasBenefitData;
   const canViewBenefitModal = hasBenefitData && (canApproveBenefits || canViewBenefits);
-  const canNotifyDirector = usePermission('PROYECTO:VER');
+  const canNotifyDirector = usePermission('PROYECTO:VER') && !hasRole('DIRECTOR_PROYECTO');
+  const canDownloadCurrentReport = usePermission('REPORTE:DESCARGAR_ACTUAL');
 
   useEffect(() => {
     if (!codigoProyecto) return;
@@ -225,6 +230,31 @@ const ProjectProgressPage = () => {
     }
   };
 
+  const handleDownloadCurrentReport = async () => {
+    if (!codigoProyecto || downloadingReport) return;
+    try {
+      setDownloadingReport(true);
+      const blob = await reportService.downloadCurrentProjectExcel(codigoProyecto);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte-actual-proyecto-${codigoProyecto}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading current project Excel:', err);
+      emitToast({
+        title: 'No fue posible descargar el reporte',
+        message: 'Intenta nuevamente o verifica tus permisos.',
+        tone: 'error',
+      });
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
+
   const resumenExcel = useMemo(() => {
     const entregables = flattenEntregables(progressData.fases || []);
     const corte = progressData.corte ? new Date(progressData.corte) : new Date();
@@ -298,6 +328,17 @@ const ProjectProgressPage = () => {
       />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+        {canDownloadCurrentReport && (
+          <button
+            type="button"
+            className="pim-trigger"
+            onClick={handleDownloadCurrentReport}
+            disabled={downloadingReport}
+          >
+            <Download size={16} />
+            {downloadingReport ? 'Descargando...' : 'Descargar reporte actual'}
+          </button>
+        )}
         {canViewBenefitModal && (
           <button
             type="button"

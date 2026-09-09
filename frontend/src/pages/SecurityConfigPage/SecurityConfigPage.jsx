@@ -16,6 +16,7 @@ import {
   Search,
   ShieldCheck,
   BellRing,
+  ScrollText,
   X,
   Users,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import ListaParametricaPanel from '../../components/security/ListaParametricaPanel';
 import StorageConfigPanel from '../../components/security/StorageConfigPanel';
 import UserPermissionMatrix from '../../components/security/UserPermissionMatrix';
+import AuditLogsPanel from '../../components/security/AuditLogsPanel';
 import './SecurityConfigPage.css';
 
 const SECURITY_TABS = {
@@ -46,6 +48,7 @@ const SECURITY_TABS = {
   LISTAS_PARAMETRICAS: 'listas_parametricas',
   STORAGE: 'almacenamiento',
   USER_PERMISSIONS: 'permisos_usuario',
+  AUDIT: 'auditoria',
 };
 
 const emptyUserForm = {
@@ -97,6 +100,7 @@ const roleLabels = {
   CIERRE: 'Cierre del Proyecto',
   CONFIGURACION: 'Configuracion',
   SISTEMA: 'Administracion del Sistema',
+  AUDITORIA: 'Auditoria',
   OTROS: 'Otros permisos',
 };
 
@@ -1100,6 +1104,16 @@ const SecurityConfigPage = () => {
               </button>
             )}
             {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.AUDIT ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.AUDIT)}
+              >
+                <ScrollText size={14} />
+                Auditoría
+              </button>
+            )}
+            {canConfigure && (
               <button type="button" className="quick-action create" onClick={handleNewUser}>
                 <Plus size={14} />
                 Crear Usuario
@@ -1134,7 +1148,7 @@ const SecurityConfigPage = () => {
         </div>
       )}
 
-      {[SECURITY_TABS.USERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS, SECURITY_TABS.CLOSURE_TEMPLATE, SECURITY_TABS.CLOSURE_QUESTIONS, SECURITY_TABS.LISTAS_PARAMETRICAS, SECURITY_TABS.STORAGE, SECURITY_TABS.USER_PERMISSIONS].includes(activeSection) && (
+      {[SECURITY_TABS.USERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS, SECURITY_TABS.CLOSURE_TEMPLATE, SECURITY_TABS.CLOSURE_QUESTIONS, SECURITY_TABS.LISTAS_PARAMETRICAS, SECURITY_TABS.STORAGE, SECURITY_TABS.USER_PERMISSIONS, SECURITY_TABS.AUDIT].includes(activeSection) && (
         <section className="security-workspace users-workspace">
           {activeSection === SECURITY_TABS.USERS && (
           <article className="panel panel-main users-panel">
@@ -1375,6 +1389,9 @@ const SecurityConfigPage = () => {
           )}
           {canConfigure && activeSection === SECURITY_TABS.USER_PERMISSIONS && (
             <UserPermissionMatrix onClose={() => setActiveSection(SECURITY_TABS.USERS)} />
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.AUDIT && (
+            <AuditLogsPanel />
           )}
           {canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS && (
             <div

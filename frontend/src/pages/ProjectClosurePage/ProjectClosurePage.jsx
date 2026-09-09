@@ -52,6 +52,8 @@ const ProjectClosurePage = () => {
   const [approvingClosure, setApprovingClosure] = useState(false);
   const [showSolicitConfirm, setShowSolicitConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showExtraordinaryConfirm, setShowExtraordinaryConfirm] = useState(false);
+  const [extraordinaryClosureLoading, setExtraordinaryClosureLoading] = useState(false);
   const [transferenciaEntries, setTransferenciaEntries] = useState([{ actividad: '', fecha: '', evidenciaNombre: '', evidenciaFile: null }]);
 
   const [summaryData, setSummaryData] = useState({
@@ -287,6 +289,51 @@ const ProjectClosurePage = () => {
       setError(errData?.errorBanner || errData?.message || 'No se pudo aprobar el cierre.');
     } finally {
       setApprovingClosure(false);
+    }
+  };
+
+  const handleExtraordinaryClosure = () => {
+    setShowExtraordinaryConfirm(true);
+  };
+
+  const confirmExtraordinaryClosure = async () => {
+    setShowExtraordinaryConfirm(false);
+    try {
+      setExtraordinaryClosureLoading(true);
+      setError(null);
+      await saveAnswersIfDynamic();
+      await saveClosureDraft();
+
+      const response = await projectService.cierreExtraordinario(id, {});
+
+      if (response.success) {
+        setSuccessMsg(response.message || 'Proyecto cerrado extraordinariamente con exito.');
+        setActaFileName(response.archivoPdf || `acta_cierre_${id}.docx`);
+        setSummaryData((prev) => ({ ...prev, estado: 'CERRADO', puedeCerrar: false }));
+
+        try {
+          setDownloadingActa(true);
+          const downloadResponse = await projectService.downloadClosureActa(id);
+          const blob = downloadResponse.data;
+          const disposition = downloadResponse.headers?.['content-disposition'];
+          const fallbackName = response.archivoPdf || `acta_cierre_${id}.docx`;
+          const fileName = getFilenameFromDisposition(disposition, fallbackName);
+          triggerBlobDownload(blob, fileName);
+          setActaFileName(fileName);
+        } catch (downloadError) {
+          console.error('No se pudo descargar automaticamente el acta:', downloadError);
+        } finally {
+          setDownloadingActa(false);
+        }
+      } else {
+        setError(response.errorBanner || response.message || 'No se pudo completar el cierre extraordinario.');
+      }
+    } catch (err) {
+      console.error('Error en cierre extraordinario:', err);
+      const errData = err.response?.data;
+      setError(errData?.errorBanner || errData?.message || errData?.detail || 'No se pudo completar el cierre extraordinario del proyecto.');
+    } finally {
+      setExtraordinaryClosureLoading(false);
     }
   };
 

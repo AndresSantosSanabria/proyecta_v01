@@ -43,36 +43,41 @@ const reportService = {
     return response.data;
   },
 
-  downloadPortafolioPdf: async () => {
+  downloadPortafolioPdf: async (detailMode = 'resumido') => {
     const response = await apiClient.get('/reportes/portafolio/descargar', {
+      params: { detailMode },
       responseType: 'blob',
     });
     return response.data;
   },
 
-  downloadDelayedProjectsPdf: async () => {
+  downloadDelayedProjectsPdf: async (detailMode = 'resumido') => {
     const response = await apiClient.get('/reportes/proyectos-con-retrasos/descargar', {
+      params: { detailMode },
       responseType: 'blob',
     });
     return response.data;
   },
 
-  downloadPlanComunicacionesPdf: async () => {
+  downloadPlanComunicacionesPdf: async (detailMode = 'resumido') => {
     const response = await apiClient.get('/reportes/plan-comunicaciones/descargar', {
+      params: { detailMode },
       responseType: 'blob',
     });
     return response.data;
   },
 
-  downloadFuragPdf: async (projectId) => {
+  downloadFuragPdf: async (projectId, detailMode = 'resumido') => {
     const response = await apiClient.get(`/reportes/furag/${normalizeProjectId(projectId)}/descargar`, {
+      params: { detailMode },
       responseType: 'blob',
     });
     return response.data;
   },
 
-  downloadRiesgosPdf: async () => {
+  downloadRiesgosPdf: async (detailMode = 'resumido') => {
     const response = await apiClient.get('/reportes/riesgos/descargar', {
+      params: { detailMode },
       responseType: 'blob',
     });
     return response.data;
@@ -81,6 +86,13 @@ const reportService = {
   downloadPortafolioExcel: async (params = {}) => {
     const response = await apiClient.get('/reportes/portafolio/excel', {
       params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  downloadCurrentProjectExcel: async (projectId) => {
+    const response = await apiClient.get(`/reportes/proyecto/${normalizeProjectId(projectId)}/excel`, {
       responseType: 'blob',
     });
     return response.data;
