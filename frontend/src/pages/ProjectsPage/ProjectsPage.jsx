@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Filter, Plus, RefreshCw, Search, X } from 'lucide-react';
 import ProjectListTable from '../../components/features/projects/ProjectListTable';
+import EditProjectModal from '../../components/features/projects/EditProjectModal';
 import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
@@ -41,6 +42,7 @@ const ProjectsPage = () => {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [editingProjectId, setEditingProjectId] = useState(null);
   const canCreateProject = usePermission('PROYECTO:CREAR');
   const canEditProject = usePermission('PROYECTO:EDITAR');
   const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
@@ -316,8 +318,17 @@ const ProjectsPage = () => {
           projects={filteredProjects}
           loading={loading}
           canEditProject={canEditProject && !shouldUseAssignedProjects}
+          onEditProject={(id) => setEditingProjectId(id)}
         />
       </section>
+
+      {editingProjectId && (
+        <EditProjectModal
+          projectId={editingProjectId}
+          onClose={() => setEditingProjectId(null)}
+          onSaved={loadProjects}
+        />
+      )}
     </div>
   );
 };

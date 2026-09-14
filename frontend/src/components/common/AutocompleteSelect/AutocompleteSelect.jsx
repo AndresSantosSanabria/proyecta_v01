@@ -199,6 +199,8 @@ export default function AutocompleteSelect({
           role="listbox"
           aria-label={placeholder}
           style={dropdownStyle}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           {showSearch && (
             <div className="acs-search-wrapper">

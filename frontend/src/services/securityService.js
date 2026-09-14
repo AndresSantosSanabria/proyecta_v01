@@ -93,13 +93,8 @@ const securityService = {
     return unwrap(response);
   },
 
-  listNotificationTemplates: async ({ category, severity, enabled, search } = {}) => {
-    const params = {};
-    if (category && category !== 'ALL') params.category = category;
-    if (severity && severity !== 'ALL') params.severity = severity;
-    if (enabled !== undefined && enabled !== null && enabled !== 'ALL') params.enabled = enabled;
-    if (search && search.trim()) params.search = search.trim();
-    const response = await apiClient.get('/admin/notificaciones/plantillas', { params });
+  listNotificationTemplates: async () => {
+    const response = await apiClient.get('/admin/notificaciones/plantillas');
     return unwrap(response);
   },
 

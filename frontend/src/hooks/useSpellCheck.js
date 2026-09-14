@@ -3,44 +3,63 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 // Singleton: un solo worker compartido por toda la app
 let sharedWorker = null;
 let workerReady = false;
+let workerFailed = false;
 const pendingCallbacks = new Map(); // msgId -> resolve
 let msgCounter = 0;
 
+const CHECK_TIMEOUT_MS = 8000;
+
 const getWorker = () => {
-  if (!sharedWorker) {
-    sharedWorker = new Worker(
-      new URL('../workers/spellcheckWorker.js', import.meta.url),
-      { type: 'module' }
-    );
+  if (sharedWorker) return sharedWorker;
 
-    sharedWorker.onmessage = (e) => {
-      const { type, msgId, result } = e.data;
+  sharedWorker = new Worker(
+    new URL('../workers/spellcheckWorker.js', import.meta.url),
+    { type: 'module' }
+  );
 
-      if (type === 'INIT_SUCCESS') {
-        workerReady = true;
-        // Resolver callbacks pendientes que estaban esperando por la inicialización
-        pendingCallbacks.forEach((resolve, id) => {
-          if (id === '__init__') {
-            resolve(true);
-            pendingCallbacks.delete(id);
-          }
-        });
+  sharedWorker.onmessage = (e) => {
+    const { type, msgId, result } = e.data;
+
+    if (type === 'INIT_SUCCESS') {
+      workerReady = true;
+      workerFailed = false;
+      pendingCallbacks.forEach((resolve, id) => {
+        if (id === '__init__') {
+          resolve(true);
+          pendingCallbacks.delete(id);
+        }
+      });
+    }
+
+    if (type === 'INIT_ERROR') {
+      console.error('[SpellCheckWorker] Init error:', e.data.error);
+      workerFailed = true;
+      pendingCallbacks.forEach((resolve, id) => {
+        if (id === '__init__') {
+          resolve(false);
+          pendingCallbacks.delete(id);
+        }
+      });
+    }
+
+    if (type === 'RESULT' && pendingCallbacks.has(msgId)) {
+      pendingCallbacks.get(msgId)(result);
+      pendingCallbacks.delete(msgId);
+    }
+  };
+
+  sharedWorker.onerror = (err) => {
+    console.error('[SpellCheckWorker] Error:', err);
+    workerFailed = true;
+    pendingCallbacks.forEach((resolve, id) => {
+      if (id === '__init__') {
+        resolve(false);
+        pendingCallbacks.delete(id);
       }
+    });
+  };
 
-      if (type === 'RESULT' && pendingCallbacks.has(msgId)) {
-        pendingCallbacks.get(msgId)(result);
-        pendingCallbacks.delete(msgId);
-      }
-    };
-
-    sharedWorker.onerror = (err) => {
-      console.error('[SpellCheckWorker] Error:', err);
-    };
-
-    // Inicializar el worker (carga los diccionarios una sola vez)
-    sharedWorker.postMessage({ type: 'INIT' });
-  }
-
+  sharedWorker.postMessage({ type: 'INIT' });
   return sharedWorker;
 };
 
@@ -52,16 +71,17 @@ export const useSpellCheck = () => {
       setIsLoaded(true);
       return;
     }
+    if (workerFailed) {
+      setIsLoaded(false);
+      return;
+    }
 
     const worker = getWorker();
 
-    // Registrar un callback para cuando el worker termine de inicializar
-    const onReady = () => setIsLoaded(true);
+    const onReady = (success) => setIsLoaded(success);
     pendingCallbacks.set('__init__', onReady);
 
     return () => {
-      // Si el componente se desmonta antes de que el worker esté listo,
-      // evitar el setState en un componente desmontado
       pendingCallbacks.delete('__init__');
     };
   }, []);
@@ -73,9 +93,22 @@ export const useSpellCheck = () => {
         return;
       }
 
+      if (workerFailed || !sharedWorker) {
+        resolve([]);
+        return;
+      }
+
       const worker = getWorker();
       const msgId = ++msgCounter;
-      pendingCallbacks.set(msgId, resolve);
+      const timeoutId = setTimeout(() => {
+        pendingCallbacks.delete(msgId);
+        resolve([]);
+      }, CHECK_TIMEOUT_MS);
+
+      pendingCallbacks.set(msgId, (result) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      });
       worker.postMessage({ type: 'CHECK', payload: text, msgId });
     });
   }, []);

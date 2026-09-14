@@ -164,7 +164,7 @@ const ClosureQuestionsPanel = () => {
     <div className="cqp">
       <div className="cqp-header">
         <div className="cqp-header-left">
-          <span className="cqp-eyebrow">Configuracion del Formulario de Cierre</span>
+          <span className="cqp-eyebrow">Configuración del Formulario de Cierre</span>
           <h2 className="cqp-title">Preguntas del Acta de Cierre</h2>
           <p className="cqp-subtitle">Active o desactive preguntas, agregue nuevas o edite las existentes.</p>
         </div>

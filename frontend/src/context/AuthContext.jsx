@@ -371,7 +371,7 @@ export function AuthProvider({ children }) {
         console.warn('No fue posible obtener el perfil validado por backend:', profileError);
 
         if (mounted && isForbidden) {
-          setError(new Error('El usuario autenticado no existe o esta inactivo en el backend.'));
+          setError(new Error('El usuario autenticado no existe o está inactivo en el backend.'));
           startLogoutRedirect().catch((logoutError) => {
             console.error('No se pudo cerrar la sesion tras la validacion local:', logoutError);
           });

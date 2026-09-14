@@ -21,7 +21,7 @@ const CallbackPage = () => {
       .catch((err) => {
         console.error('Error procesando callback de OIDC:', err);
         clearOidcStaleState().finally(() => {
-          setError('Fallo la autenticacion. Regresando al inicio...');
+          setError('Falló la autenticación. Regresando al inicio...');
           navigate('/', { replace: true });
         });
       });

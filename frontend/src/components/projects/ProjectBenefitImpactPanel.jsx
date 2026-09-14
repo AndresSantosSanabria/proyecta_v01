@@ -170,7 +170,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
             requestError?.response?.data?.detail ||
             requestError?.response?.data?.message ||
             requestError?.message ||
-            'No fue posible cargar la informacion de beneficio e impacto.';
+            'No fue posible cargar la información de beneficio e impacto.';
           setError(message);
         }
       } finally {
@@ -188,7 +188,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
     if (forbidden) {
       return {
         tone: 'warning',
-        title: 'Aun no disponible para consulta',
+        title: 'Aún no disponible para consulta',
         detail: 'El registro de beneficio e impacto se publica cuando el Director lo diligencia.',
       };
     }
@@ -197,7 +197,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       return {
         tone: 'neutral',
         title: 'Sin requerimiento activo',
-        detail: 'El proyecto aun no alcanza el hito que obliga a diligenciar la informacion de impacto.',
+        detail: 'El proyecto aún no alcanza el hito que obliga a diligenciar la información de impacto.',
       };
     }
 
@@ -205,7 +205,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       return {
         tone: 'success',
         title: 'Diligenciado',
-        detail: 'La informacion ya esta disponible para revision y auditoria.',
+        detail: 'La información ya está disponible para revisión y auditoría.',
       };
     }
 
@@ -213,15 +213,15 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       return {
         tone: 'danger',
         title: 'Observado',
-        detail: 'El Gestor rechazo la informacion y el Director debe corregirla.',
+        detail: 'El Gestor rechazó la información y el Director debe corregirla.',
       };
     }
 
     if (data.estado === 'APROBADO') {
       return {
         tone: 'success',
-        title: 'Aprobado',
-        detail: 'La informacion de beneficio e impacto ha sido auditada y aprobada.',
+        title: 'Verificado',
+        detail: 'La información de beneficio e impacto ha sido auditada y verificada.',
       };
     }
 
@@ -257,16 +257,16 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
         : nextState === 'APROBADO'
           ? 'BENEFICIO_IMPACTO_APROBADO'
           : 'BENEFICIO_IMPACTO_DILIGENCIADO';
-      setSuccess('La informacion de beneficio e impacto quedo guardada y lista para revision.');
+      setSuccess('La información de beneficio e impacto quedó guardada y lista para revisión.');
       emitGlobalToast({
         tone: 'success',
         title: 'Beneficio e impacto guardado',
         message:
           nextState === 'APROBADO'
-            ? 'El registro quedo aprobado y los involucrados fueron notificados.'
+            ? 'El registro quedó verificado y los involucrados fueron notificados.'
             : nextState === 'OBSERVADO'
-              ? 'El registro fue reenviado tras observaciones y se notifico al equipo.'
-              : 'El registro fue diligenciado y se notifico al equipo.',
+              ? 'El registro fue reenviado tras observaciones y se notificó al equipo.'
+              : 'El registro fue diligenciado y se notificó al equipo.',
       });
       refreshNotifications();
       void securityService.notifyProjectBenefitImpactEvent(proyectoId, {
@@ -276,7 +276,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
         estado: nextState,
         mensaje:
           nextState === 'APROBADO'
-            ? 'El beneficio e impacto fue aprobado.'
+            ? 'El beneficio e impacto fue verificado.'
             : nextState === 'OBSERVADO'
               ? 'El beneficio e impacto fue corregido y reenviado.'
               : 'El beneficio e impacto fue diligenciado por el Director.',
@@ -289,7 +289,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
         saveError?.response?.data?.detail ||
         saveError?.response?.data?.message ||
         saveError?.message ||
-        'No fue posible guardar la informacion.';
+        'No fue posible guardar la información.';
       setError(message);
     } finally {
       setSaving(false);
@@ -318,13 +318,13 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       if (!aprobado) {
         setEditorOpen(Boolean(saved?.editable && !isGestor));
       }
-      setSuccess(aprobado ? 'Informacion aprobada exitosamente.' : 'Informacion observada. El Director debe corregirla y reenviarla.');
+      setSuccess(aprobado ? 'Información verificada exitosamente.' : 'Información observada. El Director debe corregirla y reenviarla.');
       emitGlobalToast({
         tone: aprobado ? 'success' : 'warning',
-        title: aprobado ? 'Beneficio e impacto aprobado' : 'Beneficio e impacto observado',
+        title: aprobado ? 'Beneficio e impacto verificado' : 'Beneficio e impacto observado',
         message: aprobado
-          ? 'Se notifico la aprobacion al equipo del proyecto.'
-          : 'Se notifico la observacion para que el Director corrija y reenvíe.',
+          ? 'Se notificó la verificación al equipo del proyecto.'
+          : 'Se notificó la observación para que el Director corrija y reenvíe.',
       });
       refreshNotifications();
       void securityService.notifyProjectBenefitImpactEvent(proyectoId, {
@@ -333,7 +333,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
         evento: aprobado ? 'BENEFICIO_IMPACTO_APROBADO' : 'BENEFICIO_IMPACTO_OBSERVADO',
         estado: aprobado ? 'APROBADO' : 'OBSERVADO',
         mensaje: aprobado
-          ? 'El beneficio e impacto fue aprobado por el Gestor.'
+          ? 'El beneficio e impacto fue verificado por el Gestor.'
           : 'El beneficio e impacto fue observado por el Gestor y requiere correccion.',
         observacion: aprobado ? '' : observacion.trim(),
       }).catch((notifyError) => {
@@ -423,7 +423,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
               <div className="benefit-impact-form-actions">
                 <button type="submit" className="benefit-impact-submit" disabled={saving}>
                   <Save size={16} />
-                  {saving ? 'Guardando...' : 'Guardar informacion'}
+                  {saving ? 'Guardando...' : 'Guardar información'}
                 </button>
               </div>
             </form>

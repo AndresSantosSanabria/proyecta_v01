@@ -14,7 +14,7 @@ const COMPONENT_TYPES = [
   { type: 'field', label: 'Campo de Datos', desc: 'Par de etiqueta + entrada de texto para capturar informacion especifica.', icon: Type },
   { type: 'table', label: 'Tabla de Filas Multiples', desc: 'Tabla con columnas configurables para listados y matrices.', icon: Columns3 },
   { type: 'textarea', label: 'Bloque de Texto', desc: 'Area para descripciones extensas, resumenes o notas.', icon: AlignLeft },
-  { type: 'signature', label: 'Bloque de Firma', desc: 'Area de validacion digital para responsables y aprobadores.', icon: Signature },
+  { type: 'signature', label: 'Bloque de Firma', desc: 'Area de validacion digital para responsables y verificadores.', icon: Signature },
 ];
 
 const uid = () => `id_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -306,7 +306,7 @@ const ClosureTemplatePanel = () => {
       <div className="ctp-header">
         <div className="ctp-header-left">
           <div className="ctp-meta-top">
-            <span className="ctp-eyebrow">Configuracion de Plantilla de Acta de Cierre</span>
+            <span className="ctp-eyebrow">Configuración de Plantilla de Acta de Cierre</span>
             <div className="ctp-title-row">
               <SpellCheckerInput
                 className="ctp-title-input"

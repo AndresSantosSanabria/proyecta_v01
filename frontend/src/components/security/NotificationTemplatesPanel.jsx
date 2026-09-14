@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BellRing,
   ChevronLeft,
@@ -105,7 +105,7 @@ const fallbackEvents = [
   },
   {
     code: 'BENEFICIO_IMPACTO_APROBADO',
-    name: 'Beneficio e impacto aprobado',
+    name: 'Beneficio e impacto verificado',
     category: 'BUSINESS',
     active: true,
     defaultEnabled: true,
@@ -131,7 +131,7 @@ const fallbackEvents = [
 
 const templateVariables = [
   { key: 'nombre_usuario', label: 'Nombre del usuario', description: 'Usuario o destinatario del evento.' },
-  { key: 'enlace_aprobacion', label: 'Enlace de aprobación', description: 'Link seguro para aprobar o revisar.' },
+  { key: 'enlace_aprobacion', label: 'Enlace de verificación', description: 'Link seguro para verificar o revisar.' },
   { key: 'monto', label: 'Monto', description: 'Valor económico asociado al proceso.' },
   { key: 'proyecto_nombre', label: 'Nombre del proyecto', description: 'Proyecto relacionado con la alerta.' },
   { key: 'entregable_nombre', label: 'Nombre del entregable', description: 'Elemento del flujo documental.' },
@@ -149,8 +149,8 @@ const formatDateTime = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Sin edición';
   return new Intl.DateTimeFormat('es-CO', {
-    day: '2-digit',
-    month: 'short',
+    day: 'numeric',
+    month: 'long',
     year: 'numeric',
   }).format(date);
 };
@@ -179,7 +179,6 @@ const NotificationTemplatesPanel = () => {
   const [isFailuresOpen, setIsFailuresOpen] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search, 300);
-  const isInitialMount = useRef(true);
 
   const preferenceUsername = authUser?.profile?.preferred_username
     || authUser?.profile?.username
@@ -252,36 +251,13 @@ const NotificationTemplatesPanel = () => {
     }
   };
 
-  const loadTemplates = async (filters) => {
-    try {
-      setTemplatesLoading(true);
-      const result = await securityService.listNotificationTemplates(filters);
-      const templateData = result?.data || result || [];
-      setTemplates(Array.isArray(templateData) ? templateData : []);
-    } catch (err) {
-      setError(`No fue posible filtrar las plantillas. ${extractApiDetail(err)}`);
-    } finally {
-      setTemplatesLoading(false);
-    }
-  };
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadData();
   }, []);
 
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
     setPage(1);
-    void loadTemplates({
-      category: categoryFilter,
-      severity: severityFilter,
-      enabled: enabledFilter,
-      search: debouncedSearch,
-    });
   }, [categoryFilter, severityFilter, enabledFilter, debouncedSearch]);
 
   const categoryOptions = useMemo(() => {
@@ -307,19 +283,43 @@ const NotificationTemplatesPanel = () => {
   }), [categoryFilter, events]);
 
   const rows = useMemo(() => {
-    return visibleEvents.map((event) => {
-      const template = templates.find((item) => item.eventCode === event.code) || null;
-      const preference = preferences.find((item) => item.eventCode === event.code) || null;
+    const lowerSearch = (debouncedSearch || '').toLowerCase().trim();
 
-      return {
-        event,
-        template,
-        preference,
-        enabled: template?.enabled ?? event?.defaultEnabled ?? true,
-        updatedAt: template?.updatedAt || template?.updated_at || null,
-      };
-    });
-  }, [preferences, templates, visibleEvents]);
+    return visibleEvents
+      .map((event) => {
+        const template = templates.find((item) => item.eventCode === event.code) || null;
+        const preference = preferences.find((item) => item.eventCode === event.code) || null;
+
+        return {
+          event,
+          template,
+          preference,
+          enabled: template?.enabled ?? event?.defaultEnabled ?? true,
+          updatedAt: template?.updatedAt || template?.updated_at || null,
+        };
+      })
+      .filter((row) => {
+        if (severityFilter && severityFilter !== 'ALL') {
+          if (row.template?.severity !== severityFilter) return false;
+        }
+        if (enabledFilter && enabledFilter !== 'ALL') {
+          const wantEnabled = enabledFilter === 'true';
+          if (row.enabled !== wantEnabled) return false;
+        }
+        if (lowerSearch) {
+          const haystack = [
+            row.template?.eventName || '',
+            row.event?.name || '',
+            row.event?.code || '',
+            row.event?.category || '',
+            row.template?.subjectTemplate || '',
+            row.template?.eventCode || '',
+          ].join(' ').toLowerCase();
+          if (!haystack.includes(lowerSearch)) return false;
+        }
+        return true;
+      });
+  }, [preferences, templates, visibleEvents, severityFilter, enabledFilter, debouncedSearch]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentRows = rows.slice((page - 1) * pageSize, page * pageSize);
@@ -416,12 +416,12 @@ const NotificationTemplatesPanel = () => {
         eventCode: selectedCode || form.eventCode,
         variables: {
           nombre_usuario: 'Juan Pérez',
-          enlace_aprobacion: 'https://demo.local/aprobar',
+          enlace_aprobacion: 'https://demo.local/verificar',
           monto: '$ 18.500.000',
           proyecto_nombre: 'Proyecto Demo',
           entregable_nombre: 'Entregable Principal',
           estado_anterior: 'En revisión',
-          estado_nuevo: 'Aprobado',
+          estado_nuevo: 'Verificado',
         },
       });
 
@@ -446,12 +446,12 @@ const NotificationTemplatesPanel = () => {
         htmlEnabled: form.htmlEnabled,
         variables: {
           nombre_usuario: 'Juan Pérez',
-          enlace_aprobacion: 'https://demo.local/aprobar',
+          enlace_aprobacion: 'https://demo.local/verificar',
           monto: '$ 18.500.000',
           proyecto_nombre: 'Proyecto Demo',
           entregable_nombre: 'Entregable Principal',
           estado_anterior: 'En revisión',
-          estado_nuevo: 'Aprobado',
+          estado_nuevo: 'Verificado',
           projectId: 'TEST-001',
           projectName: 'Proyecto Demo',
         },
@@ -628,7 +628,7 @@ const NotificationTemplatesPanel = () => {
               </div>
               <div className="soft-pill">
                 {templatesLoading ? <LoaderCircle size={12} className="animate-spin" /> : null}
-                {' '}{currentRows.length} visibles
+                {' '}{rows.length} visibles
               </div>
             </div>
 

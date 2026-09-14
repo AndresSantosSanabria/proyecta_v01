@@ -20,11 +20,12 @@ const formatDateTime = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return new Intl.DateTimeFormat('es-CO', {
-    day: '2-digit',
-    month: 'short',
+    day: 'numeric',
+    month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'America/Bogota',
   }).format(date);
 };
 

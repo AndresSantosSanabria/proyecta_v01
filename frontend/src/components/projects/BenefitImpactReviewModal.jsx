@@ -50,14 +50,14 @@ const BenefitImpactReviewModal = ({ isOpen, onClose, proyectoId, projectName, be
       setLoading(true);
       setError('');
       await projectService.reviewBenefitImpact(proyectoId, true, '');
-      setSuccess('Informacion aprobada exitosamente.');
+      setSuccess('Información aprobada exitosamente.');
       if (onSuccess) onSuccess();
       setTimeout(onClose, 1200);
     } catch (err) {
       const message =
         err?.response?.data?.detail ||
         err?.response?.data?.message ||
-        'No fue posible aprobar la informacion.';
+        'No fue posible verificar la información.';
       setError(message);
     } finally {
       setLoading(false);
@@ -85,7 +85,7 @@ const BenefitImpactReviewModal = ({ isOpen, onClose, proyectoId, projectName, be
       const message =
         err?.response?.data?.detail ||
         err?.response?.data?.message ||
-        'No fue posible rechazar la informacion.';
+        'No fue posible rechazar la información.';
       setError(message);
     } finally {
       setLoading(false);
@@ -184,7 +184,7 @@ const BenefitImpactReviewModal = ({ isOpen, onClose, proyectoId, projectName, be
                   </button>
                   <button type="button" className="birm-btn success" onClick={handleApprove} disabled={loading}>
                     <ThumbsUp size={16} />
-                    Aprobar
+                    Verificar
                   </button>
                 </>
               )}

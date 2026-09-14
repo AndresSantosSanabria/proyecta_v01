@@ -44,15 +44,16 @@ export default function HistorialCambiosFecha({ entregable, proyectoId, onClose 
   const formatFecha = (fecha) => {
     if (!fecha) return '-';
     const d = new Date(fecha + 'T00:00:00');
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' });
   };
 
   const formatFechaHora = (fechaHora) => {
     if (!fechaHora) return '-';
     const d = new Date(fechaHora);
     return d.toLocaleDateString('es-CO', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
+      day: 'numeric', month: 'long', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
+      timeZone: 'America/Bogota',
     });
   };
 

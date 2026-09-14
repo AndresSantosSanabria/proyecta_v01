@@ -207,7 +207,7 @@ const buildTaskFrame = (task, timeline) => {
 
 const GanttChart = ({ displayCronograma, year }) => {
   const today = new Date();
-  const todayLabel = today.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }).toUpperCase();
+  const todayLabel = today.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' }).toUpperCase();
   const [zoomLevel, setZoomLevel] = React.useState('year');
   const [focusDate, setFocusDate] = React.useState(() => toUtcMonthStart(today));
   const [expandedHitos, setExpandedHitos] = React.useState({});

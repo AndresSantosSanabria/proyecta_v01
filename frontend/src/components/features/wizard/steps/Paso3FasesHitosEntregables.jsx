@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, CheckCircle, FileText, Flag, Layers, Package, Upload } from 'lucide-react';
 import RetroactiveFileUploadModal from '../../../common/RetroactiveFileUploadModal/RetroactiveFileUploadModal';
 import SpellCheckerInput from '../../../common/SpellCheckerInput';
+import HierarchySidebar from '../../../common/HierarchySidebar';
 
 const sumPonderacion = (items) => items.reduce((s, i) => s + (parseFloat(i.ponderacion) || 0), 0);
 const hasPersistentId = (item) => Boolean(item?.id || item?.faseId || item?.hitoId || item?.entregableId);
@@ -198,11 +199,11 @@ const Paso3FasesHitosEntregables = ({
   return (
     <div className="step-form">
       <div className="step-header-row">
-        <h3 className="step-title">Configuracion de Fases, Hitos y Entregables</h3>
+        <h3 className="step-title">Configuración de Fases, Hitos y Entregables</h3>
         {fases.length > 0 && <PesoIndicator actual={sumaFases} />}
       </div>
       <p className="help-text">
-        Registre la estructura del proyecto lo más precisa posible. Es obligatorio al menos una fase, un hito y un entregable. Esta información se puede ajustar más adelante.
+        Registre la estructura del proyecto lo más precisa posible. Es obligatorio al menos una fase, un hito y un entregable.
       </p>
 
       <div className="hierarchy-rule-banner">
@@ -212,30 +213,32 @@ const Paso3FasesHitosEntregables = ({
         </span>
       </div>
 
-      <div className="hierarchy-summary-grid">
-        <article className="hierarchy-summary-card fases">
-          <Layers size={22} />
-          <strong>Fases</strong>
-          <span>Contenedores principales del proyecto. La suma total debe ser 100%.</span>
-        </article>
-        <article className="hierarchy-summary-card hitos">
-          <Flag size={22} />
-          <strong>Hitos</strong>
-          <span>Puntos de control por fase. Cada fase debe sumar 100%.</span>
-        </article>
-        <article className="hierarchy-summary-card entregables">
-          <Package size={22} />
-          <strong>Entregables</strong>
-          <span>Resultados verificables. Cada hito debe sumar 100%.</span>
-        </article>
-      </div>
+      <div className="hierarchy-layout">
+        <div className="hierarchy-layout__main">
+          <div className="hierarchy-summary-grid">
+            <article className="hierarchy-summary-card fases">
+              <Layers size={22} />
+              <strong>Fases</strong>
+              <span>Contenedores principales del proyecto. La suma total debe ser 100%.</span>
+            </article>
+            <article className="hierarchy-summary-card hitos">
+              <Flag size={22} />
+              <strong>Hitos</strong>
+              <span>Puntos de control por fase. Cada fase debe sumar 100%.</span>
+            </article>
+            <article className="hierarchy-summary-card entregables">
+              <Package size={22} />
+              <strong>Entregables</strong>
+              <span>Resultados verificables. Cada hito debe sumar 100%.</span>
+            </article>
+          </div>
 
-      {fases.length === 0 && (
+          {fases.length === 0 && (
         <div className="hierarchy-empty-state">
           <strong>Sin jerarquia configurada por ahora.</strong>
           <span>
             {allowEmpty
-              ? 'Puedes continuar y configurarla mas adelante desde el avance del proyecto.'
+              ? 'Puedes continuar y configurarla más adelante desde el avance del proyecto.'
               : 'Agrega una fase para comenzar la estructura del proyecto.'}
           </span>
         </div>
@@ -484,6 +487,18 @@ const Paso3FasesHitosEntregables = ({
       <button type="button" className="btn-add" onClick={addFase}>
         + Agregar fase
       </button>
+
+        </div>
+
+        {fases.length > 0 && (
+          <HierarchySidebar
+            fases={fases}
+            onUpdateFase={(fIdx, field, value) => updateFase(fIdx, field, value)}
+            onUpdateHito={(fIdx, hIdx, field, value) => updateHito(fIdx, hIdx, field, value)}
+            onUpdateEntregable={(fIdx, hIdx, eIdx, field, value) => updateEntregable(fIdx, hIdx, eIdx, field, value)}
+          />
+        )}
+      </div>
 
       <RetroactiveFileUploadModal
         open={uploadModal.open}

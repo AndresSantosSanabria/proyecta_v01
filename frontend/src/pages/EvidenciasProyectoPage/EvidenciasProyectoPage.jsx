@@ -268,7 +268,7 @@ const EvidenciasProyectoPage = () => {
         <div className="evp-empty-state">
           <FileText size={48} strokeWidth={1} />
           <h3>No hay documentos ni evidencias</h3>
-          <p>Este proyecto aun no tiene documentos o evidencias de gestion asociados.</p>
+          <p>Este proyecto aún no tiene documentos o evidencias de gestión asociados.</p>
         </div>
       ) : (
         <div className="evp-table-container">

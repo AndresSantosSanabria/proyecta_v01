@@ -17,7 +17,7 @@ const ProjectInfoCard = ({ displayResumen, expanded, onToggleExpanded }) => {
   ];
 
   const detailItems = [
-    { label: 'Meta', value: displayResumen.meta },
+    { label: 'Propósito', value: displayResumen.meta },
     { label: 'Dependencia', value: displayResumen.dependencia },
     { label: 'Programado', value: displayResumen.programado },
     { label: 'Programados a fecha límite', value: displayResumen.programadosAlCorte },

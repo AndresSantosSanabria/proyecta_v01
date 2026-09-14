@@ -106,7 +106,7 @@ const NewProjectPage = () => {
       .catch((error) => {
         if (!mounted) return;
         console.error('No se pudo generar el codigo automatico del proyecto:', error);
-        setCodeError('No fue posible previsualizar el codigo. El servidor lo generara al guardar.');
+        setCodeError('No fue posible previsualizar el código. El servidor lo generará al guardar.');
       })
       .finally(() => {
         if (mounted) {
@@ -161,9 +161,9 @@ const NewProjectPage = () => {
     const codigoProyecto = normalizeProjectCode(formData.codigoProyecto);
 
     if (codeLoading) {
-      nextErrors.codigoProyecto = 'Espere a que se genere el codigo automatico.';
+      nextErrors.codigoProyecto = 'Espere a que se genere el código automático.';
     } else if (!codigoProyecto && !codeError) {
-      nextErrors.codigoProyecto = 'El codigo automatico del proyecto es obligatorio.';
+      nextErrors.codigoProyecto = 'El código automático del proyecto es obligatorio.';
     } else if (codigoProyecto && !/^[A-Z0-9][A-Z0-9_-]*$/.test(codigoProyecto)) {
       nextErrors.codigoProyecto = 'Use solo letras, numeros, guiones y guiones bajos.';
     }
@@ -250,7 +250,7 @@ const NewProjectPage = () => {
             </button>
             <div>
               <h1 id="new-project-title">Registro Inicial del Proyecto</h1>
-              <p>Solo registre los datos base. La informacion restante la completara el Director asignado.</p>
+              <p>Solo registre los datos base. La información restante la completará el Director asignado.</p>
             </div>
           </div>
 
@@ -264,7 +264,7 @@ const NewProjectPage = () => {
             <span className="modal-flow-badge">Momento 1 - Gestor de Proyectos</span>
             <h2>Registro inicial controlado</h2>
             <p>
-              Este formulario solo crea la ficha base del proyecto. El sistema bloquea la operacion normal hasta que
+              Este formulario solo crea la ficha base del proyecto. El sistema bloquea la operación normal hasta que
               el Director asignado complete la planeacion en su primer ingreso.
             </p>
 
@@ -287,7 +287,7 @@ const NewProjectPage = () => {
                 <span>03</span>
                 <div>
                   <strong>Primera apertura</strong>
-                  <small>El Director completa la informacion operativa.</small>
+                  <small>El Director completa la información operativa.</small>
                 </div>
               </article>
             </div>
@@ -309,8 +309,8 @@ const NewProjectPage = () => {
             <div className="info-alert">
               <Info size={18} className="info-icon" />
               <p>
-                El proyecto quedara en estado Pendiente de Completar. El Director asignado no podra usar los modulos
-                operativos hasta completar la informacion restante en su primer ingreso.
+                El proyecto quedará en estado Pendiente de Completar. El Director asignado no podrá usar los módulos
+                operativos hasta completar la información restante en su primer ingreso.
               </p>
             </div>
 
@@ -323,10 +323,10 @@ const NewProjectPage = () => {
 
               <div className="form-grid">
                 <div className="form-group">
-                  <label className="form-label">Codigo del Proyecto</label>
+                  <label className="form-label">Código del Proyecto</label>
                   <input
                     className={`form-input form-input-muted ${errors.codigoProyecto ? 'input-error' : ''}`}
-                    value={codeLoading && !formData.codigoProyecto ? 'Generando codigo...' : (formData.codigoProyecto || 'Se generara al guardar')}
+                    value={codeLoading && !formData.codigoProyecto ? 'Generando código...' : (formData.codigoProyecto || 'Se generará al guardar')}
                     readOnly
                     disabled={codeLoading}
                     placeholder="IS-PROY-CUN-YYYY-NNN"
@@ -386,7 +386,7 @@ const NewProjectPage = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Objetivo del Proyecto *</label>
+                <label className="form-label">Objetivo General *</label>
                 <SpellCheckInput
                   as="textarea"
                   className={`form-input form-textarea ${errors.objetivoGeneral ? 'input-error' : ''}`}

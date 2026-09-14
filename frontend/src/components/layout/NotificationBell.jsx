@@ -9,8 +9,8 @@ import './NotificationBell.css';
 const formatTime = (value) => {
   if (!value) return '';
   return formatDateTime(value, {
-    day: '2-digit',
-    month: 'short',
+    day: 'numeric',
+    month: 'long',
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -37,7 +37,7 @@ const cleanTitle = (title) => {
 
 const getEventLabel = (item) => {
   const code = String(item?.eventCode || item?.codigoEvento || item?.type || '').toUpperCase();
-  if (code.includes('APROB')) return 'Aprobado';
+  if (code.includes('APROB')) return 'Verificado';
   if (code.includes('REENV') || code.includes('REENVI')) return 'Reenviado';
   if (code.includes('OBSERV') || code.includes('RECHAZ')) return 'Observado';
   if (code.includes('DILIG') || code.includes('CREAD') || code.includes('REGISTR')) return 'Diligenciado';
@@ -45,7 +45,7 @@ const getEventLabel = (item) => {
   if (code === 'ENTREGABLE_DEADLINE_WARNING' || code.includes('DEADLINE') || code.includes('VENCIMIENTO')) return 'Por vencer';
 
   const text = `${item?.title || ''} ${item?.message || ''}`.toUpperCase();
-  if (text.includes('APROB')) return 'Aprobado';
+  if (text.includes('APROB')) return 'Verificado';
   if (text.includes('REENV')) return 'Reenviado';
   if (text.includes('OBSERV') || text.includes('RECHAZ')) return 'Observado';
   if (text.includes('DILIG') || text.includes('GUARD')) return 'Diligenciado';

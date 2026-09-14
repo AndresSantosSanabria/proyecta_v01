@@ -22,10 +22,10 @@ const SIDEBAR_ITEM_LABELS = {
   'SIDEBAR:PROYECTOS': 'Proyectos',
   'SIDEBAR:REPORTES': 'Reportes',
   'SIDEBAR:ANALITICAS': 'Analiticas',
-  'SIDEBAR:SEGURIDAD': 'Configuracion Seguridad',
+  'SIDEBAR:SEGURIDAD': 'Configuración de Seguridad',
 };
 
-const CATEGORY_SORT_ORDER = [SIDEBAR_CATEGORY, 'Analiticas', 'Avances', 'Beneficio e Impacto', 'Cierre', 'Configuracion', 'Cronograma', 'Dashboard', 'Documentos', 'Entregables', 'Evidencias', 'Proyectos', 'Reportes', 'Sistema'];
+const CATEGORY_SORT_ORDER = [SIDEBAR_CATEGORY, 'Analiticas', 'Avances', 'Beneficio e Impacto', 'Cierre', 'Configuración', 'Cronograma', 'Dashboard', 'Documentos', 'Entregables', 'Evidencias', 'Proyectos', 'Reportes', 'Sistema'];
 
 const UserPermissionMatrix = ({ onClose }) => {
   const [users, setUsers] = useState([]);

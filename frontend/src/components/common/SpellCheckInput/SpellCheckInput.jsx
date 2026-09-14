@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSpellCheck } from '../../../hooks/useSpellCheck';
 import './SpellCheckInput.css';
 
@@ -7,10 +7,12 @@ export const SpellCheckInput = ({
   onChange, 
   as: Component = 'input', 
   onErrorChange,
+  className: externalClassName = '',
   ...props 
 }) => {
   const { isLoaded, checkText } = useSpellCheck();
   const [errors, setErrors] = useState([]);
+  const [dismissedWords, setDismissedWords] = useState(new Set());
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -21,27 +23,51 @@ export const SpellCheckInput = ({
   useEffect(() => {
     if (!isLoaded) return;
 
-    // Esperar 3 segundos tras la última pulsación de tecla
     const timeoutId = setTimeout(async () => {
-      const misspelled = await checkText(value);
-      if (!mountedRef.current) return; // componente desmontado, no actualizar state
-      setErrors(misspelled);
-      if (onErrorChange) {
-        onErrorChange(misspelled.length > 0);
+      try {
+        const misspelled = await checkText(value);
+        if (!mountedRef.current) return;
+        setErrors(misspelled);
+        setDismissedWords((prev) => {
+          if (prev.size === 0) return prev;
+          const currentWords = new Set(misspelled.map((e) => e.word));
+          const next = new Set();
+          prev.forEach((w) => { if (currentWords.has(w)) next.add(w); });
+          return next;
+        });
+        if (onErrorChange) {
+          onErrorChange(misspelled.length > 0);
+        }
+      } catch {
+        if (!mountedRef.current) return;
+        setErrors([]);
+        if (onErrorChange) onErrorChange(false);
       }
-    }, 3000);
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [value, isLoaded, checkText, onErrorChange]);
 
-  const hasErrors = errors.length > 0;
+  const visibleErrors = errors.filter((e) => !dismissedWords.has(e.word));
+  const hasErrors = visibleErrors.length > 0;
 
-  const handleReplace = (originalWord, suggestedWord) => {
+  const mergedClassName = [
+    'spellcheck-field',
+    hasErrors ? 'has-spelling-errors' : '',
+    externalClassName,
+  ].filter(Boolean).join(' ');
+
+  const handleReplace = useCallback((originalWord, suggestedWord) => {
     if (!onChange) return;
-    // Replace the first occurrence of the original word (this is simple, for robust replacement you'd want to find word boundaries)
     const newValue = value.replace(new RegExp(`\\b${originalWord}\\b`, 'i'), suggestedWord);
     onChange({ target: { value: newValue } });
-  };
+  }, [value, onChange]);
+
+  const handleDismiss = useCallback(() => {
+    const currentWords = new Set(errors.map((e) => e.word));
+    setDismissedWords(currentWords);
+    if (onErrorChange) onErrorChange(false);
+  }, [errors, onErrorChange]);
 
   return (
     <div className="spellcheck-container">
@@ -50,35 +76,46 @@ export const SpellCheckInput = ({
         onChange={onChange}
         spellCheck="true"
         lang="es"
-        className={`spellcheck-field ${hasErrors ? 'has-spelling-errors' : ''} ${props.className || ''}`}
+        className={mergedClassName}
         {...props}
       />
       {hasErrors && (
         <div className="spellcheck-warning-box">
-          <span className="spellcheck-warning">
-            Posibles errores ortográficos detectados:
-          </span>
+          <div className="spellcheck-warning">
+            <span className="spellcheck-warning-label">
+              Posibles correcciones ortográficas
+            </span>
+            <button
+              type="button"
+              className="spellcheck-omit-btn"
+              onClick={handleDismiss}
+            >
+              Omitir
+            </button>
+          </div>
           <ul className="spellcheck-suggestions-list">
-            {errors.map((err, idx) => (
+            {visibleErrors.map((err, idx) => (
               <li key={`${err.word}-${idx}`}>
-                <strong>"{err.word}"</strong> 
+                <strong>&quot;{err.word}&quot;</strong>
                 {err.suggestions && err.suggestions.length > 0 ? (
                   <>
-                    <span> ¿Quisiste decir:</span>
-                    {err.suggestions.map((sug) => (
-                      <button 
-                        key={sug} 
-                        type="button" 
-                        className="spellcheck-suggestion-btn"
-                        onClick={() => handleReplace(err.word, sug)}
-                      >
-                        {sug}
-                      </button>
+                    <span> &mdash; ¿Quisiste decir: </span>
+                    {err.suggestions.map((sug, si) => (
+                      <React.Fragment key={sug}>
+                        <button 
+                          type="button" 
+                          className="spellcheck-suggestion-btn"
+                          onClick={() => handleReplace(err.word, sug)}
+                        >
+                          {sug}
+                        </button>
+                        {si < err.suggestions.length - 1 && <span>, </span>}
+                      </React.Fragment>
                     ))}
                     <span>?</span>
                   </>
                 ) : (
-                  <span> (Sin sugerencias)</span>
+                  <span> <em>(sin sugerencias)</em></span>
                 )}
               </li>
             ))}

@@ -37,7 +37,7 @@
 .spell-highlight mark.spell-error {
   background: none;
   color: transparent;
-  border-bottom: 2px wavy #ef4444;
+  border-bottom: 2px wavy #f59e0b;
   border-radius: 0;
   padding: 0;
   margin: 0;
@@ -159,7 +159,7 @@
 .spell-wrapper-input .spell-highlight-input mark.spell-error {
   background: none;
   color: transparent;
-  border-bottom: 2px wavy #ef4444;
+  border-bottom: 2px wavy #f59e0b;
   border-radius: 0;
   padding: 0;
   margin: 0;

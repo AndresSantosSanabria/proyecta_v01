@@ -22,7 +22,7 @@ const STEPS = [
   { id: 4, label: 'PETI y comunicaciones' },
   { id: 5, label: 'FURAG' },
   { id: 6, label: 'Matriz de riesgos' },
-  { id: 7, label: 'Gestion documental' },
+  { id: 7, label: 'Documentos del proyecto' },
 ];
 
 const initialForm = (project) => ({
@@ -384,11 +384,21 @@ const ProjectOnboardingWizard = ({
       } else if (Number(source.presupuestoEstimado) > 1e15) {
         nextErrors.presupuestoEstimado = 'El presupuesto no puede superar $9.999.999.999.999.999.';
       }
+      const objetivosValidos = (source.objetivosEspecificos || []).filter((o) => o?.trim());
+      if (objetivosValidos.length === 0) {
+        nextErrors.objetivosEspecificos = 'Debe agregar al menos un objetivo específico.';
+      }
     }
 
     if (targetStep === 2) {
       if (!source.patrocinador?.nombre?.trim()) nextErrors.patrocinadorNombre = 'El nombre del patrocinador es obligatorio.';
       if (!source.patrocinador?.cargo?.trim()) nextErrors.patrocinadorCargo = 'El cargo del patrocinador es obligatorio.';
+      if ((source.equipoTrabajo || []).filter((m) => m?.nombre?.trim()).length === 0) {
+        nextErrors.equipoTrabajo = 'Debe agregar al menos un integrante al equipo de trabajo.';
+      }
+      if ((source.stakeholders || []).filter((s) => s?.rol?.trim()).length === 0) {
+        nextErrors.stakeholders = 'Debe agregar al menos un stakeholder.';
+      }
     }
 
     if (targetStep === 3) {
@@ -472,6 +482,10 @@ const ProjectOnboardingWizard = ({
       if (riesgos.length < 2) {
         nextErrors.riesgosIniciales = 'Debe registrar al menos 2 riesgos en la matriz de riesgos.';
       }
+      const tieneGeneral = riesgos.some((r) => (r.tipoRiesgo || 'GENERAL') === 'GENERAL' && r.descripcion?.trim());
+      const tieneSeguridad = riesgos.some((r) => r.tipoRiesgo === 'SEGURIDAD' && r.descripcion?.trim());
+      if (!tieneGeneral) nextErrors.riesgoGeneral = 'Debe registrar al menos un riesgo general.';
+      if (!tieneSeguridad) nextErrors.riesgoSeguridad = 'Debe registrar al menos un riesgo de seguridad.';
       riesgos.forEach((r, i) => {
         if (!r.descripcion?.trim()) nextErrors[`riesgo_${i}_descripcion`] = 'La descripcion del riesgo es obligatoria.';
         if (!r.probabilidad) nextErrors[`riesgo_${i}_probabilidad`] = 'La probabilidad es obligatoria.';
@@ -672,6 +686,7 @@ const ProjectOnboardingWizard = ({
         entidadResponsable: r.entidadResponsable || '',
         accionesMitigacion: r.accionesMitigacion || null,
         fechaAccion: r.fechaAccion || null,
+        tipoRiesgo: r.tipoRiesgo || 'GENERAL',
       })),
     };
   };
@@ -840,15 +855,15 @@ const ProjectOnboardingWizard = ({
           <div className="project-onboarding__header project-onboarding__hero">
             <div className="project-onboarding__hero-copy">
               <span className="modal-flow-badge">Momento {step} - Director de Proyecto</span>
-              <h2 className="page-title">Completar informacion del proyecto</h2>
+              <h2 className="page-title">Completar información del proyecto</h2>
               <p className="page-subtitle">
-                El proyecto fue registrado por el Gestor. Complete la informacion pendiente para habilitar los modulos operativos.
+                El proyecto fue registrado por el Gestor. Complete la información pendiente para habilitar los módulos operativos.
               </p>
             </div>
             <div className="project-onboarding__status-card">
               <span>Estado actual</span>
               <strong>Pendiente de Completar</strong>
-              <small>Los modulos operativos siguen bloqueados hasta guardar este asistente.</small>
+              <small>Los módulos operativos siguen bloqueados hasta guardar este asistente.</small>
               {savingDraft && (
                 <small className="project-onboarding__saving-indicator">
                   Guardando borrador...

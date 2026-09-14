@@ -213,6 +213,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
       <button type="button" className="btn-add" onClick={handleIntegranteAdd}>
         + Agregar integrante
       </button>
+      {errors.equipoTrabajo && <span className="error-text">{errors.equipoTrabajo}</span>}
 
       <h3 className="step-title" style={{ marginTop: '2rem' }}>Grupo de Interes (Stakeholders)</h3>
       <p className="help-text">Identifique los grupos de interes del proyecto y su nivel de impacto.</p>
@@ -269,6 +270,7 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
       <button type="button" className="btn-add" onClick={handleStakeholderAdd}>
         + Agregar stakeholder
       </button>
+      {errors.stakeholders && <span className="error-text">{errors.stakeholders}</span>}
     </div>
   );
 };

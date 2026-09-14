@@ -8,30 +8,74 @@
   transition: all 0.3s ease;
 }
 
-/* Red border to visually highlight field with spelling errors */
+/* Orange border — warning, not error */
 .spellcheck-field.has-spelling-errors {
-  border-color: #ff4d4f !important;
-  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2) !important;
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18) !important;
 }
 
 .spellcheck-warning {
-  color: #ff4d4f;
-  font-size: 0.85rem;
-  margin-top: 4px;
+  color: #f59e0b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.spellcheck-warning-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.spellcheck-warning-label::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #f59e0b;
+  flex-shrink: 0;
+}
+
+.spellcheck-omit-btn {
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.spellcheck-omit-btn:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
 }
 
 .spellcheck-warning-box {
   display: flex;
   flex-direction: column;
   margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.06);
 }
 
 .spellcheck-suggestions-list {
   list-style: none;
   padding: 0;
   margin: 4px 0 0 0;
-  font-size: 0.85rem;
-  color: #666;
+  font-size: 0.8rem;
+  color: #78716c;
+  line-height: 1.5;
 }
 
 .spellcheck-suggestions-list li {
@@ -41,13 +85,14 @@
 .spellcheck-suggestion-btn {
   background: none;
   border: none;
-  color: #0066cc;
+  color: #d97706;
   cursor: pointer;
   padding: 0 4px;
   text-decoration: underline;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .spellcheck-suggestion-btn:hover {
-  color: #004499;
+  color: #b45309;
 }

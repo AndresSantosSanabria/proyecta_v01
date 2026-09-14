@@ -213,8 +213,8 @@ const ProjectProgressPage = () => {
       await projectService.notifyDirector(codigoProyecto);
       setNotified(true);
       emitToast({
-        title: 'Notificacion enviada',
-        message: 'Se envio la alerta de avance al director del proyecto via correo electronico e notificacion in-app.',
+        title: 'Notificación enviada',
+        message: 'Se envió la alerta de avance al director del proyecto vía correo electrónico y notificación in-app.',
         tone: 'success',
       });
     } catch (err) {
@@ -366,7 +366,7 @@ const ProjectProgressPage = () => {
           onClick={() => setProjectInfoModalOpen(true)}
         >
           <FileText size={16} />
-          Informacion del proyecto
+          Información del proyecto
         </button>
       </div>
 
@@ -394,8 +394,8 @@ const ProjectProgressPage = () => {
 
         <div className="excel-summary-grid">
           <article>
-            <span>Meta</span>
-            <strong className="summary-clamp-two">{resumenExcel.meta}</strong>
+                <span>Propósito</span>
+                <strong className="summary-clamp-two">{resumenExcel.meta}</strong>
           </article>
           <article>
             <span>Dependencia</span>
@@ -443,7 +443,7 @@ const ProjectProgressPage = () => {
 
             <div className="project-summary-modal-body">
               <section className="project-summary-modal-block full-width">
-                <span>Meta</span>
+                <span>Propósito</span>
                 <p>{resumenExcel.meta}</p>
               </section>
               <section className="project-summary-modal-block full-width">

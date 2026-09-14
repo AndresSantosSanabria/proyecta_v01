@@ -41,7 +41,7 @@ const ProjectAccessRoute = () => {
       to="/"
       replace
       state={{
-        reason: 'Falta acceso al proyecto en BD: PROYECTO:VER o una asignacion activa al proyecto.',
+        reason: 'Falta acceso al proyecto en BD: PROYECTO:VER o una asignación activa al proyecto.',
       }}
     />
   );

@@ -181,7 +181,7 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
       console.error('Error cargando version para visor', err);
       const status = err?.response?.status;
       if (status === 404) {
-        setViewerError(`La version ${numeroVersion} ya no esta disponible en el servidor.`);
+        setViewerError(`La versión ${numeroVersion} ya no está disponible en el servidor.`);
       } else {
         setViewerError(`No se pudo cargar la version ${numeroVersion}.`);
       }
@@ -352,7 +352,7 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!observacion.trim()) {
-      setError('La observacion es obligatoria al reemplazar un documento.');
+      setError('La observación es obligatoria al reemplazar un documento.');
       return;
     }
     try {
@@ -462,7 +462,7 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded, exists 
       return;
     }
     if (exists && (!observacion || !observacion.trim())) {
-      setError('La observacion es obligatoria al reemplazar un documento.');
+      setError('La observación es obligatoria al reemplazar un documento.');
       return;
     }
     try {
@@ -797,7 +797,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       <div className="pim-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <header className="pim-header">
           <div>
-            <span className="pim-kicker">Informacion del proyecto</span>
+            <span className="pim-kicker">Información del proyecto</span>
             <h2>{project.nombre || project.nombreProyecto || 'Proyecto'}</h2>
             <p>{project.codigo || ''} · {project.dependencia || ''}</p>
           </div>

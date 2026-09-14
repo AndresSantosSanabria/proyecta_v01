@@ -149,7 +149,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     ...((sidebarSeguridad) ? [{
       category: 'ADMINISTRACION',
       items: compactItems([
-        { name: 'Configuracion Seguridad', path: '/admin/configuracion', icon: <ShieldCheck size={22} /> },
+        { name: 'Configuración de Seguridad', path: '/admin/configuracion', icon: <ShieldCheck size={22} /> },
       ])
     }] : [])
   ].filter((group) => group.items.length > 0);

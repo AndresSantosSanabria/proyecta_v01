@@ -96,12 +96,12 @@ const ProjectLifecycleGuard = () => {
   }, [completionStatus, needsCompletion]);
 
   const sanitizeBackendError = (raw) => {
-    if (!raw) return 'No fue posible completar la informacion inicial.';
+    if (!raw) return 'No fue posible completar la información inicial.';
     if (/JDBC|SQL|column.*does not exist|PSQLException/i.test(raw)) {
-      return 'Ocurrio un error interno del servidor. Verifique los datos del PETI e intente de nuevo. Si el problema persiste, contacte al administrador.';
+      return 'Ocurrió un error interno del servidor. Verifique los datos del PETI e intente de nuevo. Si el problema persiste, contacte al administrador.';
     }
     if (/numeric field overflow/i.test(raw)) {
-      return 'El valor del presupuesto excede el limite permitido. Verifique el monto e intente de nuevo.';
+      return 'El valor del presupuesto excede el límite permitido. Verifique el monto e intente de nuevo.';
     }
     return raw;
   };

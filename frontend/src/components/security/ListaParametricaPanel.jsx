@@ -99,7 +99,7 @@ const ListaParametricaPanel = () => {
     return (
       <div className="lpp-container">
         <div className="lpp-loading-center">
-          <LoaderCircle size={20} className="spin" /> Cargando configuracion...
+          <LoaderCircle size={20} className="spin" /> Cargando configuración...
         </div>
       </div>
     );
@@ -160,7 +160,7 @@ const ListaParametricaPanel = () => {
               placeholder={'Ingrese un valor por linea.\nEjemplo:\nInfraestructura\nFinanzas\nPlaneacion'}
               rows={12}
             />
-            <span className="lpp-hint">Un valor por linea. Los valores vacios se ignoran.</span>
+            <span className="lpp-hint">Un valor por línea. Los valores vacíos se ignoran.</span>
           </div>
 
           <div className="lpp-edit-actions">

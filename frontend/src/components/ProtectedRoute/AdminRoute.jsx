@@ -32,7 +32,7 @@ const AdminRoute = () => {
         to="/"
         replace
         state={{
-          reason: 'Falta acceso de configuracion en BD: CONFIGURACION:VER o SISTEMA:CONFIGURAR.',
+          reason: 'Falta acceso de configuración en BD: CONFIGURACION:VER o SISTEMA:CONFIGURAR.',
         }}
       />
     );

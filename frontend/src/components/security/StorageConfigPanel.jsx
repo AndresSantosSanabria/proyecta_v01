@@ -31,7 +31,7 @@ const StorageConfigPanel = () => {
       setPath(value);
       setOriginalPath(value);
     } catch {
-      setError('Error al cargar la configuracion de almacenamiento.');
+      setError('Error al cargar la configuración de almacenamiento.');
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ const StorageConfigPanel = () => {
       await securityService.saveSystemParameter({
         key: STORAGE_KEY,
         value: path.trim(),
-        descripcion: 'Ruta padre de almacenamiento de archivos. Si esta vacia se usa la ruta por defecto del servidor.',
+        descripcion: 'Ruta padre de almacenamiento de archivos. Si está vacía se usa la ruta por defecto del servidor.',
       });
       setOriginalPath(path.trim());
       setNotice('Ruta de almacenamiento actualizada correctamente.');
@@ -81,7 +81,7 @@ const StorageConfigPanel = () => {
     return (
       <div className="scp-loading">
         <Loader2 size={20} className="animate-spin" />
-        <span>Cargando configuracion...</span>
+        <span>Cargando configuración...</span>
       </div>
     );
   }
@@ -122,7 +122,7 @@ const StorageConfigPanel = () => {
             <p className="scp-info-title">Directorio raiz de archivos</p>
             <p className="scp-info-desc">
               Ruta absoluta donde se guardan todos los archivos del sistema (documentos, cronogramas, evidencias, etc.).
-              Si se deja vacia, se usa la carpeta <code>uploads/</code> junto al ejecutable del servidor.
+              Si se deja vacía, se usa la carpeta <code>uploads/</code> junto al ejecutable del servidor.
             </p>
           </div>
         </div>

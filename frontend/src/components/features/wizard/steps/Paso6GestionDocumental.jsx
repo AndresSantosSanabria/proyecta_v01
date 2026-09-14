@@ -68,7 +68,7 @@ const Paso6GestionDocumental = ({ data, onChange, errors }) => {
 
   return (
     <div className="step-form">
-      <h3 className="step-title">Gestión Documental</h3>
+      <h3 className="step-title">Documentos del Proyecto</h3>
       <p className="help-text">
         Cargue los documentos requeridos en formato PDF para formalizar la creación del proyecto.
       </p>

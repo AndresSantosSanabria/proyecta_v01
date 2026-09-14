@@ -28,6 +28,7 @@ import apiClient from '../../../api/axiosConfig';
 import projectService from '../../../services/projectService';
 import { usePermission } from '../../../hooks/usePermission';
 import { useAuthContext } from '../../../context/AuthContext';
+import { formatDate } from '../../../utils/locale';
 
 import ModificarFechaModal from './ModificarFechaModal';
 import HistorialCambiosFecha from './HistorialCambiosFecha';
@@ -235,7 +236,7 @@ const statusLabelByState = (estadoRevision, fallback) => {
   if (estadoRevision === 'RECHAZADO') return 'OBSERVADO';
   if (estadoRevision === 'EN_PROCESO' || estadoRevision === 'EN_REVISION' || estadoRevision === 'COMPLETADO') return 'EN REVISION';
   if (estadoRevision === 'A_CONFORMIDAD') return 'A CONFORMIDAD';
-  if (estadoRevision === 'APROBADO') return 'APROBADO';
+  if (estadoRevision === 'APROBADO') return 'VERIFICADO';
   return fallback || 'PENDIENTE';
 };
 
@@ -311,7 +312,7 @@ const TreeTableRow = ({
 }) => {
   const { hasRole, isAdminLocal, transversal } = useAuthContext();
   const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
-  const canReviewEvidence = usePermission('ENTREGABLE:APROBAR');
+  const canReviewEvidence = usePermission('ENTREGABLE:APROBAR') && !hasRole('DIRECTOR_PROYECTO');
   const canViewDocumentHistory = usePermission('DOCUMENTO:HISTORIAL');
   const canModificarFecha = usePermission('ENTREGABLE:CAMBIAR_FECHA');
   const canModificarDescripcion = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC') || usePermission('ENTREGABLE:CAMBIAR_DESCRIPCION');
@@ -443,8 +444,8 @@ const TreeTableRow = ({
                   <td>{toNumber(ent.ponderacion).toFixed(0)}%</td>
                   <td>
                     <div className="date-stack">
-                      {ent.fechaInicio && <span>Inicio: {ent.fechaInicio}</span>}
-                      <span>Vence: {ent.fechaLimite || '--'}</span>
+                      {ent.fechaInicio && <span>Inicio: {formatDate(ent.fechaInicio)}</span>}
+                      <span>Vence: {formatDate(ent.fechaLimite) || '--'}</span>
                     </div>
                   </td>
                   <td><NodeMetric value={programadoEnt} /></td>
@@ -521,8 +522,8 @@ const TreeTableRow = ({
                           <button
                             type="button"
                             className="btn-action-icon success"
-                            title="Aprobar entregable"
-                            aria-label="Aprobar entregable"
+                            title="Verificar cargue de evidencias"
+                            aria-label="Verificar cargue de evidencias"
                             disabled={approvingEntregableId === entregableId}
                             onClick={() => onApproveEvidence?.(entregableId)}
                           >
@@ -922,7 +923,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       }));
     } catch (error) {
       console.error('Version preview error:', error);
-      setPreviewError('No fue posible previsualizar esta version. El archivo no es un PDF valido o no esta disponible.');
+      setPreviewError('No fue posible previsualizar esta versión. El archivo no es un PDF válido o no está disponible.');
     }
   };
 
@@ -952,7 +953,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     const motivo = revertModal.motivo.trim();
 
     if (!motivo) {
-      setRevertModal((current) => ({ ...current, error: 'Debes ingresar el motivo de la reversion.' }));
+      setRevertModal((current) => ({ ...current, error: 'Debes ingresar el motivo de la reversión.' }));
       return;
     }
 
@@ -1022,7 +1023,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     if (!approvalModal.entregableId) {
       setApprovalModal((current) => ({
         ...current,
-        error: 'No se encontro el entregable a aprobar.',
+        error: 'No se encontro el entregable a verificar.',
       }));
       return;
     }
@@ -1038,7 +1039,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       if (onEvidenceUploaded) onEvidenceUploaded();
     } catch (error) {
       const data = error.response?.data;
-      const msg = data?.detail || data?.message || data?.title || error.message || 'No fue posible aprobar el entregable.';
+      const msg = data?.detail || data?.message || data?.title || error.message || 'No fue posible verificar el entregable.';
       setApprovalModal((current) => ({
         ...current,
         error: msg,
@@ -1064,7 +1065,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     if (!observacion) {
       setReviewModal((current) => ({
         ...current,
-        error: 'Debes registrar una observacion para que el lider pueda subsanar.',
+        error: 'Debes registrar una observación para que el líder pueda subsanar.',
       }));
       return;
     }
@@ -1117,7 +1118,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch {
-      setPreviewError('No fue posible descargar la evidencia. El archivo no es un PDF valido o no esta disponible.');
+      setPreviewError('No fue posible descargar la evidencia. El archivo no es un PDF válido o no está disponible.');
     }
   };
 
@@ -1159,7 +1160,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       }));
     } catch (error) {
       console.error('Preview error:', error);
-      setPreviewError('No fue posible previsualizar la evidencia. El archivo no es un PDF valido o no esta disponible.');
+      setPreviewError('No fue posible previsualizar la evidencia. El archivo no es un PDF válido o no está disponible.');
     }
   };
 
@@ -1183,8 +1184,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
   const avanceTotal = toNumber(progressData.progresoEjecutado ?? progressData.avanceTotal ?? 0);
   const corte = progressData.corte
-    ? new Date(progressData.corte).toLocaleDateString('es-CO')
-    : new Date().toLocaleDateString('es-CO');
+    ? new Date(progressData.corte).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' })
+    : new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' });
   const dependencia = excelSummary?.dependencia || progressData.dependencia || '--';
   const entregablesProgramados = toNumber(
     progressData.entregablesProgramadosAlCorte
@@ -1245,7 +1246,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
         <table className="tree-table excel-table">
           <thead>
             <tr>
-              <th className="col-node">Meta / Proyecto</th>
+              <th className="col-node">Propósito / Proyecto</th>
               <th className="col-ponderacion">Ponderacion <Lock size={12} /></th>
               <th className="col-fecha">Programado <Lock size={12} /></th>
               <th className="col-avance">Avance <Lock size={12} /></th>
@@ -1324,7 +1325,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
           <form className="review-modal hierarchy-modal hierarchy-structure-modal" onSubmit={handleSaveHierarchy} onClick={(event) => event.stopPropagation()}>
             <div className="review-modal-header">
               <div>
-                <span className="review-modal-kicker hierarchy">Jerarquia del proyecto</span>
+                <span className="review-modal-kicker hierarchy">Jerarquía del proyecto</span>
                 <h3>Editar fases, hitos y entregables</h3>
                 <p>Agrega nuevos elementos o edita pesos. Las descripciones y fechas de elementos existentes quedan bloqueadas.</p>
               </div>
@@ -1425,14 +1426,14 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
                 {historyModal.versions.map((version) => {
                   const isCurrent = version.actual || version.estado === 'ACTUAL';
                   const versionDate = version.subidoEn
-                    ? new Date(version.subidoEn).toLocaleString('es-CO')
+                    ? new Date(version.subidoEn).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
                     : '--';
 
                   return (
                     <article key={version.id} className={`document-history-item ${isCurrent ? 'current' : ''}`}>
                       <div>
                         <div className="document-history-title">
-                          <strong>Version {version.numeroVersion}</strong>
+                          <strong>Versión {version.numeroVersion}</strong>
                           <span className={`document-history-state ${isCurrent ? 'current' : ''}`}>
                             {isCurrent ? 'Actual' : 'Historica'}
                           </span>
@@ -1467,15 +1468,15 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
           <form className="review-modal revert-modal" onSubmit={handleConfirmRevert} onClick={(event) => event.stopPropagation()}>
             <div className="review-modal-header">
               <div>
-                <span className="review-modal-kicker history">Reversion documental</span>
-                <h3>Revertir a version {revertModal.version?.numeroVersion}</h3>
-                <p>Esta accion cambiara el documento actual y dejara la evidencia nuevamente en revision.</p>
+                <span className="review-modal-kicker history">Reversión documental</span>
+                <h3>Revertir a versión {revertModal.version?.numeroVersion}</h3>
+                <p>Esta acción cambiará el documento actual y dejará la evidencia nuevamente en revisión.</p>
               </div>
               <button
                 type="button"
                 className="evidence-preview-close"
                 onClick={handleCloseRevertModal}
-                aria-label="Cerrar reversion"
+                aria-label="Cerrar reversión"
                 disabled={revertModal.saving}
               >
                 <X size={18} />
@@ -1487,7 +1488,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
               <SpellCheckerTextarea
                 value={revertModal.motivo}
                 onChange={(event) => setRevertModal((current) => ({ ...current, motivo: event.target.value, error: '' }))}
-                placeholder="Explica por que se restaura esta version."
+                placeholder="Explica por qué se restaura esta versión."
                 rows={4}
                 maxLength={1000}
                 disabled={revertModal.saving}
@@ -1506,7 +1507,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
               </button>
               <button type="submit" className="history-revert-submit" disabled={revertModal.saving}>
                 <RotateCcw size={15} />
-                {revertModal.saving ? 'Revirtiendo...' : 'Confirmar reversion'}
+                {revertModal.saving ? 'Revirtiendo...' : 'Confirmar reversión'}
               </button>
             </div>
           </form>
@@ -1518,15 +1519,15 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
           <form className="review-modal approval-modal" onSubmit={handleConfirmApproveEvidence} onClick={(event) => event.stopPropagation()}>
             <div className="review-modal-header">
               <div>
-                <span className="review-modal-kicker approval">Aprobacion final</span>
-                <h3>Confirmar aprobacion</h3>
-                <p>Esta seguro de que desea aprobar este documento?</p>
+                <span className="review-modal-kicker approval">Verificación del cargue de evidencias</span>
+                <h3>Confirmar verificación</h3>
+                <p>¿Está seguro de que desea verificar este documento?</p>
               </div>
               <button
                 type="button"
                 className="evidence-preview-close"
                 onClick={handleCloseApprovalModal}
-                aria-label="Cerrar aprobacion"
+                aria-label="Cerrar verificación"
                 disabled={Boolean(approvingEntregableId)}
               >
                 <X size={18} />
@@ -1534,7 +1535,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
             </div>
 
             <div className="approval-warning">
-              Recuerda que esta accion no es reversible y no se va a poder cambiar el documento.
+              Recuerda que esta acción no es reversible y no se va a poder cambiar el documento.
             </div>
 
             {approvalModal.error && (
@@ -1549,7 +1550,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
               </button>
               <button type="submit" className="approval-submit" disabled={Boolean(approvingEntregableId)}>
                 <CheckCircle2 size={15} />
-                {approvingEntregableId ? 'Aprobando...' : 'Si, aprobar'}
+                {approvingEntregableId ? 'Verificando...' : 'Si, verificar'}
               </button>
             </div>
           </form>
@@ -1561,15 +1562,15 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
           <form className="review-modal" onSubmit={handleRejectEvidence} onClick={(event) => event.stopPropagation()}>
             <div className="review-modal-header">
               <div>
-                <span className="review-modal-kicker">Observacion del gestor</span>
-                <h3>Solicitar subsanacion</h3>
-                <p>Describe exactamente que debe corregir el lider antes de volver a cargar la evidencia.</p>
+                <span className="review-modal-kicker">Observación del gestor</span>
+                <h3>Solicitar subsanación</h3>
+                <p>Describe exactamente qué debe corregir el líder antes de volver a cargar la evidencia.</p>
               </div>
               <button
                 type="button"
                 className="evidence-preview-close"
                 onClick={handleCloseReviewModal}
-                aria-label="Cerrar observacion"
+                aria-label="Cerrar observación"
                 disabled={Boolean(approvingEntregableId)}
               >
                 <X size={18} />
@@ -1577,7 +1578,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
             </div>
 
             <label className="review-field">
-              <span>Observacion obligatoria</span>
+              <span>Observación obligatoria</span>
               <SpellCheckerTextarea
                 value={reviewModal.observacion}
                 onChange={(event) => setReviewModal((current) => ({ ...current, observacion: event.target.value, error: '' }))}
@@ -1604,7 +1605,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
               </button>
               <button type="submit" className="review-submit" disabled={Boolean(approvingEntregableId)}>
                 <MessageSquare size={15} />
-                {approvingEntregableId ? 'Guardando...' : 'Guardar observacion'}
+                {approvingEntregableId ? 'Guardando...' : 'Guardar observación'}
               </button>
             </div>
           </form>

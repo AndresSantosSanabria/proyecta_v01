@@ -527,6 +527,20 @@
   gap: 10px;
 }
 
+.project-onboarding .hierarchy-layout {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.project-onboarding .hierarchy-layout__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .project-onboarding .hierarchy-summary-card {
   display: grid;
   justify-items: start;
@@ -1113,6 +1127,17 @@
   .project-onboarding .array-card,
   .project-onboarding .custom-select-menu {
     border-radius: 10px;
+  }
+
+  .project-onboarding .hierarchy-layout {
+    flex-direction: column;
+  }
+
+  .project-onboarding .hierarchy-layout .hs-sidebar,
+  .project-onboarding .hierarchy-layout .hs-sidebar__toggle-closed {
+    width: 100%;
+    position: static;
+    max-height: 260px;
   }
 }
 

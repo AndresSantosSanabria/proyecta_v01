@@ -35,7 +35,7 @@ const isPdfBlob = async (blob) => {
 
 const estadoColors = {
   A_CONFORMIDAD: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'A Conformidad' },
-  APROBADO: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Aprobado' },
+  APROBADO: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Verificado' },
   PENDIENTE: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Pendiente' },
   EN_REVISION: { bg: 'var(--primary-soft)', color: 'var(--primary)', label: 'En Revision' },
   EN_PROCESO: { bg: 'var(--primary-soft)', color: 'var(--primary)', label: 'En Proceso' },
@@ -399,7 +399,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
               {data.categoria === 'DOCUMENTO_DINAMICO' && 'Documento Dinamico'}
               {data.categoria === 'EVIDENCIA_ENTREGABLE' && 'Evidencia de Entregable'}
               {data.categoria === 'CRONOGRAMA' && 'Cronograma del Proyecto'}
-              {data.categoria === 'RIESGO' && 'Solucion de Riesgo'}
+              {data.categoria === 'RIESGO' && 'Solución de Riesgo'}
               {data.categoria === 'MATRIZ_RIESGOS' && 'Matriz de Riesgos'}
               {data.categoria === 'CAMBIO_FECHA' && 'Cambio de Fecha'}
               {data.categoria === 'CAMBIO_DESCRIPCION' && 'Cambio de Descripcion'}
@@ -499,7 +499,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
 
           {(faseNombre || hitoNombre || entregableNombre) && !isDateChange && (
             <section className="edm-section">
-              <h3 className="edm-section-title"><Tag size={16} /> Jerarquia del Proyecto</h3>
+              <h3 className="edm-section-title"><Tag size={16} /> Jerarquía del Proyecto</h3>
               <div className="edm-grid">
                 {faseNombre && (
                   <div className="edm-field">
@@ -544,7 +544,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
                 </div>
               )}
               {!loadingRiskSolutions && !riskSolutionsError && riskSolutions.length === 0 && (
-                <div className="edm-description-box"><p style={{ color: 'var(--text-muted)', margin: 0 }}>Este riesgo aun no tiene soluciones registradas.</p></div>
+                <div className="edm-description-box"><p style={{ color: 'var(--text-muted)', margin: 0 }}>Este riesgo aún no tiene soluciones registradas.</p></div>
               )}
               {riskSolutions.length > 0 && (
                 <div className="edm-versions-list">
@@ -557,7 +557,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
                           </span>
                           <span className="edm-version-date">{formatDate(sol.fechaCarga)}</span>
                         </div>
-                        <span className="edm-version-filename">{sol.nombreOriginal || `Solucion ${idx + 1}`}</span>
+                        <span className="edm-version-filename">{sol.nombreOriginal || `Solución ${idx + 1}`}</span>
                         {sol.tamanoBytes && (
                           <span className="edm-version-meta">
                             {(sol.tamanoBytes / 1024).toFixed(1)} KB

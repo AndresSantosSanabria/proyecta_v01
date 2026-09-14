@@ -42,6 +42,7 @@ const emptyForm = {
   descripcion: '',
   probabilidad: 'TRES',
   impacto: 'TRES',
+  tipoRiesgo: 'GENERAL',
   tratamiento: '',
   entidadResponsable: '',
   accionesMitigacion: '',
@@ -243,6 +244,15 @@ const RiesgosPage = () => {
     return counts;
   }, [riskList]);
 
+  const tipoStats = useMemo(() => {
+    const counts = { GENERAL: 0, SEGURIDAD: 0 };
+    riskList.forEach((risk) => {
+      const key = (risk.tipoRiesgo || 'GENERAL').toUpperCase();
+      if (counts[key] !== undefined) counts[key] += 1;
+    });
+    return counts;
+  }, [riskList]);
+
   const treatmentStats = useMemo(() => {
     return riskList.reduce(
       (acc, risk) => {
@@ -373,6 +383,7 @@ const RiesgosPage = () => {
           descripcion: solutionRisk.descripcion,
           probabilidad: solutionRisk.probabilidad,
           impacto: solutionRisk.impacto,
+          tipoRiesgo: solutionRisk.tipoRiesgo || 'GENERAL',
           tratamiento: solutionRisk.tratamiento || '',
           entidadResponsable: solutionRisk.entidadResponsable || '',
           accionesMitigacion: solutionMitigacion || null,
@@ -432,6 +443,7 @@ const RiesgosPage = () => {
       descripcion: risk.descripcion || '',
       probabilidad: risk.probabilidad || 'TRES',
       impacto: risk.impacto || 'TRES',
+      tipoRiesgo: (risk.tipoRiesgo || 'GENERAL').toUpperCase(),
       tratamiento: risk.tratamiento || '',
       entidadResponsable: risk.entidadResponsable || '',
       accionesMitigacion: risk.accionesMitigacion || '',
@@ -462,6 +474,7 @@ const RiesgosPage = () => {
         descripcion: form.descripcion,
         probabilidad: form.probabilidad,
         impacto: form.impacto,
+        tipoRiesgo: form.tipoRiesgo || 'GENERAL',
         tratamiento: form.tratamiento,
         entidadResponsable: form.entidadResponsable,
         accionesMitigacion: form.accionesMitigacion,
@@ -569,6 +582,14 @@ const RiesgosPage = () => {
           <span>Extremo</span>
           <strong>{stats.EXTREMO}</strong>
         </div>
+        <div className="risk-stat tipo-general">
+          <span>General</span>
+          <strong>{tipoStats.GENERAL}</strong>
+        </div>
+        <div className="risk-stat tipo-seguridad">
+          <span>Seguridad</span>
+          <strong>{tipoStats.SEGURIDAD}</strong>
+        </div>
       </div>
 
       <section className="panel risks-table-panel">
@@ -586,6 +607,7 @@ const RiesgosPage = () => {
               <tr>
                 <th>#</th>
                 <th>Descripción</th>
+                <th>Tipo</th>
                 <th>Probabilidad</th>
                 <th>Impacto</th>
                 <th>Calificación</th>
@@ -599,7 +621,7 @@ const RiesgosPage = () => {
             <tbody>
               {riskList.length === 0 ? (
                 <tr>
-                  <td colSpan={10}>
+                  <td colSpan={11}>
                     <div className="empty-box">No hay riesgos registrados para este proyecto.</div>
                   </td>
                 </tr>
@@ -607,12 +629,16 @@ const RiesgosPage = () => {
                 riskList.map((risk, index) => {
                   const score = deriveInherentScore(risk.probabilidad, risk.impacto);
                   const level = normalizeRiskLevel(risk.nivel || getRiskLevelFromScore(score));
+                  const tipo = (risk.tipoRiesgo || 'GENERAL').toUpperCase();
 
                   return (
                     <tr key={risk.id}>
                       <td>{index + 1}</td>
                       <td className="risk-cell-left">
                         <span>{formatLongText(risk.descripcion)}</span>
+                      </td>
+                      <td>
+                        <span className={`tipo-badge ${tipo.toLowerCase()}`}>{tipo === 'SEGURIDAD' ? 'Seguridad' : 'General'}</span>
                       </td>
                       <td>
                         <span className="code-pill">{risk.probabilidad || '—'}</span>
@@ -698,6 +724,20 @@ const RiesgosPage = () => {
                   required
                   rows={3}
                   placeholder="Describe el evento o condición de riesgo de forma concreta."
+                />
+              </label>
+
+              <label>
+                Tipo de riesgo
+                <AutocompleteSelect
+                  value={form.tipoRiesgo}
+                  onChange={(val) => setForm((prev) => ({ ...prev, tipoRiesgo: val }))}
+                  options={[
+                    { value: 'GENERAL', label: 'General' },
+                    { value: 'SEGURIDAD', label: 'Seguridad' },
+                  ]}
+                  placeholder="Seleccionar tipo..."
+                  sortAlphabetically={false}
                 />
               </label>
 
@@ -791,24 +831,28 @@ const RiesgosPage = () => {
                 />
               </label>
 
-              <label>
-                Acciones realizadas para mitigar el riesgo
-                <SpellCheckerTextarea
-                  value={form.accionesMitigacion}
-                  onChange={(e) => setForm((prev) => ({ ...prev, accionesMitigacion: e.target.value }))}
-                  rows={3}
-                  placeholder="Acciones concretas para reducir probabilidad o impacto."
-                />
-              </label>
+              {form.estado === 'TRATADO' && (
+                <>
+                  <label>
+                    Acciones realizadas para mitigar el riesgo
+                    <SpellCheckerTextarea
+                      value={form.accionesMitigacion}
+                      onChange={(e) => setForm((prev) => ({ ...prev, accionesMitigacion: e.target.value }))}
+                      rows={3}
+                      placeholder="Acciones concretas para reducir probabilidad o impacto."
+                    />
+                  </label>
 
-              <label>
-                Fecha de la acción
-                <input
-                  type="date"
-                  value={form.fechaAccion}
-                  onChange={(e) => setForm((prev) => ({ ...prev, fechaAccion: e.target.value }))}
-                />
-              </label>
+                  <label>
+                    Fecha de la acción
+                    <input
+                      type="date"
+                      value={form.fechaAccion}
+                      onChange={(e) => setForm((prev) => ({ ...prev, fechaAccion: e.target.value }))}
+                    />
+                  </label>
+                </>
+              )}
 
               <label>
                 Estado del riesgo
@@ -916,7 +960,7 @@ const RiesgosPage = () => {
                         <div className="solution-item-copy">
                           <strong>{solution.nombreOriginal}</strong>
                           <span>
-                            {formatBytes(solution.tamanoBytes)} · {solution.fechaCarga ? new Date(solution.fechaCarga).toLocaleString() : 'Sin fecha'}
+                            {formatBytes(solution.tamanoBytes)} · {solution.fechaCarga ? new Date(solution.fechaCarga).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : 'Sin fecha'}
                           </span>
                         </div>
                         <div className="solution-item-actions">

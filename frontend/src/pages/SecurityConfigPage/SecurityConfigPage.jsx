@@ -98,9 +98,9 @@ const roleLabels = {
   DOCUMENTO: 'Documentos',
   CRONOGRAMA: 'Cronograma',
   CIERRE: 'Cierre del Proyecto',
-  CONFIGURACION: 'Configuracion',
-  SISTEMA: 'Administracion del Sistema',
-  AUDITORIA: 'Auditoria',
+  CONFIGURACION: 'Configuración',
+  SISTEMA: 'Administración del Sistema',
+  AUDITORIA: 'Auditoría',
   OTROS: 'Otros permisos',
 };
 
@@ -190,12 +190,13 @@ const formatDateTime = (value) => {
   }
 
   return new Intl.DateTimeFormat('es-CO', {
-    day: '2-digit',
-    month: '2-digit',
+    day: 'numeric',
+    month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: 'America/Bogota',
   }).format(date);
 };
 
@@ -560,7 +561,7 @@ const SecurityConfigPage = () => {
       }
     } catch (fetchError) {
       console.error('Error cargando configuracion de seguridad:', fetchError);
-      setError('No fue posible cargar la configuracion de seguridad.');
+      setError('No fue posible cargar la configuración de seguridad.');
     } finally {
       setLoading(false);
     }
@@ -723,7 +724,7 @@ const SecurityConfigPage = () => {
         activo: typeof overrides.activo === 'boolean' ? overrides.activo : Boolean(userForm.activo),
       });
 
-      setNotice(creatingUser ? 'El usuario se creo correctamente.' : 'El usuario se actualizo correctamente.');
+      setNotice(creatingUser ? 'El usuario se creó correctamente.' : 'El usuario se actualizó correctamente.');
       setCreatingUser(false);
       setSelectedUser(null);
       setUserForm(emptyUserForm);
@@ -766,12 +767,12 @@ const SecurityConfigPage = () => {
         proyectoId: assignmentForm.proyectoId.trim(),
         cargo: assignmentForm.cargo.trim(),
       });
-      setNotice('La asignacion de proyecto se guardo correctamente.');
+      setNotice('La asignación de proyecto se guardó correctamente.');
       await loadAssignments(assignmentForm.username.trim());
       await loadData(userSearch);
     } catch (assignmentSaveError) {
       console.error('Error guardando asignacion:', assignmentSaveError);
-      setError('No fue posible guardar la asignacion de proyecto.');
+      setError('No fue posible guardar la asignación de proyecto.');
     } finally {
       setSavingAssignment(false);
     }
@@ -829,7 +830,7 @@ const SecurityConfigPage = () => {
         await securityService.saveRolePermissions(buildMatrixPayload());
       }
 
-      setNotice(creatingRole ? 'El rol se creo correctamente.' : 'El rol se actualizo correctamente.');
+      setNotice(creatingRole ? 'El rol se creó correctamente.' : 'El rol se actualizó correctamente.');
       setCreatingRole(false);
       setRoleEditorOpen(false);
       setRoleTemplateCode('');
@@ -1014,7 +1015,7 @@ const SecurityConfigPage = () => {
     <div className="security-admin-page">
       <header className="security-header">
         <div className="security-header-copy">
-          <p className="security-eyebrow">Configuracion Seguridad</p>
+          <p className="security-eyebrow">Configuración de Seguridad</p>
           <h1>Gestion de Roles y Permisos</h1>
           <p>
             Dos flujos claros, una sola pantalla: usuarios con rol asignable y roles con su matriz integrada en el mismo editor.
@@ -1500,7 +1501,7 @@ const SecurityConfigPage = () => {
                               {`Rol actual: ${getUserRoleLabel(selectedAssignmentUser) || formatRoleLabel(selectedAssignmentUserRole) || 'No verificado'}.`}
                               {shouldRestrictToDirectors
                                 ? ' El cargo de dirección solo se permite para usuarios con un rol directivo equivalente.'
-                                : ' Los cargos se validan contra la parametrizaci?n del sistema.'}
+                                : ' Los cargos se validan contra la parametrización del sistema.'}
                             </span>
                           </>
                         ) : (

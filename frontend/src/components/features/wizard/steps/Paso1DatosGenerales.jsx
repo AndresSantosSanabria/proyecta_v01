@@ -173,7 +173,7 @@ const Paso1DatosGenerales = ({
       </div>
 
       <div className="form-group">
-        <label className="form-label">Objetivo General del Proyecto *</label>
+        <label className="form-label">Objetivo General *</label>
         <SpellCheckerTextarea
           className={`form-input form-textarea ${errors.objetivoGeneral ? 'input-error' : ''}`}
           value={data.objetivoGeneral || ''}
@@ -185,7 +185,7 @@ const Paso1DatosGenerales = ({
       </div>
 
       <div className="form-group">
-        <label className="form-label">Objetivos Específicos</label>
+        <label className="form-label">Objetivos Específicos *</label>
         {(data.objetivosEspecificos || []).map((obj, i) => (
           <div key={i} className="array-field-row">
             <SpellCheckerInput
@@ -202,6 +202,7 @@ const Paso1DatosGenerales = ({
         <button type="button" className="btn-add" onClick={handleObjetivoAdd}>
           + Agregar objetivo específico
         </button>
+        {errors.objetivosEspecificos && <span className="error-text">{errors.objetivosEspecificos}</span>}
       </div>
     </div>
   );

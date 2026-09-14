@@ -56,6 +56,7 @@ const ProjectListTable = ({
   projects = [],
   loading = false,
   canEditProject = false,
+  onEditProject = null,
 }) => {
   const navigate = useNavigate();
 
@@ -101,10 +102,18 @@ const ProjectListTable = ({
                         >
                           Abrir
                         </button>
-                        {canEditProject ? <button className="btn-action-edit">Editar</button> : null}
+                        {canEditProject && onEditProject ? (
+                          <button
+                            type="button"
+                            className="btn-action-edit"
+                            onClick={() => onEditProject(projectId)}
+                          >
+                            Editar
+                          </button>
+                        ) : null}
                       </div>
                     </td>
-                    <td className="col-code" data-label="Código">{projectId || 'Sin codigo'}</td>
+                    <td className="col-code" data-label="Código">{projectId || 'Sin código'}</td>
                     <td className="col-name" data-label="Nombre">{getProjectName(project)}</td>
                     <td className="col-dept" data-label="Dependencia">{getProjectDependency(project)}</td>
                     <td className="col-director" data-label="Director">
@@ -170,7 +179,7 @@ const ProjectListTable = ({
             return (
               <article key={projectId || index} className="project-list-card card-surface">
                 <div className="project-list-card__top">
-                  <div className="project-list-card__code">{projectId || 'Sin codigo'}</div>
+                  <div className="project-list-card__code">{projectId || 'Sin código'}</div>
                   <span
                     className={`status-badge status-badge--tooltip ${currentStatus.class}`}
                     data-tooltip={currentStatus.tooltip}
@@ -210,7 +219,15 @@ const ProjectListTable = ({
                   >
                     Abrir proyecto
                   </button>
-                  {canEditProject ? <button className="btn-action-edit">Editar</button> : null}
+                  {canEditProject && onEditProject ? (
+                    <button
+                      type="button"
+                      className="btn-action-edit"
+                      onClick={() => onEditProject(projectId)}
+                    >
+                      Editar
+                    </button>
+                  ) : null}
                 </div>
               </article>
             );

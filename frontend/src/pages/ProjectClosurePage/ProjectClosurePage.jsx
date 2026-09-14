@@ -279,14 +279,14 @@ const ProjectClosurePage = () => {
 
       if (response.success) {
         setCierreEstado('APROBADO');
-        setSuccessMsg(response.message || 'Cierre aprobado exitosamente.');
+        setSuccessMsg(response.message || 'Cierre verificado exitosamente.');
       } else {
-        setError(response.errorBanner || response.message || 'No se pudo aprobar el cierre.');
+        setError(response.errorBanner || response.message || 'No se pudo verificar el cierre.');
       }
     } catch (err) {
       console.error('Error approving closure:', err);
       const errData = err.response?.data;
-      setError(errData?.errorBanner || errData?.message || 'No se pudo aprobar el cierre.');
+      setError(errData?.errorBanner || errData?.message || 'No se pudo verificar el cierre.');
     } finally {
       setApprovingClosure(false);
     }
@@ -339,7 +339,7 @@ const ProjectClosurePage = () => {
 
   const handleRechazarCierre = async () => {
     if (!rejectObservaciones.trim()) {
-      setError('Debe ingresar un motivo o observacion del rechazo.');
+      setError('Debe ingresar un motivo o observación del rechazo.');
       return;
     }
 
@@ -354,7 +354,7 @@ const ProjectClosurePage = () => {
         setCierreObservaciones(rejectObservaciones.trim());
         setShowRejectModal(false);
         setRejectObservaciones('');
-        setSuccessMsg(response.message || 'Solicitud de cierre rechazada. El Director sera notificado.');
+        setSuccessMsg(response.message || 'Solicitud de cierre rechazada. El Director será notificado.');
       } else {
         setError(response.errorBanner || response.message || 'No se pudo rechazar el cierre.');
       }
@@ -466,7 +466,7 @@ const ProjectClosurePage = () => {
           setDownloadingActa(false);
         }
       } else {
-        setError(response.errorBanner || response.message || 'Ocurrio un error al procesar el cierre.');
+        setError(response.errorBanner || response.message || 'Ocurrió un error al procesar el cierre.');
       }
     } catch (err) {
       console.error('Error closing project:', err);
@@ -481,7 +481,7 @@ const ProjectClosurePage = () => {
     return (
       <div className="closure-page-loading">
         <div className="spinner"></div>
-        <p>Cargando informacion de cierre del proyecto...</p>
+        <p>Cargando información de cierre del proyecto...</p>
       </div>
     );
   }
@@ -633,7 +633,7 @@ const ProjectClosurePage = () => {
         <div className="validation-warning-banner" id="warning-closure-banner">
           <AlertTriangle className="warning-icon" size={22} />
           <div className="banner-content">
-            <p>No es posible cerrar el proyecto aun. Todos los entregables deben estar aprobados y con su evidencia cargada para habilitar la solicitud de cierre.</p>
+            <p>No es posible cerrar el proyecto aun. Todos los entregables deben estar verificados y con su evidencia cargada para habilitar la solicitud de cierre.</p>
           </div>
         </div>
       )}
@@ -642,7 +642,7 @@ const ProjectClosurePage = () => {
         <div className="info-closed-banner">
           <CheckCircle2 className="closed-icon" size={22} />
           <div className="banner-content">
-            <p><strong>Proyecto cerrado.</strong> Este proyecto ha finalizado su ciclo de vida y cuenta con acta de cierre aprobada.</p>
+            <p><strong>Proyecto cerrado.</strong> Este proyecto ha finalizado su ciclo de vida y cuenta con acta de cierre verificada.</p>
             <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa} style={{ marginTop: '12px' }}>
               <Download size={16} style={{ marginRight: '8px' }} />
               {downloadingActa ? 'Descargando acta...' : 'Descargar acta de cierre'}
@@ -791,7 +791,7 @@ const ProjectClosurePage = () => {
                 {cierreObservaciones && (
                   <div className="rejection-observaciones">"{cierreObservaciones}"</div>
                 )}
-                <p className="rejection-hint">Complete o corrija la informacion del acta de cierre y vuelva a enviar la solicitud.</p>
+                <p className="rejection-hint">Complete o corrija la información del acta de cierre y vuelva a enviar la solicitud.</p>
               </div>
             </div>
           )}
@@ -818,7 +818,7 @@ const ProjectClosurePage = () => {
             <div className="form-actions">
               <div className="closure-ready-note">
                 <CheckCircle2 size={18} />
-                <span>{isRechazado ? 'Puede volver a enviar la solicitud de cierre despues de corregir las observaciones.' : 'El proyecto esta listo para solicitar cierre.'}</span>
+                <span>{isRechazado ? 'Puede volver a enviar la solicitud de cierre después de corregir las observaciones.' : 'El proyecto está listo para solicitar cierre.'}</span>
               </div>
               <button type="button" className="btn-primary-closure" onClick={handleSolicitarCierre} disabled={requestingClosure}>
                 <Send size={16} style={{ marginRight: '8px' }} />
@@ -831,7 +831,7 @@ const ProjectClosurePage = () => {
             <div className="form-actions">
               <div className="closure-pending-note">
                 <Clock size={18} />
-                <span>El Director de Proyecto aun no ha realizado la solicitud de cierre para este proyecto.</span>
+                <span>El Director de Proyecto aún no ha realizado la solicitud de cierre para este proyecto.</span>
               </div>
             </div>
           )}
@@ -845,7 +845,7 @@ const ProjectClosurePage = () => {
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button type="button" className="btn-approve-closure" onClick={handleAprobarCierre} disabled={approvingClosure}>
                   <CheckCircle2 size={16} style={{ marginRight: '4px' }} />
-                  {approvingClosure ? 'Aprobando...' : 'Aprobar y Cerrar Proyecto'}
+                   {approvingClosure ? 'Verificando...' : 'Verificar y Cerrar Proyecto'}
                 </button>
                 <button type="button" className="btn-reject-closure" onClick={() => setShowRejectModal(true)} disabled={rejectingClosure}>
                   <XCircle size={16} style={{ marginRight: '4px' }} />
@@ -859,7 +859,7 @@ const ProjectClosurePage = () => {
             <div className="form-actions">
               <div className="closure-ready-note">
                 <CheckCircle2 size={18} />
-                <span>La solicitud de cierre fue aprobada. Puede proceder a cerrar el proyecto formalmente.</span>
+                <span>La solicitud de cierre fue verificada. Puede proceder a cerrar el proyecto formalmente.</span>
               </div>
               <button type="submit" className="btn-primary-closure" disabled={submitting}>
                 {submitting ? 'Procesando cierre...' : 'Cerrar Proyecto'}
@@ -898,7 +898,7 @@ const ProjectClosurePage = () => {
               </button>
             </div>
             <h3>Rechazar solicitud de cierre</h3>
-            <p>Indique el motivo por el cual rechaza la solicitud de cierre. Esta informacion sera notificada al <strong>Director de Proyecto</strong> para que realice las correcciones necesarias.</p>
+            <p>Indique el motivo por el cual rechaza la solicitud de cierre. Esta información será notificada al <strong>Director de Proyecto</strong> para que realice las correcciones necesarias.</p>
             <SpellCheckerTextarea
               className="reject-observaciones-textarea"
               placeholder="Describa las razones del rechazo y las correcciones requeridas..."
@@ -939,7 +939,7 @@ const ProjectClosurePage = () => {
               </button>
             </div>
             <h3>Solicitar cierre de proyecto</h3>
-            <p>Esta seguro que desea solicitar el cierre del proyecto? El <strong>Gestor del Proyecto</strong> sera notificado para revisar y aprobar la solicitud.</p>
+            <p>¿Está seguro de que desea solicitar el cierre del proyecto? El <strong>Gestor del Proyecto</strong> será notificado para revisar y verificar la solicitud.</p>
             <div className="closure-confirm-actions">
               <button className="closure-confirm-btn-cancel" onClick={() => setShowSolicitConfirm(false)} disabled={requestingClosure}>
                 Cancelar
@@ -964,15 +964,15 @@ const ProjectClosurePage = () => {
                 <X size={20} />
               </button>
             </div>
-            <h3>Aprobar cierre de proyecto</h3>
-            <p>Esta seguro que desea aprobar el cierre del proyecto? Se generara el acta de cierre formal y el proyecto pasara a estado <strong>CERRADO</strong>.</p>
+            <h3>Verificar cierre de proyecto</h3>
+            <p>¿Está seguro de que desea verificar el cierre del proyecto? Se generará el acta de cierre formal y el proyecto pasará a estado <strong>CERRADO</strong>.</p>
             <div className="closure-confirm-actions">
               <button className="closure-confirm-btn-cancel" onClick={() => setShowApproveConfirm(false)} disabled={approvingClosure}>
                 Cancelar
               </button>
               <button className="btn-approve-closure" onClick={confirmAprobarCierre} disabled={approvingClosure} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={16} />
-                {approvingClosure ? 'Aprobando...' : 'Aprobar y cerrar'}
+                {approvingClosure ? 'Verificando...' : 'Verificar y cerrar'}
               </button>
             </div>
           </div>

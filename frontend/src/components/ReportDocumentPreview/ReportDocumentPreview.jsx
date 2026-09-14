@@ -12,17 +12,24 @@ const toPercent = (v) => {
 };
 
 const fmtDate = (d) => {
-  if (!d) return 'â€”';
+  if (!d) return '—';
   try {
     return new Date(d).toLocaleDateString('es-CO', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
+      day: 'numeric', month: 'long', year: 'numeric',
     });
   } catch { return d; }
 };
 
 const todayStr = () =>
   new Date().toLocaleDateString('es-CO', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+  } catch { return d; }
+};
+
+const todayStr = () =>
+  new Date().toLocaleDateString('es-CO', {
+    day: 'numeric', month: 'long', year: 'numeric',
   });
 
 const getFuragAnswers = (project) => project?.furag?.respuestas || project?.furag || {};
@@ -484,7 +491,7 @@ const ReportDocumentPreview = ({ reportId, reportData, selectedProject, projects
         </div>
         <div className="rdoc__sig">
           <div className="rdoc__sig-line" />
-          <p className="rdoc__sig-role">Aprobado por</p>
+          <p className="rdoc__sig-role">Verificado por</p>
         </div>
       </div>
 

@@ -35,12 +35,13 @@ const formatDateTimeShort = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return new Intl.DateTimeFormat('es-CO', {
-    day: '2-digit',
-    month: '2-digit',
+    day: 'numeric',
+    month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    timeZone: 'America/Bogota',
   }).format(date);
 };
 
@@ -212,7 +213,7 @@ const generateResumenEjecutivo = (log, isError, errorDetails) => {
     const errMsg = errorDetails?.message?.split('\n')[0] || 'Sin mensaje';
     return {
       titulo: `Fallo detectado: ${accion} sobre ${entidad}`,
-      descripcion: `El usuario ${user} ejecuto una operacion de tipo ${accion} (${metodo}) sobre el recurso ${entidad}. La operacion fallo con codigo HTTP ${code} (${codeLabel}).`,
+      descripcion: `El usuario ${user} ejecutó una operación de tipo ${accion} (${metodo}) sobre el recurso ${entidad}. La operación falló con código HTTP ${code} (${codeLabel}).`,
       severidad: 'alta',
       exceptionResumen: `${excClass}: ${errMsg.substring(0, 200)}`,
     };
@@ -221,15 +222,15 @@ const generateResumenEjecutivo = (log, isError, errorDetails) => {
   if (log.accion === 'CREACION') {
     return {
       titulo: `Registro creado exitosamente: ${entidad}`,
-      descripcion: `El usuario ${user} creo un nuevo registro de tipo ${entidad} mediante una peticion ${metodo}. La operacion fue procesada correctamente con codigo HTTP ${code} (${codeLabel}).`,
+      descripcion: `El usuario ${user} creó un nuevo registro de tipo ${entidad} mediante una petición ${metodo}. La operación fue procesada correctamente con código HTTP ${code} (${codeLabel}).`,
       severidad: 'info',
     };
   }
 
   if (log.accion === 'ACTUALIZACION') {
     return {
-      titulo: `Actualizacion exitosa: ${entidad}`,
-      descripcion: `El usuario ${user} actualizo un registro de tipo ${entidad} mediante una peticion ${metodo}. Los cambios fueron persistidos correctamente con codigo HTTP ${code} (${codeLabel}).`,
+      titulo: `Actualización exitosa: ${entidad}`,
+      descripcion: `El usuario ${user} actualizó un registro de tipo ${entidad} mediante una petición ${metodo}. Los cambios fueron persistidos correctamente con código HTTP ${code} (${codeLabel}).`,
       severidad: 'info',
     };
   }
@@ -237,14 +238,14 @@ const generateResumenEjecutivo = (log, isError, errorDetails) => {
   if (log.accion === 'ELIMINACION') {
     return {
       titulo: `Registro eliminado: ${entidad}`,
-      descripcion: `El usuario ${user} elimino un registro de tipo ${entidad} mediante una peticion ${metodo}. La operacion se ejecuto con codigo HTTP ${code} (${codeLabel}).`,
+      descripcion: `El usuario ${user} eliminó un registro de tipo ${entidad} mediante una petición ${metodo}. La operación se ejecutó con código HTTP ${code} (${codeLabel}).`,
       severidad: 'media',
     };
   }
 
   return {
     titulo: `${accion} ejecutada sobre ${entidad}`,
-    descripcion: `El usuario ${user} ejecuto una operacion de tipo ${accion} (${metodo}) sobre ${entidad}. Resultado: HTTP ${code} (${codeLabel}).`,
+    descripcion: `El usuario ${user} ejecutó una operación de tipo ${accion} (${metodo}) sobre ${entidad}. Resultado: HTTP ${code} (${codeLabel}).`,
     severidad: 'baja',
   };
 };
@@ -289,7 +290,7 @@ const generateRecomendaciones = (log, isError, errorDetails) => {
     if (log.codigoEstado === 500) {
       recs.push({
         titulo: 'Revisar logs del servidor',
-        descripcion: `Examinar los logs completos de la aplicacion en el servidor para la traza completa del error. Buscar la excepcion raiz en los logs de Spring Boot.`,
+        descripcion: `Examinar los logs completos de la aplicación en el servidor para la traza completa del error. Buscar la excepción raíz en los logs de Spring Boot.`,
         prioridad: 'media',
       });
     }
@@ -297,37 +298,37 @@ const generateRecomendaciones = (log, isError, errorDetails) => {
     if (errorDetails?.sqlQuery) {
       recs.push({
         titulo: 'Analizar consulta SQL',
-        descripcion: `La consulta SQL que fallo: "${errorDetails.sqlQuery.substring(0, 150)}...". Revisar la consulta en un cliente SQL para diagnosticar el problema exacto.`,
+        descripcion: `La consulta SQL que falló: "${errorDetails.sqlQuery.substring(0, 150)}...". Revisar la consulta en un cliente SQL para diagnosticar el problema exacto.`,
         prioridad: 'media',
       });
     }
 
     if (log.codigoEstado === 401 || log.codigoEstado === 403) {
       recs.push({
-        titulo: 'Verificar permisos y autenticacion',
-        descripcion: 'El usuario no tiene los permisos necesarios para ejecutar esta operacion. Verificar la configuracion de roles y permisos en el sistema de seguridad.',
+        titulo: 'Verificar permisos y autenticación',
+        descripcion: 'El usuario no tiene los permisos necesarios para ejecutar esta operación. Verificar la configuración de roles y permisos en el sistema de seguridad.',
         prioridad: 'media',
       });
     }
   } else {
     if (log.accion === 'ACTUALIZACION') {
       recs.push({
-        titulo: 'Auditar cambios periodicamente',
-        descripcion: 'Realizar revision periodica de las actualizaciones realizadas para garantizar la consistencia de los datos y detectar cambios no autorizados.',
+        titulo: 'Auditar cambios periódicamente',
+        descripcion: 'Realizar revisión periódica de las actualizaciones realizadas para garantizar la consistencia de los datos y detectar cambios no autorizados.',
         prioridad: 'baja',
       });
     }
     if (log.accion === 'ELIMINACION') {
       recs.push({
-        titulo: 'Verificar eliminacion intencional',
-        descripcion: 'Confirmar que la eliminacion del registro fue intencional y que no afecta la integridad referencial de otros registros en el sistema.',
+        titulo: 'Verificar eliminación intencional',
+        descripcion: 'Confirmar que la eliminación del registro fue intencional y que no afecta la integridad referencial de otros registros en el sistema.',
         prioridad: 'media',
       });
     }
     if (log.duracionMs && log.duracionMs > 5000) {
       recs.push({
         titulo: 'Optimizar rendimiento',
-        descripcion: `La operacion tardo ${log.duracionMs}ms, lo cual excede el umbral recomendado de 5 segundos. Considerar optimizar la consulta SQL o implementar cache.`,
+        descripcion: `La operación tardó ${log.duracionMs}ms, lo cual excede el umbral recomendado de 5 segundos. Considerar optimizar la consulta SQL o implementar caché.`,
         prioridad: 'media',
       });
     }
@@ -387,7 +388,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
         className="audit-modal audit-modal--report"
         role="dialog"
         aria-modal="true"
-        aria-label="Reporte de Auditoria"
+        aria-label="Reporte de Auditoría"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="audit-modal-header audit-report-header">
@@ -396,7 +397,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
               <FileText size={20} />
             </div>
             <div>
-              <h2 className="audit-modal-title">Reporte de Auditoria</h2>
+              <h2 className="audit-modal-title">Reporte de Auditoría</h2>
               <p className="audit-modal-subtitle">
                 ID: {log.id?.substring(0, 8)}... | {formatDateTimeShort(log.fechaCreacion)}
               </p>
@@ -419,7 +420,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
               </div>
               <div>
                 <h3 className="audit-report-section-title">1. Resumen Ejecutivo</h3>
-                <p className="audit-report-section-subtitle">Que sucedio en esta transaccion</p>
+                <p className="audit-report-section-subtitle">Qué sucedió en esta transacción</p>
               </div>
             </div>
 
@@ -501,11 +502,11 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                 <Layers size={16} />
               </div>
               <div>
-                <h3 className="audit-report-section-title">2. Analisis de Cambios / Detalle Tecnico</h3>
+                <h3 className="audit-report-section-title">2. Análisis de Cambios / Detalle Técnico</h3>
                 <p className="audit-report-section-subtitle">
                   {isError
-                    ? 'Detalles tecnicos de la excepcion y operacion afectada'
-                    : 'Comparativa de campos alterados en la transaccion'}
+                    ? 'Detalles técnicos de la excepción y operación afectada'
+                    : 'Comparativa de campos alterados en la transacción'}
                 </p>
               </div>
             </div>
@@ -579,7 +580,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
             {isError && !errorDetails && (
               <div className="audit-report-no-data">
                 <Info size={18} />
-                <span>No se capturaron detalles tecnicos de la excepcion.</span>
+                <span>No se capturaron detalles técnicos de la excepción.</span>
               </div>
             )}
 
@@ -611,7 +612,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
 
             {!isError && !fieldDiff && log.requestBody && (
               <div className="audit-report-diff-section">
-                <h4 className="audit-report-subtitle">Datos de la Transaccion</h4>
+                <h4 className="audit-report-subtitle">Datos de la Transacción</h4>
                 <div className="audit-report-json-columns">
                   <div className="audit-report-json-col">
                     <div className="audit-report-json-header">
@@ -670,11 +671,11 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                 <AlertTriangle size={16} />
               </div>
               <div>
-                <h3 className="audit-report-section-title">3. Diagnostico de Causa Raiz</h3>
+                <h3 className="audit-report-section-title">3. Diagnóstico de Causa Raíz</h3>
                 <p className="audit-report-section-subtitle">
                   {isError
-                    ? 'Analisis detallado de por que ocurrio el fallo'
-                    : 'Motivo del cambio de estado en la transaccion'}
+                    ? 'Análisis detallado de por qué ocurrió el fallo'
+                    : 'Motivo del cambio de estado en la transacción'}
                 </p>
               </div>
             </div>
@@ -687,8 +688,8 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                     <p>{errorDetails.rootCause}</p>
                   ) : (
                     <p>
-                      La excepcion <strong>{errorDetails.exceptionClass || 'desconocida'}</strong> fue
-                      disparada durante la ejecucion de la operacion. El mensaje del error indica:
+                      La excepción <strong>{errorDetails.exceptionClass || 'desconocida'}</strong> fue
+                      disparada durante la ejecución de la operación. El mensaje del error indica:
                       &quot;{errorDetails.message?.split('\n')[0]}&quot;.
                     </p>
                   )}
@@ -696,9 +697,9 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
 
                 {errorDetails.sqlQuery && (
                   <div className="audit-report-diagnosis-card">
-                    <h4>Operacion SQL Afectada</h4>
+                    <h4>Operación SQL Afectada</h4>
                     <p>
-                      La consulta que fallo opera sobre la tabla asociada a la entidad
+                      La consulta que falló opera sobre la tabla asociada a la entidad
                       <strong> {entidadLabel}</strong>. La consulta completa es:
                     </p>
                     <pre className="audit-report-code-block audit-report-code-block--mini">
@@ -709,25 +710,25 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
 
                 {errorDetails.sqlstate && (
                   <div className="audit-report-diagnosis-card">
-                    <h4>Clasificacion del Error SQL</h4>
+                    <h4>Clasificación del Error SQL</h4>
                     <p>
                       <strong>SQLSTATE {errorDetails.sqlstate}</strong> -{' '}
                       {errorDetails.sqlstate?.startsWith('23')
-                        ? 'Viola restriccion de integridad de datos (unique, foreign key, not null, check).'
+                        ? 'Viola restricción de integridad de datos (unique, foreign key, not null, check).'
                         : errorDetails.sqlstate?.startsWith('42')
                           ? 'Error de sintaxis o nombre de objeto inexistente en la base de datos.'
                           : errorDetails.sqlstate?.startsWith('08')
-                            ? 'Error de conexion con la base de datos.'
+                            ? 'Error de conexión con la base de datos.'
                             : errorDetails.sqlstate?.startsWith('57')
-                              ? 'Interrupcion de la operacion por timeout o cancelacion.'
-                              : 'Consulte la documentacion de PostgreSQL para esta clasificacion SQLSTATE.'}
+                              ? 'Interrupción de la operación por timeout o cancelación.'
+                              : 'Consulte la documentación de PostgreSQL para esta clasificación SQLSTATE.'}
                     </p>
                   </div>
                 )}
 
                 {errorDetails?.stackTrace?.length > 0 && (
                   <div className="audit-report-diagnosis-card">
-                    <h4>Traza de Ejecucion (Stack Trace)</h4>
+                    <h4>Traza de Ejecución (Stack Trace)</h4>
                     <button
                       type="button"
                       className="audit-report-toggle-btn"
@@ -756,8 +757,8 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                 <div className="audit-report-diagnosis-card audit-report-diagnosis-card--cause">
                   <h4>Causa Identificada</h4>
                   <p>
-                    La operacion fallo con codigo HTTP {code} ({statusLabel(code)}).
-                    No se captaron detalles tecnicos adicionales de la excepcion.
+                    La operación falló con código HTTP {code} ({statusLabel(code)}).
+                    No se captaron detalles técnicos adicionales de la excepción.
                   </p>
                 </div>
               </div>
@@ -766,43 +767,43 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
             {!isError && (
               <div className="audit-report-diagnosis">
                 <div className="audit-report-diagnosis-card audit-report-diagnosis-card--success">
-                  <h4>Resultado de la Operacion</h4>
+                  <h4>Resultado de la Operación</h4>
                   {log.accion === 'CREACION' && (
                     <p>
-                      La operacion de creacion se ejecuto correctamente. El servidor接受 los datos
-                      del payload enviado y genero un nuevo registro en la base de datos con
-                      codigo de respuesta HTTP {code} ({statusLabel(code)}).
+                      La operación de creación se ejecutó correctamente. El servidor aceptó los datos
+                      del payload enviado y generó un nuevo registro en la base de datos con
+                      código de respuesta HTTP {code} ({statusLabel(code)}).
                     </p>
                   )}
                   {log.accion === 'ACTUALIZACION' && (
                     <p>
-                      La operacion de actualizacion se ejecuto correctamente. Los campos
+                      La operación de actualización se ejecutó correctamente. Los campos
                       modificados en el payload fueron persistidos en la base de datos con
-                      codigo de respuesta HTTP {code} ({statusLabel(code)}).
+                      código de respuesta HTTP {code} ({statusLabel(code)}).
                       {fieldDiff && ` Se detectaron ${fieldDiff.length} campo(s) modificado(s).`}
                     </p>
                   )}
                   {log.accion === 'ELIMINACION' && (
                     <p>
-                      La operacion de eliminacion se ejecuto correctamente. El registro fue
-                      eliminado (o marcado como eliminado) con codigo HTTP {code} ({statusLabel(code)}).
+                      La operación de eliminación se ejecutó correctamente. El registro fue
+                      eliminado (o marcado como eliminado) con código HTTP {code} ({statusLabel(code)}).
                     </p>
                   )}
                   {log.accion === 'CONSULTA' && (
                     <p>
-                      La consulta se ejecuto correctamente. El servidor devolvio los datos
-                      solicitados con codigo HTTP {code} ({statusLabel(code)}).
+                      La consulta se ejecutó correctamente. El servidor devolvió los datos
+                      solicitados con código HTTP {code} ({statusLabel(code)}).
                     </p>
                   )}
                   {log.accion === 'LOGIN' && (
                     <p>
-                      La autenticacion del usuario fue exitosa. Se establecio la sesion
-                      correctamente con codigo HTTP {code} ({statusLabel(code)}).
+                      La autenticación del usuario fue exitosa. Se estableció la sesión
+                      correctamente con código HTTP {code} ({statusLabel(code)}).
                     </p>
                   )}
                   {['CREACION', 'ACTUALIZACION', 'ELIMINACION', 'CONSULTA', 'LOGIN'].indexOf(log.accion) === -1 && (
                     <p>
-                      La operacion de tipo {accion} se ejecuto con resultado exitoso
+                      La operación de tipo {accion} se ejecutó con resultado exitoso
                       (HTTP {code} - {statusLabel(code)}).
                     </p>
                   )}
