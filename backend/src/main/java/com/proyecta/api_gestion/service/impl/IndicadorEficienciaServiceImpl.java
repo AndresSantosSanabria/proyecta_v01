@@ -3,8 +3,6 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.avance.IndicadoresEficienciaDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.enums.EstadoEntregable;
-import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IIndicadorEficienciaService;
@@ -43,25 +41,23 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
                 .filter(Objects::nonNull)
                 .toList();
 
-        List<Entregable> iniciados = todosEntregables.stream()
-                .filter(e -> isEntregableIniciado(e, fechaCorte))
-                .toList();
-
-        long programadosAlCorte = iniciados.stream()
+        long programadosAlCorte = todosEntregables.stream()
                 .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
                 .count();
 
-        long entregadosAlCorte = iniciados.stream()
-                .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
-                .filter(e -> e.getFechaEntregaReal() != null)
-                .filter(e -> !EstadoEntregable.RECHAZADO.equals(e.getEstado()))
+        long entregadosAlCorte = todosEntregables.stream()
+                .filter(e -> e.getFechaEntregaEfectiva() != null && !e.getFechaEntregaEfectiva().isAfter(fechaCorte))
                 .count();
 
-        long entregadosATiempo = iniciados.stream()
-                .filter(e -> e.getFechaLimite() != null && !e.getFechaLimite().isAfter(fechaCorte))
-                .filter(e -> e.getFechaEntregaReal() != null)
-                .filter(e -> !EstadoEntregable.RECHAZADO.equals(e.getEstado()))
-                .filter(e -> !e.getFechaEntregaReal().isAfter(e.getFechaLimite()))
+        long entregadosATiempo = todosEntregables.stream()
+                .filter(e -> e.getFechaEntregaEfectiva() != null
+                        && !e.getFechaEntregaEfectiva().isAfter(fechaCorte)
+                        && e.getFechaLimite() != null
+                        && !e.getFechaEntregaEfectiva().isAfter(e.getFechaLimite()))
+                .count();
+
+        long totalEntregables = todosEntregables.stream()
+                .filter(e -> e.getFechaLimite() != null)
                 .count();
 
         BigDecimal eficacia = clampRatio(calcularRatio(entregadosAlCorte, programadosAlCorte));
@@ -76,7 +72,7 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
                 entregadosATiempo,
                 eficacia,
                 eficiencia,
-                iniciados.size()
+                totalEntregables
         );
     }
 
@@ -87,10 +83,6 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
         return BigDecimal.valueOf(numerador)
                 .multiply(HUNDRED)
                 .divide(BigDecimal.valueOf(denominador), 4, RoundingMode.HALF_UP);
-    }
-
-    private static boolean isEntregableIniciado(Entregable e, LocalDate corte) {
-        return e.getFechaInicio() != null && !e.getFechaInicio().isAfter(corte);
     }
 
     private static BigDecimal clampRatio(BigDecimal value) {

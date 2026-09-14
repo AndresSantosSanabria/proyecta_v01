@@ -6,6 +6,7 @@ import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +20,10 @@ import java.util.List;
 
 @Repository
 public interface ProyectoRepository extends JpaRepository<Proyecto, String>, JpaSpecificationExecutor<Proyecto> {
+
+    @Override
+    @EntityGraph(attributePaths = {"objetivosEspecificos", "equipoTrabajo", "stakeholders", "patrocinador"})
+    Optional<Proyecto> findById(String id);
 
     Page<Proyecto> findAll(Specification<Proyecto> spec, Pageable pageable);
 

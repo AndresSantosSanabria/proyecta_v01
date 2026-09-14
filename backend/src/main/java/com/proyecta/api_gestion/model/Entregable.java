@@ -45,6 +45,9 @@ public class Entregable {
     @Column(name = "fecha_entrega_real")
     private LocalDate fechaEntregaReal;
 
+    @Column(name = "retroactivo", nullable = false)
+    private Boolean retroactivo = false;
+
     @Column(name = "observacion_revision", length = 1000)
     private String observacionRevision;
 
@@ -183,6 +186,17 @@ public class Entregable {
 
     public LocalDate getFechaEntregaReal() { return fechaEntregaReal; }
     public void setFechaEntregaReal(LocalDate fechaEntregaReal) { this.fechaEntregaReal = fechaEntregaReal; }
+
+    public Boolean getRetroactivo() { return retroactivo; }
+    public void setRetroactivo(Boolean retroactivo) { this.retroactivo = retroactivo; }
+
+    /**
+     * Los entregables registrados durante la completitud inicial con una fecha limite historica
+     * se reportan como entregados el mismo dia de su fecha limite.
+     */
+    public LocalDate getFechaEntregaEfectiva() {
+        return Boolean.TRUE.equals(retroactivo) && fechaLimite != null ? fechaLimite : fechaEntregaReal;
+    }
 
     public String getObservacionRevision() { return observacionRevision; }
     public void setObservacionRevision(String observacionRevision) { this.observacionRevision = observacionRevision; }

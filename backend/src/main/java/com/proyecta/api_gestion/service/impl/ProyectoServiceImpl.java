@@ -40,6 +40,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
+import org.hibernate.Hibernate;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -168,6 +169,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+        initializeLazyCollections(proyecto);
         return mapToResponseDto(proyecto);
     }
 
@@ -403,7 +405,10 @@ public class ProyectoServiceImpl implements ProyectoService {
                         "state", guardado.getEstadoCodigo(),
                         "recipients", List.of(guardado.getCorreoDirector(), guardado.getRegistradoInicialPor())
                 )));
-        return mapToResponseDto(guardado);
+        return proyectoRepository.findById(guardado.getId()).map(p -> {
+            initializeLazyCollections(p);
+            return mapToResponseDto(p);
+        }).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado tras completar información: " + guardado.getId()));
     }
 
     @Override
@@ -452,7 +457,10 @@ public class ProyectoServiceImpl implements ProyectoService {
                 "projectName", actualizado.getNombre(),
                 "state", actualizado.getEstadoCodigo()
         ));
-        return mapToResponseDto(actualizado);
+        return proyectoRepository.findById(actualizado.getId()).map(p -> {
+            initializeLazyCollections(p);
+            return mapToResponseDto(p);
+        }).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado tras actualización: " + actualizado.getId()));
     }
 
     @Override
@@ -693,11 +701,12 @@ public class ProyectoServiceImpl implements ProyectoService {
             riesgo.setDescripcion(dto.descripcion().trim());
             riesgo.setProbabilidad(dto.probabilidad());
             riesgo.setImpacto(dto.impacto());
+            riesgo.setTipoRiesgo(dto.tipoRiesgo() != null ? dto.tipoRiesgo() : TipoRiesgo.GENERAL);
             riesgo.setNivel(parseNivelRiesgo(calcularNivelRiesgo(dto.probabilidad(), dto.impacto())));
             riesgo.setTratamiento(dto.tratamiento() != null ? dto.tratamiento().trim() : null);
             riesgo.setEntidadResponsable(dto.entidadResponsable() != null ? dto.entidadResponsable().trim() : null);
-            riesgo.setAccionesMitigacion(dto.accionesMitigacion() != null ? dto.accionesMitigacion().trim() : null);
-            riesgo.setFechaAccion(dto.fechaAccion());
+            riesgo.setAccionesMitigacion(null);
+            riesgo.setFechaAccion(null);
             riesgo.setEstado(EstadoRiesgo.PENDIENTE);
 
             Riesgo saved = riesgoRepository.save(riesgo);
@@ -1031,6 +1040,8 @@ public class ProyectoServiceImpl implements ProyectoService {
         ent.setPonderacion(BigDecimal.valueOf(eDto.ponderacion()));
         ent.setFechaInicio(eDto.fechaInicio());
         ent.setFechaLimite(eDto.fechaLimite());
+        ent.setRetroactivo(eDto.fechaLimite() != null && eDto.fechaLimite().isBefore(LocalDate.now()));
+        ent.setArchivoPdf(eDto.archivoPdf());
         ent.setHito(hito);
         return ent;
     }
@@ -1291,6 +1302,20 @@ public class ProyectoServiceImpl implements ProyectoService {
         return proyecto.getEstrategiaPeti() != null ? proyecto.getEstrategiaPeti().name() : null;
     }
 
+    private void initializeLazyCollections(Proyecto p) {
+        Hibernate.initialize(p.getObjetivosEspecificos());
+        Hibernate.initialize(p.getEquipoTrabajo());
+        Hibernate.initialize(p.getStakeholders());
+        Hibernate.initialize(p.getPatrocinador());
+        Hibernate.initialize(p.getFases());
+        for (Fase f : p.getFases()) {
+            Hibernate.initialize(f.getHitos());
+            for (Hito h : f.getHitos()) {
+                Hibernate.initialize(h.getEntregables());
+            }
+        }
+    }
+
     private ProyectoResponseDTO mapToResponseDto(Proyecto p) {
         return new ProyectoResponseDTO(
                 p.getId(),
@@ -1298,6 +1323,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getNombre(),
                 p.getDependencia(),
                 resolveDirectorAsignado(p),
+                resolveDirectorUsuarioId(p),
                 resolveDirectorCorreoAsignado(p),
                 p.getObjetivoGeneral(),
                 p.getObjetivosEspecificos().stream().map(ObjetivoEspecifico::getDescripcion).collect(Collectors.toList()),
@@ -1379,6 +1405,14 @@ public class ProyectoServiceImpl implements ProyectoService {
                 assignment.getUsuario().getNombre(),
                 assignment.getUsuario().getUsername()
         );
+    }
+
+    private String resolveDirectorUsuarioId(Proyecto proyecto) {
+        SeguridadUsuarioProyecto assignment = findDirectorAsignado(proyecto);
+        if (assignment == null || assignment.getUsuario() == null) {
+            return null;
+        }
+        return String.valueOf(assignment.getUsuario().getId());
     }
 
     private void notificarCambioProyecto(Proyecto proyecto, String actorUsername, NotificationEventType eventType, Map<String, Object> extraAttributes) {
@@ -1498,7 +1532,10 @@ public class ProyectoServiceImpl implements ProyectoService {
             proyecto.setCompletitudFasesCompletadas(objectMapper.writeValueAsString(fasesCompletadas));
 
             proyectoRepository.save(proyecto);
-            return mapToResponseDto(proyecto);
+            return proyectoRepository.findById(proyecto.getId()).map(p -> {
+                initializeLazyCollections(p);
+                return mapToResponseDto(p);
+            }).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado tras completar fase: " + proyecto.getId()));
 
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new BadRequestException("Error al procesar las fases: " + e.getMessage());

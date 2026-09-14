@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.dto.notification;
 
 public record NotificationTemplateDTO(
         String eventCode,
+        String eventName,
         Boolean enabled,
         Boolean htmlEnabled,
         String severity,

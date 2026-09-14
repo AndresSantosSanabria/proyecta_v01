@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.dto.proyecto;
 
 import com.proyecta.api_gestion.model.enums.Impacto;
 import com.proyecta.api_gestion.model.enums.Probabilidad;
+import com.proyecta.api_gestion.model.enums.TipoRiesgo;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -16,6 +17,9 @@ public record RiesgoCompletitudDTO(
 
         @NotNull(message = "El impacto es obligatorio")
         Impacto impacto,
+
+        @NotNull(message = "El tipo de riesgo es obligatorio")
+        TipoRiesgo tipoRiesgo,
 
         String tratamiento,
 

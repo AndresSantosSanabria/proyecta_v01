@@ -537,11 +537,19 @@ public class RiesgoServiceImpl implements IRiesgoService {
         riesgo.setDescripcion(requestDto.descripcion());
         riesgo.setProbabilidad(requestDto.probabilidad());
         riesgo.setImpacto(requestDto.impacto());
+        if (requestDto.tipoRiesgo() != null) {
+            riesgo.setTipoRiesgo(requestDto.tipoRiesgo());
+        }
         riesgo.setNivel(parseNivelRiesgo(calcularNivelDesdeMatriz(requestDto.probabilidad(), requestDto.impacto())));
         riesgo.setTratamiento(trimToNull(requestDto.tratamiento()));
         riesgo.setEntidadResponsable(trimToNull(requestDto.entidadResponsable()));
-        riesgo.setAccionesMitigacion(trimToNull(requestDto.accionesMitigacion()));
-        riesgo.setFechaAccion(requestDto.fechaAccion());
+        if (requestDto.estado() == EstadoRiesgo.TRATADO) {
+            riesgo.setAccionesMitigacion(trimToNull(requestDto.accionesMitigacion()));
+            riesgo.setFechaAccion(requestDto.fechaAccion());
+        } else {
+            riesgo.setAccionesMitigacion(null);
+            riesgo.setFechaAccion(null);
+        }
         if (requestDto.estado() != null) {
             riesgo.setEstado(requestDto.estado());
         } else if (riesgo.getEstado() == null) {
@@ -558,6 +566,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
                 riesgo.getImpacto(),
                 calcularCalificacionInherente(riesgo.getProbabilidad(), riesgo.getImpacto()),
                 riesgo.getNivel(),
+                riesgo.getTipoRiesgo(),
                 riesgo.getTratamiento(),
                 riesgo.getEntidadResponsable(),
                 riesgo.getAccionesMitigacion(),

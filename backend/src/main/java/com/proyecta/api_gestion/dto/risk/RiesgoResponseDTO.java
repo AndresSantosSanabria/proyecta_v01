@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.model.enums.Impacto;
 import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.enums.Probabilidad;
+import com.proyecta.api_gestion.model.enums.TipoRiesgo;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ public record RiesgoResponseDTO(
         Impacto impacto,
         Integer calificacionInherente,
         NivelRiesgo nivel,
+        TipoRiesgo tipoRiesgo,
         String tratamiento,
         String entidadResponsable,
         String accionesMitigacion,

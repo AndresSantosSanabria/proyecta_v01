@@ -10,6 +10,7 @@ public record ProyectoResponseDTO(
     String nombre,
     String dependencia,
     String director,
+    String directorUsuarioId,
     String correoDirector,
     String objetivoGeneral,
     List<String> objetivosEspecificos,

@@ -1,5 +1,6 @@
 package com.proyecta.api_gestion.service.notification;
 
+import com.proyecta.api_gestion.config.FrontendUrlProperties;
 import com.proyecta.api_gestion.model.notification.NotificationAudit;
 import com.proyecta.api_gestion.model.notification.NotificationTemplate;
 import com.proyecta.api_gestion.model.security.SeguridadUsuario;
@@ -52,6 +53,9 @@ public class NotificationOrchestratorService {
         tmp.put("ENTREGABLE_DEADLINE_WARNING", "/progress");
         tmp.put("ENTREGABLE_OVERDUE_REMINDER", "/progress");
         tmp.put("PROJECT_DIRECTOR_ALERT", "/progress");
+        tmp.put("SECURITY_ROLE_UPDATED", "/admin/configuracion");
+        tmp.put("SECURITY_USER_UPDATED", "/admin/configuracion");
+        tmp.put("PROJECT_ASSIGNMENT_CREATED", "/progress");
         EVENT_ROUTE_MAP = Map.copyOf(tmp);
     }
 
@@ -65,6 +69,7 @@ public class NotificationOrchestratorService {
     private final NotificationAuditRepository auditRepository;
     private final NotificationMailDispatchTracker mailDispatchTracker;
     private final NotificationActorResolver actorResolver;
+    private final FrontendUrlProperties frontendUrlProperties;
 
     public NotificationOrchestratorService(NotificationRecipientResolverPort recipientResolver,
                                            NotificationTemplateService templateService,
@@ -75,7 +80,8 @@ public class NotificationOrchestratorService {
                                            SeguridadUsuarioRepository usuarioRepository,
                                            NotificationAuditRepository auditRepository,
                                            NotificationMailDispatchTracker mailDispatchTracker,
-                                           NotificationActorResolver actorResolver) {
+                                           NotificationActorResolver actorResolver,
+                                           FrontendUrlProperties frontendUrlProperties) {
         this.recipientResolver = recipientResolver;
         this.templateService = templateService;
         this.preferenceService = preferenceService;
@@ -86,6 +92,7 @@ public class NotificationOrchestratorService {
         this.auditRepository = auditRepository;
         this.mailDispatchTracker = mailDispatchTracker;
         this.actorResolver = actorResolver;
+        this.frontendUrlProperties = frontendUrlProperties;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -102,7 +109,19 @@ public class NotificationOrchestratorService {
             Map<String, Object> model = context.attributes() == null ? new HashMap<>() : new HashMap<>(context.attributes());
             model.putIfAbsent("eventCode", context.eventType().name());
             model.putIfAbsent("projectId", context.projectId());
-            model.putIfAbsent("actorUsername", context.actorUsername());
+
+            String resolvedActorName = resolveActorDisplayName(context.actorUsername());
+            model.putIfAbsent("actorUsername", resolvedActorName);
+
+            resolveActorNameInModel(model, "requester");
+            resolveActorNameInModel(model, "approver");
+            resolveActorNameInModel(model, "rejector");
+            resolveActorNameInModel(model, "sentBy");
+            resolveActorNameInModel(model, "assignedUsername");
+
+            String targetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
+            String absoluteTargetUrl = buildAbsoluteUrl(targetUrl);
+            model.putIfAbsent("targetUrl", absoluteTargetUrl != null ? absoluteTargetUrl : "");
 
             var message = renderer.render(template, model);
             String title = String.valueOf(model.getOrDefault("title", message.subject()));
@@ -133,12 +152,12 @@ public class NotificationOrchestratorService {
 
             log.debug("[Notification] Dispatching event {} to {} final recipients", context.eventType(), finalRecipients.size());
 
-            String targetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
+            String relativeTargetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
 
             for (String recipient : finalRecipients) {
                 try {
                     inAppService.create(recipient, title, message.body(),
-                            context.eventType().name(), template.getSeverity(), context.projectId(), targetUrl);
+                            context.eventType().name(), template.getSeverity(), context.projectId(), relativeTargetUrl);
                     auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "IN_APP", "SENT", null));
                 } catch (Exception ex) {
                     log.warn("[Notification] In-app creation failed for recipient {} - {}", recipient, ex.getMessage());
@@ -181,12 +200,12 @@ public class NotificationOrchestratorService {
     }
 
     private String resolveTargetUrl(String eventCode, String projectId) {
-        if (projectId == null || projectId.isBlank()) {
-            return null;
-        }
         String route = EVENT_ROUTE_MAP.get(eventCode);
         if (route == null) {
             return null;
+        }
+        if (projectId == null || projectId.isBlank()) {
+            return route;
         }
         return "/projects/" + projectId.toLowerCase() + route;
     }
@@ -201,5 +220,34 @@ public class NotificationOrchestratorService {
             }
         }
         return fallbackRecipient;
+    }
+
+    private String resolveActorDisplayName(String username) {
+        if (username == null || username.isBlank()) {
+            return username;
+        }
+        return usuarioRepository.findByUsernameIgnoreCase(username)
+                .map(SeguridadUsuario::getNombre)
+                .filter(nombre -> nombre != null && !nombre.isBlank())
+                .orElse(username);
+    }
+
+    private void resolveActorNameInModel(Map<String, Object> model, String attributeKey) {
+        Object value = model.get(attributeKey);
+        if (value instanceof String strValue && !strValue.isBlank()) {
+            model.put(attributeKey, resolveActorDisplayName(strValue));
+        }
+    }
+
+    private String buildAbsoluteUrl(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return null;
+        }
+        String base = frontendUrlProperties.getBase();
+        if (base == null || base.isBlank()) {
+            return relativePath;
+        }
+        return base.endsWith("/") ? base.substring(0, base.length() - 1) + relativePath
+                : base + relativePath;
     }
 }

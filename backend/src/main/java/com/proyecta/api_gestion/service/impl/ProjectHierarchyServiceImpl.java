@@ -519,7 +519,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private EntregableHierarchyDTO buildEntregableDTO(Entregable entregable) {
         LocalDate hoy = LocalDate.now();
         LocalDate fechaLimite = entregable.getFechaLimite();
-        LocalDate fechaEntregaReal = entregable.getFechaEntregaReal();
+        LocalDate fechaEntregaReal = entregable.getFechaEntregaEfectiva();
 
         String estado = calcularEstado(entregable, hoy, fechaLimite);
         Integer diasDiferencia = calcularDiasDiferencia(hoy, fechaLimite, fechaEntregaReal);
@@ -580,14 +580,10 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             return null;
         }
 
-        // Si ya entrego: calcular dias entre fechaEntregaReal y fechaLimite
-        // positivo = entrego antes (cumplimiento), negativo = entrego tarde (atraso)
         if (fechaEntregaReal != null) {
             return (int) ChronoUnit.DAYS.between(fechaEntregaReal, fechaLimite);
         }
 
-        // Si no ha entregado: calcular dias entre hoy y fechaLimite
-        // positivo = aun no vence, negativo = ya vencio (atraso)
         return (int) ChronoUnit.DAYS.between(hoy, fechaLimite);
     }
 

@@ -204,7 +204,7 @@ public class ProjectProgressMetricsService {
         Long diasCumplimiento = iniciado ? calcularDiasCumplimiento(entregable) : 0L;
         String estadoCodigo = entregable.getEstadoCodigo();
         String estado = iniciado
-                ? construirEstadoEntregable(estadoCodigo, conforme, diasAtraso, entregable.getFechaEntregaReal(), entregable.getFechaLimite(), corte)
+                ? construirEstadoEntregable(estadoCodigo, conforme, diasAtraso, entregable.getFechaEntregaEfectiva(), entregable.getFechaLimite(), corte)
                 : "NO_INICIADO";
         String evidenciaNombre = nombreEvidenciaActual(entregable);
 
@@ -318,8 +318,10 @@ public class ProjectProgressMetricsService {
     /**
      * Calcula los dias de atraso de un entregable.
      * <ul>
-     *   <li>Si ya entrego: {@code fechaEntregaReal - fechaLimite} (negativo si entrego tarde, positivo si entrego antes)</li>
-     *   <li>Si no entrego y esta vencido: {@code fechaLimite - hoy} (negativo, ej: -30 significa 30 dias vencido)</li>
+     *   <li>Si ya entrego a tiempo (fechaEntrega <= fechaLimite): positivo (dias de adelanto)</li>
+     *   <li>Si es retroactivo: 0 (se simula entrega el dia del vencimiento)</li>
+     *   <li>Si entrego despues de la fecha limite y no es retroactivo: negativo (dias de atraso)</li>
+     *   <li>Si no entrego y esta vencido: negativo (dias de atraso)</li>
      *   <li>Caso contrario: 0</li>
      * </ul>
      */
@@ -328,8 +330,9 @@ public class ProjectProgressMetricsService {
             return 0L;
         }
 
-        if (entregable.getFechaEntregaReal() != null) {
-            return ChronoUnit.DAYS.between(entregable.getFechaEntregaReal(), entregable.getFechaLimite());
+        LocalDate entrega = entregable.getFechaEntregaEfectiva();
+        if (entrega != null) {
+            return ChronoUnit.DAYS.between(entrega, entregable.getFechaLimite());
         }
 
         if (entregable.getFechaLimite().isBefore(corte)) {
@@ -345,10 +348,11 @@ public class ProjectProgressMetricsService {
      * @return positivo si entrego antes de tiempo, 0 en caso contrario
      */
     private Long calcularDiasCumplimiento(Entregable entregable) {
-        if (entregable.getFechaLimite() == null || entregable.getFechaEntregaReal() == null) {
+        LocalDate entrega = entregable.getFechaEntregaEfectiva();
+        if (entregable.getFechaLimite() == null || entrega == null) {
             return 0L;
         }
-        long dias = ChronoUnit.DAYS.between(entregable.getFechaEntregaReal(), entregable.getFechaLimite());
+        long dias = ChronoUnit.DAYS.between(entrega, entregable.getFechaLimite());
         return Math.max(0L, dias);
     }
 
@@ -377,7 +381,6 @@ public class ProjectProgressMetricsService {
                 .filter(Objects::nonNull)
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
-                .filter(e -> isEntregableIniciado(e, corte))
                 .filter(entregable -> entregable.getFechaLimite() != null
                         && !entregable.getFechaLimite().isAfter(corte))
                 .count();
@@ -390,11 +393,8 @@ public class ProjectProgressMetricsService {
                 .filter(Objects::nonNull)
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
-                .filter(e -> isEntregableIniciado(e, corte))
-                .filter(entregable -> entregable.getFechaLimite() != null
-                        && !entregable.getFechaLimite().isAfter(corte))
-                .filter(entregable -> entregable.getFechaEntregaReal() != null)
-                .filter(entregable -> !EstadoEntregable.RECHAZADO.equals(entregable.getEstado()))
+                .filter(entregable -> entregable.getFechaEntregaEfectiva() != null
+                        && !entregable.getFechaEntregaEfectiva().isAfter(corte))
                 .count();
     }
 
@@ -405,12 +405,10 @@ public class ProjectProgressMetricsService {
                 .filter(Objects::nonNull)
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
-                .filter(e -> isEntregableIniciado(e, corte))
-                .filter(entregable -> entregable.getFechaLimite() != null
-                        && !entregable.getFechaLimite().isAfter(corte))
-                .filter(entregable -> entregable.getFechaEntregaReal() != null)
-                .filter(entregable -> !EstadoEntregable.RECHAZADO.equals(entregable.getEstado()))
-                .filter(entregable -> !entregable.getFechaEntregaReal().isAfter(entregable.getFechaLimite()))
+                .filter(entregable -> entregable.getFechaEntregaEfectiva() != null
+                        && !entregable.getFechaEntregaEfectiva().isAfter(corte)
+                        && entregable.getFechaLimite() != null
+                        && !entregable.getFechaEntregaEfectiva().isAfter(entregable.getFechaLimite()))
                 .count();
     }
 
@@ -448,8 +446,8 @@ public class ProjectProgressMetricsService {
                 .filter(Objects::nonNull)
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
-                .filter(e -> isEntregableIniciado(e, corte))
-                .filter(Entregable::esConforme)
+                .filter(entregable -> entregable.getFechaEntregaEfectiva() != null
+                        && !entregable.getFechaEntregaEfectiva().isAfter(corte))
                 .count();
     }
 
@@ -460,6 +458,7 @@ public class ProjectProgressMetricsService {
                 .filter(Objects::nonNull)
                 .flatMap(hito -> entregablesSeguros(hito).stream())
                 .filter(Objects::nonNull)
+                .filter(entregable -> entregable.getFechaLimite() != null)
                 .count();
     }
 

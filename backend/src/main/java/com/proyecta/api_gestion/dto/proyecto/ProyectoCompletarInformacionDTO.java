@@ -27,4 +27,16 @@ public record ProyectoCompletarInformacionDTO(
         @Size(min = 2, message = "Debe registrar al menos 2 riesgos en la matriz de riesgos")
         List<RiesgoCompletitudDTO> riesgosIniciales
 ) {
+    public ProyectoCompletarInformacionDTO {
+        if (riesgosIniciales != null) {
+            boolean tieneGeneral = riesgosIniciales.stream().anyMatch(r -> r.tipoRiesgo() == com.proyecta.api_gestion.model.enums.TipoRiesgo.GENERAL);
+            boolean tieneSeguridad = riesgosIniciales.stream().anyMatch(r -> r.tipoRiesgo() == com.proyecta.api_gestion.model.enums.TipoRiesgo.SEGURIDAD);
+            if (!tieneGeneral) {
+                throw new IllegalArgumentException("Debe registrar al menos 1 riesgo de tipo GENERAL");
+            }
+            if (!tieneSeguridad) {
+                throw new IllegalArgumentException("Debe registrar al menos 1 riesgo de tipo SEGURIDAD");
+            }
+        }
+    }
 }

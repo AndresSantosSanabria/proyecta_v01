@@ -122,23 +122,16 @@ public class NotificationAdminController {
     }
 
     @GetMapping("/plantillas")
-    public ResponseEntity<ApiResponse<List<NotificationTemplateDTO>>> listTemplates(
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String severity,
-            @RequestParam(required = false) Boolean enabled,
-            @RequestParam(required = false) String search) {
+    public ResponseEntity<ApiResponse<List<NotificationTemplateDTO>>> listTemplates() {
 
-        Map<String, String> eventCategoryMap = eventCatalogRepository.findAll().stream()
-                .collect(Collectors.toMap(NotificationEventCatalog::getCode, NotificationEventCatalog::getCategory));
+        Map<String, NotificationEventCatalog> eventMap = eventCatalogRepository.findAll().stream()
+                .collect(Collectors.toMap(NotificationEventCatalog::getCode, e -> e));
 
         List<NotificationTemplateDTO> data = templateService.listAll().stream()
-                .filter(t -> category == null || category.isBlank() || category.equals(eventCategoryMap.get(t.getEventCode())))
-                .filter(t -> severity == null || severity.isBlank() || severity.equals(t.getSeverity()))
-                .filter(t -> enabled == null || t.getEnabled().equals(enabled))
-                .filter(t -> search == null || search.isBlank()
-                        || t.getEventCode().toLowerCase().contains(search.toLowerCase())
-                        || eventCategoryMap.getOrDefault(t.getEventCode(), "").toLowerCase().contains(search.toLowerCase()))
-                .map(template -> toDto(template, eventCategoryMap.get(template.getEventCode())))
+                .map(template -> {
+                    var event = eventMap.get(template.getEventCode());
+                    return toDto(template, event);
+                })
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.success(data, "Plantillas listadas correctamente"));
@@ -181,10 +174,8 @@ public class NotificationAdminController {
         template.setBodyTemplate(request.bodyTemplate());
         template.setTargetRoles(request.targetRoles());
         var saved = templateService.upsert(template, identityExtractor.resolveUsername(authentication));
-        String category = eventCatalogRepository.findById(saved.getEventCode())
-                .map(NotificationEventCatalog::getCategory)
-                .orElse(null);
-        return ResponseEntity.ok(ApiResponse.success(toDto(saved, category), "Plantilla guardada correctamente"));
+        var event = eventCatalogRepository.findById(saved.getEventCode()).orElse(null);
+        return ResponseEntity.ok(ApiResponse.success(toDto(saved, event), "Plantilla guardada correctamente"));
     }
 
     @GetMapping("/preferencias")
@@ -451,9 +442,10 @@ public class NotificationAdminController {
         return local.substring(0, 2) + "**" + domain;
     }
 
-    private NotificationTemplateDTO toDto(NotificationTemplate template, String category) {
+    private NotificationTemplateDTO toDto(NotificationTemplate template, NotificationEventCatalog event) {
         return new NotificationTemplateDTO(
                 template.getEventCode(),
+                event != null ? event.getName() : template.getEventCode(),
                 template.getEnabled(),
                 template.getHtmlEnabled(),
                 template.getSeverity(),
@@ -462,7 +454,7 @@ public class NotificationAdminController {
                 template.getBodyTemplate(),
                 template.getTargetRoles(),
                 template.getUpdatedBy(),
-                category
+                event != null ? event.getCategory() : null
         );
     }
 

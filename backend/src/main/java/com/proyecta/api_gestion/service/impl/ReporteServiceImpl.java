@@ -339,7 +339,7 @@ public class ReporteServiceImpl implements ReporteService {
             setCellDate(row, 8, toDate(detalle.fechaLimite()));
             setCellDate(row, 9, toDate(detalle.fechaEntrega()));
             setCellFormula(row, 10, formulaAtraso(rowIndex));
-            setCellFormula(row, 11, "IF(J" + rowIndex + "=\"\",0,1)");
+            setCellFormula(row, 11, "IF(ISNUMBER(J" + rowIndex + "),1,0)");
             setCellHyperlink(row, 12, detalle.evidencia(), detalle.evidenciaPublica());
             setCellText(row, 13, detalle.observacion());
             setCellFormula(row, 14, formulaPromedioPorHito(rowIndex, detalles.size(), "L"));
@@ -352,27 +352,44 @@ public class ReporteServiceImpl implements ReporteService {
             setCellFormula(row, 21, formulaPromedioPorFase(rowIndex, detalles.size(), "U"));
             setCellFormula(row, 22, "AVERAGE($V$5:$V$" + (4 + Math.max(detalles.size(), 1)) + ")");
             setCellFormula(row, 23, "IF(I" + rowIndex + "<=R" + rowIndex + ",\"Si\",\"No\")");
-            setCellFormula(row, 24, "IF(AND(I" + rowIndex + "<=R" + rowIndex + ",L" + rowIndex + "=1),\"Si\",\"\")");
-            setCellFormula(row, 25, "IF(AND(Y" + rowIndex + "=\"Si\",J" + rowIndex + "<=I" + rowIndex + "),\"Si\",\"\")");
+            setCellFormula(row, 24, "IF(AND(I" + rowIndex + "<=R" + rowIndex + ",J" + rowIndex + "<>\"\",L" + rowIndex + "=1),\"Si\",\"\")");
+            setCellFormula(row, 25, "IF(AND(I" + rowIndex + "<>\"\",J" + rowIndex + "<>\"\",L" + rowIndex + "=1,J" + rowIndex + "<=I" + rowIndex + "),\"Si\",\"\")");
         }
 
-        int indicadorFila = 4 + Math.max(20, detalles.size()) + 2;
+        int filasDetalle = Math.max(8, detalles.size());
+        int ultimaFilaDetalle = 4 + Math.max(detalles.size(), 1);
+        int filaResumen = 4 + filasDetalle;
+        int indicadorFila = filaResumen + 2;
+        int filaCorte = indicadorFila + 2;
+
+        setCellFormula(ensureRow(sheet, filaResumen), 24,
+                "COUNTIFS($Y$5:$Y$" + ultimaFilaDetalle + ",\"Si\",$X$5:$X$" + ultimaFilaDetalle
+                        + ",\"Si\")/COUNTIF($X$5:$X$" + ultimaFilaDetalle + ",\"Si\")");
+        setCellFormula(ensureRow(sheet, filaResumen), 25,
+                "COUNTIFS($Z$5:$Z$" + ultimaFilaDetalle + ",\"Si\",$Y$5:$Y$" + ultimaFilaDetalle
+                        + ",\"Si\")/COUNTIF($Y$5:$Y$" + ultimaFilaDetalle + ",\"Si\")");
+
         Row title = ensureRow(sheet, indicadorFila);
         setCellText(title, 23, "INDICADORES AL CORTE");
         setCellText(ensureRow(sheet, indicadorFila + 1), 23, "Fecha de corte");
         setCellDate(ensureRow(sheet, indicadorFila + 1), 24, toDate(corte));
         setCellText(ensureRow(sheet, indicadorFila + 2), 23, "Programados al corte");
-        setCellFormula(ensureRow(sheet, indicadorFila + 2), 24, "COUNTIF($X$5:$X$" + (4 + Math.max(detalles.size(), 1)) + ",\"Si\")");
+        setCellFormula(ensureRow(sheet, indicadorFila + 2), 24,
+                "COUNTIFS(I:I,\"<=\"&Y" + filaCorte + ",I:I,\"<>\")");
         setCellText(ensureRow(sheet, indicadorFila + 3), 23, "Entregados al corte");
-        setCellFormula(ensureRow(sheet, indicadorFila + 3), 24, "COUNTIF($Y$5:$Y$" + (4 + Math.max(detalles.size(), 1)) + ",\"Si\")");
+        setCellFormula(ensureRow(sheet, indicadorFila + 3), 24,
+                "COUNTIFS(J:J,\"<=\"&Y" + filaCorte + ",J:J,\"<>\",L:L,1)");
         setCellText(ensureRow(sheet, indicadorFila + 4), 23, "Entregados a tiempo");
-        setCellFormula(ensureRow(sheet, indicadorFila + 4), 24, "COUNTIF($Z$5:$Z$" + (4 + Math.max(detalles.size(), 1)) + ",\"Si\")");
+        setCellFormula(ensureRow(sheet, indicadorFila + 4), 24,
+                "SUMPRODUCT(--(J5:J" + ultimaFilaDetalle + "<=Y" + filaCorte + "),--(I5:I" + ultimaFilaDetalle
+                        + "<>\"\"),--(L5:L" + ultimaFilaDetalle + "=1),--(J5:J" + ultimaFilaDetalle
+                        + "<>\"\"),--(J5:J" + ultimaFilaDetalle + "<=I5:I" + ultimaFilaDetalle + "))");
         setCellText(ensureRow(sheet, indicadorFila + 5), 23, "Eficacia");
-        setCellFormula(ensureRow(sheet, indicadorFila + 5), 24, "IFERROR(Y" + (indicadorFila + 4) + "/Y" + (indicadorFila + 3) + ",0)");
+        setCellFormula(ensureRow(sheet, indicadorFila + 5), 24, "MIN(1,IFERROR(Y" + (indicadorFila + 4) + "/Y" + (indicadorFila + 3) + ",0))");
         setCellText(ensureRow(sheet, indicadorFila + 6), 23, "Eficiencia");
-        setCellFormula(ensureRow(sheet, indicadorFila + 6), 24, "IFERROR(Y" + (indicadorFila + 5) + "/Y" + (indicadorFila + 4) + ",0)");
+        setCellFormula(ensureRow(sheet, indicadorFila + 6), 24, "MIN(1,IFERROR(Y" + (indicadorFila + 5) + "/Y" + (indicadorFila + 4) + ",0))");
         setCellText(ensureRow(sheet, indicadorFila + 7), 23, "total entregables");
-        setCellFormula(ensureRow(sheet, indicadorFila + 7), 24, "COUNTA($F$5:$F$" + (4 + Math.max(detalles.size(), 1)) + ")");
+        setCellFormula(ensureRow(sheet, indicadorFila + 7), 24, "COUNT(I5:I" + ultimaFilaDetalle + ")");
     }
 
     private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance) {
@@ -400,7 +417,7 @@ public class ReporteServiceImpl implements ReporteService {
 
     private void prepararFilasDetalle(Sheet sheet, int totalFilas) {
         int firstDataRow = 4;
-        int templateRows = 20;
+        int templateRows = 8;
         if (totalFilas > templateRows) {
             sheet.shiftRows(firstDataRow + templateRows, sheet.getLastRowNum(), totalFilas - templateRows, true, false);
         }
@@ -424,7 +441,7 @@ public class ReporteServiceImpl implements ReporteService {
     }
 
     private String formulaAtraso(int row) {
-        return "IF(I" + row + "=\"\",\"\",IF(J" + row + "=\"\",R" + row + "-I" + row + ",I" + row + "-J" + row + "))";
+        return "IF(I" + row + "=\"\",\"\",IF(J" + row + "=\"\",MIN(0,I" + row + "-R" + row + "),I" + row + "-J" + row + "))";
     }
 
     private String formulaPromedioPorHito(int row, int totalFilas, String column) {
@@ -453,12 +470,21 @@ public class ReporteServiceImpl implements ReporteService {
                 HitoAvanceDTO avanceHito = hitos.get(hito.getId());
                 for (Entregable entregable : safeList(hito.getEntregables()).stream().sorted(Comparator.comparing(Entregable::getId, Comparator.nullsLast(Integer::compareTo))).toList()) {
                     LocalDate limite = entregable.getFechaLimite();
-                    LocalDate entrega = entregable.getFechaEntregaReal();
+                    LocalDate entrega = entregable.getFechaEntregaEfectiva();
                     boolean conforme = entregable.esConforme();
                     boolean programado = limite != null && !limite.isAfter(corte);
                     boolean eficaz = programado && conforme && (entrega == null || !entrega.isAfter(corte));
                     boolean eficiente = eficaz && entrega != null && !entrega.isAfter(limite);
-                    Long diasAtraso = limite == null ? null : ChronoUnit.DAYS.between(limite, entrega == null ? corte : entrega);
+                    Long diasAtraso;
+                    if (limite == null) {
+                        diasAtraso = null;
+                    } else if (entrega != null) {
+                        diasAtraso = entrega.isAfter(limite) ? 0L : ChronoUnit.DAYS.between(entrega, limite);
+                    } else if (limite.isBefore(corte)) {
+                        diasAtraso = ChronoUnit.DAYS.between(corte, limite);
+                    } else {
+                        diasAtraso = 0L;
+                    }
                     String evidenciaPublica = crearUrlEvidenciaPublica(entregable);
                     detalles.add(new DetalleSeguimiento(
                             safe(fase.getNombre()), ratioDesdePonderacion(fase.getPonderacion()), safe(hito.getNombre()), ratioDesdePonderacion(hito.getPonderacion()),

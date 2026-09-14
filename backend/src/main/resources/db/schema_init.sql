@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS entregable (
     fecha_inicio        DATE,
     fecha_limite        DATE,
     fecha_entrega_real  DATE,
+    retroactivo         BOOLEAN         NOT NULL DEFAULT FALSE,
     fecha_creacion      TIMESTAMP       NOT NULL DEFAULT NOW(),
     hito_id             INTEGER         NOT NULL
                             REFERENCES hito(hito_id) ON DELETE CASCADE
@@ -308,6 +309,7 @@ ALTER TABLE entregable ADD COLUMN IF NOT EXISTS estado VARCHAR(30);;
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS observacion_revision VARCHAR(1000);;
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS fecha_inicio DATE;;
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS fecha_entrega_real DATE;;
+ALTER TABLE entregable ADD COLUMN IF NOT EXISTS retroactivo BOOLEAN NOT NULL DEFAULT FALSE;;
 ALTER TABLE entregable ADD COLUMN IF NOT EXISTS estado_config_id INTEGER REFERENCES estado_entregable_config(estado_entregable_id);;
 
 -- Riesgos

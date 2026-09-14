@@ -7,6 +7,7 @@ import com.proyecta.api_gestion.model.enums.Impacto;
 import com.proyecta.api_gestion.model.enums.Probabilidad;
 import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
+import com.proyecta.api_gestion.model.enums.TipoRiesgo;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -84,6 +85,10 @@ public class Riesgo {
 
     @Column(name = "evidencia_indicador", columnDefinition = "TEXT")
     private String evidenciaIndicador;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_riesgo", nullable = false, length = 20)
+    private TipoRiesgo tipoRiesgo = TipoRiesgo.GENERAL;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -285,6 +290,14 @@ public class Riesgo {
 
     public void setEstado(EstadoRiesgo estado) {
         this.estado = estado;
+    }
+
+    public TipoRiesgo getTipoRiesgo() {
+        return tipoRiesgo;
+    }
+
+    public void setTipoRiesgo(TipoRiesgo tipoRiesgo) {
+        this.tipoRiesgo = tipoRiesgo;
     }
 
     public LocalDateTime getFechaActualizacion() {
