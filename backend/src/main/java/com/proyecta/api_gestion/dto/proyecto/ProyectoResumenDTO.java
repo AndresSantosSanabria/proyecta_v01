@@ -12,6 +12,7 @@ import java.util.List;
 public record ProyectoResumenDTO(
     String id,
     String nombre,
+    String dependencia,
     String director,
     String directorCargo,
     String directorEntidad,

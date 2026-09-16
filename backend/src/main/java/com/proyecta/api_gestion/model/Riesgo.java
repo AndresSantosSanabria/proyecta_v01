@@ -103,6 +103,10 @@ public class Riesgo {
     @OneToMany(mappedBy = "riesgo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RiesgoSolucionAdjunto> soluciones = new ArrayList<>();
 
+    @OneToMany(mappedBy = "riesgo", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("iteracion DESC")
+    private List<RiesgoTratamiento> tratamientos = new ArrayList<>();
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "proyecto_id", nullable = false)
     private Proyecto proyecto;
@@ -322,6 +326,14 @@ public class Riesgo {
 
     public void setSoluciones(List<RiesgoSolucionAdjunto> soluciones) {
         this.soluciones = soluciones;
+    }
+
+    public List<RiesgoTratamiento> getTratamientos() {
+        return tratamientos;
+    }
+
+    public void setTratamientos(List<RiesgoTratamiento> tratamientos) {
+        this.tratamientos = tratamientos;
     }
 
     public Proyecto getProyecto() {

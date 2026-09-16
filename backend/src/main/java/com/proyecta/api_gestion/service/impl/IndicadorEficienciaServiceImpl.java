@@ -61,7 +61,7 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
                 .count();
 
         BigDecimal eficacia = clampRatio(calcularRatio(entregadosAlCorte, programadosAlCorte));
-        BigDecimal eficiencia = clampRatio(calcularRatio(entregadosATiempo, entregadosAlCorte));
+        BigDecimal eficiencia = clampRatio(calcularRatio(entregadosATiempo, programadosAlCorte));
 
         return new IndicadoresEficienciaDTO(
                 proyecto.getId(),

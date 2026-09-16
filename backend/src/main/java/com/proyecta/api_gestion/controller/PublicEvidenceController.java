@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.IRiesgoService;
+import com.proyecta.api_gestion.service.IRiesgoTratamientoService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -18,13 +19,16 @@ public class PublicEvidenceController {
     private final PublicEvidenceAccessService evidenceAccessService;
     private final IStorageProvider storageProvider;
     private final IRiesgoService riesgoService;
+    private final IRiesgoTratamientoService tratamientoService;
 
     public PublicEvidenceController(PublicEvidenceAccessService evidenceAccessService,
                                      IStorageProvider storageProvider,
-                                     IRiesgoService riesgoService) {
+                                     IRiesgoService riesgoService,
+                                     IRiesgoTratamientoService tratamientoService) {
         this.evidenceAccessService = evidenceAccessService;
         this.storageProvider = storageProvider;
         this.riesgoService = riesgoService;
+        this.tratamientoService = tratamientoService;
     }
 
     @GetMapping(value = "/evidencia/{token}", produces = MediaType.APPLICATION_PDF_VALUE)
@@ -66,6 +70,21 @@ public class PublicEvidenceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
                         + "; filename=\"solucion-riesgo-" + riesgoId + "-" + solucionId + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(resource);
+    }
+
+    @GetMapping(value = "/riesgos/{proyectoId}/{riesgoId}/tratamientos/{tratamientoId}/adjuntos/{adjuntoId}", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<Resource> verAdjuntoTratamiento(
+            @PathVariable String proyectoId,
+            @PathVariable Integer riesgoId,
+            @PathVariable Long tratamientoId,
+            @PathVariable Long adjuntoId,
+            @RequestParam(value = "inline", defaultValue = "true") boolean inline) {
+        Resource resource = tratamientoService.descargarAdjunto(proyectoId, riesgoId, tratamientoId, adjuntoId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
+                        + "; filename=\"tratamiento-" + riesgoId + "-" + tratamientoId + "-" + adjuntoId + ".pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }

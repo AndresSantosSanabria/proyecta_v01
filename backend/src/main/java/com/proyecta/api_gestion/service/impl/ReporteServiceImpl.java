@@ -14,6 +14,7 @@ import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
+import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
 import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.*;
@@ -48,6 +49,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -292,8 +294,8 @@ public class ReporteServiceImpl implements ReporteService {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
         ) {
             poblarFichaProyecto(workbook.getSheetAt(0), proyecto);
-            poblarSeguimientoProyecto(workbook.getSheetAt(1), proyecto, avance, corte);
-            poblarAvancesProyecto(workbook.getSheetAt(2), proyecto, avance);
+            Map<String, Map<String, Integer>> context = poblarSeguimientoProyecto(workbook.getSheetAt(1), proyecto, avance, corte);
+            poblarAvancesProyecto(workbook.getSheetAt(2), proyecto, avance, context);
             workbook.setForceFormulaRecalculation(true);
             workbook.write(outputStream);
             return outputStream.toByteArray();
@@ -318,89 +320,271 @@ public class ReporteServiceImpl implements ReporteService {
         setCellNumber(ensureRow(sheet, 13), 2, proyecto.getPresupuestoEstimado());
         setCellText(ensureRow(sheet, 14), 2, Boolean.TRUE.equals(proyecto.getPeti()) ? "SI" : "NO");
         setCellText(ensureRow(sheet, 15), 2, estrategiaPeti(proyecto));
-        setCellText(ensureRow(sheet, 16), 2, "No registrado");
+        boolean esTransformacion = proyecto.getEstrategiaPeti() == EstrategiaPeti.TRANSFORMACION_DIGITAL
+                || (proyecto.getEstrategiaPetiConfig() != null && "TRANSFORMACION_DIGITAL".equalsIgnoreCase(proyecto.getEstrategiaPetiConfig().getCodigo()));
+        setCellText(ensureRow(sheet, 16), 2, esTransformacion ? "SI" : "NO");
     }
 
-    private void poblarSeguimientoProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
+    private Map<String, Map<String, Integer>> poblarSeguimientoProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
         setCellText(ensureRow(sheet, 1), 1, safe(proyecto.getId()) + " " + safe(proyecto.getNombre()));
         List<DetalleSeguimiento> detalles = detallesSeguimiento(proyecto, avance, corte);
         prepararFilasDetalle(sheet, detalles.size());
 
+        Map<String, Integer> faseFirstRowMap = new LinkedHashMap<>();
+        Map<String, Integer> hitoFirstRowMap = new LinkedHashMap<>();
+        Map<String, List<Integer>> faseHitoRowsMap = new LinkedHashMap<>();
+        Map<String, List<Integer>> hitoEntregableRowsMap = new LinkedHashMap<>();
+        List<Integer> projectFaseFirstRows = new ArrayList<>();
+
+        for (int i = 0; i < detalles.size(); i++) {
+            int excelRow = 5 + i;
+            DetalleSeguimiento det = detalles.get(i);
+
+            faseFirstRowMap.putIfAbsent(det.fase(), excelRow);
+            if (!projectFaseFirstRows.contains(faseFirstRowMap.get(det.fase()))) {
+                projectFaseFirstRows.add(faseFirstRowMap.get(det.fase()));
+            }
+
+            hitoFirstRowMap.putIfAbsent(det.hito(), excelRow);
+            faseHitoRowsMap.computeIfAbsent(det.fase(), k -> new ArrayList<>());
+            if (!faseHitoRowsMap.get(det.fase()).contains(hitoFirstRowMap.get(det.hito()))) {
+                faseHitoRowsMap.get(det.fase()).add(hitoFirstRowMap.get(det.hito()));
+            }
+
+            hitoEntregableRowsMap.computeIfAbsent(det.hito(), k -> new ArrayList<>()).add(excelRow);
+        }
+
         int rowIndex = 4;
-        for (DetalleSeguimiento detalle : detalles) {
+        for (int i = 0; i < detalles.size(); i++) {
+            int excelRow = 5 + i;
+            DetalleSeguimiento detalle = detalles.get(i);
             Row row = ensureRow(sheet, rowIndex++);
-            setCellText(row, 1, detalle.fase());
-            setCellPercent(row, 2, detalle.ponderacionFase());
-            setCellText(row, 3, detalle.hito());
-            setCellPercent(row, 4, detalle.ponderacionHito());
+
+            boolean isFirstInFase = (excelRow == faseFirstRowMap.get(detalle.fase()));
+            boolean isFirstInHito = (excelRow == hitoFirstRowMap.get(detalle.hito()));
+            boolean isFirstInProject = (i == 0);
+
+            if (isFirstInFase) {
+                setCellText(row, 1, detalle.fase());
+                setCellPercent(row, 2, detalle.ponderacionFase());
+            } else {
+                setCellText(row, 1, "");
+                setCellBlank(row, 2);
+            }
+
+            if (isFirstInHito) {
+                setCellText(row, 3, detalle.hito());
+                setCellPercent(row, 4, detalle.ponderacionHito());
+            } else {
+                setCellText(row, 3, "");
+                setCellBlank(row, 4);
+            }
+
             setCellText(row, 5, detalle.entregable());
             setCellPercent(row, 6, detalle.ponderacionEntregable());
             setCellText(row, 7, detalle.descripcion());
             setCellDate(row, 8, toDate(detalle.fechaLimite()));
             setCellDate(row, 9, toDate(detalle.fechaEntrega()));
-            setCellFormula(row, 10, formulaAtraso(rowIndex));
-            setCellFormula(row, 11, "IF(ISNUMBER(J" + rowIndex + "),1,0)");
+            setCellFormula(row, 10, "I" + excelRow + "-J" + excelRow);
+            setCellFormula(row, 11, "IF(ISNUMBER(J" + excelRow + "),1,0)");
             setCellHyperlink(row, 12, detalle.evidencia(), detalle.evidenciaPublica());
             setCellText(row, 13, detalle.observacion());
-            setCellFormula(row, 14, formulaPromedioPorHito(rowIndex, detalles.size(), "L"));
-            setCellFormula(row, 15, formulaPromedioPorFase(rowIndex, detalles.size(), "O"));
-            setCellFormula(row, 16, "AVERAGE($P$5:$P$" + (4 + Math.max(detalles.size(), 1)) + ")");
-            setCellDate(row, 17, toDate(corte));
-            setCellFormula(row, 18, "IF(I" + rowIndex + "=\"\",\"\",I" + rowIndex + "-R" + rowIndex + ")");
-            setCellFormula(row, 19, "IF(AND(J" + rowIndex + "<>\"\",J" + rowIndex + "<=I" + rowIndex + "),1,0)");
-            setCellFormula(row, 20, formulaPromedioPorHito(rowIndex, detalles.size(), "T"));
-            setCellFormula(row, 21, formulaPromedioPorFase(rowIndex, detalles.size(), "U"));
-            setCellFormula(row, 22, "AVERAGE($V$5:$V$" + (4 + Math.max(detalles.size(), 1)) + ")");
-            setCellFormula(row, 23, "IF(I" + rowIndex + "<=R" + rowIndex + ",\"Si\",\"No\")");
-            setCellFormula(row, 24, "IF(AND(I" + rowIndex + "<=R" + rowIndex + ",J" + rowIndex + "<>\"\",L" + rowIndex + "=1),\"Si\",\"\")");
-            setCellFormula(row, 25, "IF(AND(I" + rowIndex + "<>\"\",J" + rowIndex + "<>\"\",L" + rowIndex + "=1,J" + rowIndex + "<=I" + rowIndex + "),\"Si\",\"\")");
+
+            if (isFirstInHito) {
+                List<Integer> entRows = hitoEntregableRowsMap.get(detalle.hito());
+                StringBuilder sbO = new StringBuilder();
+                for (int r : entRows) {
+                    if (sbO.length() > 0) sbO.append("+");
+                    sbO.append("(G").append(r).append("*L").append(r).append(")");
+                }
+                setCellFormula(row, 14, sbO.toString());
+            } else {
+                setCellBlank(row, 14);
+            }
+
+            if (isFirstInFase) {
+                List<Integer> hRows = faseHitoRowsMap.get(detalle.fase());
+                StringBuilder sbP = new StringBuilder();
+                for (int r : hRows) {
+                    if (sbP.length() > 0) sbP.append("+");
+                    sbP.append("(O").append(r).append("*E").append(r).append(")");
+                }
+                setCellFormula(row, 15, sbP.toString());
+            } else {
+                setCellBlank(row, 15);
+            }
+
+            if (isFirstInProject) {
+                StringBuilder sbQ = new StringBuilder();
+                for (int r : projectFaseFirstRows) {
+                    if (sbQ.length() > 0) sbQ.append("+");
+                    sbQ.append("(P").append(r).append("*C").append(r).append(")");
+                }
+                setCellFormula(row, 16, sbQ.toString());
+            } else {
+                setCellBlank(row, 16);
+            }
+
+            setCellFormula(row, 17, "TODAY()");
+            setCellFormula(row, 18, "I" + excelRow + "-R" + excelRow);
+            setCellFormula(row, 19, "IF(S" + excelRow + ">0,0,1)");
+
+            if (isFirstInHito) {
+                List<Integer> entRows = hitoEntregableRowsMap.get(detalle.hito());
+                StringBuilder sbU = new StringBuilder();
+                for (int r : entRows) {
+                    if (sbU.length() > 0) sbU.append("+");
+                    sbU.append("(G").append(r).append("*T").append(r).append(")");
+                }
+                setCellFormula(row, 20, sbU.toString());
+            } else {
+                setCellBlank(row, 20);
+            }
+
+            if (isFirstInFase) {
+                List<Integer> hRows = faseHitoRowsMap.get(detalle.fase());
+                StringBuilder sbV = new StringBuilder();
+                for (int r : hRows) {
+                    if (sbV.length() > 0) sbV.append("+");
+                    sbV.append("(E").append(r).append("*U").append(r).append(")");
+                }
+                setCellFormula(row, 21, sbV.toString());
+            } else {
+                setCellBlank(row, 21);
+            }
+
+            if (isFirstInProject) {
+                StringBuilder sbW = new StringBuilder();
+                for (int r : projectFaseFirstRows) {
+                    if (sbW.length() > 0) sbW.append("+");
+                    sbW.append("(V").append(r).append("*C").append(r).append(")");
+                }
+                setCellFormula(row, 22, sbW.toString());
+            } else {
+                setCellBlank(row, 22);
+            }
+
+            setCellFormula(row, 23, "IF(R" + excelRow + "-I" + excelRow + ">=0,\"Si\",\"No\")");
+            setCellFormula(row, 24, "IF(AND(L" + excelRow + "=1,X" + excelRow + "=\"Si\"),\"Si\",\"\")");
+            setCellFormula(row, 25, "IF(AND(K" + excelRow + ">=0,X" + excelRow + "=\"Si\"),\"Si\",\"\")");
         }
 
-        int filasDetalle = Math.max(8, detalles.size());
-        int ultimaFilaDetalle = 4 + Math.max(detalles.size(), 1);
-        int filaResumen = 4 + filasDetalle;
+        int totalFilas = Math.max(detalles.size(), 1);
+        int lastDataRow = 4 + totalFilas;
+        int filaResumen = lastDataRow + 1;
         int indicadorFila = filaResumen + 2;
-        int filaCorte = indicadorFila + 2;
+        int filaCorte = indicadorFila + 1;
 
-        setCellFormula(ensureRow(sheet, filaResumen), 24,
-                "COUNTIFS($Y$5:$Y$" + ultimaFilaDetalle + ",\"Si\",$X$5:$X$" + ultimaFilaDetalle
-                        + ",\"Si\")/COUNTIF($X$5:$X$" + ultimaFilaDetalle + ",\"Si\")");
-        setCellFormula(ensureRow(sheet, filaResumen), 25,
-                "COUNTIFS($Z$5:$Z$" + ultimaFilaDetalle + ",\"Si\",$Y$5:$Y$" + ultimaFilaDetalle
-                        + ",\"Si\")/COUNTIF($Y$5:$Y$" + ultimaFilaDetalle + ",\"Si\")");
+        Row rowResumen = ensureRow(sheet, filaResumen - 1);
+        setCellFormula(rowResumen, 24, "COUNTIFS($Y$5:$Y$" + lastDataRow + ",\"Si\",$X$5:$X$" + lastDataRow + ",\"Si\")/COUNTIF($X$5:$X$" + lastDataRow + ",\"Si\")");
+        setCellFormula(rowResumen, 25, "COUNTIFS($Z$5:$Z$" + lastDataRow + ",\"Si\",$Y$5:$Y$" + lastDataRow + ",\"Si\")/COUNTIF($Y$5:$Y$" + lastDataRow + ",\"Si\")");
 
-        Row title = ensureRow(sheet, indicadorFila);
-        setCellText(title, 23, "INDICADORES AL CORTE");
-        setCellText(ensureRow(sheet, indicadorFila + 1), 23, "Fecha de corte");
-        setCellDate(ensureRow(sheet, indicadorFila + 1), 24, toDate(corte));
-        setCellText(ensureRow(sheet, indicadorFila + 2), 23, "Programados al corte");
-        setCellFormula(ensureRow(sheet, indicadorFila + 2), 24,
-                "COUNTIFS(I:I,\"<=\"&Y" + filaCorte + ",I:I,\"<>\")");
-        setCellText(ensureRow(sheet, indicadorFila + 3), 23, "Entregados al corte");
-        setCellFormula(ensureRow(sheet, indicadorFila + 3), 24,
-                "COUNTIFS(J:J,\"<=\"&Y" + filaCorte + ",J:J,\"<>\",L:L,1)");
-        setCellText(ensureRow(sheet, indicadorFila + 4), 23, "Entregados a tiempo");
-        setCellFormula(ensureRow(sheet, indicadorFila + 4), 24,
-                "SUMPRODUCT(--(J5:J" + ultimaFilaDetalle + "<=Y" + filaCorte + "),--(I5:I" + ultimaFilaDetalle
-                        + "<>\"\"),--(L5:L" + ultimaFilaDetalle + "=1),--(J5:J" + ultimaFilaDetalle
-                        + "<>\"\"),--(J5:J" + ultimaFilaDetalle + "<=I5:I" + ultimaFilaDetalle + "))");
-        setCellText(ensureRow(sheet, indicadorFila + 5), 23, "Eficacia");
-        setCellFormula(ensureRow(sheet, indicadorFila + 5), 24, "MIN(1,IFERROR(Y" + (indicadorFila + 4) + "/Y" + (indicadorFila + 3) + ",0))");
-        setCellText(ensureRow(sheet, indicadorFila + 6), 23, "Eficiencia");
-        setCellFormula(ensureRow(sheet, indicadorFila + 6), 24, "MIN(1,IFERROR(Y" + (indicadorFila + 5) + "/Y" + (indicadorFila + 4) + ",0))");
-        setCellText(ensureRow(sheet, indicadorFila + 7), 23, "total entregables");
-        setCellFormula(ensureRow(sheet, indicadorFila + 7), 24, "COUNT(I5:I" + ultimaFilaDetalle + ")");
+        Row titleRow = ensureRow(sheet, indicadorFila - 1);
+        setCellText(titleRow, 23, "INDICADORES AL CORTE");
+
+        Row dateRow = ensureRow(sheet, indicadorFila);
+        setCellText(dateRow, 23, "Fecha de corte");
+        setCellFormula(dateRow, 24, "R5");
+        setCellText(dateRow, 25, "Base del cálculo");
+
+        Row progRow = ensureRow(sheet, indicadorFila + 1);
+        setCellText(progRow, 23, "Programados al corte");
+        setCellFormula(progRow, 24, "COUNTIFS(I:I,\"<=\"&Y" + filaCorte + ",I:I,\"<>\")");
+        setCellText(progRow, 25, "Entregables con fecha límite menor o igual a la fecha de corte");
+
+        Row entRow = ensureRow(sheet, indicadorFila + 2);
+        setCellText(entRow, 23, "Entregados al corte");
+        setCellFormula(entRow, 24, "COUNTIFS(J:J,\"<=\"&Y" + filaCorte + ",J:J,\"<>\",L:L,1)");
+        setCellText(entRow, 25, "Programados al corte con OK = 1");
+
+        Row tiempoRow = ensureRow(sheet, indicadorFila + 3);
+        setCellText(tiempoRow, 23, "Entregados a tiempo");
+        setCellFormula(tiempoRow, 24, "SUMPRODUCT(--(J5:J" + lastDataRow + "<=Y" + filaCorte + "),--(I5:I" + lastDataRow + "<>\"\"),--(L5:L" + lastDataRow + "=1),--(J5:J" + lastDataRow + "<>\"\"),--(J5:J" + lastDataRow + "<=I5:I" + lastDataRow + "))");
+        setCellText(tiempoRow, 25, "Entregados al corte con fecha de entrega menor o igual a la fecha límite");
+
+        Row efcRow = ensureRow(sheet, indicadorFila + 4);
+        setCellText(efcRow, 23, "Eficacia");
+        setCellFormula(efcRow, 24, "MIN(1,IFERROR(Y" + (indicadorFila + 3) + "/Y" + (indicadorFila + 2) + ",0))");
+        setCellText(efcRow, 25, "Entregados al corte / Programados al corte");
+
+        Row efiRow = ensureRow(sheet, indicadorFila + 5);
+        setCellText(efiRow, 23, "Eficiencia");
+        setCellFormula(efiRow, 24, "MIN(1,IFERROR(Y" + (indicadorFila + 4) + "/Y" + (indicadorFila + 2) + ",0))");
+        setCellText(efiRow, 25, "Entregados a tiempo / Programados al corte");
+
+        Row totRow = ensureRow(sheet, indicadorFila + 6);
+        setCellText(totRow, 23, "total entregables");
+        setCellFormula(totRow, 24, "COUNT(I5:I" + lastDataRow + ")");
+
+        Map<String, Map<String, Integer>> context = new HashMap<>();
+        context.put("faseFirstRows", faseFirstRowMap);
+        context.put("hitoFirstRows", hitoFirstRowMap);
+        return context;
     }
 
-    private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance) {
-        setCellText(ensureRow(sheet, 3), 2, "AVANCES DEL PROYECTO " + safe(proyecto.getId()));
-        int rowIndex = 7;
-        limpiarFilas(sheet, rowIndex, sheet.getLastRowNum(), 2, 6);
-        rowIndex = escribirAvance(sheet, rowIndex, "PROYECTO", avance.progresoProgramado(), avance.progresoEjecutado(), avance.estado());
-        for (FaseAvanceDTO fase : safeList(avance.fases())) {
-            rowIndex = escribirAvance(sheet, rowIndex + 1, safe(fase.nombre()), fase.progresoProgramado(), fase.progresoEjecutado(), fase.estado());
-            for (HitoAvanceDTO hito : safeList(fase.hitos())) {
-                rowIndex = escribirAvance(sheet, rowIndex, safe(hito.nombre()), hito.progresoProgramado(), hito.progresoEjecutado(), hito.estado());
+    private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, Map<String, Map<String, Integer>> context) {
+        setCellText(ensureRow(sheet, 1), 1, "AVANCES DEL PROYECTO " + safe(proyecto.getId()));
+
+        Map<String, Integer> faseFirstRowMap = context != null ? context.get("faseFirstRows") : Map.of();
+        Map<String, Integer> hitoFirstRowMap = context != null ? context.get("hitoFirstRows") : Map.of();
+
+        Row projRow = ensureRow(sheet, 5);
+        setCellText(projRow, 1, "PROYECTO");
+        setCellFormula(projRow, 2, "AVANCE!W5");
+        setCellFormula(projRow, 3, "AVANCE!Q5");
+        setCellFormula(projRow, 4, "C6-D6");
+        setCellFormula(projRow, 5, "IF(E6>0,\"ATRASO\",\"EN TIEMPO\")");
+
+        int currentPoiRow = 7;
+        Row templateFaseRow = sheet.getRow(7);
+        if (templateFaseRow == null) templateFaseRow = projRow;
+
+        List<Fase> fases = safeList(proyecto.getFases()).stream()
+                .sorted(Comparator.comparing(Fase::getId, Comparator.nullsLast(Integer::compareTo))).toList();
+
+        for (Fase fase : fases) {
+            int excelRow = currentPoiRow + 1;
+            Row row = ensureRow(sheet, currentPoiRow);
+            if (row != templateFaseRow) copiarEstilosFila(templateFaseRow, row, 1, 5);
+            setCellText(row, 1, safe(fase.getNombre()));
+
+            Integer avanceFaseRow = faseFirstRowMap.get(safe(fase.getNombre()));
+            if (avanceFaseRow != null) {
+                setCellFormula(row, 2, "AVANCE!V" + avanceFaseRow);
+                setCellFormula(row, 3, "AVANCE!P" + avanceFaseRow);
+            } else {
+                setCellPercent(row, 2, BigDecimal.ZERO);
+                setCellPercent(row, 3, BigDecimal.ZERO);
+            }
+            setCellFormula(row, 4, "C" + excelRow + "-D" + excelRow);
+            setCellFormula(row, 5, "IF(E" + excelRow + ">0,\"ATRASO\",\"EN TIEMPO\")");
+            currentPoiRow++;
+        }
+
+        currentPoiRow++;
+        Row templateHitoRow = sheet.getRow(10);
+        if (templateHitoRow == null) templateHitoRow = templateFaseRow;
+
+        for (Fase fase : fases) {
+            List<Hito> hitos = safeList(fase.getHitos()).stream()
+                    .sorted(Comparator.comparing(Hito::getId, Comparator.nullsLast(Integer::compareTo))).toList();
+            for (Hito hito : hitos) {
+                int excelRow = currentPoiRow + 1;
+                Row row = ensureRow(sheet, currentPoiRow);
+                if (row != templateHitoRow) copiarEstilosFila(templateHitoRow, row, 1, 5);
+                setCellText(row, 1, safe(hito.getNombre()));
+
+                Integer avanceHitoRow = hitoFirstRowMap.get(safe(hito.getNombre()));
+                if (avanceHitoRow != null) {
+                    setCellFormula(row, 2, "AVANCE!U" + avanceHitoRow);
+                    setCellFormula(row, 3, "AVANCE!O" + avanceHitoRow);
+                } else {
+                    setCellPercent(row, 2, BigDecimal.ZERO);
+                    setCellPercent(row, 3, BigDecimal.ZERO);
+                }
+                setCellFormula(row, 4, "C" + excelRow + "-D" + excelRow);
+                setCellFormula(row, 5, "IF(E" + excelRow + ">0,\"ATRASO\",\"EN TIEMPO\")");
+                currentPoiRow++;
             }
         }
     }
@@ -449,6 +633,29 @@ public class ReporteServiceImpl implements ReporteService {
         return "IFERROR(AVERAGEIFS($" + column + "$5:$" + column + "$" + lastRow + ",$D$5:$D$" + lastRow + ",D" + row + "),0)";
     }
 
+    private String formulaPonderadoPorHito(int row, int totalFilas) {
+        int lastRow = 4 + Math.max(totalFilas, 1);
+        return "SUMPRODUCT(($D$5:$D$" + lastRow + "=D" + row + ")*$G$5:$G$" + lastRow + "*$L$5:$L$" + lastRow + ")";
+    }
+
+    private String formulaPonderadoPorFase(int row, int totalFilas) {
+        int lastRow = 4 + Math.max(totalFilas, 1);
+        return "SUMPRODUCT(($B$5:$B$" + lastRow + "=B" + row + ")*$E$5:$E$" + lastRow + "*$O$5:$O$" + lastRow + ")";
+    }
+
+    private String formulaPonderadoPyto(int row, List<DetalleSeguimiento> detalles) {
+        java.util.LinkedHashMap<String, Integer> faseFirstRow = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < detalles.size(); i++) {
+            faseFirstRow.putIfAbsent(detalles.get(i).fase(), 5 + i);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int faseRow : faseFirstRow.values()) {
+            if (sb.length() > 0) sb.append("+");
+            sb.append("(P").append(faseRow).append("*C").append(faseRow).append(")");
+        }
+        return sb.length() > 0 ? sb.toString() : "0";
+    }
+
     private String formulaPromedioPorFase(int row, int totalFilas, String column) {
         int lastRow = 4 + Math.max(totalFilas, 1);
         return "IFERROR(AVERAGEIFS($" + column + "$5:$" + column + "$" + lastRow + ",$B$5:$B$" + lastRow + ",B" + row + "),0)";
@@ -489,7 +696,7 @@ public class ReporteServiceImpl implements ReporteService {
                     detalles.add(new DetalleSeguimiento(
                             safe(fase.getNombre()), ratioDesdePonderacion(fase.getPonderacion()), safe(hito.getNombre()), ratioDesdePonderacion(hito.getPonderacion()),
                             safe(entregable.getNombre()), ratioDesdePonderacion(entregable.getPonderacion()), nombreEntregable(entregable), limite, entrega,
-                            diasAtraso, conforme, safe(entregable.getArchivoPdf()), evidenciaPublica, safe(entregable.getObservacionRevision()),
+                            diasAtraso, conforme, entregable.getArchivoPdf() != null && !entregable.getArchivoPdf().isBlank() ? "Ver evidencia" : "", evidenciaPublica, safe(entregable.getObservacionRevision()),
                             avanceHito == null ? BigDecimal.ZERO : ratioDesdePorcentaje(avanceHito.progresoEjecutado()),
                             avanceFase == null ? BigDecimal.ZERO : ratioDesdePorcentaje(avanceFase.progresoEjecutado()),
                             ratioDesdePorcentaje(avance.progresoEjecutado()), limite == null ? null : ChronoUnit.DAYS.between(corte, limite),
@@ -782,8 +989,17 @@ public class ReporteServiceImpl implements ReporteService {
 
     private void setCellHyperlink(Row row, int columnIndex, String label, String url) {
         setCellText(row, columnIndex, label);
-        if (url == null || url.isBlank()) return;
         Cell cell = row.getCell(columnIndex);
+        if (cell != null) {
+            CellStyle style = row.getSheet().getWorkbook().createCellStyle();
+            CellStyle existing = cell.getCellStyle();
+            if (existing != null) style.cloneStyleFrom(existing);
+            style.setShrinkToFit(true);
+            style.setWrapText(false);
+            cell.setCellStyle(style);
+        }
+        if (url == null || url.isBlank()) return;
+        if (cell == null) return;
         Hyperlink hyperlink = row.getSheet().getWorkbook().getCreationHelper().createHyperlink(HyperlinkType.URL);
         hyperlink.setAddress(url);
         cell.setHyperlink(hyperlink);

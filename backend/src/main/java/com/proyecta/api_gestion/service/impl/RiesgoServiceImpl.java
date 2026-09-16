@@ -558,6 +558,37 @@ public class RiesgoServiceImpl implements IRiesgoService {
     }
 
     private RiesgoResponseDTO convertToResponseDto(Riesgo riesgo) {
+        List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO> tratamientosDtos = new ArrayList<>();
+        if (riesgo.getTratamientos() != null) {
+            for (var tratamiento : riesgo.getTratamientos()) {
+                List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO> adjuntosDtos = new ArrayList<>();
+                if (tratamiento.getAdjuntos() != null) {
+                    for (var adjunto : tratamiento.getAdjuntos()) {
+                        Long tId = tratamiento.getId();
+                        Long aId = adjunto.getId();
+                        String projectId = riesgo.getProyecto() != null ? riesgo.getProyecto().getId() : null;
+                        adjuntosDtos.add(new com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO(
+                                aId,
+                                adjunto.getNombreOriginal(),
+                                adjunto.getNombreAlmacenado(),
+                                adjunto.getMimeType(),
+                                adjunto.getTamanoBytes(),
+                                projectId != null
+                                        ? "/api/v1/proyectos/" + projectId + "/riesgos/" + riesgo.getId() + "/tratamientos/" + tId + "/adjuntos/" + aId + "/descargar"
+                                        : null,
+                                adjunto.getFechaCarga()
+                        ));
+                    }
+                }
+                tratamientosDtos.add(new com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO(
+                        tratamiento.getId(),
+                        tratamiento.getIteracion(),
+                        tratamiento.getComentario(),
+                        tratamiento.getFechaCreacion(),
+                        adjuntosDtos
+                ));
+            }
+        }
         return new RiesgoResponseDTO(
                 riesgo.getId(),
                 riesgo.getCodigo(),
@@ -575,6 +606,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
                 riesgo.getEstado(),
                 riesgo.getFechaActualizacion(),
                 riesgo.getSoluciones() == null ? List.of() : riesgo.getSoluciones().stream().map(this::toSolutionDto).toList(),
+                tratamientosDtos,
                 riesgo.getCreatedBy()
         );
     }

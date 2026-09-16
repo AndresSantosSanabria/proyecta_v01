@@ -522,6 +522,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         return new ProyectoResumenDTO(
                 p.getId(),
                 p.getNombre(),
+                p.getDependencia(),
                 directorNombre,
                 directorCargo,
                 directorEntidad,
