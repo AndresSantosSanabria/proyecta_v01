@@ -492,6 +492,7 @@ const ProjectClosurePage = () => {
   const isDirector = hasRole('DIRECTOR_PROYECTO');
   const canRequestClosure = isDirector && usePermission('CIERRE:SOLICITAR') && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && !cierreSolicitado;
   const canReviewClosure = usePermission('CIERRE:APROBAR') && cierreSolicitado && cierreEstado === 'PENDIENTE' && summaryData.estado !== 'CERRADO';
+  const canExtraordinaryClosure = usePermission('CIERRE:EXTRAORDINARIO') && summaryData.estado !== 'CERRADO' && summaryData.estado !== 'FINALIZADO';
   const canDownloadActa = isAprobado || summaryData.estado === 'CERRADO';
   const missingQuestionIds = new Set((missingQuestions || []).map((q) => q.id));
 
@@ -827,6 +828,19 @@ const ProjectClosurePage = () => {
             </div>
           )}
 
+          {canExtraordinaryClosure && (
+            <div className="form-actions">
+              <div className="closure-extraordinary-note">
+                <ShieldAlert size={18} />
+                <span>Si el proyecto está atascado en estado ACTIVO y no puede cerrarse por el flujo normal, utilice el cierre extraordinario.</span>
+              </div>
+              <button type="button" className="btn-extraordinary-closure" onClick={handleExtraordinaryClosure} disabled={extraordinaryClosureLoading}>
+                <ShieldAlert size={16} style={{ marginRight: '8px' }} />
+                {extraordinaryClosureLoading ? 'Procesando...' : 'Cierre Extraordinario'}
+              </button>
+            </div>
+          )}
+
           {!cierreSolicitado && !canRequestClosure && !isRechazado && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
             <div className="form-actions">
               <div className="closure-pending-note">
@@ -973,6 +987,35 @@ const ProjectClosurePage = () => {
               <button className="btn-approve-closure" onClick={confirmAprobarCierre} disabled={approvingClosure} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={16} />
                 {approvingClosure ? 'Verificando...' : 'Verificar y cerrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExtraordinaryConfirm && (
+        <div className="closure-confirm-overlay" onClick={() => setShowExtraordinaryConfirm(false)}>
+          <div className="closure-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="reject-modal-header">
+              <div className="closure-confirm-icon-wrapper" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}>
+                <ShieldAlert size={24} style={{ color: '#ef4444' }} />
+              </div>
+              <button className="reject-modal-close" onClick={() => setShowExtraordinaryConfirm(false)} disabled={extraordinaryClosureLoading}>
+                <X size={20} />
+              </button>
+            </div>
+            <h3>Cierre Extraordinario del Proyecto</h3>
+            <p>Esta acción cerrará el proyecto <strong>saltándose las validaciones normales</strong> de cierre. Se generará el acta de cierre y el proyecto pasará a estado <strong>CERRADO</strong>.</p>
+            <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--text-muted)', background: 'rgba(239,68,68,0.06)', padding: '0.75rem', borderRadius: '8px', borderLeft: '3px solid var(--danger)' }}>
+              <strong>Nota:</strong> Este tipo de cierre solo está disponible para roles con permisos especiales (Administrador o Gestor de Proyectos). Use esta opción solo cuando el proyecto esté atascado y no pueda cerrarse por el flujo normal.
+            </p>
+            <div className="closure-confirm-actions">
+              <button className="closure-confirm-btn-cancel" onClick={() => setShowExtraordinaryConfirm(false)} disabled={extraordinaryClosureLoading}>
+                Cancelar
+              </button>
+              <button className="btn-extraordinary-closure-modal" onClick={confirmExtraordinaryClosure} disabled={extraordinaryClosureLoading} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldAlert size={16} />
+                {extraordinaryClosureLoading ? 'Procesando...' : 'Confirmar cierre extraordinario'}
               </button>
             </div>
           </div>

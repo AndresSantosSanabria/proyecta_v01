@@ -1,9 +1,8 @@
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Loader2, CalendarRange } from 'lucide-react';
 import cronogramaService from '../../services/cronogramaService';
-import DocumentUpload from '../../components/common/DocumentUpload';
 import CronogramaHeader from '../../components/features/cronograma/CronogramaHeader';
 import ProjectInfoCard from '../../components/features/cronograma/ProjectInfoCard';
 import GanttChart from '../../components/features/cronograma/GanttChart';
@@ -41,7 +40,6 @@ const maxDate = (dates) => dates
 const CronogramaPage = () => {
   const { id: rawProyectoId } = useParams();
   const proyectoId = String(rawProyectoId || '').trim().toUpperCase();
-  const queryClient = useQueryClient();
   const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   const formatSummaryValue = (value, fallback = 'Sin dato') => {
@@ -69,17 +67,12 @@ const CronogramaPage = () => {
     queryFn: () => cronogramaService.getResumenProyecto(proyectoId),
   });
 
-  const handleCronogramaUpload = () => {
-    queryClient.invalidateQueries({ queryKey: ['cronograma', proyectoId] });
-    queryClient.invalidateQueries({ queryKey: ['resumen', proyectoId] });
-  };
-
   if (isLoadingCronograma || isLoadingResumen) {
     return (
       <div className="cronograma-container">
         <div className="loading-overlay">
           <Loader2 className="animate-spin" size={48} />
-          <p>Cargando información del cronograma...</p>
+          <p>Cargando información del diagrama de Gantt...</p>
         </div>
       </div>
     );
@@ -225,17 +218,11 @@ const CronogramaPage = () => {
       {cronogramaError && (
         <div className="error-container">
           <AlertCircle size={20} />
-          <span>No se pudo cargar el cronograma real. Verifica que el proyecto tenga fases e hitos configurados.</span>
+          <span>No se pudo cargar el diagrama de Gantt. Verifica que el proyecto tenga fases e hitos configurados.</span>
         </div>
       )}
 
       <div className="top-cards-grid">
-        <DocumentUpload
-          proyectoId={proyectoId}
-          tipoDocumento="CRONOGRAMA"
-          label="Cronograma del Proyecto"
-          onUploadSuccess={handleCronogramaUpload}
-        />
         <ProjectInfoCard
           displayResumen={displayResumen}
           expanded={summaryExpanded}
@@ -251,7 +238,7 @@ const CronogramaPage = () => {
             <h2><CalendarRange size={18} /> Sin líneas de tiempo registradas</h2>
           </div>
           <div className="empty-cronograma">
-            No hay fases ni hitos cargados para construir una vista de cronograma real.
+            No hay fases ni hitos cargados para construir el diagrama de Gantt.
           </div>
         </div>
       )}

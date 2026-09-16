@@ -855,6 +855,71 @@
   cursor: not-allowed;
 }
 
+/* Extraordinary Closure Button */
+.btn-extraordinary-closure {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--danger);
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--radius);
+  border: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2), 0 2px 4px -1px rgba(239, 68, 68, 0.1);
+}
+
+.btn-extraordinary-closure:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3), 0 4px 6px -2px rgba(239, 68, 68, 0.15);
+}
+
+.btn-extraordinary-closure:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.closure-extraordinary-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+  margin-bottom: 0.25rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.btn-extraordinary-closure-modal {
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--danger);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-extraordinary-closure-modal:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btn-extraordinary-closure-modal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Animations */
 @keyframes spin {
   to { transform: rotate(360deg); }

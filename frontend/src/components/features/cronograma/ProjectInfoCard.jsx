@@ -11,18 +11,18 @@ const ProjectInfoCard = ({ displayResumen, expanded, onToggleExpanded }) => {
   const compactItems = [
     { label: 'Fecha inicio', value: displayResumen.fechaInicio, tone: 'neutral' },
     { label: 'Director', value: displayResumen.director, tone: 'neutral' },
+    { label: 'Dependencia', value: displayResumen.dependencia, tone: 'neutral' },
+    { label: 'Propósito', value: displayResumen.meta, tone: 'neutral' },
     { label: 'Fases', value: displayResumen.fases, tone: 'accent' },
     { label: 'Hitos', value: displayResumen.totalHitos, tone: 'accent' },
     { label: 'Avance', value: displayResumen.avance, tone: 'success' },
+    { label: 'Eficacia', value: formatPercent(displayResumen.eficacia), tone: 'success' },
   ];
 
   const detailItems = [
-    { label: 'Propósito', value: displayResumen.meta },
-    { label: 'Dependencia', value: displayResumen.dependencia },
     { label: 'Programado', value: displayResumen.programado },
     { label: 'Programados a fecha límite', value: displayResumen.programadosAlCorte },
     { label: 'Entregados a fecha límite', value: displayResumen.entregadosAlCorte },
-    { label: 'Eficacia', value: formatPercent(displayResumen.eficacia) },
     { label: 'Eficiencia', value: formatPercent(displayResumen.eficiencia) },
   ];
 
@@ -35,7 +35,7 @@ const ProjectInfoCard = ({ displayResumen, expanded, onToggleExpanded }) => {
             Información del Proyecto
           </h3>
           <p className="card-caption">
-            Resumen ejecutivo breve, con detalle desplegable para la información extendida.
+            Resumen ejecutivo del proyecto con indicadores clave de seguimiento.
           </p>
         </div>
 

@@ -133,7 +133,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
       category: 'MODULOS',
       items: currentProjectId ? [
         (sidebarProyectos) ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
-        (sidebarProyectos) ? { name: 'Cronograma', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
+        (sidebarProyectos) ? { name: 'Diagrama de Gantt', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Evidencias', path: `/projects/${currentProjectId}/evidences`, icon: <ClipboardCheck size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Cierre del Proyecto', path: `/projects/${currentProjectId}/closure`, icon: <CheckSquare size={22} /> } : null,

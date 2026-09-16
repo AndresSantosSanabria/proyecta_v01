@@ -67,6 +67,44 @@ const riskService = {
     );
     return response.data;
   },
+
+  getTratamientos: async (proyectoId, riesgoId) => {
+    const { data } = await apiClient.get(`/proyectos/${proyectoId}/riesgos/${riesgoId}/tratamientos`);
+    return data;
+  },
+
+  crearTratamiento: async (proyectoId, riesgoId, comentario, archivos, onUploadProgress) => {
+    const formData = new FormData();
+    formData.append('comentario', comentario);
+    if (archivos && archivos.length > 0) {
+      Array.from(archivos).forEach((file) => {
+        formData.append('archivos', file);
+      });
+    }
+
+    const { data } = await apiClient.post(
+      `/proyectos/${proyectoId}/riesgos/${riesgoId}/tratamientos`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (onUploadProgress && progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onUploadProgress(percent);
+          }
+        },
+      }
+    );
+    return data;
+  },
+
+  descargarAdjuntoTratamiento: async (proyectoId, riesgoId, tratamientoId, adjuntoId) => {
+    const response = await apiClient.get(
+      `/proyectos/${proyectoId}/riesgos/${riesgoId}/tratamientos/${tratamientoId}/adjuntos/${adjuntoId}/descargar`,
+      { responseType: 'blob' }
+    );
+    return response.data;
+  },
 };
 
 export default riskService;

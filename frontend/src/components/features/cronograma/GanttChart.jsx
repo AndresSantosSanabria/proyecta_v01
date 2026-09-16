@@ -255,7 +255,7 @@ const GanttChart = ({ displayCronograma, year }) => {
     <div className="visual-cronograma-section gantt-hero">
       <div className="section-header gantt-header">
         <div className="gantt-title-group">
-          <h2>Cronograma Visual - {timeline.label}</h2>
+          <h2>Diagrama de Gantt - {timeline.label}</h2>
           <p>
             La barra verde muestra el avance real. La barra roja marca atraso. La linea punteada indica el corte de hoy cuando esta dentro del rango.
           </p>

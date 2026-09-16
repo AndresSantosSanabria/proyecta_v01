@@ -275,6 +275,17 @@ const projectService = {
   },
 
   /**
+   * Descarga el reporte de seguimiento Excel.
+   * @param {string|number} id
+   * @returns {Promise<import('axios').AxiosResponse<Blob>>}
+   */
+  downloadSeguimientoExcel: async (id) => {
+    return apiClient.get(`/proyectos/${normalizeProjectId(id)}/reportes/seguimiento-excel`, {
+      responseType: 'blob',
+    });
+  },
+
+  /**
    * Solicita el cierre del proyecto (Director -> Gestor).
    * @param {string|number} id
    * @returns {Promise<Object>}

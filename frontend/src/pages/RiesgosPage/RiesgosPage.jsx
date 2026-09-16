@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Download,
-  Eye,
   FileUp,
   Info,
   Plus,
@@ -21,15 +20,14 @@ import { usePermission } from '../../hooks/usePermission';
 import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
 import SpellCheckerInput from '../../components/common/SpellCheckerInput';
 import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
+import TratamientoHistory from '../../components/features/riesgos/TratamientoHistory';
+import TratamientoForm from '../../components/features/riesgos/TratamientoForm';
 import './RiesgosPage.css';
 
 const DEFAULT_PROBABILIDADES = ['UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO'];
 const DEFAULT_IMPACTOS = ['UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO'];
 const ESTADOS = ['PENDIENTE', 'TRATADO'];
 const DEFAULT_NIVELES = ['BAJO', 'MODERADO', 'ALTO', 'EXTREMO'];
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
-const MAX_TOTAL_SIZE_BYTES = 200 * 1024 * 1024;
-const MAX_FILES_PER_BATCH = 10;
 const RISK_LEVEL_LABELS = {
   BAJO: 'Bajo',
   MODERADO: 'Moderado',
@@ -108,11 +106,12 @@ const RiesgosPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [solutionModalOpen, setSolutionModalOpen] = useState(false);
   const [solutionRisk, setSolutionRisk] = useState(null);
-  const [solutionFiles, setSolutionFiles] = useState([]);
-  const [solutionSaving, setSolutionSaving] = useState(false);
   const [solutionError, setSolutionError] = useState(null);
   const [solutionMitigacion, setSolutionMitigacion] = useState('');
   const [previewSolution, setPreviewSolution] = useState(null);
+  const [tratamientoTab, setTratamientoTab] = useState('history');
+  const [tratamientos, setTratamientos] = useState([]);
+  const [loadingTratamientos, setLoadingTratamientos] = useState(false);
   const [matrixHelpOpen, setMatrixHelpOpen] = useState(false);
   const [openSelect, setOpenSelect] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
@@ -129,10 +128,10 @@ const RiesgosPage = () => {
   const closeSolutionModal = () => {
     setSolutionModalOpen(false);
     setSolutionRisk(null);
-    setSolutionFiles([]);
-    setSolutionSaving(false);
     setSolutionError(null);
     setPreviewSolution(null);
+    setTratamientos([]);
+    setTratamientoTab('history');
   };
 
   useEffect(() => {
@@ -276,133 +275,22 @@ const RiesgosPage = () => {
     setMatrixHelpOpen(true);
   };
 
-  const openSolutionModal = (risk) => {
+  const openSolutionModal = async (risk) => {
     if (!canEdit || !risk) return;
     setSolutionRisk(risk);
-    setSolutionFiles([]);
     setSolutionMitigacion(risk.accionesMitigacion || '');
     setSolutionError(null);
+    setTratamientoTab('history');
     setSolutionModalOpen(true);
-  };
 
-  const handleSolutionFiles = (event) => {
-    const selectedFiles = Array.from(event.target.files || []);
-    if (selectedFiles.length === 0) return;
-
-    const pdfFiles = [];
-    const errors = [];
-    selectedFiles.forEach((file) => {
-      const type = String(file.type || '').toLowerCase();
-      const name = String(file.name || '').toLowerCase();
-      const isPdf = type === 'application/pdf' || name.endsWith('.pdf');
-      if (!isPdf) {
-        errors.push(`${file.name}: solo se permiten archivos PDF.`);
-      } else if (file.size > MAX_FILE_SIZE_BYTES) {
-        errors.push(`${file.name}: excede el tamaño máximo de 50 MB.`);
-      } else {
-        pdfFiles.push(file);
-      }
-    });
-
-    let atLimit = false;
-    setSolutionFiles((current) => {
-      const existingKeys = new Set(current.map((file) => `${file.name}_${file.size}_${file.lastModified}`));
-      const nextFiles = [...current];
-      pdfFiles.forEach((file) => {
-        const key = `${file.name}_${file.size}_${file.lastModified}`;
-        if (existingKeys.has(key)) return;
-        if (nextFiles.length >= MAX_FILES_PER_BATCH) {
-          atLimit = true;
-          return;
-        }
-        existingKeys.add(key);
-        nextFiles.push(file);
-      });
-      return nextFiles;
-    });
-
-    if (atLimit) {
-      errors.push(`Solo se pueden cargar ${MAX_FILES_PER_BATCH} archivos por tanda. Guarda los primeros y luego carga los siguientes.`);
-    }
-
-    setSolutionError(errors.length > 0 ? errors.join(' ') : null);
-    event.target.value = '';
-  };
-
-  const removePendingSolutionFile = (index) => {
-    setSolutionFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
-  };
-
-  const downloadSolutionFile = async (solution) => {
-    if (!solution?.id || !solutionRisk?.id) return;
+    setLoadingTratamientos(true);
     try {
-      const blob = await riskService.downloadRiskSolution(proyectoId, solutionRisk.id, solution.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', solution.nombreOriginal || `solucion-riesgo-${solution.id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      setSolutionError('No fue posible descargar el PDF de la solución.');
-    }
-  };
-
-  const previewSolutionFile = async (solution) => {
-    if (!solution?.id || !solutionRisk?.id) return;
-    try {
-      const blob = await riskService.downloadRiskSolution(proyectoId, solutionRisk.id, solution.id);
-      const blobUrl = window.URL.createObjectURL(blob);
-      setPreviewSolution({ ...solution, blobUrl });
-    } catch (err) {
-      console.error(err);
-      setSolutionError('No fue posible cargar la vista previa del PDF.');
-    }
-  };
-
-  const handleSolutionSubmit = async (event) => {
-    event.preventDefault();
-    if (!canEdit || !solutionRisk) return;
-
-    const totalSize = solutionFiles.reduce((acc, file) => acc + file.size, 0);
-    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
-      setSolutionError('El tamaño total de los archivos excede el límite de 200 MB. Reduce la cantidad de archivos.');
-      return;
-    }
-
-    try {
-      setSolutionSaving(true);
-      setSolutionError(null);
-
-      const mitigacionCambio = solutionMitigacion !== (solutionRisk.accionesMitigacion || '');
-      if (mitigacionCambio) {
-        await riskService.updateRisk(proyectoId, solutionRisk.id, {
-          descripcion: solutionRisk.descripcion,
-          probabilidad: solutionRisk.probabilidad,
-          impacto: solutionRisk.impacto,
-          tipoRiesgo: solutionRisk.tipoRiesgo || 'GENERAL',
-          tratamiento: solutionRisk.tratamiento || '',
-          entidadResponsable: solutionRisk.entidadResponsable || '',
-          accionesMitigacion: solutionMitigacion || null,
-          fechaAccion: solutionRisk.fechaAccion || null,
-          estado: solutionRisk.estado || 'PENDIENTE',
-        });
-      }
-
-      if (solutionFiles.length > 0) {
-        await riskService.uploadRiskSolutions(proyectoId, solutionRisk.id, solutionFiles);
-      }
-
-      closeSolutionModal();
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-      setSolutionError(err?.response?.data?.detail || 'No fue posible guardar las soluciones.');
+      const response = await riskService.getTratamientos(proyectoId, risk.id);
+      setTratamientos(response?.data || []);
+    } catch {
+      setTratamientos([]);
     } finally {
-      setSolutionSaving(false);
+      setLoadingTratamientos(false);
     }
   };
 
@@ -921,16 +809,34 @@ const RiesgosPage = () => {
           >
             <div className="risk-modal-header">
               <div>
-                <span className="panel-chip">Dar solución</span>
+                <span className="panel-chip">Tratamiento</span>
                 <h2 id="solution-modal-title">{solutionRisk?.descripcion || 'Riesgo seleccionado'}</h2>
                 <p>
-                  Adjunta uno o varios PDF para este riesgo. Los archivos nuevos se suman a los ya cargados sin
-                  borrar los anteriores.
+                  Historial de tratamientos iterativos. Cada tratamiento se guarda como un registro independiente.
                 </p>
               </div>
               <button type="button" className="modal-close-btn" onClick={closeSolutionModal} aria-label="Cerrar">
                 <X size={18} />
               </button>
+            </div>
+
+            <div className="tratamiento-tabs">
+              <button
+                type="button"
+                className={`tratamiento-tab ${tratamientoTab === 'history' ? 'active' : ''}`}
+                onClick={() => setTratamientoTab('history')}
+              >
+                Historial ({tratamientos.length})
+              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  className={`tratamiento-tab ${tratamientoTab === 'new' ? 'active' : ''}`}
+                  onClick={() => setTratamientoTab('new')}
+                >
+                  <Plus size={14} /> Nuevo tratamiento
+                </button>
+              )}
             </div>
 
             {solutionError && (
@@ -940,140 +846,46 @@ const RiesgosPage = () => {
               </div>
             )}
 
-            <div className="solution-modal-grid">
-              <section className="solution-panel">
-                <div className="panel-title compact">
-                  <div>
-                    <h3>Soluciones cargadas</h3>
-                    <span className="panel-subtitle">
-                      {solutionRisk?.soluciones?.length || 0} archivo{(solutionRisk?.soluciones?.length || 0) === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="solution-list">
-                  {(solutionRisk?.soluciones || []).length === 0 ? (
-                    <div className="empty-box">Todavía no hay PDFs asociados a este riesgo.</div>
-                  ) : (
-                    solutionRisk.soluciones.map((solution) => (
-                      <article className="solution-item" key={solution.id}>
-                        <div className="solution-item-copy">
-                          <strong>{solution.nombreOriginal}</strong>
-                          <span>
-                            {formatBytes(solution.tamanoBytes)} · {solution.fechaCarga ? new Date(solution.fechaCarga).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : 'Sin fecha'}
-                          </span>
-                        </div>
-                        <div className="solution-item-actions">
-                          <button
-                            type="button"
-                            className="btn-secondary compact"
-                            onClick={() => previewSolutionFile(solution)}
-                            title="Vista previa"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-secondary compact"
-                            onClick={() => downloadSolutionFile(solution)}
-                            title="Descargar PDF"
-                          >
-                            <Download size={14} />
-                          </button>
-                        </div>
-                      </article>
-                    ))
-                  )}
-                </div>
-              </section>
-
-              <section className="solution-panel">
-                <div className="panel-title compact">
-                  <div>
-                    <h3>Agregar PDFs</h3>
-                    <span className="panel-subtitle">
-                      {solutionFiles.length === 0
-                        ? 'Selecciona uno o varios archivos'
-                        : `${solutionFiles.length} de ${MAX_FILES_PER_BATCH} archivos seleccionados`}
-                    </span>
-                  </div>
-                </div>
-
-                <form className="risk-form solution-form" onSubmit={handleSolutionSubmit}>
-                  {!solutionRisk?.accionesMitigacion && (
-                    <label className="field-label">
-                      Cómo mitigar <span className="required">*</span>
-                    </label>
-                  )}
-                  {solutionRisk?.accionesMitigacion && (
-                    <label className="field-label">Cómo mitigar</label>
-                  )}
-                  <textarea
-                    className="risk-textarea"
-                    rows={3}
-                    placeholder="Describe cómo se mitigará este riesgo..."
-                    value={solutionMitigacion}
-                    onChange={(e) => setSolutionMitigacion(e.target.value)}
-                    required={!solutionRisk?.accionesMitigacion}
-                  />
-
-                  <label className="file-picker">
-                    <span>Archivos PDF</span>
-                    <input
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      multiple
-                      onChange={handleSolutionFiles}
-                      disabled={solutionFiles.length >= MAX_FILES_PER_BATCH}
-                    />
-                  </label>
-                  {solutionFiles.length >= MAX_FILES_PER_BATCH && (
-                    <div className="empty-box" style={{ fontSize: '0.8rem', color: 'var(--color-warning, #f59e0b)' }}>
-                      Límite alcanzado. Guarda los archivos actuales antes de cargar más.
+            <div className="solution-modal-content">
+              {tratamientoTab === 'history' && (
+                <div className="tratamiento-history-panel">
+                  {loadingTratamientos ? (
+                    <div className="tratamiento-loading">
+                      <span>Cargando tratamientos...</span>
                     </div>
+                  ) : (
+                    <TratamientoHistory
+                      tratamientos={tratamientos}
+                      proyectoId={proyectoId}
+                      riesgoId={solutionRisk?.id}
+                    />
                   )}
+                </div>
+              )}
 
-                  <div className="pending-files">
-                    {solutionFiles.length === 0 ? (
-                      <div className="empty-box">Aún no has seleccionado archivos.</div>
-                    ) : (
-                      solutionFiles.map((file, index) => (
-                        <article className="pending-file" key={`${file.name}_${file.size}_${file.lastModified}`}>
-                          <div className="solution-item-copy">
-                            <strong>{file.name}</strong>
-                            <span>{formatBytes(file.size)}</span>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-danger compact"
-                            onClick={() => removePendingSolutionFile(index)}
-                            title="Quitar archivo"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </article>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="form-actions">
-                    <button type="button" className="btn-secondary" onClick={closeSolutionModal}>
-                      Cancelar
-                    </button>
-                    <button
-                      className="btn-primary"
-                      disabled={
-                        !canEdit
-                        || solutionSaving
-                        || (!solutionRisk?.accionesMitigacion && !solutionMitigacion.trim())
+              {tratamientoTab === 'new' && canEdit && (
+                <div className="tratamiento-new-panel">
+                  <TratamientoForm
+                    proyectoId={proyectoId}
+                    riesgoId={solutionRisk?.id}
+                    onSuccess={async () => {
+                      setSolutionError(null);
+                      setTratamientoTab('history');
+                      setLoadingTratamientos(true);
+                      try {
+                        const response = await riskService.getTratamientos(proyectoId, solutionRisk.id);
+                        setTratamientos(response?.data || []);
+                      } catch {
+                        setTratamientos([]);
+                      } finally {
+                        setLoadingTratamientos(false);
                       }
-                      type="submit"
-                    >
-                      <Save size={16} /> {solutionSaving ? 'Guardando...' : 'Guardar soluciones'}
-                    </button>
-                  </div>
-                </form>
-              </section>
+                      await fetchData();
+                    }}
+                    onCancel={() => setTratamientoTab('history')}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

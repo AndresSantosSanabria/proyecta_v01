@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import {
   FileText, Search, Eye, Calendar, User, Tag, ChevronDown, ChevronUp,
   AlertCircle, LoaderCircle, FolderOpen, ClipboardCheck, Clock, Shield, FileEdit,
-  FileStack, FileBadge, Archive,
+  FileStack, FileBadge, Archive, Download,
 } from 'lucide-react';
 import projectService from '../../services/projectService';
 import { formatDate } from '../../utils/locale';
@@ -111,6 +111,25 @@ const EvidenciasProyectoPage = () => {
     }
   };
 
+  const handleDownloadSeguimiento = async () => {
+    try {
+      setLoading(true);
+      const response = await projectService.downloadSeguimientoExcel(codigoProyecto);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Seguimiento_Proyecto_${codigoProyecto}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading excel:', err);
+      setError('No se pudo descargar el reporte de seguimiento.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const SortIcon = ({ field }) => {
     if (sortField !== field) return <ChevronDown size={14} style={{ opacity: 0.3 }} />;
     return sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
@@ -200,6 +219,16 @@ const EvidenciasProyectoPage = () => {
           <span className="evp-kicker">Evidencias de Gestion</span>
           <h1>{projectInfo?.nombre || 'Proyecto'}</h1>
           <p>{codigoProyecto}{projectInfo?.dependencia ? ` - ${projectInfo.dependencia}` : ''}</p>
+          <button 
+            type="button" 
+            className="evp-btn-action" 
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '1rem', padding: '0.5rem 1rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            onClick={handleDownloadSeguimiento}
+            title="Descargar reporte de seguimiento en Excel"
+          >
+            <Download size={16} />
+            <span>Descargar Seguimiento</span>
+          </button>
         </div>
         <div className="evp-header-stats">
           <div className="evp-stat-card">
