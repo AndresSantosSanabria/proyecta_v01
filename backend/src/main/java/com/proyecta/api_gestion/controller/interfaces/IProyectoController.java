@@ -120,4 +120,23 @@ public interface IProyectoController {
             @PathVariable String id,
             @PathVariable Integer fase,
             Authentication authentication);
+
+    @Operation(summary = "EP-PROY-15 · Aprobar viabilidad", description = "El Gestor aprueba el Documento de Viabilidad cargado por el Director.")
+    @PatchMapping("/{id}/viabilidad/aprobar")
+    ResponseEntity<ApiResponse<Void>> aprobarViabilidad(
+            @PathVariable String id,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-16 · Devolver viabilidad", description = "El Gestor devuelve el Documento de Viabilidad con observaciones para subsanacion.")
+    @PatchMapping("/{id}/viabilidad/devolver")
+    ResponseEntity<ApiResponse<Void>> devolverViabilidad(
+            @PathVariable String id,
+            @Valid @RequestBody ViabilidadDevolverDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-17 · Cierre forzoso", description = "El Gestor cierra forzosamente un proyecto que no fue completado por el Director.")
+    @PatchMapping("/{id}/cierre-forzoso")
+    ResponseEntity<ApiResponse<Void>> cerrarForzoso(
+            @PathVariable String id,
+            Authentication authentication);
 }

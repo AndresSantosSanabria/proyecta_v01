@@ -162,6 +162,10 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         notificarCambioDocumento(proyectoId, actor.username(), NotificationEventType.PROJECT_DOCUMENT_UPLOADED, tipoDocumento, nombreOriginal, esReemplazo);
 
+        if ("VIABILIZACION".equals(tipoDocumento) || "PLAN_COMUNICACIONES".equals(tipoDocumento) || "MATRIZ_RIESGOS_VIABILIDAD".equals(tipoDocumento)) {
+            actualizarEstadoViabilidad(proyectoId, actor.username());
+        }
+
         return toUploadResultDTO(guardada);
     }
 
@@ -386,6 +390,57 @@ public class DocumentoServiceImpl implements IDocumentoService {
                         "isReplacement", reemplazo,
                         "recipients", recipients
                 )));
+    }
+
+    private void actualizarEstadoViabilidad(String proyectoId, String directorUsername) {
+        Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+        if (proyecto == null) return;
+
+        if (proyecto.viabilidadPendiente() || proyecto.viabilidadDevuelta()) {
+            proyecto.marcarViabilidadCargada();
+        }
+
+        verificarTodosDocumentosCargados(proyecto);
+
+        proyectoRepository.save(proyecto);
+
+        notificarCargaDocumentos(proyectoId, directorUsername, proyecto);
+    }
+
+    private void verificarTodosDocumentosCargados(Proyecto proyecto) {
+        boolean tieneViabilidad = versionRepository
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "VIABILIZACION")
+                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
+        boolean tienePlanComunicaciones = versionRepository
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "PLAN_COMUNICACIONES")
+                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
+        boolean tieneMatrizRiesgos = versionRepository
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "MATRIZ_RIESGOS_VIABILIDAD")
+                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
+
+        proyecto.setDocumentosCargados(tieneViabilidad && tienePlanComunicaciones && tieneMatrizRiesgos);
+    }
+
+    private void notificarCargaDocumentos(String proyectoId, String directorUsername, Proyecto proyecto) {
+        var gestores = usuarioProyectoRepository.findActivasByProyectoId(proyectoId).stream()
+                .map(item -> item.getUsuario())
+                .filter(usuario -> usuario != null && "GESTOR".equalsIgnoreCase(usuario.getRolCodigo()))
+                .map(usuario -> usuario.getUsername())
+                .filter(username -> username != null && !username.isBlank())
+                .filter(username -> !username.equalsIgnoreCase(directorUsername))
+                .distinct()
+                .toList();
+
+        if (!gestores.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.VIABILIDAD_UPLOADED,
+                    proyectoId,
+                    directorUsername,
+                    java.util.Map.of(
+                            "projectName", proyecto.getNombre(),
+                            "recipients", gestores
+                    )));
+        }
     }
 
     private ActorContext actorContext(Authentication authentication) {

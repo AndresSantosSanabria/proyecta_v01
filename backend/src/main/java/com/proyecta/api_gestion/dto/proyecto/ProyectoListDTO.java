@@ -14,6 +14,8 @@ public record ProyectoListDTO(
     Boolean peti,
     BigDecimal avanceTotal,
     String estado,
+    String viabilidadEstado,
+    Boolean documentosCargados,
     Integer entregablesTotal,
     Integer entregablesConformes,
     Integer entregablesAtrasados,

@@ -30,11 +30,14 @@ public interface SeguridadUsuarioRepository extends JpaRepository<SeguridadUsuar
 
     @Query("""
         SELECT u FROM SeguridadUsuario u
-        WHERE (:search IS NULL OR :search = '' OR
+        WHERE u.activo = true
+          AND (
+            :search IS NULL OR :search = '' OR
             LOWER(u.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR
             LOWER(u.correo) LIKE LOWER(CONCAT('%', :search, '%')) OR
             LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) OR
-            LOWER(COALESCE(u.dependencia, '')) LIKE LOWER(CONCAT('%', :search, '%')))
+            LOWER(COALESCE(u.dependencia, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+          )
           AND (:rol IS NULL OR :rol = '' OR LOWER(COALESCE(u.rolCodigo, '')) = LOWER(:rol))
         ORDER BY u.nombre ASC
     """)

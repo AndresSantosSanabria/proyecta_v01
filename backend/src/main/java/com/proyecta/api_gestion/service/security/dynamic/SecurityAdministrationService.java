@@ -423,11 +423,9 @@ public class SecurityAdministrationService {
         SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + username));
 
-        if (isDirectorCargo(cargoNormalizado)) {
-            String rolUsuario = normalizeRole(usuario.getRolCodigo());
-            if (!isDirectorRole(rolUsuario)) {
-                throw new BadRequestException("El usuario seleccionado no tiene el rol Director de Proyecto.");
-            }
+        String rolUsuario = normalizeRole(usuario.getRolCodigo());
+        if (!isDirectorRole(rolUsuario)) {
+            throw new BadRequestException("Solo los usuarios con rol Director de Proyecto pueden ser asignados a un proyecto.");
         }
 
         SeguridadUsuarioProyecto assignment;

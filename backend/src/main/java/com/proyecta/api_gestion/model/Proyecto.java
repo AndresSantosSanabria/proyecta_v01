@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.model.config.EstadoProyectoConfig;
 import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
+import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -65,6 +66,43 @@ public class Proyecto {
 
     @Column(name = "viabilizacion_pdf", length = 255)
     private String viabilizacionPdf;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "viabilidad_estado", length = 20)
+    private ViabilidadEstado viabilidadEstado = ViabilidadEstado.PENDIENTE;
+
+    @Column(name = "viabilidad_observaciones", columnDefinition = "TEXT")
+    private String viabilidadObservaciones;
+
+    @Column(name = "viabilidad_revisado_por", length = 120)
+    private String viabilidadRevisadoPor;
+
+    @Column(name = "viabilidad_revisado_en")
+    private LocalDateTime viabilidadRevisadoEn;
+
+    @Column(name = "documentos_cargados", nullable = false)
+    private Boolean documentosCargados = false;
+
+    @Column(name = "documentos_verificados", nullable = false)
+    private Boolean documentosVerificados = false;
+
+    @Column(name = "fecha_verificacion_documentos")
+    private LocalDateTime fechaVerificacionDocumentos;
+
+    @Column(name = "fecha_limite_completar")
+    private LocalDate fechaLimiteCompletar;
+
+    @Column(name = "cierre_forzoso", nullable = false)
+    private Boolean cierreForzoso = false;
+
+    @Column(name = "cierre_forzoso_por", length = 120)
+    private String cierreForzosoPor;
+
+    @Column(name = "cierre_forzoso_en")
+    private LocalDateTime cierreForzosoEn;
+
+    @Column(name = "acta_constitucion_cargada", nullable = false)
+    private Boolean actaConstitucionCargada = false;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
@@ -203,6 +241,42 @@ public class Proyecto {
     public String getViabilizacionPdf() { return viabilizacionPdf; }
     public void setViabilizacionPdf(String viabilizacionPdf) { this.viabilizacionPdf = viabilizacionPdf; }
 
+    public ViabilidadEstado getViabilidadEstado() { return viabilidadEstado; }
+    public void setViabilidadEstado(ViabilidadEstado viabilidadEstado) { this.viabilidadEstado = viabilidadEstado; }
+
+    public String getViabilidadObservaciones() { return viabilidadObservaciones; }
+    public void setViabilidadObservaciones(String viabilidadObservaciones) { this.viabilidadObservaciones = viabilidadObservaciones; }
+
+    public String getViabilidadRevisadoPor() { return viabilidadRevisadoPor; }
+    public void setViabilidadRevisadoPor(String viabilidadRevisadoPor) { this.viabilidadRevisadoPor = viabilidadRevisadoPor; }
+
+    public LocalDateTime getViabilidadRevisadoEn() { return viabilidadRevisadoEn; }
+    public void setViabilidadRevisadoEn(LocalDateTime viabilidadRevisadoEn) { this.viabilidadRevisadoEn = viabilidadRevisadoEn; }
+
+    public Boolean getDocumentosCargados() { return documentosCargados; }
+    public void setDocumentosCargados(Boolean documentosCargados) { this.documentosCargados = documentosCargados; }
+
+    public Boolean getDocumentosVerificados() { return documentosVerificados; }
+    public void setDocumentosVerificados(Boolean documentosVerificados) { this.documentosVerificados = documentosVerificados; }
+
+    public LocalDateTime getFechaVerificacionDocumentos() { return fechaVerificacionDocumentos; }
+    public void setFechaVerificacionDocumentos(LocalDateTime fechaVerificacionDocumentos) { this.fechaVerificacionDocumentos = fechaVerificacionDocumentos; }
+
+    public LocalDate getFechaLimiteCompletar() { return fechaLimiteCompletar; }
+    public void setFechaLimiteCompletar(LocalDate fechaLimiteCompletar) { this.fechaLimiteCompletar = fechaLimiteCompletar; }
+
+    public Boolean getCierreForzoso() { return cierreForzoso; }
+    public void setCierreForzoso(Boolean cierreForzoso) { this.cierreForzoso = cierreForzoso; }
+
+    public String getCierreForzosoPor() { return cierreForzosoPor; }
+    public void setCierreForzosoPor(String cierreForzosoPor) { this.cierreForzosoPor = cierreForzosoPor; }
+
+    public LocalDateTime getCierreForzosoEn() { return cierreForzosoEn; }
+    public void setCierreForzosoEn(LocalDateTime cierreForzosoEn) { this.cierreForzosoEn = cierreForzosoEn; }
+
+    public Boolean getActaConstitucionCargada() { return actaConstitucionCargada; }
+    public void setActaConstitucionCargada(Boolean actaConstitucionCargada) { this.actaConstitucionCargada = actaConstitucionCargada; }
+
     public EstadoProyecto getEstado() { return estado; }
     public void setEstado(EstadoProyecto estado) { this.estado = estado; }
 
@@ -332,6 +406,86 @@ public class Proyecto {
 
     public boolean cierreAprobado() {
         return "APROBADO".equals(cierreEstado);
+    }
+
+    // --- Quality Gate: Documentos Pre-Wizard ---
+
+    public boolean viabilidadPendiente() {
+        return ViabilidadEstado.PENDIENTE.equals(this.viabilidadEstado);
+    }
+
+    public boolean viabilidadCargada() {
+        return ViabilidadEstado.CARGADA.equals(this.viabilidadEstado);
+    }
+
+    public boolean viabilidadAprobada() {
+        return ViabilidadEstado.APROBADA.equals(this.viabilidadEstado);
+    }
+
+    public boolean viabilidadDevuelta() {
+        return ViabilidadEstado.DEVUELTA.equals(this.viabilidadEstado);
+    }
+
+    public boolean documentosPreWizardCompletos() {
+        return Boolean.TRUE.equals(documentosCargados) && Boolean.TRUE.equals(documentosVerificados);
+    }
+
+    public boolean puedeCompletarWizard() {
+        return documentosPreWizardCompletos() && Boolean.TRUE.equals(requiereCompletitudDirector);
+    }
+
+    public boolean plazoCompletarVencido() {
+        return fechaLimiteCompletar != null && LocalDate.now().isAfter(fechaLimiteCompletar);
+    }
+
+    public void marcarViabilidadCargada() {
+        this.viabilidadEstado = ViabilidadEstado.CARGADA;
+        this.viabilidadObservaciones = null;
+        verificarDocumentosCargados();
+    }
+
+    private void verificarDocumentosCargados() {
+        if (viabilidadCargada() || viabilidadAprobada()) {
+            boolean tienePlanComunicaciones = Boolean.TRUE.equals(this.tienePlanComunicaciones)
+                    || (this.planComunicacionesPdf != null && !this.planComunicacionesPdf.isBlank());
+            boolean tieneViabilidad = this.viabilizacionPdf != null && !this.viabilizacionPdf.isBlank();
+            this.documentosCargados = tieneViabilidad && tienePlanComunicaciones;
+        }
+    }
+
+    public void aprobarDocumentos(String revisadoPor) {
+        this.viabilidadEstado = ViabilidadEstado.APROBADA;
+        this.viabilidadObservaciones = null;
+        this.viabilidadRevisadoPor = revisadoPor;
+        this.viabilidadRevisadoEn = LocalDateTime.now();
+        this.documentosVerificados = true;
+        this.fechaVerificacionDocumentos = LocalDateTime.now();
+        this.fechaLimiteCompletar = LocalDate.now().plusDays(30);
+    }
+
+    public void devolverDocumentos(String observaciones, String revisadoPor) {
+        if (observaciones == null || observaciones.isBlank()) {
+            throw new IllegalStateException("Las observaciones son obligatorias al devolver los documentos.");
+        }
+        this.viabilidadEstado = ViabilidadEstado.DEVUELTA;
+        this.viabilidadObservaciones = observaciones;
+        this.viabilidadRevisadoPor = revisadoPor;
+        this.viabilidadRevisadoEn = LocalDateTime.now();
+        this.documentosVerificados = false;
+        this.fechaVerificacionDocumentos = null;
+        this.fechaLimiteCompletar = null;
+    }
+
+    public void cerrarForzoso(String gestorUsername) {
+        this.cierreForzoso = true;
+        this.cierreForzosoPor = gestorUsername;
+        this.cierreForzosoEn = LocalDateTime.now();
+        this.estado = EstadoProyecto.CERRADO;
+        this.requiereCompletitudDirector = false;
+    }
+
+    public void marcarActaConstitucionCargada() {
+        this.actaConstitucionCargada = true;
     }
 
     /**

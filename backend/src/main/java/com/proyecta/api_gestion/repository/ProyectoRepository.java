@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.repository;
 
 import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
 import com.proyecta.api_gestion.dto.report.ProyectoReporteResumenDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import org.springframework.data.domain.Page;
@@ -153,4 +154,8 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
         GROUP BY p.dependencia
     """)
     List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> getProjectsByDependencia();
+
+    List<Proyecto> findByViabilidadEstadoAndActaConstitucionCargadaFalse(ViabilidadEstado viabilidadEstado);
+
+    List<Proyecto> findByDocumentosVerificadosTrueAndRequiereCompletitudDirectorTrueAndCierreForzosoFalse();
 }

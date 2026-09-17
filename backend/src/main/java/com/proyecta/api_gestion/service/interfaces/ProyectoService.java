@@ -33,4 +33,9 @@ public interface ProyectoService {
     CompletitudBorradorDTO guardarBorradorCompletitud(String id, CompletitudBorradorDTO dto, String username);
     CompletitudBorradorDTO obtenerBorradorCompletitud(String id, String username);
     ProyectoResponseDTO completarFaseCompletitud(String id, Integer fase, String username);
+
+    // Quality Gate: Viabilidad
+    void aprobarViabilidad(String id, String gestorUsername);
+    void devolverViabilidad(String id, ViabilidadDevolverDTO dto, String gestorUsername);
+    void cerrarForzoso(String id, String gestorUsername);
 }

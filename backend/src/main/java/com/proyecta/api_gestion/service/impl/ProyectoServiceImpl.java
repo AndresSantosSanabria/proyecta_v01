@@ -351,10 +351,38 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
 
         boolean requiereCompletitud = proyecto.requiereCompletitudDirector();
-        boolean puedeCompletar = requiereCompletitud && directorAsignado;
-        String mensaje = requiereCompletitud
-                ? "El Director asignado debe completar la informacion inicial antes de acceder a los modulos operativos."
-                : "El proyecto ya tiene su informacion inicial completa.";
+        boolean documentosVerificados = Boolean.TRUE.equals(proyecto.getDocumentosVerificados());
+        boolean documentosCargados = Boolean.TRUE.equals(proyecto.getDocumentosCargados());
+        boolean puedeCargarViabilidad = requiereCompletitud && directorAsignado
+                && (proyecto.viabilidadPendiente() || proyecto.viabilidadDevuelta());
+        boolean puedeCompletarWizard = requiereCompletitud && directorAsignado && documentosVerificados;
+        boolean puedeCompletar = puedeCompletarWizard;
+
+        String viabilidadEstado = proyecto.getViabilidadEstado() != null
+                ? proyecto.getViabilidadEstado().name() : "PENDIENTE";
+
+        boolean plazoVencido = proyecto.plazoCompletarVencido();
+
+        String mensaje;
+        if (!requiereCompletitud) {
+            mensaje = "El proyecto ya tiene su informacion inicial completa.";
+        } else if (proyecto.getCierreForzoso()) {
+            mensaje = "El proyecto fue cerrado forzosamente por el Gestor.";
+        } else if (puedeCargarViabilidad) {
+            mensaje = "El Director debe cargar los 3 documentos (Viabilidad, Plan de Comunicaciones y Matriz de Riesgos de Viabilidad).";
+        } else if (documentosCargados && !documentosVerificados) {
+            mensaje = "Los documentos estan cargados y pendientes de verificacion por parte del Gestor.";
+        } else if (proyecto.viabilidadDevuelta()) {
+            mensaje = "Los documentos fueron devueltos con observaciones. El Director debe subsanar.";
+        } else if (documentosVerificados) {
+            if (plazoVencido) {
+                mensaje = "El plazo de 30 dias para completar el proyecto ha vencido. El Gestor puede realizar el cierre forzoso.";
+            } else {
+                mensaje = "Documentos verificados. El Director debe completar la informacion del proyecto dentro de 30 dias.";
+            }
+        } else {
+            mensaje = "El Director asignado debe completar la informacion inicial antes de acceder a los modulos operativos.";
+        }
 
         return new ProyectoCompletionStatusDTO(
                 proyecto.getId(),
@@ -364,6 +392,16 @@ public class ProyectoServiceImpl implements ProyectoService {
                 puedeCompletar,
                 proyecto.getPrimerIngresoDirectorAt(),
                 proyecto.getCompletadoPorDirectorAt(),
+                viabilidadEstado,
+                proyecto.getViabilidadObservaciones(),
+                proyecto.viabilidadAprobada(),
+                documentosCargados,
+                documentosVerificados,
+                puedeCargarViabilidad,
+                puedeCompletarWizard,
+                proyecto.getFechaLimiteCompletar(),
+                plazoVencido,
+                Boolean.TRUE.equals(proyecto.getCierreForzoso()),
                 mensaje
         );
     }
@@ -1267,6 +1305,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getPeti(),
                 p.getAvanceTotal(),
                 p.getEstadoCodigo(),
+                p.getViabilidadEstado() != null ? p.getViabilidadEstado().name() : null,
+                p.getDocumentosCargados(),
                 (int) total,
                 (int) conformes,
                 (int) atrasados,
@@ -1540,6 +1580,111 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new BadRequestException("Error al procesar las fases: " + e.getMessage());
+        }
+    }
+
+    // ==================== QUALITY GATE: DOCUMENTOS PRE-WIZARD ====================
+
+    @Override
+    @Transactional
+    public void aprobarViabilidad(String id, String gestorUsername) {
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+
+        recalcularDocumentosCargados(proyecto);
+
+        if (!proyecto.getDocumentosCargados()) {
+            proyectoRepository.save(proyecto);
+            return;
+        }
+
+        proyecto.aprobarDocumentos(gestorUsername);
+        proyectoRepository.save(proyecto);
+
+        String directorUsername = proyecto.getDirector();
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.VIABILIDAD_APPROVED,
+                proyecto.getId(),
+                gestorUsername,
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "recipients", java.util.List.of(directorUsername)
+                )));
+    }
+
+    @Override
+    @Transactional
+    public void devolverViabilidad(String id, ViabilidadDevolverDTO dto, String gestorUsername) {
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+
+        recalcularDocumentosCargados(proyecto);
+
+        if (!proyecto.getDocumentosCargados()) {
+            proyectoRepository.save(proyecto);
+            return;
+        }
+
+        proyecto.devolverDocumentos(dto.observaciones(), gestorUsername);
+        proyectoRepository.save(proyecto);
+
+        String directorUsername = proyecto.getDirector();
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.VIABILIDAD_RETURNED,
+                proyecto.getId(),
+                gestorUsername,
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "observaciones", dto.observaciones(),
+                        "recipients", java.util.List.of(directorUsername)
+                )));
+    }
+
+    @Override
+    @Transactional
+    public void cerrarForzoso(String id, String gestorUsername) {
+        final String normalizedId = normalizeProjectId(id);
+        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+
+        if (!proyecto.requiereCompletitudDirector()) {
+            throw new BadRequestException("No se puede cerrar forzosamente un proyecto que no esta pendiente de completar.");
+        }
+
+        proyecto.cerrarForzoso(gestorUsername);
+        proyectoRepository.save(proyecto);
+
+        String directorUsername = proyecto.getDirector();
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_CLOSED,
+                proyecto.getId(),
+                gestorUsername,
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        " motivo", "Cierre forzoso por Gestor",
+                        "recipients", java.util.List.of(directorUsername)
+                )));
+    }
+
+    private void recalcularDocumentosCargados(Proyecto proyecto) {
+        boolean tieneViabilidad = documentoVersionRepository
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "VIABILIZACION")
+                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
+        boolean tienePlanComunicaciones = documentoVersionRepository
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "PLAN_COMUNICACIONES")
+                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
+        boolean tieneMatrizRiesgos = documentoVersionRepository
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "MATRIZ_RIESGOS_VIABILIDAD")
+                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
+
+        boolean cargados = tieneViabilidad && tienePlanComunicaciones && tieneMatrizRiesgos;
+        proyecto.setDocumentosCargados(cargados);
+
+        if (!cargados && proyecto.viabilidadCargada()) {
+            proyecto.setViabilidadEstado(com.proyecta.api_gestion.model.enums.ViabilidadEstado.PENDIENTE);
+            proyecto.setViabilidadObservaciones(null);
         }
     }
 }
