@@ -9,6 +9,7 @@ import {
   FolderOpen,
   List,
   ListTodo,
+  LoaderCircle,
   Pencil,
   Plus,
   RefreshCw,
@@ -398,17 +399,11 @@ const SecurityConfigPage = () => {
     [assignmentForm.username, users]
   );
   const selectedAssignmentUserRole = getUserRoleCode(selectedAssignmentUser);
-  const shouldRestrictToDirectors = isDirectorEquivalentRole(assignmentForm.cargo);
+  const shouldRestrictToDirectors = true;
   const selectedAssignmentUserRoleKey = selectedAssignmentUserRole.toUpperCase();
   const isAssignmentsModalOpen = canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS;
   const isFullscreenModalOpen = isUserEditorOpen || isAssignmentsModalOpen;
-  const assignableUsers = (() => {
-    if (!shouldRestrictToDirectors) {
-      return users;
-    }
-
-    return users.filter((user) => isDirectorEquivalentRole(getUserRoleCode(user)));
-  })();
+  const assignableUsers = users.filter((user) => user.activo !== false && isDirectorEquivalentRole(getUserRoleCode(user)));
   const projectOptions = useMemo(
     () => [...projects].sort((left, right) => {
       const leftName = getProjectName(left);
@@ -1411,15 +1406,19 @@ const SecurityConfigPage = () => {
               >
                 <div className="panel-topbar assignments-topbar">
                   <div className="roles-header-copy">
-                    <p className="security-eyebrow">ASIGNACIONES DEL SISTEMA</p>
-                    <h2 id="assignments-modal-title">Asignación de Proyecto y Cargo</h2>
-                    <p>
-                      Administra aquí las asignaciones entre usuarios, proyectos y cargos. Este módulo va separado de la gestión
-                      de usuarios para mantener el flujo más claro.
-                    </p>
-                    <p id="assignments-modal-description" className="assignments-modal-description">
-                      El formulario y el listado quedan encapsulados en un modal para evitar que el panel crezca sobre la vista principal.
-                    </p>
+                    <div className="assignments-title-row">
+                      <div>
+                        <p className="security-eyebrow">ASIGNACIONES DEL SISTEMA</p>
+                        <h2 id="assignments-modal-title">Asignación de Proyecto y Cargo</h2>
+                        <p id="assignments-modal-description" className="assignments-modal-description">
+                          Administra las asignaciones entre usuarios, proyectos y cargos.
+                        </p>
+                      </div>
+                      <div className="assignment-header-badges">
+                        <span className="soft-pill">{assignmentCargos.length} cargos</span>
+                        <span className="soft-pill">{projectOptions.length} proyectos</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="panel-actions assignments-actions">
@@ -1435,11 +1434,6 @@ const SecurityConfigPage = () => {
                       Actualizar
                     </button>
                   </div>
-                </div>
-
-                <div className="assignment-header-badges">
-                  <span className="soft-pill">{assignmentCargos.length} cargos</span>
-                  <span className="soft-pill">{projectOptions.length} proyectos</span>
                 </div>
 
                 <div className="assignment-grid">
@@ -1533,7 +1527,7 @@ const SecurityConfigPage = () => {
                       </button>
                       <button type="submit" className="btn-primary" disabled={savingAssignment || loading}>
                         <Save size={16} />
-                        {savingAssignment ? 'Guardando...' : 'Asignar proyecto'}
+                        {savingAssignment ? 'Guardando...' : 'Asignar'}
                       </button>
                     </div>
                   </form>
@@ -1555,7 +1549,6 @@ const SecurityConfigPage = () => {
                         disabled={!assignmentForm.username || assignmentLoading}
                       >
                         <RefreshCw size={16} />
-                        Actualizar
                       </button>
                     </div>
 
@@ -1573,13 +1566,18 @@ const SecurityConfigPage = () => {
                           {assignmentLoading ? (
                             <tr>
                               <td colSpan={4} className="table-empty-cell">
-                                Cargando asignaciones...
+                                <div className="empty-state">
+                                  <LoaderCircle size={20} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
+                                  <span>Cargando asignaciones...</span>
+                                </div>
                               </td>
                             </tr>
                           ) : !assignmentForm.username ? (
                             <tr>
                               <td colSpan={4} className="table-empty-cell">
-                                Selecciona un usuario para consultar sus asignaciones.
+                                <div className="empty-state">
+                                  <span style={{ color: 'var(--text-muted)' }}>Selecciona un usuario para consultar sus asignaciones.</span>
+                                </div>
                               </td>
                             </tr>
                           ) : assignments.length === 0 ? (
@@ -1587,7 +1585,7 @@ const SecurityConfigPage = () => {
                               <td colSpan={4} className="table-empty-cell">
                                 <div className="empty-state">
                                   <strong>Sin asignaciones</strong>
-                                  <span>Este usuario todav?a no tiene proyectos vinculados.</span>
+                                  <span>Este usuario todavia no tiene proyectos vinculados.</span>
                                 </div>
                               </td>
                             </tr>

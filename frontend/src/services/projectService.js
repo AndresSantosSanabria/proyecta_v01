@@ -447,6 +447,28 @@ const projectService = {
     );
     return data;
   },
+
+  aprobarViabilidad: async (proyectoId) => {
+    const { data } = await apiClient.patch(
+      `/proyectos/${normalizeProjectId(proyectoId)}/viabilidad/aprobar`
+    );
+    return data;
+  },
+
+  devolverViabilidad: async (proyectoId, observaciones) => {
+    const { data } = await apiClient.patch(
+      `/proyectos/${normalizeProjectId(proyectoId)}/viabilidad/devolver`,
+      { observaciones }
+    );
+    return data;
+  },
+
+  cerrarForzoso: async (proyectoId) => {
+    const { data } = await apiClient.patch(
+      `/proyectos/${normalizeProjectId(proyectoId)}/cierre-forzoso`
+    );
+    return data;
+  },
 };
 
 export default projectService;

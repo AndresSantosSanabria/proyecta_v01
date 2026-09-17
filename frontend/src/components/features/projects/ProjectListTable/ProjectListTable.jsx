@@ -84,11 +84,35 @@ const ProjectListTable = ({
             {projects.length > 0 ? (
               projects.map((project, index) => {
                 const projectId = getProjectId(project);
-                const currentStatus = statusMap[project.estado] || {
+                const baseStatus = statusMap[project.estado] || {
                   label: project.estado,
                   class: 'default',
                   tooltip: `Estado registrado: ${project.estado}`,
                 };
+
+                let currentStatus = baseStatus;
+                if (project.estado === 'PENDIENTE_COMPLETAR') {
+                  const viab = (project.viabilidadEstado || '').toUpperCase();
+                  if (viab === 'CARGADA') {
+                    currentStatus = {
+                      label: 'Docs. pendientes verificación',
+                      class: 'info',
+                      tooltip: 'El Director cargó los documentos de viabilidad. Pendiente que el Gestor o Administrador verifique y apruebe.',
+                    };
+                  } else if (viab === 'DEVUELTA') {
+                    currentStatus = {
+                      label: 'Docs. devueltos',
+                      class: 'warning',
+                      tooltip: 'El Gestor devolvió los documentos con observaciones. El Director debe subsanar.',
+                    };
+                  } else if (viab === 'APROBADA') {
+                    currentStatus = {
+                      label: 'Viabilidad aprobada',
+                      class: 'success',
+                      tooltip: 'La viabilidad fue verificada. El Director puede completar el proyecto.',
+                    };
+                  }
+                }
 
                 return (
                   <tr key={projectId || index}>

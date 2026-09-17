@@ -33,11 +33,11 @@
 
 .security-eyebrow {
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--primary);
   margin-bottom: 8px;
 }
 
@@ -562,27 +562,40 @@
   z-index: 60;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 24px;
   background: var(--modal-backdrop);
-  backdrop-filter: none;
+  backdrop-filter: blur(6px);
+  animation: backdrop-fade-in 0.15s ease-out;
+}
+
+@keyframes backdrop-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .assignments-modal {
-  width: min(1180px, calc(100vw - 36px));
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  border: 1px solid color-mix(in srgb, var(--border-color) 82%, var(--primary-soft));
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-soft) 28%, transparent) 0, transparent 42%),
-    var(--bg-surface);
-  box-shadow: 0 30px 70px color-mix(in srgb, var(--bg-main) 72%, transparent);
-  animation: modal-pop 0.18s ease-out;
+  width: min(1200px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  background: var(--bg-surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--border-color) 30%, transparent),
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    0 24px 64px rgba(0, 0, 0, 0.12);
+  animation: modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .assignments-modal-description {
   margin: 6px 0 0;
   color: var(--text-muted);
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   line-height: 1.5;
 }
 
@@ -669,31 +682,31 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   white-space: nowrap;
 }
 
 .soft-pill {
-  background: var(--bg-muted);
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-surface));
   color: var(--text-muted);
-  border: 1px solid transparent;
-  font-weight: 500;
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border-color));
+  font-weight: 600;
 }
 
 .status-chip.active {
-  background: var(--success-bg);
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-surface));
   color: var(--success);
-  border: 1px solid var(--success-border);
+  border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
 }
 
 .status-chip.inactive {
-  background: color-mix(in srgb, var(--danger-soft) 88%, var(--bg-card));
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-surface));
   color: var(--danger);
-  border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
 .form-grid {
@@ -1033,14 +1046,24 @@
 }
 
 .assignment-panel {
-  display: grid;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
   min-height: 72vh;
-  padding-top: 28px;
-  padding-bottom: 28px;
+  padding: 0;
+  border-radius: 20px;
+  background: var(--bg-surface);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 32px color-mix(in srgb, var(--bg-main) 60%, transparent);
+  overflow: hidden;
+}
+
+.assignment-panel .panel-topbar {
+  padding: 28px 32px 24px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
   background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--primary-soft) 30%, transparent) 0, transparent 35%),
-    var(--bg-card);
+    radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--primary) 6%, transparent) 0%, transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-surface) 100%, white 0%), var(--bg-surface));
+  flex-shrink: 0;
 }
 
 .assignments-workspace {
@@ -1055,27 +1078,36 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.assignments-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
 }
 
 .assignment-grid {
   display: grid;
-  gap: 18px;
+  gap: 0;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  flex: 1;
+  min-height: 0;
 }
 
 .assignment-form {
   display: grid;
-  gap: 16px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 82%, var(--bg-card)), var(--bg-card));
+  gap: 0;
+  padding: 28px 32px;
+  border-right: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 100%, transparent);
 }
 
 .assignment-form-grid {
   display: grid;
-  gap: 14px;
+  gap: 20px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1083,68 +1115,72 @@
   display: grid;
   gap: 8px;
   color: var(--text-main);
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .assignment-form-grid label span {
-  color: color-mix(in srgb, var(--text-main) 88%, var(--text-muted));
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.77rem;
-  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .assignment-form-grid input,
 .assignment-form-grid select {
   width: 100%;
-  min-height: 50px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 92%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-main) 88%, var(--bg-card)), var(--bg-card));
+  min-height: 46px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 100%, transparent);
+  background: var(--bg-main);
   color: var(--text-main);
   outline: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  font-size: 0.88rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .assignment-form-grid input:focus,
 .assignment-form-grid select:focus {
-  border-color: color-mix(in srgb, var(--primary) 64%, var(--border-color));
-  box-shadow: 0 0 0 4px var(--primary-soft), 0 12px 22px rgba(59, 130, 246, 0.08);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .assignment-helper {
   display: grid;
-  gap: 4px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px dashed color-mix(in srgb, var(--border-color) 84%, var(--primary-soft));
-  background: color-mix(in srgb, var(--bg-main) 52%, var(--bg-card));
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border-color));
+  background: color-mix(in srgb, var(--primary) 5%, var(--bg-main));
 }
 
 .assignment-helper strong {
   color: var(--text-main);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .assignment-helper span {
   color: var(--text-muted);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   line-height: 1.5;
 }
 
 .assignment-actions {
+  display: flex;
   justify-content: flex-end;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+  margin-top: 4px;
 }
 
 .assignment-list-panel {
   display: grid;
-  gap: 14px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 88%, var(--primary-soft));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 98%, var(--bg-card)), var(--bg-card));
+  gap: 0;
+  background: var(--bg-surface);
 }
 
 .assignment-list-head {
@@ -1153,28 +1189,58 @@
   gap: 12px;
   align-items: flex-start;
   flex-wrap: wrap;
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
 }
 
 .assignment-list-head h5 {
   margin: 0 0 4px;
-  font-size: 0.98rem;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--text-main);
 }
 
 .assignment-list-head p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   line-height: 1.5;
 }
 
 .assignment-table-shell {
-  border-radius: 18px;
+  border-radius: 0;
   overflow: hidden;
 }
 
 .assignment-table {
   min-width: 760px;
+}
+
+.assignment-table thead th {
+  padding: 12px 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-main) 50%, var(--bg-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+}
+
+.assignment-table tbody td {
+  padding: 14px 20px;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 40%, transparent);
+  vertical-align: middle;
+}
+
+.assignment-table tbody tr:hover {
+  background: color-mix(in srgb, var(--primary) 4%, var(--bg-surface));
+}
+
+.assignment-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .assignment-project-cell {
@@ -1184,12 +1250,14 @@
 
 .assignment-project-cell strong {
   font-size: 0.9rem;
+  font-weight: 600;
   color: var(--text-main);
 }
 
 .assignment-project-cell span {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--text-muted);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .role-section-header h4 {
@@ -1634,11 +1702,9 @@
 
 .empty-state {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   place-items: center;
-  padding: 20px 16px;
-  border-radius: 14px;
-  border: 1px dashed var(--border-color);
+  padding: 32px 20px;
   color: var(--text-muted);
   text-align: center;
 }
@@ -1646,10 +1712,16 @@
 .empty-state strong {
   color: var(--text-main);
   font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .empty-state span {
   font-size: 0.84rem;
+}
+
+.table-empty-cell {
+  border: none !important;
+  background: color-mix(in srgb, var(--bg-main) 40%, var(--bg-surface));
 }
 
 .muted-text {
@@ -1718,6 +1790,21 @@
     grid-template-columns: 1fr;
   }
 
+  .assignments-title-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .assignment-form {
+    border-right: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+    padding: 20px 24px;
+  }
+
+  .assignment-list-head {
+    padding: 18px 20px 14px;
+  }
+
   .create-user-header,
   .panel-topbar,
   .security-header {
@@ -1733,7 +1820,8 @@
   }
 
   .assignments-modal {
-    width: min(980px, calc(100vw - 24px));
+    width: min(1000px, calc(100vw - 24px));
+    border-radius: 16px;
   }
 
   .assignment-table {
@@ -1753,13 +1841,26 @@
   }
 
   .assignments-modal-backdrop {
-    padding: 12px;
+    padding: 8px;
+    backdrop-filter: blur(4px);
   }
 
   .assignments-modal {
-    width: calc(100vw - 24px);
-    max-height: calc(100vh - 24px);
-    padding: 18px 16px;
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    border-radius: 14px;
+  }
+
+  .assignment-panel .panel-topbar {
+    padding: 20px 18px 18px;
+  }
+
+  .assignment-form {
+    padding: 18px;
+  }
+
+  .assignment-header-badges {
+    padding: 0 18px;
   }
 
   .editor-head {

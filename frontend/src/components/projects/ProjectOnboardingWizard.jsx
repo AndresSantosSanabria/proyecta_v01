@@ -38,10 +38,8 @@ const initialForm = (project) => ({
   peti: project?.peti ?? null,
   vigenciaPeti: project?.vigenciaPeti || '',
   estrategiaPeti: project?.estrategiaPeti || null,
-  // furag stores { [fieldKey]: 'SI'|'NO'|'NO_APLICA' } keyed by the catalog question key
   furag: project?.furag || {},
   riesgosIniciales: Array.isArray(project?.riesgosIniciales) ? project.riesgosIniciales : [],
-  viabilizacionPdf: null,
   actaConstitucionPdf: null,
   cronogramaPdf: null,
   planComunicacionesPdf: null,
@@ -118,7 +116,6 @@ const saveState = (project, step, form) => {
   if (!key) return;
   try {
     const serializable = { ...form };
-    delete serializable.viabilizacionPdf;
     delete serializable.actaConstitucionPdf;
     delete serializable.cronogramaPdf;
     delete serializable.planComunicacionesPdf;
@@ -494,7 +491,7 @@ const ProjectOnboardingWizard = ({
     }
 
     if (targetStep === 7) {
-      if (!source.viabilizacionPdf) nextErrors.viabilizacionPdf = 'El documento de viabilidad es obligatorio.';
+      if (!source.actaConstitucionPdf) nextErrors.actaConstitucionPdf = 'El Acta de Constitución es obligatoria.';
       if (!source.planComunicacionesPdf) nextErrors.planComunicacionesPdf = 'El Plan de Comunicaciones es obligatorio.';
     }
 
@@ -710,7 +707,6 @@ const ProjectOnboardingWizard = ({
     console.log('[FURAG] Body enviado al backend:', JSON.stringify(payload.furag, null, 2));
     console.log('[PAYLOAD COMPLETO]', JSON.stringify(payload, null, 2));
     onComplete?.(payload, {
-      viabilizacionPdf: form.viabilizacionPdf || null,
       actaConstitucionPdf: form.actaConstitucionPdf || null,
       cronogramaPdf: form.cronogramaPdf || null,
       planComunicacionesPdf: form.planComunicacionesPdf || null,

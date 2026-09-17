@@ -4,17 +4,10 @@ import './Paso6GestionDocumental.css';
 
 const DOC_CONFIG = [
   {
-    field: 'viabilizacionPdf',
-    label: 'Documento de Viabilización',
-    icon: FileCheck,
-    required: true,
-    note: null,
-  },
-  {
     field: 'actaConstitucionPdf',
     label: 'Acta de Constitución',
     icon: FileText,
-    required: false,
+    required: true,
     note: 'El acta debe generarse dentro de los 6 meses siguientes a la viabilización del proyecto.',
   },
   {
