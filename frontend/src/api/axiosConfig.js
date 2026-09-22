@@ -80,11 +80,8 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     if (status === 403) {
-      const backendMessage = error.response?.data?.message
-        || error.response?.data?.detail
-        || 'No tienes permisos para realizar esta acción.';
       if (!originalRequest?.suppressAuthToast) {
-        notifyAuth403({ message: backendMessage });
+        notifyAuth403();
       }
       return Promise.reject(error);
     }

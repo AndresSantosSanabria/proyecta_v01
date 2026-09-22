@@ -12,6 +12,7 @@ const DEFAULTS = {
   allowed_extensions: 'pdf,pptx',
   max_size_mb: '20',
   login_modal_delay_ms: '1200',
+  enabled: 'true',
 };
 
 const AdvanceReportConfigPanel = () => {
@@ -163,6 +164,17 @@ const AdvanceReportConfigPanel = () => {
       <div className="arp-section">
         <h4><Settings size={15} /> Archivos y Modal</h4>
         <div className="arp-grid">
+          <div className="arp-field">
+            <label>Modal de login habilitado</label>
+            <select
+              value={settings.enabled}
+              onChange={(e) => handleChange('enabled', e.target.value)}
+            >
+              <option value="true">Si</option>
+              <option value="false">No</option>
+            </select>
+            <span className="arp-hint">Muestra el modal de informes pendientes al iniciar sesion.</span>
+          </div>
           <div className="arp-field">
             <label>Extensiones permitidas</label>
             <input

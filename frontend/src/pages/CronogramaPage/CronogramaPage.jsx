@@ -6,6 +6,7 @@ import cronogramaService from '../../services/cronogramaService';
 import CronogramaHeader from '../../components/features/cronograma/CronogramaHeader';
 import ProjectInfoCard from '../../components/features/cronograma/ProjectInfoCard';
 import GanttChart from '../../components/features/cronograma/GanttChart';
+import { NO_ACCESS_MESSAGE, isForbiddenError } from '../../utils/accessMessages';
 import './CronogramaPage.css';
 
 const safeDate = (value) => {
@@ -218,7 +219,11 @@ const CronogramaPage = () => {
       {cronogramaError && (
         <div className="error-container">
           <AlertCircle size={20} />
-          <span>No se pudo cargar el diagrama de Gantt. Verifica que el proyecto tenga fases e hitos configurados.</span>
+          <span>
+            {isForbiddenError(cronogramaError)
+              ? NO_ACCESS_MESSAGE
+              : 'No se pudo cargar el diagrama de Gantt. Verifica que el proyecto tenga fases e hitos configurados.'}
+          </span>
         </div>
       )}
 

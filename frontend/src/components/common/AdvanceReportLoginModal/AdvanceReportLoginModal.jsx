@@ -58,14 +58,16 @@ const AdvanceReportLoginModal = ({ isOpen, onClose }) => {
             <div className="arm-loading">Cargando proyectos...</div>
           ) : (
             <>
-              <div className={`arm-due-banner ${isOverdue ? 'arm-due-banner--overdue' : ''}`}>
-                <Clock size={16} />
-                <span>
-                  {isOverdue
-                    ? `Vencido desde ${dueDate}`
-                    : `Fecha límite: ${dueDate}`}
-                </span>
-              </div>
+              {dueDate && (
+                <div className={`arm-due-banner ${isOverdue ? 'arm-due-banner--overdue' : ''}`}>
+                  <Clock size={16} />
+                  <span>
+                    {isOverdue
+                      ? `Vencido desde ${dueDate}`
+                      : `Fecha límite: ${dueDate}`}
+                  </span>
+                </div>
+              )}
 
               <div className="arm-project-list">
                 {pendingProjects.map((project) => (

@@ -6,6 +6,7 @@ import documentService from '../../services/documentService';
 import { useAuthContext } from '../../context/AuthContext';
 import ProjectOnboardingWizard from './ProjectOnboardingWizard';
 import { emitToast } from '../../utils/feedback';
+import { NO_ACCESS_MESSAGE, isForbiddenError } from '../../utils/accessMessages';
 import './ProjectLifecycleGuard.css';
 
 const unwrapPayload = (value) => value?.data?.data ?? value?.data ?? value;
@@ -33,6 +34,19 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
     MATRIZ_RIESGOS_VIABILIDAD: 'Matriz de Riesgos de Viabilidad',
   };
 
+  const docRevisions = useMemo(() => {
+    const map = {};
+    (completionStatus?.documentosPreWizard || []).forEach((r) => {
+      map[r.tipoDocumento] = r;
+    });
+    return map;
+  }, [completionStatus]);
+
+  const uploadableTypes = Object.keys(DOC_LABELS).filter((tipo) => {
+    if (!isResubmission) return true;
+    return docRevisions[tipo]?.estado !== 'APROBADO';
+  });
+
   const handleFileSelect = (field) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -58,7 +72,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
     }
   };
 
-  const allFilesSelected = Object.values(files).every((f) => f !== null);
+  const allFilesSelected = uploadableTypes.every((f) => files[f] !== null);
 
   const handleUploadAll = async () => {
     if (!allFilesSelected || !project?.id) return;
@@ -66,7 +80,8 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
     setUploadProgress({});
 
     try {
-      for (const [tipo, file] of Object.entries(files)) {
+      for (const tipo of uploadableTypes) {
+        const file = files[tipo];
         if (!file) continue;
         setUploadProgress((prev) => ({ ...prev, [tipo]: 'uploading' }));
         const observacion = isResubmission
@@ -157,13 +172,35 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
               <span className="plg-docs-section__count">3</span>
             </div>
             <p className="plg-docs-section__hint">
-              Cargue los 3 documentos en formato PDF. Todos son obligatorios para continuar.
+              {isResubmission
+                ? `Cargue los ${uploadableTypes.length} documento(s) devuelto(s). Los documentos ya verificados no requieren accion.`
+                : 'Cargue los 3 documentos en formato PDF. Todos son obligatorios para continuar.'}
             </p>
 
             <div className="plg-doc-list">
               {Object.entries(DOC_LABELS).map(([tipo, label]) => {
+                const revision = docRevisions[tipo];
+                const isApproved = revision?.estado === 'APROBADO';
+                const isReturned = revision?.estado === 'DEVUELTO';
                 const file = files[tipo];
                 const progress = uploadProgress[tipo];
+
+                if (isApproved) {
+                  return (
+                    <div key={tipo} className="plg-doc-card plg-doc-card--has-file plg-doc-card--approved">
+                      <div className="plg-doc-card__inner">
+                        <div className="plg-doc-card__icon plg-doc-card__icon--approved">
+                          <CheckCircle size={16} />
+                        </div>
+                        <div className="plg-doc-card__info">
+                          <span className="plg-doc-card__name">{label}</span>
+                          <span className="plg-doc-card__size">Verificado por el Gestor</span>
+                        </div>
+                        <span className="plg-doc-status plg-doc-status--approved">Verificado</span>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -190,6 +227,9 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                             {progress === 'uploading' ? 'Subiendo...' : progress === 'done' ? 'Cargado' : `${(file.size / 1024).toFixed(1)} KB`}
                           </span>
                         </div>
+                        <span className={`plg-doc-status ${isReturned ? 'plg-doc-status--returned' : 'plg-doc-status--pending'}`}>
+                          {isReturned ? 'Devuelto' : 'Pendiente'}
+                        </span>
                         {!uploading && (
                           <div className="plg-doc-card__actions">
                             <button
@@ -204,13 +244,24 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                         )}
                       </div>
                     ) : (
-                      <div className="plg-doc-card__placeholder">
-                        <div className="plg-doc-card__placeholder-icon">
-                          <Upload size={20} />
+                      <>
+                        <div className="plg-doc-card__placeholder">
+                          <div className="plg-doc-card__placeholder-icon">
+                            <Upload size={20} />
+                          </div>
+                          <p className="plg-doc-card__placeholder-title">{label}</p>
+                          <p className="plg-doc-card__placeholder-hint">Arrastre o haga clic para seleccionar. Solo PDF, max 20 MB.</p>
+                          {isReturned && (
+                            <span className="plg-doc-status plg-doc-status--returned">Devuelto</span>
+                          )}
                         </div>
-                        <p className="plg-doc-card__placeholder-title">{label}</p>
-                        <p className="plg-doc-card__placeholder-hint">Arrastre o haga clic para seleccionar. Solo PDF, max 20 MB.</p>
-                      </div>
+                        {isReturned && revision?.observacion && (
+                          <div className="plg-doc-card__observation">
+                            <AlertTriangle size={13} />
+                            <p>{revision.observacion}</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
@@ -233,7 +284,9 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
               ) : (
                 <>
                   <Upload size={12} />
-                  {isDevuelta ? 'Subsanar Documentos' : 'Cargar Documentos'}
+                  {isResubmission
+                    ? `Subsanar ${uploadableTypes.length} Documento(s)`
+                    : 'Cargar Documentos'}
                 </>
               )}
             </button>
@@ -246,14 +299,45 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
 
 const DocumentosCargadosView = ({ project, onRefresh }) => {
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectObservaciones, setRejectObservaciones] = useState('');
   const [loadingAction, setLoadingAction] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewName, setPreviewName] = useState('');
   const [downloading, setDownloading] = useState({});
+  const [revisions, setRevisions] = useState([]);
 
   const { hasRole, isAdminLocal, transversal } = useAuthContext();
   const isGestor = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
+
+  const DOC_LABELS = {
+    VIABILIZACION: 'Documento de Viabilidad',
+    PLAN_COMUNICACIONES: 'Plan de Comunicaciones',
+    MATRIZ_RIESGOS_VIABILIDAD: 'Matriz de Riesgos de Viabilidad',
+  };
+
+  const loadRevisions = async () => {
+    if (!project?.id) return;
+    try {
+      const data = await documentService.listarRevisionesPreWizard(project.id);
+      setRevisions(data?.data?.documentos || data?.documentos || []);
+    } catch {
+      setRevisions([]);
+    }
+  };
+
+  useEffect(() => {
+    void loadRevisions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
+
+  const revisionMap = useMemo(() => {
+    const map = {};
+    revisions.forEach((r) => { map[r.tipoDocumento] = r; });
+    return map;
+  }, [revisions]);
+
+  const aprobados = revisions.filter((r) => r.estado === 'APROBADO').length;
 
   const handlePreview = async (tipo, label) => {
     try {
@@ -294,46 +378,66 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
     setPreviewName('');
   };
 
-  const handleApprove = async () => {
+  const handleApproveDoc = async (tipo) => {
     setLoadingAction(true);
     try {
-      await projectService.aprobarViabilidad(project.id);
+      await documentService.aprobarDocumentoPreWizard(project.id, tipo);
       emitToast({
         tone: 'success',
-        title: 'Documentos aprobados',
-        message: 'Los documentos fueron verificados. El Director puede ahora completar el proyecto.',
+        title: 'Documento verificado',
+        message: `${DOC_LABELS[tipo]} fue verificado.`,
       });
+      await loadRevisions();
       onRefresh?.();
     } catch (err) {
-      const detail = err?.response?.data?.detail || err?.message || 'Error aprobando documentos';
+      const detail = err?.response?.data?.detail || err?.message || 'Error verificando documento';
       emitToast({ tone: 'error', title: 'Error', message: detail });
     } finally {
       setLoadingAction(false);
     }
   };
 
-  const handleReject = async () => {
+  const openRejectModal = (tipo) => {
+    setRejectTarget(tipo);
+    setRejectObservaciones('');
+    setShowRejectModal(true);
+  };
+
+  const closeRejectModal = () => {
+    setShowRejectModal(false);
+    setRejectTarget(null);
+    setRejectObservaciones('');
+  };
+
+  const handleRejectDoc = async () => {
+    if (!rejectTarget) return;
     if (!rejectObservaciones.trim()) {
-      emitToast({ tone: 'warning', title: 'Observaciones requeridas', message: 'Debe ingresar observaciones para devolver los documentos.' });
+      emitToast({ tone: 'warning', title: 'Observaciones requeridas', message: 'Debe ingresar observaciones para devolver el documento.' });
       return;
     }
     setLoadingAction(true);
     try {
-      await projectService.devolverViabilidad(project.id, rejectObservaciones.trim());
+      await documentService.devolverDocumentoPreWizard(project.id, rejectTarget, rejectObservaciones.trim());
       emitToast({
         tone: 'success',
-        title: 'Documentos devueltos',
-        message: 'Los documentos fueron devueltos al Director con observaciones.',
+        title: 'Documento devuelto',
+        message: `${DOC_LABELS[rejectTarget]} fue devuelto al Director con observaciones.`,
       });
-      setShowRejectModal(false);
-      setRejectObservaciones('');
+      closeRejectModal();
+      await loadRevisions();
       onRefresh?.();
     } catch (err) {
-      const detail = err?.response?.data?.detail || err?.message || 'Error devolviendo documentos';
+      const detail = err?.response?.data?.detail || err?.message || 'Error devolviendo documento';
       emitToast({ tone: 'error', title: 'Error', message: detail });
     } finally {
       setLoadingAction(false);
     }
+  };
+
+  const statusInfo = (estado) => {
+    if (estado === 'APROBADO') return { label: 'Verificado', className: 'plg-doc-status--approved', icon: <CheckCircle size={16} />, iconClass: 'plg-doc-card__icon--approved' };
+    if (estado === 'DEVUELTO') return { label: 'Devuelto', className: 'plg-doc-status--returned', icon: <XCircle size={16} />, iconClass: 'plg-doc-card__icon--returned' };
+    return { label: 'Pendiente', className: 'plg-doc-status--pending', icon: <Clock size={16} />, iconClass: '' };
   };
 
   return (
@@ -342,13 +446,13 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
         <div className="project-onboarding__panel card-surface">
           <div className="plg-hero">
             <span className="plg-hero__badge plg-hero__badge--warning">
-              Pendiente de Verificacion
+              Verificacion Individual - {aprobados}/3
             </span>
             <h2 className="plg-hero__title">Documentos Cargados</h2>
             <p className="plg-hero__subtitle">
               {isGestor
-                ? 'Los 3 documentos fueron cargados por el Director. Verifique los documentos y tome una decision.'
-                : 'Los 3 documentos fueron cargados y estan pendientes de verificacion por parte del Gestor.'}
+                ? 'Verifique o devuelva cada documento por separado. El wizard se habilita cuando los 3 documentos esten verificados.'
+                : 'Los documentos estan en revision individual por parte del Gestor. El wizard se habilita cuando los 3 esten verificados.'}
             </p>
           </div>
 
@@ -363,7 +467,7 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
             </article>
             <article className="plg-info-card">
               <span className="plg-info-card__label">Estado</span>
-              <strong className="plg-info-card__value plg-info-card__value--warning">3 documentos cargados - En revision</strong>
+              <strong className="plg-info-card__value plg-info-card__value--warning">{aprobados}/3 verificados - En revision</strong>
             </article>
           </section>
 
@@ -374,93 +478,109 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
             </div>
 
             <div className="plg-doc-list">
-              {[
-                { tipo: 'VIABILIZACION', label: 'Documento de Viabilidad' },
-                { tipo: 'PLAN_COMUNICACIONES', label: 'Plan de Comunicaciones' },
-                { tipo: 'MATRIZ_RIESGOS_VIABILIDAD', label: 'Matriz de Riesgos de Viabilidad' },
-              ].map(({ tipo, label }) => (
-                <div key={tipo} className="plg-doc-card plg-doc-card--has-file">
-                  <div className="plg-doc-card__inner">
-                    <div className="plg-doc-card__icon">
-                      <Clock size={16} />
+              {Object.entries(DOC_LABELS).map(([tipo, label]) => {
+                const revision = revisionMap[tipo];
+                const estado = revision?.estado || 'PENDIENTE';
+                const status = statusInfo(estado);
+                const canDecide = isGestor && estado !== 'APROBADO';
+
+                return (
+                  <div
+                    key={tipo}
+                    className={`plg-doc-card plg-doc-card--has-file ${estado === 'APROBADO' ? 'plg-doc-card--approved' : ''} ${estado === 'DEVUELTO' ? 'plg-doc-card--returned' : ''}`}
+                  >
+                    <div className="plg-doc-card__inner">
+                      <div className={`plg-doc-card__icon ${status.iconClass}`}>
+                        {status.icon}
+                      </div>
+                      <div className="plg-doc-card__info">
+                        <span className="plg-doc-card__name">{label}</span>
+                        <span className="plg-doc-card__size">
+                          {estado === 'APROBADO'
+                            ? `Verificado${revision?.revisadoPor ? ` por ${revision.revisadoPor}` : ''}`
+                            : estado === 'DEVUELTO'
+                              ? 'Devuelto al Director'
+                              : 'Pendiente de revision'}
+                        </span>
+                      </div>
+                      <span className={`plg-doc-status ${status.className}`}>{status.label}</span>
+                      <div className="plg-doc-card__actions">
+                        <button
+                          type="button"
+                          className="plg-doc-card__btn plg-doc-card__btn--preview"
+                          onClick={() => handlePreview(tipo, label)}
+                          disabled={downloading[tipo] === 'previewing'}
+                          title="Visualizar documento"
+                        >
+                          <Eye size={12} />
+                          {downloading[tipo] === 'previewing' ? 'Abriendo...' : 'Ver'}
+                        </button>
+                        <button
+                          type="button"
+                          className="plg-doc-card__btn plg-doc-card__btn--download"
+                          onClick={() => handleDownload(tipo, label)}
+                          disabled={downloading[tipo] === 'downloading'}
+                          title="Descargar documento"
+                        >
+                          <Download size={12} />
+                          {downloading[tipo] === 'downloading' ? 'Descargando...' : 'Descargar'}
+                        </button>
+                        {canDecide && (
+                          <>
+                            <button
+                              type="button"
+                              className="plg-doc-card__btn plg-doc-card__btn--approve"
+                              onClick={() => handleApproveDoc(tipo)}
+                              disabled={loadingAction}
+                              title="Verificar documento"
+                            >
+                              <CheckCircle size={12} />
+                              Verificar
+                            </button>
+                            <button
+                              type="button"
+                              className="plg-doc-card__btn plg-doc-card__btn--return"
+                              onClick={() => openRejectModal(tipo)}
+                              disabled={loadingAction}
+                              title="Devolver documento"
+                            >
+                              <XCircle size={12} />
+                              Devolver
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="plg-doc-card__info">
-                      <span className="plg-doc-card__name">{label}</span>
-                      <span className="plg-doc-card__size">Pendiente de revision</span>
-                    </div>
-                    <div className="plg-doc-card__actions">
-                      <button
-                        type="button"
-                        className="plg-doc-card__btn plg-doc-card__btn--preview"
-                        onClick={() => handlePreview(tipo, label)}
-                        disabled={downloading[tipo] === 'previewing'}
-                        title="Visualizar documento"
-                      >
-                        <Eye size={12} />
-                        {downloading[tipo] === 'previewing' ? 'Abriendo...' : 'Ver'}
-                      </button>
-                      <button
-                        type="button"
-                        className="plg-doc-card__btn plg-doc-card__btn--download"
-                        onClick={() => handleDownload(tipo, label)}
-                        disabled={downloading[tipo] === 'downloading'}
-                        title="Descargar documento"
-                      >
-                        <Download size={12} />
-                        {downloading[tipo] === 'downloading' ? 'Descargando...' : 'Descargar'}
-                      </button>
-                    </div>
+                    {estado === 'DEVUELTO' && revision?.observacion && (
+                      <div className="plg-doc-card__observation">
+                        <AlertTriangle size={13} />
+                        <p>{revision.observacion}</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
-
-          {isGestor && (
-            <div className="plg-footer">
-              <button
-                type="button"
-                className="plg-btn-outline"
-                onClick={() => setShowRejectModal(true)}
-                disabled={loadingAction}
-              >
-                <XCircle size={12} />
-                Devolver
-              </button>
-              <button
-                type="button"
-                className="plg-btn-primary"
-                onClick={handleApprove}
-                disabled={loadingAction}
-              >
-                {loadingAction ? (
-                  <LoaderCircle size={12} className="animate-spin" />
-                ) : (
-                  <CheckCircle size={12} />
-                )}
-                Aprobar
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-      {showRejectModal && (
+      {showRejectModal && rejectTarget && (
         <div className="plg-modal-overlay">
           <div className="plg-modal">
             <div className="plg-modal__header">
-              <h3 className="plg-modal__title">Devolver Documentos</h3>
+              <h3 className="plg-modal__title">Devolver Documento</h3>
               <button
                 type="button"
                 className="plg-modal__close"
-                onClick={() => { setShowRejectModal(false); setRejectObservaciones(''); }}
+                onClick={closeRejectModal}
                 disabled={loadingAction}
               >
                 <X size={16} />
               </button>
             </div>
             <p className="plg-modal__hint">
-              Ingrese las observaciones para que el Director subsane los documentos.
+              Documento: <strong>{DOC_LABELS[rejectTarget]}</strong>. Ingrese las observaciones para que el Director subsane este documento.
             </p>
             <textarea
               className="plg-modal__textarea"
@@ -473,7 +593,7 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
               <button
                 type="button"
                 className="plg-btn-outline"
-                onClick={() => { setShowRejectModal(false); setRejectObservaciones(''); }}
+                onClick={closeRejectModal}
                 disabled={loadingAction}
               >
                 Cancelar
@@ -481,7 +601,7 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
               <button
                 type="button"
                 className="plg-btn-primary plg-btn-danger"
-                onClick={handleReject}
+                onClick={handleRejectDoc}
                 disabled={loadingAction || !rejectObservaciones.trim()}
               >
                 {loadingAction ? <LoaderCircle size={12} className="animate-spin" /> : <XCircle size={12} />}
@@ -604,6 +724,7 @@ const PlazoVencidoView = ({ project, completionStatus, onRefresh }) => {
 const ProjectLifecycleGuard = () => {
   const { id, codigoProyecto } = useParams();
   const location = useLocation();
+  const { isVisualizador } = useAuthContext();
   const projectId = useMemo(() => String(id || codigoProyecto || '').trim(), [codigoProyecto, id]);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState(null);
@@ -614,6 +735,11 @@ const ProjectLifecycleGuard = () => {
 
   const refreshLifecycle = async () => {
     if (!projectId) return;
+    if (isVisualizador) {
+      setError(NO_ACCESS_MESSAGE);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError('');
@@ -643,7 +769,11 @@ const ProjectLifecycleGuard = () => {
       }
     } catch (fetchError) {
       console.error('No fue posible cargar el ciclo de vida del proyecto:', fetchError);
-      setError('No fue posible cargar el proyecto.');
+      if (isVisualizador || isForbiddenError(fetchError)) {
+        setError(NO_ACCESS_MESSAGE);
+      } else {
+        setError('No fue posible cargar el proyecto.');
+      }
     } finally {
       setLoading(false);
     }
@@ -657,7 +787,7 @@ const ProjectLifecycleGuard = () => {
     };
     void load();
     return () => { active = false; };
-  }, [projectId]);
+  }, [projectId, isVisualizador]);
 
   const needsCompletion = useMemo(() => {
     return projectNeedsCompletion(project, completionStatus);

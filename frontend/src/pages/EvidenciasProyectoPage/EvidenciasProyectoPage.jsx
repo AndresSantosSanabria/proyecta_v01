@@ -9,6 +9,7 @@ import projectService from '../../services/projectService';
 import advanceReportService from '../../services/advanceReportService';
 import { formatDate } from '../../utils/locale';
 import EvidenciaDetailModal from '../../components/projects/EvidenciaDetailModal';
+import { resolveLoadErrorMessage } from '../../utils/accessMessages';
 import './EvidenciasProyectoPage.css';
 
 const CATEGORIAS = [
@@ -132,7 +133,7 @@ const EvidenciasProyectoPage = () => {
       setProjectInfo(projectData);
     } catch (err) {
       console.error('Error fetching evidencias:', err);
-      setError('No se pudieron cargar las evidencias del proyecto.');
+      setError(resolveLoadErrorMessage(err, 'No se pudieron cargar las evidencias del proyecto.'));
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@ import { useAuthContext } from '../context/AuthContext';
 import { appConfig } from '../config/env';
 import { renewAccessToken, startLoginRedirect } from '../utils/auth';
 import { notifyAuth401, notifyAuth403 } from '../utils/feedback';
+import { NO_ACCESS_MESSAGE } from '../utils/accessMessages';
 
 const buildHeaders = (accessToken, headers = {}) => ({
   'Content-Type': 'application/json',
@@ -46,13 +47,9 @@ export function useApiWithAuth() {
     }
 
     if (response.status === 403) {
-      const backendMessage = await parseResponseBody(response);
-      notifyAuth403({
-        message: typeof backendMessage === 'string'
-          ? backendMessage
-          : 'El token es válido, pero no tienes permisos para esta acción.',
-      });
-      throw new Error(`Error 403: ${typeof backendMessage === 'string' ? backendMessage : JSON.stringify(backendMessage)}`);
+      await parseResponseBody(response);
+      notifyAuth403();
+      throw new Error(`Error 403: ${NO_ACCESS_MESSAGE}`);
     }
 
     if (response.status === 401 && !options.skipAuthRefresh && !options._retry) {
@@ -75,13 +72,9 @@ export function useApiWithAuth() {
         }
 
         if (retryResponse.status === 403) {
-          const retryBackendMessage = await parseResponseBody(retryResponse);
-          notifyAuth403({
-            message: typeof retryBackendMessage === 'string'
-              ? retryBackendMessage
-              : 'El token es válido, pero no tienes permisos para esta acción.',
-          });
-          throw new Error(`Error 403: ${typeof retryBackendMessage === 'string' ? retryBackendMessage : JSON.stringify(retryBackendMessage)}`);
+          await parseResponseBody(retryResponse);
+          notifyAuth403();
+          throw new Error(`Error 403: ${NO_ACCESS_MESSAGE}`);
         }
 
         if (retryResponse.status === 401) {

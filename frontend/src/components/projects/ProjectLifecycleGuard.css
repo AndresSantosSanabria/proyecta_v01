@@ -401,6 +401,103 @@
   transform: scale(1.06);
 }
 
+.plg-doc-card__btn--approve {
+  color: #34d399;
+  border-color: color-mix(in srgb, #34d399 22%, transparent);
+  background: color-mix(in srgb, #34d399 10%, transparent);
+}
+
+.plg-doc-card__btn--approve:hover:not(:disabled) {
+  background: color-mix(in srgb, #34d399 18%, transparent);
+}
+
+.plg-doc-card__btn--return {
+  color: #fbbf24;
+  border-color: color-mix(in srgb, #fbbf24 22%, transparent);
+  background: color-mix(in srgb, #fbbf24 10%, transparent);
+}
+
+.plg-doc-card__btn--return:hover:not(:disabled) {
+  background: color-mix(in srgb, #fbbf24 18%, transparent);
+}
+
+/* ── Per-document status badges ────────────────────────── */
+.plg-doc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.plg-doc-status--pending {
+  color: #92400e;
+  background: color-mix(in srgb, var(--warning) 14%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--warning) 26%, transparent);
+}
+
+.plg-doc-status--approved {
+  color: #065f46;
+  background: color-mix(in srgb, var(--success) 14%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--success) 26%, transparent);
+}
+
+.plg-doc-status--returned {
+  color: #991b1b;
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 26%, transparent);
+}
+
+.plg-doc-card__icon--approved {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success-soft) 55%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--success) 16%, transparent);
+}
+
+.plg-doc-card__icon--returned {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger-soft) 55%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.plg-doc-card--approved::before {
+  background: linear-gradient(180deg, var(--success), color-mix(in srgb, var(--success) 60%, var(--primary)));
+  opacity: 1;
+}
+
+.plg-doc-card--returned::before {
+  background: linear-gradient(180deg, var(--danger), color-mix(in srgb, var(--danger) 60%, var(--warning)));
+  opacity: 1;
+}
+
+.plg-doc-card__observation {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--danger) 16%, transparent);
+  background: color-mix(in srgb, var(--danger) 5%, var(--bg-surface));
+}
+
+.plg-doc-card__observation svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+.plg-doc-card__observation p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
 /* ── Footer ────────────────────────────────────────────── */
 .plg-footer {
   display: flex;

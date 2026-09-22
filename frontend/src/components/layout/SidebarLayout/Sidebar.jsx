@@ -22,6 +22,7 @@ import dashboardService from '../../../services/dashboardService';
 import { useAuthContext } from '../../../context/AuthContext';
 import { usePermission } from '../../../hooks/usePermission';
 import NotificationBell from '../NotificationBell';
+import logoProyecta from '../../../assets/Logo Proyecta Icon.png';
 import './Sidebar.css';
 
 const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
@@ -30,7 +31,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
-  const { user, roles, primaryRole, backendProfile, formatRoleLabel, logout, assignedProjects } = useAuthContext();
+  const { user, roles, primaryRole, backendProfile, formatRoleLabel, logout, assignedProjects, isVisualizador } = useAuthContext();
   const canViewDashboard = usePermission('DASHBOARD:VER');
   const canViewProjects = usePermission('PROYECTO:VER')
     || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
@@ -125,13 +126,13 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     {
       category: 'PRINCIPAL',
       items: compactItems([
-        (sidebarDashboard) ? { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> } : null,
+        (!isVisualizador && sidebarDashboard) ? { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Proyectos', path: '/projects', icon: <Briefcase size={22} />, badge: visibleProjectCount } : null,
       ])
     },
     {
       category: 'MODULOS',
-      items: currentProjectId ? [
+      items: (!isVisualizador && currentProjectId) ? [
         (sidebarProyectos) ? { name: 'Avance del Proyecto', path: `/projects/${currentProjectId}/progress`, icon: <Activity size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Diagrama de Gantt', path: `/projects/${currentProjectId}/schedule`, icon: <Calendar size={22} /> } : null,
         (sidebarProyectos) ? { name: 'Matriz de Riesgos', path: `/projects/${currentProjectId}/risks`, icon: <AlertTriangle size={22} /> } : null,
@@ -142,11 +143,11 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     {
       category: 'CONSULTAS',
       items: compactItems([
-        (sidebarReportes) ? { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> } : null,
-        (sidebarAnaliticas) ? { name: 'Analíticas', path: '/analytics', icon: <BarChart3 size={22} /> } : null,
+        (!isVisualizador && sidebarReportes) ? { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> } : null,
+        (!isVisualizador && sidebarAnaliticas) ? { name: 'Portafolio', path: '/analytics', icon: <BarChart3 size={22} /> } : null,
       ])
     },
-    ...((sidebarSeguridad) ? [{
+    ...((!isVisualizador && sidebarSeguridad) ? [{
       category: 'ADMINISTRACION',
       items: compactItems([
         { name: 'Configuración de Seguridad', path: '/admin/configuracion', icon: <ShieldCheck size={22} /> },
@@ -166,7 +167,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
       <div className="sidebar-header">
         <div className="brand-container">
           <div className="brand-logo">
-            <ShieldCheck size={24} color="#fff" />
+            <img src={logoProyecta} alt="Proyecta Logo" className="logo-image" />
           </div>
           {!isCollapsed && (
             <div className="brand-text">
@@ -243,4 +244,6 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
 };
 
 export default Sidebar;
+
+
 

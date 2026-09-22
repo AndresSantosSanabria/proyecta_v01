@@ -342,11 +342,16 @@ const AnalyticsPage = () => {
     const saludPortafolio = total > 0 ? (enTiempo / total) * 100 : 0;
     const docsCargados = filteredProjects.filter((p) => Boolean(p?.documentosCargados)).length;
     const docsVerificados = filteredProjects.filter((p) => Boolean(p?.documentosVerificados)).length;
-    const docsPendientes = total - docsCargados;
     const conViabilidad = filteredProjects.filter((p) => p?.viabilidadEstado === 'CARGADA' || p?.viabilidadEstado === 'APROBADA').length;
     const conCronograma = filteredProjects.filter((p) => Boolean(p?.tieneCronograma)).length;
     const conActa = filteredProjects.filter((p) => Boolean(p?.tieneActaConstitucion)).length;
     const conPlanComunicaciones = filteredProjects.filter((p) => Boolean(p?.tienePlanComunicaciones)).length;
+    const isMissingAnyDoc = (p) =>
+      !(p?.viabilidadEstado === 'CARGADA' || p?.viabilidadEstado === 'APROBADA')
+      || !p?.tieneCronograma
+      || !p?.tieneActaConstitucion
+      || !p?.tienePlanComunicaciones;
+    const docsPendientes = filteredProjects.filter(isMissingAnyDoc).length;
     const cumplimientoDocumental = total > 0
       ? ((conViabilidad + conCronograma + conActa + conPlanComunicaciones) / (total * 4)) * 100
       : 0;
@@ -354,7 +359,7 @@ const AnalyticsPage = () => {
       total, petiProjects, noPetiProjects, avancePromedio, eficaciaPromedio, eficienciaPromedio,
       furagPromedio, mitigacionPromedio, enTiempo, enAtraso, saludPortafolio,
       docsCargados, docsVerificados, docsPendientes, conViabilidad, conCronograma, conActa,
-      conPlanComunicaciones, cumplimientoDocumental
+      conPlanComunicaciones, cumplimientoDocumental, isMissingAnyDoc
     };
   }, [filteredProjects, getFuragCoverage]);
 
@@ -452,7 +457,7 @@ const AnalyticsPage = () => {
       <section className="analytics-hero">
         <div>
           <span className="analytics-kicker">Gobernanza analítica</span>
-          <h1>Analíticas del Portafolio</h1>
+          <h1>TABLERO DE CONTROL - ANALITICA DE PORTAFOLIO</h1>
           <p>Cargando datos del portafolio ejecutivo...</p>
         </div>
         <div className="analytics-hero__actions">
@@ -505,7 +510,7 @@ const AnalyticsPage = () => {
       <section className="analytics-hero">
         <div>
           <span className="analytics-kicker">Gobernanza analítica</span>
-          <h1>Analíticas del Portafolio</h1>
+          <h1>TABLERO DE CONTROL - ANALITICA DE PORTAFOLIO</h1>
           <p>
             Tablero ejecutivo interactivo con KPIs de eficiencia y eficacia, gráficos avanzados y filtros
             que reaccionan en todos los visuales.
@@ -716,7 +721,7 @@ const AnalyticsPage = () => {
             <span className="doc-topbar__stat-icon doc-topbar__stat-icon--danger"><XCircle size={16} /></span>
             <div className="doc-topbar__stat-text">
               <strong>{formatNumber(summary.docsPendientes)}</strong>
-              <span>Sin documentos</span>
+              <span>Incompletos</span>
             </div>
           </div>
           <div className="doc-topbar__divider" />
@@ -912,10 +917,10 @@ const AnalyticsPage = () => {
         );
       })()}
 
-      {/* — Projects Without Documents — */}
+      {/* — Projects With Missing Documents (flags per project) — */}
       {summary.docsPendientes > 0 && (() => {
-        const missingDocs = filteredProjects.filter((p) => !p?.documentosCargados);
-        const sorted = missingDocs.sort((a, b) => (a?.nombre || '').localeCompare(b?.nombre || '', 'es'));
+        const missingDocs = filteredProjects.filter((p) => summary.isMissingAnyDoc(p));
+        const sorted = [...missingDocs].sort((a, b) => (a?.nombre || '').localeCompare(b?.nombre || '', 'es'));
 
         const uniqueGestores = [...new Set(sorted.map((p) => p.registradoInicialPor).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
 
@@ -955,11 +960,11 @@ const AnalyticsPage = () => {
           <section className="analytics-panel">
             <div className="analytics-panel__header">
               <div>
-                <h2>Proyectos Sin Documentos Cargados</h2>
-                <p>Proyectos que aún no han completado la carga de documentos iniciales requeridos.</p>
+                <h2>Estado Documental por Proyecto</h2>
+                <p>Flags de carga por documento inicial (viabilidad, cronograma, acta y plan de comunicaciones).</p>
               </div>
               <div className="analytics-panel__meta">
-                <span style={{ color: 'var(--danger)' }}><XCircle size={14} /> {formatNumber(summary.docsPendientes)} pendientes</span>
+                <span style={{ color: 'var(--danger)' }}><XCircle size={14} /> {formatNumber(summary.docsPendientes)} incompletos</span>
               </div>
             </div>
 
@@ -994,7 +999,7 @@ const AnalyticsPage = () => {
             {filtered.length === 0 ? (
               <div className="analytics-empty">
                 {docFilter === 'all' && docGestor === 'all'
-                  ? 'Todos los proyectos filtrados tienen documentos cargados.'
+                  ? 'Todos los proyectos filtrados tienen los 4 documentos iniciales cargados.'
                   : `No hay proyectos que coincidan con los filtros seleccionados.`}
               </div>
             ) : (

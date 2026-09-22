@@ -1,3 +1,5 @@
+import { NO_ACCESS_MESSAGE } from './accessMessages';
+
 const AUTH_TOAST_EVENT = 'proyecta:toast';
 
 export const emitToast = ({ title, message = '', tone = 'info', duration = 4500 }) => {
@@ -23,11 +25,11 @@ export const notifyAuth401 = ({ title = 'Sesión vencida', message } = {}) => {
   });
 };
 
-export const notifyAuth403 = ({ title = 'Acceso denegado', message } = {}) => {
+export const notifyAuth403 = ({ title = 'Sin accesos', message } = {}) => {
   emitToast({
     title,
-    message: message || 'El token es válido, pero no tienes permisos para realizar esta acción.',
-    tone: 'error',
+    message: message || NO_ACCESS_MESSAGE,
+    tone: 'warning',
   });
 };
 

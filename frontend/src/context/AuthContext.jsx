@@ -471,6 +471,13 @@ export function AuthProvider({ children }) {
   );
   const isAuthenticated = Boolean(user && user.access_token && !user.expired);
   const can = (permissionCode) => permissions.includes(permissionCode);
+  const isVisualizador = useMemo(() => {
+    if (isAdminLocal || transversal) return false;
+    if (!Array.isArray(roles) || roles.length === 0) return false;
+    const normalizedRoles = roles.map((role) => normalizeRole(role, roleAliases));
+    if (normalizedRoles.includes('ADMIN')) return false;
+    return normalizedRoles.every((role) => role === 'VISUALIZADOR');
+  }, [isAdminLocal, transversal, roles, roleAliases]);
   const isProjectAssigned = (projectId) => {
     const normalizedProjectId = (projectId || '').toString().trim().toLowerCase();
     return assignedProjects.some((item) => {
@@ -511,6 +518,7 @@ export function AuthProvider({ children }) {
       return roles.some((current) => normalizeRole(current, roleAliases) === expected);
     },
     hasPermission: can,
+    isVisualizador,
     isProjectAssigned,
     getUser: () => auth.getUser(),
   };

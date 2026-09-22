@@ -51,6 +51,26 @@ const documentService = {
     );
     return response.data;
   },
+
+  listarRevisionesPreWizard: async (proyectoId) => {
+    const { data } = await apiClient.get(`/proyectos/${proyectoId}/documentos-pre-wizard`);
+    return data;
+  },
+
+  aprobarDocumentoPreWizard: async (proyectoId, tipoDocumento) => {
+    const { data } = await apiClient.patch(
+      `/proyectos/${proyectoId}/documentos-pre-wizard/${tipoDocumento}/aprobar`
+    );
+    return data;
+  },
+
+  devolverDocumentoPreWizard: async (proyectoId, tipoDocumento, observaciones) => {
+    const { data } = await apiClient.patch(
+      `/proyectos/${proyectoId}/documentos-pre-wizard/${tipoDocumento}/devolver`,
+      { observaciones }
+    );
+    return data;
+  },
 };
 
 export default documentService;

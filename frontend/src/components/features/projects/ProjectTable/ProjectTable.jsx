@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import './ProjectTable.css';
 import { Plus } from 'lucide-react';
+import { usePermission } from '../../../../hooks/usePermission';
 
 const ProjectTable = ({ projects = [], loading = false }) => {
   const navigate = useNavigate();
+  const canCreateProject = usePermission('PROYECTO:CREAR');
 
   if (loading) {
     return <div className="table-loading">Cargando proyectos...</div>;
@@ -13,10 +15,12 @@ const ProjectTable = ({ projects = [], loading = false }) => {
     <div className="project-table-container">
       <div className="table-header-row">
         <h2>Resumen de Proyectos</h2>
-        <button className="btn-new-project" onClick={() => navigate('/proyectos/nuevo')}>
-          <Plus size={18} />
-          <span>Nuevo Proyecto</span>
-        </button>
+        {canCreateProject && (
+          <button className="btn-new-project" onClick={() => navigate('/proyectos/nuevo')}>
+            <Plus size={18} />
+            <span>Nuevo Proyecto</span>
+          </button>
+        )}
       </div>
       
       <div className="table-responsive">

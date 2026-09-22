@@ -8,6 +8,7 @@ import apiClient from '../../api/axiosConfig';
 import { usePermission } from '../../hooks/usePermission';
 import { useAuthContext } from '../../context/AuthContext';
 import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
+import { resolveLoadErrorMessage } from '../../utils/accessMessages';
 import './ProjectClosurePage.css';
 
 const triggerBlobDownload = (blob, fileName) => {
@@ -123,7 +124,7 @@ const ProjectClosurePage = () => {
         }
       } catch (err) {
         console.error('Error fetching project summary:', err);
-        setError('No se pudo cargar el resumen del proyecto.');
+        setError(resolveLoadErrorMessage(err, 'No se pudo cargar el resumen del proyecto.'));
       } finally {
         setLoading(false);
       }

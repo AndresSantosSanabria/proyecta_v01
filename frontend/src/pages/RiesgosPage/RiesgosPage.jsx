@@ -22,6 +22,7 @@ import SpellCheckerInput from '../../components/common/SpellCheckerInput';
 import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import TratamientoHistory from '../../components/features/riesgos/TratamientoHistory';
 import TratamientoForm from '../../components/features/riesgos/TratamientoForm';
+import { resolveLoadErrorMessage } from '../../utils/accessMessages';
 import './RiesgosPage.css';
 
 const DEFAULT_PROBABILIDADES = ['UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO'];
@@ -187,7 +188,7 @@ const RiesgosPage = () => {
       setError(null);
     } catch (err) {
       console.error(err);
-      setError('No fue posible cargar la matriz de riesgos.');
+      setError(resolveLoadErrorMessage(err, 'No fue posible cargar la matriz de riesgos.'));
     } finally {
       setLoading(false);
     }

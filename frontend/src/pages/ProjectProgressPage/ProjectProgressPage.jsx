@@ -14,6 +14,7 @@ import ProjectInfoModal from '../../components/projects/ProjectInfoModal';
 import AdvanceReportActions from '../../components/common/AdvanceReportActions/AdvanceReportActions';
 import { formatDate } from '../../utils/locale';
 import { emitToast } from '../../utils/feedback';
+import { NO_ACCESS_MESSAGE, isForbiddenError } from '../../utils/accessMessages';
 import './ProjectProgressPage.css';
 
 const normalizeProgressPayload = (payload, fallbackCode) => {
@@ -172,7 +173,11 @@ const ProjectProgressPage = () => {
       } catch (err) {
         if (cancelled) return;
         console.error('Error fetching project progress:', err);
-        setError('No se pudo cargar la información del proyecto.');
+        setError(
+          isForbiddenError(err)
+            ? NO_ACCESS_MESSAGE
+            : 'No se pudo cargar la información del proyecto.'
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -97,8 +97,8 @@ const DefaultEntryRoute = () => {
 
   return (
     <LoadingRedirectState
-      title="Acceso Restringido"
-      subtitle="Tu cuenta no tiene permisos para acceder a ninguna vista. Por favor contacta al administrador del sistema."
+      title="Sin accesos establecidos"
+      subtitle="Solicita al gestor de proyectos los permisos requeridos según tu rol."
     />
   );
 };
