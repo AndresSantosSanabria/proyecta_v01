@@ -378,7 +378,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             boolean[] selected = {
                     EstadoProyecto.ACTIVO.equals(estadoProyecto),
                     EstadoProyecto.CON_RETRASOS.equals(estadoProyecto),
-                    EstadoProyecto.CERRADO.equals(estadoProyecto)
+                    EstadoProyecto.CERRADO.equals(estadoProyecto) || EstadoProyecto.CERRADO_FORZOSO.equals(estadoProyecto)
             };
 
             drawText("Estado general:", fonts.bold(), 10.7f, LEFT, y, COLOR_TEXT);

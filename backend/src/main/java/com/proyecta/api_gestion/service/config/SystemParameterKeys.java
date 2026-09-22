@@ -17,4 +17,13 @@ public final class SystemParameterKeys {
     public static final String STORAGE_BASE_PATH = "storage_base_path";
     public static final String NOTIFICATION_DEADLINE_WARNING_INTERVAL_DAYS = "notification_deadline_warning_interval_days";
     public static final String NOTIFICATION_OVERDUE_REMINDER_INTERVAL_DAYS = "notification_overdue_reminder_interval_days";
+
+    public static final String ADVANCE_REPORT_DUE_DATE = "advance_report_due_date";
+    public static final String ADVANCE_REPORT_PRE_DUE_WINDOW_DAYS = "advance_report_pre_due_window_days";
+    public static final String ADVANCE_REPORT_PRE_DUE_INTERVAL_DAYS = "advance_report_pre_due_interval_days";
+    public static final String ADVANCE_REPORT_POST_DUE_INTERVAL_DAYS = "advance_report_post_due_interval_days";
+    public static final String ADVANCE_REPORT_SPECIFIC_OVERRIDE_DATES = "advance_report_specific_override_dates";
+    public static final String ADVANCE_REPORT_ALLOWED_EXTENSIONS = "advance_report_allowed_extensions";
+    public static final String ADVANCE_REPORT_MAX_SIZE_MB = "advance_report_max_size_mb";
+    public static final String ADVANCE_REPORT_LOGIN_MODAL_DELAY_MS = "advance_report_login_modal_delay_ms";
 }

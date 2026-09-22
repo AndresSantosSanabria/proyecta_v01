@@ -14,6 +14,7 @@ import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.ObjetivoEspecifico;
 import com.proyecta.api_gestion.model.Patrocinador;
 import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.ActaCierreRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
@@ -26,6 +27,7 @@ import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
 import com.proyecta.api_gestion.service.report.ActaCierreDocxGenerator;
 import com.proyecta.api_gestion.service.closure.DynamicClosurePdfService;
@@ -237,7 +239,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                     java.util.Map.of(
                             "projectName", proyecto.getNombre(),
                             "state", proyecto.getEstadoCodigo(),
-                            "recipients", proyecto.getCorreoDirector() != null ? List.of(proyecto.getCorreoDirector()) : List.of("sistema@proyecta.com")
+                            "recipients", ProjectNotificationRecipients.resolve(proyecto)
                     )));
         } catch (RuntimeException ex) {
             storageProvider.deleteFile(rutaArchivo, storedFileName);
@@ -292,14 +294,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         
         proyectoRepository.save(proyecto);
 
-        List<String> gestorEmails = usuarioProyectoRepository
-                .findActivasByProyectoIdAndCargoIn(projectId, List.of("GESTOR_TIC", "gestor_tic", "Gestor TIC"))
-                .stream()
-                .map(SeguridadUsuarioProyecto::getUsuario)
-                .map(u -> u.getCorreo())
-                .filter(Objects::nonNull)
-                .toList();
-
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.CLOSURE_REQUESTED,
                 projectId,
@@ -307,7 +301,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 java.util.Map.of(
                         "projectName", proyecto.getNombre(),
                         "requester", actorUsername,
-                        "recipients", gestorEmails.isEmpty() ? List.of("sistema@proyecta.com") : gestorEmails
+                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
 
         return CierreProyectoResponse.success(
@@ -335,9 +329,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         proyecto.setCierreObservaciones(null);
         proyectoRepository.save(proyecto);
 
-        String directorEmail = proyecto.getCorreoDirector();
-        List<String> recipients = directorEmail != null ? List.of(directorEmail) : List.of("sistema@proyecta.com");
-
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.CLOSURE_APPROVED,
                 projectId,
@@ -345,7 +336,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 java.util.Map.of(
                         "projectName", proyecto.getNombre(),
                         "approver", actorUsername,
-                        "recipients", recipients
+                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
 
         return CierreProyectoResponse.success(
@@ -378,9 +369,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         proyecto.setCierreSolicitado(false);
         proyectoRepository.save(proyecto);
 
-        String directorEmail = proyecto.getCorreoDirector();
-        List<String> recipients = directorEmail != null ? List.of(directorEmail) : List.of("sistema@proyecta.com");
-
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.CLOSURE_REJECTED,
                 projectId,
@@ -389,7 +377,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                         "projectName", proyecto.getNombre(),
                         "rejector", actorUsername,
                         "observaciones", observaciones.trim(),
-                        "recipients", recipients
+                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
 
         return CierreProyectoResponse.success(
@@ -500,9 +488,12 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         String storedFileName = storageProvider.storeBytes(docxBytes, rutaArchivo, nombreArchivo);
 
         try {
+            actaCierreRepository.findByProyectoId(projectId)
+                    .ifPresent(existing -> actaCierreRepository.delete(existing));
+
             ActaCierre acta = new ActaCierre(
                     proyecto,
-                    request.resumenEjecutivo(),
+                    request.resumenEjecutivo() != null ? request.resumenEjecutivo() : "Cierre extraordinario sin resumen",
                     fechaCierre,
                     avanceFinal
             );
@@ -520,8 +511,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
 
             actaCierreRepository.save(acta);
 
-            proyecto.cerrar();
             proyecto.setAvanceTotal(avanceFinal);
+            proyecto.setEstado(EstadoProyecto.CERRADO_FORZOSO);
+            proyecto.setEstadoConfig(null);
             proyecto.setCierreEstado("EXTRAORDINARIO");
             proyecto.setCierreSolicitado(false);
             proyecto.setCierreObservaciones("Cierre extraordinario realizado por " + actorUsername);
@@ -535,9 +527,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                             "projectName", proyecto.getNombre(),
                             "state", proyecto.getEstadoCodigo(),
                             "extraordinaryClosure", "true",
-                            "recipients", proyecto.getCorreoDirector() != null ? List.of(proyecto.getCorreoDirector()) : List.of("sistema@proyecta.com")
+                            "recipients", ProjectNotificationRecipients.resolve(proyecto)
                     )));
         } catch (RuntimeException ex) {
+            log.error("[CierreExtraordinario] Error executing extraordinary closure for project {}: {}", projectId, ex.getMessage(), ex);
             storageProvider.deleteFile(rutaArchivo, storedFileName);
             throw ex;
         }

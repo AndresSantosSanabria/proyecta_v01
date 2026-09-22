@@ -47,6 +47,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -793,8 +796,17 @@ public class ReporteServiceImpl implements ReporteService {
     private List<Proyecto> aplicarFiltrosPortafolio(List<Proyecto> proyectos, String query, String dependency, String status, String peti) {
         String normalizedQuery = normalizeText(query);
         String normalizedDependency = normalizeText(dependency);
-        String normalizedStatus = normalizeText(status);
         String normalizedPeti = normalizeText(peti);
+
+        final Set<String> allowedStatuses;
+        if (status != null && !status.isBlank()) {
+            allowedStatuses = Arrays.stream(status.split(","))
+                    .map(s -> normalizeText(s.trim()))
+                    .filter(s -> !s.isBlank())
+                    .collect(Collectors.toSet());
+        } else {
+            allowedStatuses = null;
+        }
 
         return proyectos.stream()
                 .filter(proyecto -> {
@@ -811,9 +823,9 @@ public class ReporteServiceImpl implements ReporteService {
                     boolean matchesQuery = normalizedQuery.isBlank() || normalizeText(searchHaystack).contains(normalizedQuery);
                     boolean matchesDependency = normalizedDependency.isBlank()
                             || normalizeText(proyecto.getDependencia()).equals(normalizedDependency);
-                    boolean matchesStatus = normalizedStatus.isBlank()
-                            || normalizeText(projectStatus).equals(normalizedStatus)
-                            || normalizeText(proyecto.getEstadoCodigo()).equals(normalizedStatus);
+                    boolean matchesStatus = allowedStatuses == null || allowedStatuses.isEmpty()
+                            || allowedStatuses.contains(normalizeText(projectStatus))
+                            || allowedStatuses.contains(normalizeText(proyecto.getEstadoCodigo()));
                     boolean matchesPeti = normalizedPeti.isBlank()
                             || ("peti".equals(normalizedPeti) && Boolean.TRUE.equals(proyecto.getPeti()))
                             || ("no_peti".equals(normalizedPeti) && !Boolean.TRUE.equals(proyecto.getPeti()));

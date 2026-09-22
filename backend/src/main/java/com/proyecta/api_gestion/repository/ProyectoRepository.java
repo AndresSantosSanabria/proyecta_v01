@@ -36,7 +36,7 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo IN ('PLANIFICACION', 'ACTIVO', 'CON_RETRASOS', 'EN_REVISION')) OR (ec IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION, com.proyecta.api_gestion.model.enums.EstadoProyecto.ACTIVO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CON_RETRASOS, com.proyecta.api_gestion.model.enums.EstadoProyecto.EN_REVISION))")
     long countActivos();
 
-    @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo = 'CERRADO') OR (ec IS NULL AND p.estado = com.proyecta.api_gestion.model.enums.EstadoProyecto.CERRADO)")
+    @Query("SELECT COUNT(p) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NOT NULL AND ec.codigo IN ('CERRADO', 'CERRADO_FORZOSO')) OR (ec IS NULL AND p.estado IN (com.proyecta.api_gestion.model.enums.EstadoProyecto.CERRADO, com.proyecta.api_gestion.model.enums.EstadoProyecto.CERRADO_FORZOSO))")
     long countCerrados();
 
     @Query("SELECT AVG(p.avanceTotal) FROM Proyecto p LEFT JOIN p.estadoConfig ec WHERE (ec IS NULL OR ec.codigo != 'PENDIENTE_COMPLETAR') AND (ec IS NOT NULL OR p.estado != com.proyecta.api_gestion.model.enums.EstadoProyecto.PENDIENTE_COMPLETAR)")
@@ -158,4 +158,25 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     List<Proyecto> findByViabilidadEstadoAndActaConstitucionCargadaFalse(ViabilidadEstado viabilidadEstado);
 
     List<Proyecto> findByDocumentosVerificadosTrueAndRequiereCompletitudDirectorTrueAndCierreForzosoFalse();
+
+    /**
+     * Verifica si un usuario es el director de un proyecto usando una consulta JPQL
+     * directa. Esto evita el LazyInitializationException que ocurre al acceder
+     * a la relacion directorUsuario fuera de un contexto transaccional activo
+     * (por ejemplo, en los beans de seguridad de Spring Security).
+     *
+     * @param proyectoId ID del proyecto (case-insensitive)
+     * @param username   Username del usuario a verificar (case-insensitive)
+     * @return true si el usuario es el director asignado al proyecto
+     */
+    @Query("""
+        SELECT COUNT(p) > 0
+        FROM Proyecto p
+        WHERE UPPER(p.id) = UPPER(:proyectoId)
+          AND p.directorUsuario IS NOT NULL
+          AND LOWER(p.directorUsuario.username) = LOWER(:username)
+    """)
+    boolean existsDirectorByProyectoIdAndUsername(
+            @Param("proyectoId") String proyectoId,
+            @Param("username") String username);
 }

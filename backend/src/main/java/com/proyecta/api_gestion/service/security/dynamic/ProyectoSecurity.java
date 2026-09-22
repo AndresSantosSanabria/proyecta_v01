@@ -92,6 +92,7 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        logger.info("canAccess: user='{}', perm='{}', project='{}', roles={}", username, normalizedPermission, proyectoId, roleCodes);
         if (isDirectorOnly(roleCodes) && DIRECTOR_BLOCKED_PERMISSIONS.contains(normalizedPermission)) {
             throw new ForbiddenException("El Director de Proyecto solo puede cargar, reemplazar y subsanar evidencias de sus proyectos asignados.");
         }
@@ -99,7 +100,8 @@ public class ProyectoSecurity {
         if (isDirectorOnly(roleCodes)
                 && proyectoId != null && !proyectoId.isBlank()
                 && !DIRECTOR_BLOCKED_PERMISSIONS.contains(normalizedPermission)
-                && catalogCacheService.isAssignedToProject(username, proyectoId)) {
+                && (catalogCacheService.isAssignedToProject(username, proyectoId)
+                    || isProjectDirector(username, proyectoId, authentication))) {
             return true;
         }
 
@@ -120,7 +122,10 @@ public class ProyectoSecurity {
             return true;
         }
 
-        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)
+                && !isProjectDirector(username, proyectoId, authentication)) {
+            logger.warn("ACCESS DENIED: user='{}', project='{}', roles={}, isDirectorOnly={}, perm='{}'",
+                    username, proyectoId, roleCodes, isDirectorOnly(roleCodes), normalizedPermission);
             throw new ForbiddenException("El usuario no est\u00e1 asignado al proyecto solicitado.");
         }
 
@@ -559,6 +564,32 @@ public class ProyectoSecurity {
         return roleCodes.contains("director_proyecto")
                 && roleCodes.stream().noneMatch(PROJECT_STRUCTURE_MANAGER_ROLE_CODES::contains)
                 && !roleCodes.contains("admin");
+    }
+
+    /**
+     * Verifica si el usuario es el director asignado al proyecto mediante una consulta
+     * JPQL directa, sin cargar la relacion lazy directorUsuario. Esto previene
+     * LazyInitializationException en contextos de seguridad (fuera de transaccion).
+     * <p>
+     * Adicionalmente consulta la tabla usuario_proyecto buscando el cargo de director
+     * como fallback para cubrir proyectos cuya asignacion se gestiona solo por esa tabla.
+     */
+    private boolean isProjectDirector(String username, String proyectoId, Authentication authentication) {
+        if (username == null || username.isBlank() || proyectoId == null || proyectoId.isBlank()) {
+            return false;
+        }
+        try {
+            // Consulta directa sobre campo director_usuario_id (sin lazy load).
+            if (proyectoRepository.existsDirectorByProyectoIdAndUsername(proyectoId.trim(), username.trim())) {
+                logger.debug("isProjectDirector: user='{}' es director (via director_usuario_id) del proyecto '{}'",
+                        username, proyectoId);
+                return true;
+            }
+        } catch (Exception e) {
+            logger.warn("isProjectDirector: error consultando director_usuario_id para proyecto='{}', user='{}': {}",
+                    proyectoId, username, e.getMessage());
+        }
+        return false;
     }
 
     private static final Set<String> COMPLETION_ALLOWED_PERMISSIONS = Set.of(

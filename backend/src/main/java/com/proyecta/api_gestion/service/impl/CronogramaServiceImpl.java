@@ -159,7 +159,7 @@ public class CronogramaServiceImpl implements CronogramaService {
         Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
 
-        if (EstadoProyecto.CERRADO.equals(proyecto.getEstado())) {
+        if (EstadoProyecto.CERRADO.equals(proyecto.getEstado()) || EstadoProyecto.CERRADO_FORZOSO.equals(proyecto.getEstado())) {
             throw new ForbiddenException("No se puede subir el cronograma a un proyecto cerrado.");
         }
 

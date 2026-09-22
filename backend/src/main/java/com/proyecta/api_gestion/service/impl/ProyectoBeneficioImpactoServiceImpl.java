@@ -20,6 +20,7 @@ import com.proyecta.api_gestion.service.interfaces.ProyectoBeneficioImpactoServi
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
@@ -260,7 +261,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
                 record.getSnapshotJson(),
                 record.getCreatedAt(),
                 record.getUpdatedAt(),
-                record.getEstado() != null,
+                record.getId() != null,
                 editable,
                 visibleParaGestor,
                 record.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO && record.getEstado() != EstadoBeneficioImpacto.APROBADO
@@ -372,49 +373,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     }
 
     private List<String> resolverRecipientesProyecto(Proyecto proyecto, String actorUsername) {
-        Set<String> recipients = new LinkedHashSet<>();
-
-        if (proyecto != null) {
-            addRecipient(recipients, proyecto.getCorreoDirector());
-            if (proyecto.getPatrocinador() != null) {
-                addRecipient(recipients, proyecto.getPatrocinador().getEntidad());
-            }
-
-            List<SeguridadUsuarioProyecto> asignaciones = usuarioProyectoRepository.findActivasByProyectoIdAndCargoIn(
-                    proyecto.getId(),
-                    List.of("director_proyecto", "gestor_tic", "gestor_proyectos", "lider_tecnico", "lider tecnico", "director_tecnico", "director tecnico")
-            );
-            for (SeguridadUsuarioProyecto asignacion : asignaciones) {
-                if (asignacion != null && asignacion.getUsuario() != null) {
-                    addRecipient(recipients, asignacion.getUsuario().getCorreo());
-                }
-            }
-        }
-
-        usuarioRepository.findAll().stream()
-                .filter(usuario -> usuario.getActivo() == null || Boolean.TRUE.equals(usuario.getActivo()))
-                .filter(usuario -> {
-                    String rol = normalize(usuario.getRolCodigo());
-                    return rol != null && GESTOR_ROLES.contains(rol);
-                })
-                .map(usuario -> usuario.getCorreo())
-                .forEach(email -> addRecipient(recipients, email));
-
-        if (actorUsername != null) {
-            String normalizedActor = trimToNull(actorUsername);
-            if (normalizedActor != null) {
-                recipients.removeIf(value -> value.equalsIgnoreCase(normalizedActor));
-            }
-        }
-
-        return recipients.stream().toList();
-    }
-
-    private void addRecipient(Set<String> recipients, String value) {
-        String trimmed = trimToNull(value);
-        if (trimmed != null && trimmed.contains("@")) {
-            recipients.add(trimmed);
-        }
+        return ProjectNotificationRecipients.resolve(proyecto);
     }
 
     private String buildSnapshotJson(ProyectoBeneficioImpacto record) {

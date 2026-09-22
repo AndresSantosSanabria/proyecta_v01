@@ -66,7 +66,6 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     public AnalyticsPortfolioDTO getPortfolioAnalytics() {
         LocalDate corte = LocalDate.now();
         List<ProjectMetricsHolder> proyectos = proyectoRepository.findAll().stream()
-                .filter(p -> !esPendienteCompletar(p))
                 .map(proyecto -> construirProyectoMetrics(proyecto, corte))
                 .sorted(Comparator.comparing(
                                 (ProjectMetricsHolder holder) -> normalizeGroup(holder.metrics().dependencia()),
@@ -278,6 +277,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         BigDecimal indiceMitigacion = riesgosTotal == 0 ? BigDecimal.ZERO : ratioPercent(riesgosTratados, riesgosTotal);
         boolean tieneActividad = tieneEntregablesIniciados(proyecto, corte);
 
+        String viabEstado = proyecto.getViabilidadEstado() != null
+                ? proyecto.getViabilidadEstado().name() : "PENDIENTE";
+
         AnalyticsPortfolioDTO.ProjectMetrics metrics = new AnalyticsPortfolioDTO.ProjectMetrics(
                 proyecto.getId(),
                 proyecto.getNombre(),
@@ -290,7 +292,16 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 avance.estado(),
                 avance.entregablesAtrasados(),
                 furagCoverage(proyecto.getId()),
-                indiceMitigacion
+                indiceMitigacion,
+                proyecto.getDocumentosCargados(),
+                proyecto.getDocumentosVerificados(),
+                viabEstado,
+                proyecto.getCronogramaPdf() != null && !proyecto.getCronogramaPdf().isBlank(),
+                proyecto.getActaConstitucionPdf() != null && !proyecto.getActaConstitucionPdf().isBlank(),
+                Boolean.TRUE.equals(proyecto.getTienePlanComunicaciones())
+                        || (proyecto.getPlanComunicacionesPdf() != null && !proyecto.getPlanComunicacionesPdf().isBlank()),
+                proyecto.getRegistradoInicialPor(),
+                proyecto.getCorreoDirector()
         );
         return new ProjectMetricsHolder(proyecto, metrics, riesgosTratados, riesgosPendientes, tieneActividad);
     }

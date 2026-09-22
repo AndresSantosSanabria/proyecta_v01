@@ -19,6 +19,7 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.notification.NotificationOrchestratorService;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.slf4j.Logger;
@@ -683,14 +684,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         // Notificar
         try {
             Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
-            List<String> recipients = proyecto != null && usuarioProyectoRepository != null
-                    ? usuarioProyectoRepository.findActivasByProyectoId(proyectoId).stream()
-                            .map(item -> item.getUsuario())
-                            .filter(u -> u != null && u.getUsername() != null)
-                            .map(u -> u.getUsername())
-                            .filter(u -> u != null && !u.isBlank() && !u.equalsIgnoreCase(username))
-                            .distinct().toList()
-                    : List.of();
+            List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
             notificationOrchestrator.dispatch(new NotificationContext(
                     NotificationEventType.ENTREGABLE_FECHA_CAMBIADA,
                     proyectoId,
@@ -766,13 +760,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             return;
         }
 
-        List<String> recipients = usuarioProyectoRepository.findActivasByProyectoId(proyecto.getId()).stream()
-                .map(SeguridadUsuarioProyecto::getUsuario)
-                .filter(usuario -> usuario != null && usuario.getUsername() != null && !usuario.getUsername().isBlank())
-                .map(SeguridadUsuario::getUsername)
-                .filter(username -> actorUsername == null || !username.equalsIgnoreCase(actorUsername))
-                .distinct()
-                .toList();
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
 
         if (recipients.isEmpty()) {
             return;

@@ -56,6 +56,13 @@ public class ApiResponse<T> {
         return new ApiResponse<>(true, message, null);
     }
 
+    /**
+     * Crea una respuesta de error.
+     */
+    public static <T> ApiResponse<T> error(String message) {
+        return new ApiResponse<>(false, message, null);
+    }
+
     // Getters
     public boolean isSuccess() { return success; }
     public String getMessage() { return message; }

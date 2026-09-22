@@ -88,6 +88,14 @@ public record AnalyticsPortfolioDTO(
             String estado,
             long atrasados,
             BigDecimal furagCobertura,
-            BigDecimal indiceMitigacion
+            BigDecimal indiceMitigacion,
+            Boolean documentosCargados,
+            Boolean documentosVerificados,
+            String viabilidadEstado,
+            Boolean tieneCronograma,
+            Boolean tieneActaConstitucion,
+            Boolean tienePlanComunicaciones,
+            String registradoInicialPor,
+            String correoDirector
     ) {}
 }

@@ -28,6 +28,7 @@ import com.proyecta.api_gestion.service.config.PetiCatalogService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityCatalogCacheService;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
@@ -313,6 +314,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.setObjetivoGeneral(dto.objetivoGeneral().trim());
         proyecto.setDirector(firstNonBlank(director.getNombre(), director.getUsername()));
         proyecto.setCorreoDirector(director.getCorreo());
+        proyecto.setDirectorUsuario(director);
         proyecto.setAvanceTotal(BigDecimal.ZERO);
         proyecto.marcarRegistroInicialPendiente(gestorUsername);
 
@@ -462,6 +464,21 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (dto.director() != null) proyecto.setDirector(dto.director());
         if (dto.correoDirector() != null) proyecto.setCorreoDirector(dto.correoDirector());
         if (dto.objetivoGeneral() != null) proyecto.setObjetivoGeneral(dto.objetivoGeneral());
+        if (dto.objetivosEspecificos() != null) {
+            proyecto.getObjetivosEspecificos().clear();
+            dto.objetivosEspecificos().stream()
+                    .map(this::trimToNull)
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(desc -> {
+                        ObjetivoEspecifico obj = new ObjetivoEspecifico();
+                        obj.setDescripcion(desc);
+                        obj.setProyecto(proyecto);
+                        return obj;
+                    })
+                    .forEach(proyecto.getObjetivosEspecificos()::add);
+        }
+        if (dto.alcanceDetallado() != null) proyecto.setAlcanceDetallado(dto.alcanceDetallado());
+        if (dto.presupuestoEstimado() != null) proyecto.setPresupuestoEstimado(dto.presupuestoEstimado());
         if (dto.fechaInicio() != null) proyecto.setFechaInicio(dto.fechaInicio());
         if (dto.peti() != null) proyecto.setPeti(dto.peti());
         if (dto.vigenciaPeti() != null) proyecto.setVigenciaPeti(dto.vigenciaPeti());
@@ -487,6 +504,15 @@ public class ProyectoServiceImpl implements ProyectoService {
             dto.stakeholders().stream()
                     .map(s -> new Stakeholder(s.rol(), s.descripcion(), s.interes(), s.impacto()))
                     .forEach(proyecto.getStakeholders()::add);
+        }
+        if (dto.fases() != null) {
+            proyecto.getFases().clear();
+            int[] hitoIdx = {0};
+            int[] entIdx = {0};
+            int[] faseIdx = {0};
+            dto.fases().stream()
+                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, dto.fechaInicio() != null ? dto.fechaInicio() : proyecto.getFechaInicio(), faseIdx[0], hitoIdx, entIdx); })
+                    .forEach(proyecto.getFases()::add);
         }
 
         Proyecto actualizado = proyectoRepository.save(proyecto);
@@ -609,7 +635,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 Map.of(
                         "projectName", proyecto.getNombre(),
                         "state", proyecto.getEstadoCodigo(),
-                        "recipients", List.of(proyecto.getCorreoDirector())
+                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
     }
 
@@ -1460,13 +1486,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (proyecto == null || proyecto.getId() == null) {
             return;
         }
-        List<String> recipients = usuarioProyectoRepository.findActivasByProyectoId(proyecto.getId()).stream()
-                .map(SeguridadUsuarioProyecto::getUsuario)
-                .filter(usuario -> usuario != null && usuario.getUsername() != null && !usuario.getUsername().isBlank())
-                .map(SeguridadUsuario::getUsername)
-                .filter(username -> actorUsername == null || !username.equalsIgnoreCase(actorUsername))
-                .distinct()
-                .toList();
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
         if (recipients.isEmpty()) {
             return;
         }
@@ -1602,14 +1622,13 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.aprobarDocumentos(gestorUsername);
         proyectoRepository.save(proyecto);
 
-        String directorUsername = proyecto.getDirector();
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.VIABILIDAD_APPROVED,
                 proyecto.getId(),
                 gestorUsername,
                 java.util.Map.of(
                         "projectName", proyecto.getNombre(),
-                        "recipients", java.util.List.of(directorUsername)
+                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
     }
 
@@ -1630,7 +1649,6 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.devolverDocumentos(dto.observaciones(), gestorUsername);
         proyectoRepository.save(proyecto);
 
-        String directorUsername = proyecto.getDirector();
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.VIABILIDAD_RETURNED,
                 proyecto.getId(),
@@ -1638,7 +1656,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 java.util.Map.of(
                         "projectName", proyecto.getNombre(),
                         "observaciones", dto.observaciones(),
-                        "recipients", java.util.List.of(directorUsername)
+                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
     }
 
@@ -1656,7 +1674,6 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.cerrarForzoso(gestorUsername);
         proyectoRepository.save(proyecto);
 
-        String directorUsername = proyecto.getDirector();
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_CLOSED,
                 proyecto.getId(),
@@ -1664,7 +1681,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 java.util.Map.of(
                         "projectName", proyecto.getNombre(),
                         " motivo", "Cierre forzoso por Gestor",
-                        "recipients", java.util.List.of(directorUsername)
+                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
     }
 

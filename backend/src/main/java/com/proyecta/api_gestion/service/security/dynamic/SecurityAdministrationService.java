@@ -455,6 +455,7 @@ public class SecurityAdministrationService {
             proyectoRepository.findById(proyectoId).ifPresent(proyecto -> {
                 proyecto.setDirector(usuario.getNombre());
                 proyecto.setCorreoDirector(usuario.getCorreo());
+                proyecto.setDirectorUsuario(usuario);
                 proyectoRepository.save(proyecto);
             });
         }

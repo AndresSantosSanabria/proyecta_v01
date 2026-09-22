@@ -56,6 +56,10 @@ public class NotificationOrchestratorService {
         tmp.put("SECURITY_ROLE_UPDATED", "/admin/configuracion");
         tmp.put("SECURITY_USER_UPDATED", "/admin/configuracion");
         tmp.put("PROJECT_ASSIGNMENT_CREATED", "/progress");
+        tmp.put("VIABILIDAD_UPLOADED", "/progress");
+        tmp.put("VIABILIDAD_APPROVED", "/progress");
+        tmp.put("VIABILIDAD_RETURNED", "/progress");
+        tmp.put("ACTA_CONSTITUCION_REMINDER", "/progress");
         EVENT_ROUTE_MAP = Map.copyOf(tmp);
     }
 

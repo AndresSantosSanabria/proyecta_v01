@@ -1,7 +1,9 @@
 package com.proyecta.api_gestion.service.config;
 
+import com.proyecta.api_gestion.model.SystemParameter;
 import com.proyecta.api_gestion.repository.SystemParameterRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -57,6 +59,16 @@ public class SystemParameterService {
                         .toList())
                 .filter(values -> !values.isEmpty())
                 .orElse(defaultValues);
+    }
+
+    @Transactional
+    public void set(String key, String value) {
+        String normalizedKey = normalizeKey(key);
+        SystemParameter param = systemParameterRepository.findById(normalizedKey)
+                .orElse(new SystemParameter());
+        param.setKey(normalizedKey);
+        param.setValue(value);
+        systemParameterRepository.save(param);
     }
 
     private String normalizeKey(String key) {

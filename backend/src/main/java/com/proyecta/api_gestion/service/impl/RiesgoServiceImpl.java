@@ -695,7 +695,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
         if (proyecto.getEstadoConfig() != null) {
             return proyecto.getEstadoConfig().getEsTerminal();
         }
-        return EstadoProyecto.CERRADO.equals(proyecto.getEstado()) || EstadoProyecto.FINALIZADO.equals(proyecto.getEstado());
+        return EstadoProyecto.CERRADO.equals(proyecto.getEstado()) || EstadoProyecto.CERRADO_FORZOSO.equals(proyecto.getEstado()) || EstadoProyecto.FINALIZADO.equals(proyecto.getEstado());
     }
 
     private Riesgo cargarRiesgoDelProyecto(String projectId, Integer riesgoId) {

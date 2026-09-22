@@ -19,6 +19,7 @@ import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
@@ -366,14 +367,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
             return;
         }
 
-        var recipients = usuarioProyectoRepository.findActivasByProyectoId(proyectoId).stream()
-                .map(item -> item.getUsuario())
-                .filter(usuario -> usuario != null)
-                .map(usuario -> usuario.getUsername())
-                .filter(username -> username != null && !username.isBlank())
-                .filter(username -> actorUsername == null || !username.equalsIgnoreCase(actorUsername))
-                .distinct()
-                .toList();
+        var recipients = ProjectNotificationRecipients.resolve(proyecto);
 
         if (recipients.isEmpty()) {
             return;
@@ -422,23 +416,16 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private void notificarCargaDocumentos(String proyectoId, String directorUsername, Proyecto proyecto) {
-        var gestores = usuarioProyectoRepository.findActivasByProyectoId(proyectoId).stream()
-                .map(item -> item.getUsuario())
-                .filter(usuario -> usuario != null && "GESTOR".equalsIgnoreCase(usuario.getRolCodigo()))
-                .map(usuario -> usuario.getUsername())
-                .filter(username -> username != null && !username.isBlank())
-                .filter(username -> !username.equalsIgnoreCase(directorUsername))
-                .distinct()
-                .toList();
+        var recipients = ProjectNotificationRecipients.resolve(proyecto);
 
-        if (!gestores.isEmpty()) {
+        if (!recipients.isEmpty()) {
             notificationPublisher.publish(new NotificationContext(
                     NotificationEventType.VIABILIDAD_UPLOADED,
                     proyectoId,
                     directorUsername,
                     java.util.Map.of(
                             "projectName", proyecto.getNombre(),
-                            "recipients", gestores
+                            "recipients", recipients
                     )));
         }
     }

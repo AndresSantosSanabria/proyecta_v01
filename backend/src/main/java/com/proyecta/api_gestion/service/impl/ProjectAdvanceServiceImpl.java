@@ -36,6 +36,7 @@ import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
@@ -227,7 +228,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                     java.util.Map.of(
                             "deliverableName", entregable.getNombre(),
                             "projectName", proyectoActualizado.getNombre(),
-                            "recipients", List.of(proyectoActualizado.getCorreoDirector())
+                            "recipients", ProjectNotificationRecipients.resolve(proyectoActualizado)
                     )));
             ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
             beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
@@ -295,7 +296,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 java.util.Map.of(
                         "deliverableName", entregable.getNombre(),
                         "projectName", proyectoActualizado.getNombre(),
-                        "recipients", List.of(proyectoActualizado.getCorreoDirector())
+                        "recipients", ProjectNotificationRecipients.resolve(proyectoActualizado)
                 )));
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
         beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
@@ -360,7 +361,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                         "deliverableName", entregable.getNombre(),
                         "projectName", proyectoActualizado.getNombre(),
                         "observation", observacion.trim(),
-                        "recipients", List.of(proyectoActualizado.getCorreoDirector())
+                        "recipients", ProjectNotificationRecipients.resolve(proyectoActualizado)
                 )));
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
         beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
@@ -412,6 +413,13 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         observacion.setComentarioSubsanacion(trimToNull(comentario));
         DocumentoObservacion guardada = documentoObservacionRepository.save(observacion);
         auditar(guardada.getEntregable(), guardada.getVersion(), guardada, "SUBSANAR", actor, "observacionId=" + guardada.getId());
+
+        Proyecto proyectoSubsanacion = guardada.getEntregable() != null
+                && guardada.getEntregable().getHito() != null
+                && guardada.getEntregable().getHito().getFase() != null
+                && guardada.getEntregable().getHito().getFase().getProyecto() != null
+                ? guardada.getEntregable().getHito().getFase().getProyecto() : null;
+
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.OBSERVATION_SUBSANATED,
                 proyectoId,
@@ -419,19 +427,8 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 java.util.Map.of(
                         "observationId", guardada.getId(),
                         "deliverableName", guardada.getEntregable() != null ? guardada.getEntregable().getNombre() : "",
-                        "projectName", guardada.getEntregable() != null
-                                && guardada.getEntregable().getHito() != null
-                                && guardada.getEntregable().getHito().getFase() != null
-                                && guardada.getEntregable().getHito().getFase().getProyecto() != null
-                                ? guardada.getEntregable().getHito().getFase().getProyecto().getNombre() : "",
-                        "recipients", List.of(
-                                guardada.getEntregable() != null
-                                        && guardada.getEntregable().getHito() != null
-                                        && guardada.getEntregable().getHito().getFase() != null
-                                        && guardada.getEntregable().getHito().getFase().getProyecto() != null
-                                        ? guardada.getEntregable().getHito().getFase().getProyecto().getCorreoDirector()
-                                        : null
-                        )
+                        "projectName", proyectoSubsanacion != null ? proyectoSubsanacion.getNombre() : "",
+                        "recipients", ProjectNotificationRecipients.resolve(proyectoSubsanacion)
                 )));
         return toObservacionDto(guardada);
     }
@@ -625,7 +622,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         attributes.put("projectUrl", projectUrl);
         attributes.put("sentBy", actor.username());
         attributes.put("sentAt", sentAt);
-        attributes.put("recipients", List.of(proyecto.getCorreoDirector()));
+        attributes.put("recipients", ProjectNotificationRecipients.resolve(proyecto));
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_DIRECTOR_ALERT,

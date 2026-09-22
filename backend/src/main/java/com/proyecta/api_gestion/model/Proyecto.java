@@ -33,6 +33,10 @@ public class Proyecto {
     @Column(name = "director_correo", length = 200)
     private String correoDirector;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "director_usuario_id", referencedColumnName = "id")
+    private com.proyecta.api_gestion.model.security.SeguridadUsuario directorUsuario;
+
     @Column(name = "objetivo_general", columnDefinition = "TEXT")
     private String objetivoGeneral;
 
@@ -208,6 +212,9 @@ public class Proyecto {
     public String getCorreoDirector() { return correoDirector; }
     public void setCorreoDirector(String correoDirector) { this.correoDirector = correoDirector; }
 
+    public com.proyecta.api_gestion.model.security.SeguridadUsuario getDirectorUsuario() { return directorUsuario; }
+    public void setDirectorUsuario(com.proyecta.api_gestion.model.security.SeguridadUsuario directorUsuario) { this.directorUsuario = directorUsuario; }
+
     public String getObjetivoGeneral() { return objetivoGeneral; }
     public void setObjetivoGeneral(String objetivoGeneral) { this.objetivoGeneral = objetivoGeneral; }
 
@@ -357,7 +364,7 @@ public class Proyecto {
 
     public boolean esEstadoTerminal() {
         if (estadoConfig != null) return estadoConfig.getEsTerminal();
-        return EstadoProyecto.CERRADO.equals(estado);
+        return EstadoProyecto.CERRADO.equals(estado) || EstadoProyecto.CERRADO_FORZOSO.equals(estado);
     }
 
     public boolean requiereCompletitudDirector() {
@@ -480,7 +487,8 @@ public class Proyecto {
         this.cierreForzoso = true;
         this.cierreForzosoPor = gestorUsername;
         this.cierreForzosoEn = LocalDateTime.now();
-        this.estado = EstadoProyecto.CERRADO;
+        this.estado = EstadoProyecto.CERRADO_FORZOSO;
+        this.estadoConfig = null;
         this.requiereCompletitudDirector = false;
     }
 
