@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.proyecto.*;
 import com.proyecta.api_gestion.dto.config.FuragPreguntaDTO;
 import com.proyecta.api_gestion.dto.config.FuragPreguntaRespuestaDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
@@ -14,6 +15,7 @@ import com.proyecta.api_gestion.model.enums.*;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
 import com.proyecta.api_gestion.repository.DocumentoProyectoVersionRepository;
+import com.proyecta.api_gestion.repository.DocumentoPreWizardRevisionRepository;
 import com.proyecta.api_gestion.repository.RiesgoRepository;
 import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
 import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
@@ -72,6 +74,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
     private final DocumentoProyectoVersionRepository documentoVersionRepository;
+    private final DocumentoPreWizardRevisionRepository preWizardRevisionRepository;
     private final ListaParametricaConfigRepository listaParametricaRepository;
     private final RiesgoRepository riesgoRepository;
     private final MatrizRiesgoRepository matrizRiesgoRepository;
@@ -87,6 +90,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                                NotificationEventPublisherPort notificationPublisher,
                                KeycloakIdentityExtractor identityExtractor,
                                DocumentoProyectoVersionRepository documentoVersionRepository,
+                               DocumentoPreWizardRevisionRepository preWizardRevisionRepository,
                                ListaParametricaConfigRepository listaParametricaRepository,
                                RiesgoRepository riesgoRepository,
                                MatrizRiesgoRepository matrizRiesgoRepository,
@@ -101,6 +105,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
         this.documentoVersionRepository = documentoVersionRepository;
+        this.preWizardRevisionRepository = preWizardRevisionRepository;
         this.listaParametricaRepository = listaParametricaRepository;
         this.riesgoRepository = riesgoRepository;
         this.matrizRiesgoRepository = matrizRiesgoRepository;
@@ -353,15 +358,70 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
 
         boolean requiereCompletitud = proyecto.requiereCompletitudDirector();
-        boolean documentosVerificados = Boolean.TRUE.equals(proyecto.getDocumentosVerificados());
         boolean documentosCargados = Boolean.TRUE.equals(proyecto.getDocumentosCargados());
+
+        final List<String> preWizardTypes = List.of(
+                "VIABILIZACION", "PLAN_COMUNICACIONES", "MATRIZ_RIESGOS_VIABILIDAD");
+        Map<String, DocumentoPreWizardRevision> revisionesPorTipo = preWizardRevisionRepository
+                .findByProyectoId(normalizedId)
+                .stream()
+                .collect(Collectors.toMap(
+                        DocumentoPreWizardRevision::getTipoDocumento,
+                        r -> r,
+                        (a, b) -> a
+                ));
+
+        List<DocumentoPreWizardRevisionDTO> documentosPreWizard = new ArrayList<>();
+        boolean todosAprobado = true;
+        boolean algunoDevuelto = false;
+        for (String tipo : preWizardTypes) {
+            DocumentoPreWizardRevision revision = revisionesPorTipo.get(tipo);
+            if (revision != null) {
+                documentosPreWizard.add(new DocumentoPreWizardRevisionDTO(
+                        revision.getTipoDocumento(),
+                        revision.getEstado().name(),
+                        revision.getObservacion(),
+                        revision.getRevisadoPor(),
+                        revision.getRevisadoEn()
+                ));
+                if (revision.getEstado() == DocumentoPreWizardEstado.APROBADO) {
+                    // keep counting
+                } else {
+                    todosAprobado = false;
+                }
+                if (revision.getEstado() == DocumentoPreWizardEstado.DEVUELTO) {
+                    algunoDevuelto = true;
+                }
+            } else {
+                todosAprobado = false;
+                documentosPreWizard.add(new DocumentoPreWizardRevisionDTO(
+                        tipo,
+                        DocumentoPreWizardEstado.PENDIENTE.name(),
+                        null,
+                        null,
+                        null
+                ));
+            }
+        }
+
+        String viabilidadEstado;
+        if (todosAprobado && documentosCargados) {
+            viabilidadEstado = ViabilidadEstado.APROBADA.name();
+        } else if (algunoDevuelto) {
+            viabilidadEstado = ViabilidadEstado.DEVUELTA.name();
+        } else if (documentosCargados) {
+            viabilidadEstado = ViabilidadEstado.CARGADA.name();
+        } else {
+            viabilidadEstado = ViabilidadEstado.PENDIENTE.name();
+        }
+
+        boolean documentosVerificados = Boolean.TRUE.equals(proyecto.getDocumentosVerificados())
+                && todosAprobado && documentosCargados;
         boolean puedeCargarViabilidad = requiereCompletitud && directorAsignado
-                && (proyecto.viabilidadPendiente() || proyecto.viabilidadDevuelta());
+                && (ViabilidadEstado.PENDIENTE.name().equals(viabilidadEstado)
+                    || ViabilidadEstado.DEVUELTA.name().equals(viabilidadEstado));
         boolean puedeCompletarWizard = requiereCompletitud && directorAsignado && documentosVerificados;
         boolean puedeCompletar = puedeCompletarWizard;
-
-        String viabilidadEstado = proyecto.getViabilidadEstado() != null
-                ? proyecto.getViabilidadEstado().name() : "PENDIENTE";
 
         boolean plazoVencido = proyecto.plazoCompletarVencido();
 
@@ -370,12 +430,12 @@ public class ProyectoServiceImpl implements ProyectoService {
             mensaje = "El proyecto ya tiene su informacion inicial completa.";
         } else if (proyecto.getCierreForzoso()) {
             mensaje = "El proyecto fue cerrado forzosamente por el Gestor.";
+        } else if (ViabilidadEstado.DEVUELTA.name().equals(viabilidadEstado)) {
+            mensaje = "Algunos documentos fueron devueltos con observaciones. El Director debe subsanar.";
         } else if (puedeCargarViabilidad) {
             mensaje = "El Director debe cargar los 3 documentos (Viabilidad, Plan de Comunicaciones y Matriz de Riesgos de Viabilidad).";
         } else if (documentosCargados && !documentosVerificados) {
             mensaje = "Los documentos estan cargados y pendientes de verificacion por parte del Gestor.";
-        } else if (proyecto.viabilidadDevuelta()) {
-            mensaje = "Los documentos fueron devueltos con observaciones. El Director debe subsanar.";
         } else if (documentosVerificados) {
             if (plazoVencido) {
                 mensaje = "El plazo de 30 dias para completar el proyecto ha vencido. El Gestor puede realizar el cierre forzoso.";
@@ -396,7 +456,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 proyecto.getCompletadoPorDirectorAt(),
                 viabilidadEstado,
                 proyecto.getViabilidadObservaciones(),
-                proyecto.viabilidadAprobada(),
+                ViabilidadEstado.APROBADA.name().equals(viabilidadEstado),
                 documentosCargados,
                 documentosVerificados,
                 puedeCargarViabilidad,
@@ -404,7 +464,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                 proyecto.getFechaLimiteCompletar(),
                 plazoVencido,
                 Boolean.TRUE.equals(proyecto.getCierreForzoso()),
-                mensaje
+                mensaje,
+                documentosPreWizard
         );
     }
 
@@ -1605,6 +1666,26 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     // ==================== QUALITY GATE: DOCUMENTOS PRE-WIZARD ====================
 
+    private void sincRevisionesPreWizardMasivo(String proyectoId, DocumentoPreWizardEstado estado,
+                                               String observacion, String gestorUsername) {
+        java.time.LocalDateTime ahora = java.time.LocalDateTime.now();
+        for (String tipo : java.util.List.of("VIABILIZACION", "PLAN_COMUNICACIONES", "MATRIZ_RIESGOS_VIABILIDAD")) {
+            DocumentoPreWizardRevision revision = preWizardRevisionRepository
+                    .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
+                    .orElseGet(() -> {
+                        DocumentoPreWizardRevision nueva = new DocumentoPreWizardRevision();
+                        nueva.setProyectoId(proyectoId);
+                        nueva.setTipoDocumento(tipo);
+                        return nueva;
+                    });
+            revision.setEstado(estado);
+            revision.setObservacion(estado == DocumentoPreWizardEstado.DEVUELTO ? observacion : null);
+            revision.setRevisadoPor(gestorUsername);
+            revision.setRevisadoEn(ahora);
+            preWizardRevisionRepository.save(revision);
+        }
+    }
+
     @Override
     @Transactional
     public void aprobarViabilidad(String id, String gestorUsername) {
@@ -1621,6 +1702,8 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         proyecto.aprobarDocumentos(gestorUsername);
         proyectoRepository.save(proyecto);
+
+        sincRevisionesPreWizardMasivo(proyecto.getId(), DocumentoPreWizardEstado.APROBADO, null, gestorUsername);
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.VIABILIDAD_APPROVED,
@@ -1648,6 +1731,8 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         proyecto.devolverDocumentos(dto.observaciones(), gestorUsername);
         proyectoRepository.save(proyecto);
+
+        sincRevisionesPreWizardMasivo(proyecto.getId(), DocumentoPreWizardEstado.DEVUELTO, dto.observaciones(), gestorUsername);
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.VIABILIDAD_RETURNED,

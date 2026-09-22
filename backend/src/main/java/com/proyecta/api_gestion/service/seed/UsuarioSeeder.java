@@ -16,6 +16,10 @@ import java.util.Locale;
 public class UsuarioSeeder {
 
     private static final Logger logger = LoggerFactory.getLogger(UsuarioSeeder.class);
+    private static final String PERMANENT_ADMIN_USERNAME = "fasantos";
+    private static final String PERMANENT_ADMIN_CORREO = "fabio.santos@cundinamarca.gov.co";
+    private static final String PERMANENT_ADMIN_NOMBRE = "Fabio Andres Santos Santos Sanabria";
+
     private final SeguridadUsuarioRepository seguridadUsuarioRepository;
     private final SeguridadRolRepository seguridadRolRepository;
     private final List<UsuarioSeed> configuredUsers;
@@ -30,6 +34,8 @@ public class UsuarioSeeder {
     }
 
     public void seedUsuarios() {
+        ensurePermanentAdmin();
+
         if (configuredUsers.isEmpty()) {
             logger.info("No hay usuarios semilla configurados en gob.seed.users.");
             return;
@@ -38,6 +44,27 @@ public class UsuarioSeeder {
         logger.info("Cargando {} usuarios semilla configurados...", configuredUsers.size());
         configuredUsers.forEach(this::upsertUsuario);
         logger.info("Usuarios semilla cargados desde configuracion");
+    }
+
+    private void ensurePermanentAdmin() {
+        SeguridadUsuario usuario = seguridadUsuarioRepository
+                .findByUsernameIgnoreCase(PERMANENT_ADMIN_USERNAME)
+                .or(() -> seguridadUsuarioRepository.findByCorreoIgnoreCase(PERMANENT_ADMIN_CORREO))
+                .orElseGet(SeguridadUsuario::new);
+
+        boolean isNew = usuario.getId() == null;
+        usuario.setUsername(PERMANENT_ADMIN_USERNAME);
+        usuario.setNombre(PERMANENT_ADMIN_NOMBRE);
+        usuario.setCorreo(PERMANENT_ADMIN_CORREO);
+        if (usuario.getKeycloakSub() == null || usuario.getKeycloakSub().isBlank()) {
+            usuario.setKeycloakSub(PERMANENT_ADMIN_CORREO);
+        }
+        usuario.setActivo(true);
+        usuario.setRolCodigo("admin");
+        usuario.setRolNombre("Administrador");
+        seguridadUsuarioRepository.save(usuario);
+        logger.info("Usuario permanente '{}' forzado a rol admin ({})", PERMANENT_ADMIN_USERNAME,
+                isNew ? "creado" : "actualizado");
     }
 
     private void upsertUsuario(UsuarioSeed seed) {

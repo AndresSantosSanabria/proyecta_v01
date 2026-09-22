@@ -16,21 +16,18 @@ public class DataSeederService {
     private final SystemParameterSeeder systemParameterSeeder;
     private final ReporteConfigSeeder reporteConfigSeeder;
     private final SecurityCatalogSeeder securityCatalogSeeder;
-    private final ProyectoSeeder proyectoSeeder;
 
     public DataSeederService(
             UsuarioSeeder usuarioSeeder,
             PatrocinadorSeeder patrocinadorSeeder,
             SystemParameterSeeder systemParameterSeeder,
             ReporteConfigSeeder reporteConfigSeeder,
-            SecurityCatalogSeeder securityCatalogSeeder,
-            ProyectoSeeder proyectoSeeder) {
+            SecurityCatalogSeeder securityCatalogSeeder) {
         this.usuarioSeeder = usuarioSeeder;
         this.patrocinadorSeeder = patrocinadorSeeder;
         this.systemParameterSeeder = systemParameterSeeder;
         this.reporteConfigSeeder = reporteConfigSeeder;
         this.securityCatalogSeeder = securityCatalogSeeder;
-        this.proyectoSeeder = proyectoSeeder;
     }
 
     /**
@@ -44,6 +41,5 @@ public class DataSeederService {
         patrocinadorSeeder.seedPatrocinadores();
         systemParameterSeeder.seedSystemParameters();
         reporteConfigSeeder.seedReporteConfigs();
-        proyectoSeeder.seedProyectos();
     }
 }

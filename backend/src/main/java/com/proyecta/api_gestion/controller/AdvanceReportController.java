@@ -123,10 +123,16 @@ public class AdvanceReportController {
     public ResponseEntity<ApiResponse<List<AdvanceReportStatusDTO>>> getPendingProjects(
             Authentication authentication) {
 
-        LocalDate today = LocalDate.now();
+        boolean enabled = "true".equalsIgnoreCase(
+                systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_ENABLED, "true"));
         LocalDate dueDate = ruleEvaluator.getDueDate();
+        if (!enabled || dueDate == null) {
+            return ResponseEntity.ok(ApiResponse.success(List.of(), "Proyectos con informe pendiente"));
+        }
+
+        LocalDate today = LocalDate.now();
         String periodo = resolveCurrentPeriodo(today);
-        
+
         String username = identityExtractor.resolveUsername(authentication);
         boolean isTransversal = authentication.getAuthorities().stream()
                 .anyMatch(a -> {
@@ -140,12 +146,13 @@ public class AdvanceReportController {
 
         List<AdvanceReportStatusDTO> pending = proyectoRepository.findAll().stream()
                 .filter(p -> p.getEstado() != null
-                        && !com.proyecta.api_gestion.model.enums.EstadoProyecto.CERRADO.equals(p.getEstado())
-                        && !com.proyecta.api_gestion.model.enums.EstadoProyecto.CERRADO_FORZOSO.equals(p.getEstado())
-                        && !com.proyecta.api_gestion.model.enums.EstadoProyecto.FINALIZADO.equals(p.getEstado()))
+                        && !p.esEstadoTerminal()
+                        && !com.proyecta.api_gestion.model.enums.EstadoProyecto.PENDIENTE_COMPLETAR.equals(p.getEstado())
+                        && !com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION.equals(p.getEstado()))
+                .filter(p -> p.documentosPreWizardCompletos()
+                        && com.proyecta.api_gestion.model.enums.ViabilidadEstado.APROBADA.equals(p.getViabilidadEstado()))
                 .filter(p -> {
                     if (isTransversal) return true;
-                    // Filter if user is director (via direct repository query to avoid LazyInitializationException)
                     return proyectoRepository.existsDirectorByProyectoIdAndUsername(p.getId(), username);
                 })
                 .filter(p -> !notificationService.isUploaded(p.getId(), periodo))
@@ -155,7 +162,7 @@ public class AdvanceReportController {
                         true,
                         false,
                         dueDate,
-                        dueDate != null ? ruleEvaluator.getDaysUntilDue(today) : Long.MAX_VALUE,
+                        ruleEvaluator.getDaysUntilDue(today),
                         ruleEvaluator.isOverdue(today),
                         periodo,
                         null,
@@ -183,7 +190,8 @@ public class AdvanceReportController {
                 "specific_override_dates", systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_SPECIFIC_OVERRIDE_DATES, ""),
                 "allowed_extensions", systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_ALLOWED_EXTENSIONS, "pdf,pptx"),
                 "max_size_mb", systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_MAX_SIZE_MB, "20"),
-                "login_modal_delay_ms", systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_LOGIN_MODAL_DELAY_MS, "1200")
+                "login_modal_delay_ms", systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_LOGIN_MODAL_DELAY_MS, "1200"),
+                "enabled", systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_ENABLED, "true")
         );
         return ResponseEntity.ok(ApiResponse.success(settings, "Configuración del motor de reglas"));
     }
@@ -202,6 +210,7 @@ public class AdvanceReportController {
         updateIfPresent(SystemParameterKeys.ADVANCE_REPORT_ALLOWED_EXTENSIONS, settings.get("allowed_extensions"));
         updateIfPresent(SystemParameterKeys.ADVANCE_REPORT_MAX_SIZE_MB, settings.get("max_size_mb"));
         updateIfPresent(SystemParameterKeys.ADVANCE_REPORT_LOGIN_MODAL_DELAY_MS, settings.get("login_modal_delay_ms"));
+        updateIfPresent(SystemParameterKeys.ADVANCE_REPORT_ENABLED, settings.get("enabled"));
         return ResponseEntity.ok(ApiResponse.success("OK", "Configuración actualizada. Los cambios se aplican en el próximo ciclo del scheduler."));
     }
 

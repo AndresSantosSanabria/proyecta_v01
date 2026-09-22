@@ -101,10 +101,10 @@ WHERE r.codigo = 'consulta' AND p.codigo IN (
     'EVIDENCIA:VER', 'DOCUMENTO:VER', 'CRONOGRAMA:VER', 'CIERRE:VER', 'REPORTE:VER'
 );
 
--- Visualizador: mínimo acceso
+-- Visualizador: solo vista de proyectos, sin acciones
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM roles r, permisos p
-WHERE r.codigo = 'visualizador' AND p.codigo IN ('DASHBOARD:VER', 'PROYECTO:VER', 'ENTREGABLE:VER');
+WHERE r.codigo = 'visualizador' AND p.codigo IN ('PROYECTO:VER', 'SIDEBAR:PROYECTOS');
 
 -- =============================================================================
 -- 4. ESTADOS DE PROYECTO

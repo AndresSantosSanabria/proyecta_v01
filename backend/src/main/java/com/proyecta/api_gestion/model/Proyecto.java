@@ -186,6 +186,9 @@ public class Proyecto {
     @JoinColumn(name = "estrategia_peti_config_id", referencedColumnName = "estrategia_peti_id")
     private EstrategiaPetiConfig estrategiaPetiConfig;
 
+    @Column(name = "email_message_id", length = 255)
+    private String emailMessageId;
+
     public Proyecto() {
     }
 
@@ -356,6 +359,9 @@ public class Proyecto {
     public EstrategiaPetiConfig getEstrategiaPetiConfig() { return estrategiaPetiConfig; }
     public void setEstrategiaPetiConfig(EstrategiaPetiConfig estrategiaPetiConfig) { this.estrategiaPetiConfig = estrategiaPetiConfig; }
 
+    public String getEmailMessageId() { return emailMessageId; }
+    public void setEmailMessageId(String emailMessageId) { this.emailMessageId = emailMessageId; }
+
     public String getEstadoCodigo() {
         if (estadoConfig != null) return estadoConfig.getCodigo();
         if (estado != null) return estado.name();
@@ -448,16 +454,6 @@ public class Proyecto {
     public void marcarViabilidadCargada() {
         this.viabilidadEstado = ViabilidadEstado.CARGADA;
         this.viabilidadObservaciones = null;
-        verificarDocumentosCargados();
-    }
-
-    private void verificarDocumentosCargados() {
-        if (viabilidadCargada() || viabilidadAprobada()) {
-            boolean tienePlanComunicaciones = Boolean.TRUE.equals(this.tienePlanComunicaciones)
-                    || (this.planComunicacionesPdf != null && !this.planComunicacionesPdf.isBlank());
-            boolean tieneViabilidad = this.viabilizacionPdf != null && !this.viabilizacionPdf.isBlank();
-            this.documentosCargados = tieneViabilidad && tienePlanComunicaciones;
-        }
     }
 
     public void aprobarDocumentos(String revisadoPor) {

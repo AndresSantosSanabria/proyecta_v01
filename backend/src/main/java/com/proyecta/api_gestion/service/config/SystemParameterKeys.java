@@ -26,4 +26,5 @@ public final class SystemParameterKeys {
     public static final String ADVANCE_REPORT_ALLOWED_EXTENSIONS = "advance_report_allowed_extensions";
     public static final String ADVANCE_REPORT_MAX_SIZE_MB = "advance_report_max_size_mb";
     public static final String ADVANCE_REPORT_LOGIN_MODAL_DELAY_MS = "advance_report_login_modal_delay_ms";
+    public static final String ADVANCE_REPORT_ENABLED = "advance_report_enabled";
 }

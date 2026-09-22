@@ -169,16 +169,14 @@ public class SecurityAdministrationService {
         }
 
         if (isNewUser || usuario.getRolCodigo() == null || usuario.getRolCodigo().isBlank()) {
-            Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(usuario, authentication, true);
-            if (resolvedRole.isEmpty()) {
-                resolvedRole = rolRepository.findByCodigoIgnoreCase("visualizador");
-            }
+            String resolvedCode = resolveInitialRoleForNewUser(usuario, authentication);
+            Optional<SeguridadRol> rol = rolRepository.findByCodigoIgnoreCase(resolvedCode);
 
-            if (resolvedRole.isPresent()) {
-                SeguridadRol rol = resolvedRole.get();
-                if (!rol.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
-                    usuario.setRolCodigo(rol.getCodigo());
-                    usuario.setRolNombre(rol.getNombre());
+            if (rol.isPresent()) {
+                SeguridadRol r = rol.get();
+                if (!r.getCodigo().equalsIgnoreCase(normalizeText(usuario.getRolCodigo()))) {
+                    usuario.setRolCodigo(r.getCodigo());
+                    usuario.setRolNombre(r.getNombre());
                     shouldSave = true;
                 }
             }
@@ -643,7 +641,13 @@ public class SecurityAdministrationService {
 
         boolean changed = false;
         for (SeguridadUsuario usuario : usuarios) {
-            Optional<SeguridadRol> resolvedRole = resolveRoleForSecurityUser(usuario, null, false);
+            String rolActual = normalizeText(usuario.getRolCodigo());
+            if (rolActual != null && !rolActual.isBlank()) {
+                continue;
+            }
+
+            String resolvedCode = resolveInitialRoleForNewUser(usuario, null);
+            Optional<SeguridadRol> resolvedRole = rolRepository.findByCodigoIgnoreCase(resolvedCode);
             if (resolvedRole.isEmpty()) {
                 continue;
             }
@@ -777,6 +781,32 @@ public class SecurityAdministrationService {
                 .filter(value -> value != null && !value.isBlank())
                 .findFirst()
                 .orElse(null);
+    }
+
+    private String resolveInitialRoleForNewUser(SeguridadUsuario usuario, Authentication authentication) {
+        if (authentication != null) {
+            boolean isGestor = authentication.getAuthorities().stream()
+                    .map(authority -> authority.getAuthority())
+                    .filter(value -> value != null && value.startsWith("ROLE_"))
+                    .map(value -> value.substring(5).toLowerCase(Locale.ROOT))
+                    .anyMatch(role -> role.equals("gestor_tic")
+                            || role.equals("gestor")
+                            || role.equals("gestor_proyectos")
+                            || role.contains("gestor"));
+
+            if (isGestor) {
+                return "gestor_tic";
+            }
+        }
+
+        if (usuario != null) {
+            String rolCodigo = normalizeText(usuario.getRolCodigo());
+            if (rolCodigo != null && rolCodigo.toLowerCase(Locale.ROOT).contains("gestor")) {
+                return "gestor_tic";
+            }
+        }
+
+        return "visualizador";
     }
 
     private String normalizeText(String value) {

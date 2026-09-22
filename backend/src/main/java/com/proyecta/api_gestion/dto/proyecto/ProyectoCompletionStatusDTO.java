@@ -1,7 +1,10 @@
 package com.proyecta.api_gestion.dto.proyecto;
 
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ProyectoCompletionStatusDTO(
         String proyectoId,
@@ -21,6 +24,7 @@ public record ProyectoCompletionStatusDTO(
         LocalDate fechaLimiteCompletar,
         boolean plazoVencido,
         boolean cierreForzoso,
-        String mensaje
+        String mensaje,
+        List<DocumentoPreWizardRevisionDTO> documentosPreWizard
 ) {
 }

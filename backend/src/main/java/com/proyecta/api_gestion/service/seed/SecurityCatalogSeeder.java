@@ -135,7 +135,7 @@ public class SecurityCatalogSeeder {
                     "DOCUMENTO:VER", "CRONOGRAMA:VER",
                     "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS"),
             "visualizador", List.of(
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS")
+                    "SIDEBAR:PROYECTOS", "PROYECTO:VER")
     );
 
     private final SeguridadRolRepository rolRepository;

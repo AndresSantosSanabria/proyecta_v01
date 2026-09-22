@@ -5,12 +5,15 @@ import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.exception.UnauthorizedException;
 import com.proyecta.api_gestion.model.Documento;
+import com.proyecta.api_gestion.model.DocumentoPreWizardRevision;
 import com.proyecta.api_gestion.model.DocumentoProyectoVersion;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.model.config.TipoDocumentoConfig;
+import com.proyecta.api_gestion.model.enums.DocumentoPreWizardEstado;
 import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
 import com.proyecta.api_gestion.model.enums.TipoDocumento;
+import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.repository.config.TipoDocumentoConfigRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
@@ -29,7 +32,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +58,8 @@ public class DocumentoServiceImpl implements IDocumentoService {
     );
     private static final String STORAGE_SUBDIR = "documentos";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final List<String> PRE_WIZARD_TYPES = List.of(
+            "VIABILIZACION", "PLAN_COMUNICACIONES", "MATRIZ_RIESGOS_VIABILIDAD");
 
     private final DocumentoRepository documentoRepository;
     private final DocumentoProyectoVersionRepository versionRepository;
@@ -59,6 +67,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     private final DocumentoDinamicoRepository documentoDinamicoRepository;
     private final TipoDocumentoConfigRepository tipoDocumentoConfigRepository;
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final DocumentoPreWizardRevisionRepository preWizardRevisionRepository;
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
     private final LocalUserAuthorizationService localUserAuthorizationService;
@@ -71,6 +80,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
             DocumentoDinamicoRepository documentoDinamicoRepository,
             TipoDocumentoConfigRepository tipoDocumentoConfigRepository,
             SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+            DocumentoPreWizardRevisionRepository preWizardRevisionRepository,
             NotificationEventPublisherPort notificationPublisher,
             KeycloakIdentityExtractor identityExtractor,
             LocalUserAuthorizationService localUserAuthorizationService,
@@ -81,6 +91,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         this.documentoDinamicoRepository = documentoDinamicoRepository;
         this.tipoDocumentoConfigRepository = tipoDocumentoConfigRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
+        this.preWizardRevisionRepository = preWizardRevisionRepository;
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
         this.localUserAuthorizationService = localUserAuthorizationService;
@@ -163,8 +174,10 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         notificarCambioDocumento(proyectoId, actor.username(), NotificationEventType.PROJECT_DOCUMENT_UPLOADED, tipoDocumento, nombreOriginal, esReemplazo);
 
-        if ("VIABILIZACION".equals(tipoDocumento) || "PLAN_COMUNICACIONES".equals(tipoDocumento) || "MATRIZ_RIESGOS_VIABILIDAD".equals(tipoDocumento)) {
-            actualizarEstadoViabilidad(proyectoId, actor.username());
+        sincronizarFlagsProyectoDocumentos(proyectoId, tipoDocumento, guardada, actor.username());
+
+        if (PRE_WIZARD_TYPES.contains(tipoDocumento)) {
+            marcarRevisionPendiente(proyectoId, tipoDocumento);
         }
 
         return toUploadResultDTO(guardada);
@@ -216,6 +229,237 @@ public class DocumentoServiceImpl implements IDocumentoService {
                         "Version " + numeroVersion + " del documento " + tipoDocumento + " no encontrada."));
 
         return storageProvider.loadFileAsResource(version.getRutaAlmacenamiento(), version.getNombreAlmacenado());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentoPreWizardRevisionDTO.Listado listarRevisionesPreWizard(String proyectoId) {
+        validarExistenciaProyecto(proyectoId);
+
+        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepository
+                .findByProyectoId(proyectoId)
+                .stream()
+                .collect(Collectors.toMap(
+                        DocumentoPreWizardRevision::getTipoDocumento,
+                        Function.identity(),
+                        (a, b) -> a
+                ));
+
+        List<DocumentoPreWizardRevisionDTO> documentos = new ArrayList<>();
+        for (String tipo : PRE_WIZARD_TYPES) {
+            DocumentoPreWizardRevision revision = porTipo.get(tipo);
+            if (revision != null) {
+                documentos.add(toRevisionDTO(revision));
+            } else {
+                documentos.add(new DocumentoPreWizardRevisionDTO(
+                        tipo,
+                        DocumentoPreWizardEstado.PENDIENTE.name(),
+                        null,
+                        null,
+                        null
+                ));
+            }
+        }
+        return new DocumentoPreWizardRevisionDTO.Listado(proyectoId, documentos);
+    }
+
+    @Override
+    @Transactional
+    public DocumentoPreWizardRevisionDTO aprobarDocumentoPreWizard(String proyectoId, String tipoDocumento, Authentication authentication) {
+        validarExistenciaProyecto(proyectoId);
+        String tipo = normalizarTipoPreWizard(tipoDocumento);
+        ActorContext actor = actorContext(authentication);
+
+        DocumentoProyectoVersion version = versionRepository
+                .findByProyectoIdAndTipoDocumentoAndEstado(proyectoId, tipo, DocumentoProyectoVersionEstado.ACTUAL)
+                .orElseThrow(() -> new BadRequestException(
+                        "No hay un documento cargado del tipo " + tipo + " para aprobar."));
+
+        DocumentoPreWizardRevision revision = preWizardRevisionRepository
+                .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
+                .orElseGet(() -> nuevaRevision(proyectoId, tipo, version));
+
+        revision.setEstado(DocumentoPreWizardEstado.APROBADO);
+        revision.setObservacion(null);
+        revision.setRevisadoPor(actor.username());
+        revision.setRevisadoEn(LocalDateTime.now());
+        DocumentoPreWizardRevision guardada = preWizardRevisionRepository.save(revision);
+
+        sincronizarEstadoViabilidadAggregate(proyectoId, actor.username());
+
+        return toRevisionDTO(guardada);
+    }
+
+    @Override
+    @Transactional
+    public DocumentoPreWizardRevisionDTO devolverDocumentoPreWizard(String proyectoId, String tipoDocumento, String observaciones, Authentication authentication) {
+        validarExistenciaProyecto(proyectoId);
+        String tipo = normalizarTipoPreWizard(tipoDocumento);
+        if (observaciones == null || observaciones.isBlank()) {
+            throw new BadRequestException("Las observaciones son obligatorias al devolver un documento.");
+        }
+        ActorContext actor = actorContext(authentication);
+
+        DocumentoProyectoVersion version = versionRepository
+                .findByProyectoIdAndTipoDocumentoAndEstado(proyectoId, tipo, DocumentoProyectoVersionEstado.ACTUAL)
+                .orElseThrow(() -> new BadRequestException(
+                        "No hay un documento cargado del tipo " + tipo + " para devolver."));
+
+        DocumentoPreWizardRevision revision = preWizardRevisionRepository
+                .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
+                .orElseGet(() -> nuevaRevision(proyectoId, tipo, version));
+
+        revision.setEstado(DocumentoPreWizardEstado.DEVUELTO);
+        revision.setObservacion(observaciones.trim());
+        revision.setRevisadoPor(actor.username());
+        revision.setRevisadoEn(LocalDateTime.now());
+        DocumentoPreWizardRevision guardada = preWizardRevisionRepository.save(revision);
+
+        sincronizarEstadoViabilidadAggregate(proyectoId, actor.username());
+
+        return toRevisionDTO(guardada);
+    }
+
+    private void marcarRevisionPendiente(String proyectoId, String tipoDocumento) {
+        DocumentoPreWizardRevision revision = preWizardRevisionRepository
+                .findByProyectoIdAndTipoDocumento(proyectoId, tipoDocumento)
+                .orElseGet(() -> {
+                    DocumentoPreWizardRevision nueva = new DocumentoPreWizardRevision();
+                    nueva.setProyectoId(proyectoId);
+                    nueva.setTipoDocumento(tipoDocumento);
+                    return nueva;
+                });
+        revision.setEstado(DocumentoPreWizardEstado.PENDIENTE);
+        revision.setObservacion(null);
+        revision.setRevisadoPor(null);
+        revision.setRevisadoEn(null);
+        preWizardRevisionRepository.save(revision);
+    }
+
+    private DocumentoPreWizardRevision nuevaRevision(String proyectoId, String tipoDocumento, DocumentoProyectoVersion version) {
+        DocumentoPreWizardRevision revision = new DocumentoPreWizardRevision();
+        revision.setProyectoId(proyectoId);
+        revision.setTipoDocumento(tipoDocumento);
+        revision.setEstado(DocumentoPreWizardEstado.PENDIENTE);
+        revision.setRevisadoPor(version.getSubidoPor());
+        return revision;
+    }
+
+    private void sincronizarEstadoViabilidadAggregate(String proyectoId, String actorUsername) {
+        Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+        if (proyecto == null) {
+            return;
+        }
+
+        verificarTodosDocumentosCargados(proyecto);
+
+        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepository
+                .findByProyectoId(proyectoId)
+                .stream()
+                .collect(Collectors.toMap(
+                        DocumentoPreWizardRevision::getTipoDocumento,
+                        Function.identity(),
+                        (a, b) -> a
+                ));
+
+        boolean hayDevuelto = porTipo.values().stream()
+                .anyMatch(r -> r.getEstado() == DocumentoPreWizardEstado.DEVUELTO);
+        boolean todosAprobado = PRE_WIZARD_TYPES.stream()
+                .allMatch(tipo -> {
+                    DocumentoPreWizardRevision r = porTipo.get(tipo);
+                    return r != null && r.getEstado() == DocumentoPreWizardEstado.APROBADO;
+                });
+        boolean cargados = Boolean.TRUE.equals(proyecto.getDocumentosCargados());
+
+        boolean eraAprobada = proyecto.viabilidadAprobada();
+        boolean eraDevuelta = proyecto.viabilidadDevuelta();
+
+        if (todosAprobado && cargados) {
+            if (!eraAprobada || !Boolean.TRUE.equals(proyecto.getDocumentosVerificados())) {
+                proyecto.aprobarDocumentos(actorUsername);
+                proyectoRepository.save(proyecto);
+                notificarViabilidad(proyecto, actorUsername, NotificationEventType.VIABILIDAD_APPROVED, null);
+            } else {
+                proyectoRepository.save(proyecto);
+            }
+            return;
+        }
+
+        if (hayDevuelto) {
+            String observaciones = porTipo.values().stream()
+                    .filter(r -> r.getEstado() == DocumentoPreWizardEstado.DEVUELTO && r.getObservacion() != null)
+                    .map(DocumentoPreWizardRevision::getObservacion)
+                    .collect(Collectors.joining("\n"));
+            if (!eraDevuelta || !Boolean.TRUE.equals(proyecto.getDocumentosVerificados())) {
+                proyecto.setViabilidadEstado(ViabilidadEstado.DEVUELTA);
+                proyecto.setViabilidadObservaciones(observaciones.isBlank() ? null : observaciones);
+                proyecto.setViabilidadRevisadoPor(actorUsername);
+                proyecto.setViabilidadRevisadoEn(LocalDateTime.now());
+                proyecto.setDocumentosVerificados(false);
+                proyecto.setFechaVerificacionDocumentos(null);
+                proyecto.setFechaLimiteCompletar(null);
+                proyectoRepository.save(proyecto);
+                if (!eraDevuelta) {
+                    notificarViabilidad(proyecto, actorUsername, NotificationEventType.VIABILIDAD_RETURNED, observaciones);
+                }
+            } else {
+                proyecto.setViabilidadObservaciones(observaciones.isBlank() ? null : observaciones);
+                proyectoRepository.save(proyecto);
+            }
+            return;
+        }
+
+        if (cargados) {
+            if (proyecto.getViabilidadEstado() != ViabilidadEstado.CARGADA) {
+                proyecto.marcarViabilidadCargada();
+            }
+            proyecto.setDocumentosVerificados(false);
+            proyecto.setFechaVerificacionDocumentos(null);
+            proyecto.setFechaLimiteCompletar(null);
+            proyectoRepository.save(proyecto);
+            return;
+        }
+
+        if (proyecto.getViabilidadEstado() != ViabilidadEstado.PENDIENTE) {
+            proyecto.setViabilidadEstado(ViabilidadEstado.PENDIENTE);
+            proyecto.setViabilidadObservaciones(null);
+        }
+        proyectoRepository.save(proyecto);
+    }
+
+    private void notificarViabilidad(Proyecto proyecto, String actorUsername, NotificationEventType eventType, String observaciones) {
+        var recipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (recipients.isEmpty()) {
+            return;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("projectName", proyecto.getNombre());
+        payload.put("recipients", recipients);
+        if (observaciones != null && !observaciones.isBlank()) {
+            payload.put("observaciones", observaciones);
+        }
+        notificationPublisher.publish(new NotificationContext(eventType, proyecto.getId(), actorUsername, payload));
+    }
+
+    private String normalizarTipoPreWizard(String tipoDocumento) {
+        if (tipoDocumento == null || tipoDocumento.isBlank()) {
+            throw new BadRequestException("El tipo de documento es obligatorio.");
+        }
+        String tipo = tipoDocumento.trim().toUpperCase();
+        if (!PRE_WIZARD_TYPES.contains(tipo)) {
+            throw new BadRequestException("Tipo de documento no valido para revision pre-wizard: " + tipoDocumento);
+        }
+        return tipo;
+    }
+
+    private DocumentoPreWizardRevisionDTO toRevisionDTO(DocumentoPreWizardRevision revision) {
+        return new DocumentoPreWizardRevisionDTO(
+                revision.getTipoDocumento(),
+                revision.getEstado().name(),
+                revision.getObservacion(),
+                revision.getRevisadoPor(),
+                revision.getRevisadoEn()
+        );
     }
 
     private void sincronizarDocumentoPrincipal(String proyectoId, String tipoDocumento, DocumentoProyectoVersion version) {
@@ -386,19 +630,38 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 )));
     }
 
-    private void actualizarEstadoViabilidad(String proyectoId, String directorUsername) {
+    private void sincronizarFlagsProyectoDocumentos(String proyectoId, String tipoDocumento, DocumentoProyectoVersion version, String actorUsername) {
         Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
         if (proyecto == null) return;
 
-        if (proyecto.viabilidadPendiente() || proyecto.viabilidadDevuelta()) {
+        switch (tipoDocumento) {
+            case "VIABILIZACION" -> proyecto.setViabilizacionPdf(version.getNombreAlmacenado());
+            case "CRONOGRAMA" -> proyecto.setCronogramaPdf(version.getNombreAlmacenado());
+            case "ACTA_CONSTITUCION" -> {
+                proyecto.setActaConstitucionPdf(version.getNombreAlmacenado());
+                proyecto.marcarActaConstitucionCargada();
+            }
+            case "PLAN_COMUNICACIONES" -> {
+                proyecto.setPlanComunicacionesPdf(version.getNombreAlmacenado());
+                proyecto.setTienePlanComunicaciones(true);
+            }
+            default -> { }
+        }
+
+        boolean esPreWizard = "VIABILIZACION".equals(tipoDocumento)
+                || "PLAN_COMUNICACIONES".equals(tipoDocumento)
+                || "MATRIZ_RIESGOS_VIABILIDAD".equals(tipoDocumento);
+        if (esPreWizard && (proyecto.viabilidadPendiente() || proyecto.viabilidadDevuelta())) {
             proyecto.marcarViabilidadCargada();
         }
 
+        boolean documentosCompletosAntes = Boolean.TRUE.equals(proyecto.getDocumentosCargados());
         verificarTodosDocumentosCargados(proyecto);
-
         proyectoRepository.save(proyecto);
 
-        notificarCargaDocumentos(proyectoId, directorUsername, proyecto);
+        if (esPreWizard && !documentosCompletosAntes && Boolean.TRUE.equals(proyecto.getDocumentosCargados())) {
+            notificarCargaDocumentos(proyectoId, actorUsername, proyecto);
+        }
     }
 
     private void verificarTodosDocumentosCargados(Proyecto proyecto) {

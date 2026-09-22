@@ -3,6 +3,8 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.controller.interfaces.IDocumentoController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardDevolverDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoVersionHistorialResponseDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
@@ -10,6 +12,7 @@ import com.proyecta.api_gestion.model.DocumentoDinamico;
 import com.proyecta.api_gestion.repository.DocumentoDinamicoRepository;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
+import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -131,5 +134,38 @@ public class DocumentoController implements IDocumentoController {
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         (isPdf ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
                 .body(resource);
+    }
+
+    @Override
+    @GetMapping("/{proyectoId}/documentos-pre-wizard")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO.Listado>> listarRevisionesPreWizard(
+            @PathVariable String proyectoId) {
+        DocumentoPreWizardRevisionDTO.Listado response = documentoService.listarRevisionesPreWizard(proyectoId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Revisiones de documentos pre-wizard obtenidas exitosamente"));
+    }
+
+    @Override
+    @PatchMapping("/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/aprobar")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO>> aprobarDocumentoPreWizard(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento,
+            Authentication authentication) {
+        DocumentoPreWizardRevisionDTO response = documentoService.aprobarDocumentoPreWizard(proyectoId, tipoDocumento, authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, "Documento aprobado exitosamente"));
+    }
+
+    @Override
+    @PatchMapping("/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/devolver")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO>> devolverDocumentoPreWizard(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento,
+            @Valid @RequestBody DocumentoPreWizardDevolverDTO dto,
+            Authentication authentication) {
+        DocumentoPreWizardRevisionDTO response = documentoService.devolverDocumentoPreWizard(
+                proyectoId, tipoDocumento, dto.observaciones(), authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, "Documento devuelto exitosamente"));
     }
 }
