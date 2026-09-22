@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import './AutocompleteSelect.css';
 
 export default function AutocompleteSelect({
@@ -20,36 +19,9 @@ export default function AutocompleteSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [dropdownStyle, setDropdownStyle] = useState({});
   const inputRef = useRef(null);
   const containerRef = useRef(null);
   const listRef = useRef(null);
-
-  const calculateDropdownPosition = useCallback(() => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const maxDropdownHeight = 324;
-    const spaceBelow = viewportHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    let top;
-    let effectiveMaxHeight;
-    if (spaceBelow >= 180 || spaceBelow >= spaceAbove) {
-      top = rect.bottom + 4;
-      effectiveMaxHeight = Math.min(maxDropdownHeight, spaceBelow - 8);
-    } else {
-      effectiveMaxHeight = Math.min(maxDropdownHeight, spaceAbove - 8);
-      top = rect.top - effectiveMaxHeight - 4;
-    }
-    setDropdownStyle({
-      position: 'fixed',
-      top,
-      left: rect.left,
-      width: rect.width,
-      maxHeight: effectiveMaxHeight,
-      zIndex: 99999,
-    });
-  }, []);
 
   const sortedOptions = useMemo(() => {
     if (!sortAlphabetically) return options;
@@ -87,26 +59,11 @@ export default function AutocompleteSelect({
     setQuery('');
   }, [onChange, allValue, getOptionValue]);
 
-  useEffect(() => {
-    if (!open) return;
-    calculateDropdownPosition();
-    const handleUpdate = () => calculateDropdownPosition();
-    window.addEventListener('scroll', handleUpdate, true);
-    window.addEventListener('resize', handleUpdate);
-    return () => {
-      window.removeEventListener('scroll', handleUpdate, true);
-      window.removeEventListener('resize', handleUpdate);
-    };
-  }, [open, calculateDropdownPosition]);
-
+  // Cerrar al hacer click fuera
   useEffect(() => {
     if (!open) return;
     const handleClickOutside = (e) => {
-      const portal = document.getElementById('acs-portal-dropdown');
-      if (
-        containerRef.current && !containerRef.current.contains(e.target) &&
-        (!portal || !portal.contains(e.target))
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
         setOpen(false);
         setQuery('');
       }
@@ -116,10 +73,10 @@ export default function AutocompleteSelect({
   }, [open]);
 
   useEffect(() => {
-    if (open && inputRef.current) {
+    if (open && showSearch && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [open]);
+  }, [open, showSearch]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -172,7 +129,6 @@ export default function AutocompleteSelect({
   };
 
   const hasAllOption = allLabel !== null;
-  const displayValue = open && showSearch ? query : selectedLabel;
 
   return (
     <div className={`acs-container ${className}`} ref={containerRef}>
@@ -192,13 +148,11 @@ export default function AutocompleteSelect({
         <span className={`acs-arrow ${open ? 'acs-arrow-up' : ''}`}>&#9662;</span>
       </button>
 
-      {open && createPortal(
+      {open && (
         <div
-          id="acs-portal-dropdown"
           className="acs-dropdown"
           role="listbox"
           aria-label={placeholder}
-          style={dropdownStyle}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -251,8 +205,7 @@ export default function AutocompleteSelect({
               </div>
             ))}
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );

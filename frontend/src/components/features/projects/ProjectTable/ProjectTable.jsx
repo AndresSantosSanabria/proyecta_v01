@@ -38,7 +38,8 @@ const ProjectTable = ({ projects = [], loading = false }) => {
                 const statusMap = {
                   'CON_RETRASOS': { label: 'Con retrasos', class: 'warning' },
                   'ACTIVO': { label: 'Activo', class: 'success' },
-                  'CERRADO': { label: 'Cerrado', class: 'default' }
+                  'CERRADO': { label: 'Cerrado', class: 'default' },
+                  'CERRADO_FORZOSO': { label: 'Cerrado forzoso', class: 'danger' }
                 };
                 
                 const currentStatus = statusMap[project.estado] || { label: project.estado, class: 'default' };

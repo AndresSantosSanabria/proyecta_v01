@@ -38,7 +38,7 @@ const LEVEL_COLORS = {
 
 const TIPOS_RIESGO = [
   { value: 'GENERAL', label: 'Riesgo General' },
-  { value: 'SEGURIDAD', label: 'Riesgo de Seguridad' },
+  { value: 'SEGURIDAD', label: 'Riesgos de seguridad de la información' },
 ];
 
 const emptyRiesgo = (tipo = 'GENERAL') => ({

@@ -972,3 +972,227 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── Section edit button ──────────────────────────────── */
+.pim-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pim-section-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+.pim-section:hover .pim-section-edit-btn {
+  opacity: 1;
+}
+
+.pim-section-edit-btn:hover {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+/* ── Edit form ────────────────────────────────────────── */
+.pim-edit-form {
+  display: grid;
+  gap: 12px;
+}
+
+.pim-edit-subtitle {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pim-edit-field {
+  display: grid;
+  gap: 4px;
+}
+
+.pim-edit-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.pim-edit-field input,
+.pim-edit-field textarea,
+.pim-edit-field select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 90%, var(--bg-panel));
+  color: var(--text-main);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  line-height: 1.4;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.pim-edit-field input:focus,
+.pim-edit-field textarea:focus,
+.pim-edit-field select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.pim-edit-field-wide {
+  grid-column: 1 / -1;
+}
+
+.pim-edit-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.pim-edit-row input {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 90%, var(--bg-panel));
+  color: var(--text-main);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.pim-edit-row input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.pim-edit-row-nested {
+  padding-left: 20px;
+}
+
+.pim-edit-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--danger) 18%, transparent);
+  background: color-mix(in srgb, var(--danger-soft) 30%, transparent);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.pim-edit-remove:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.pim-edit-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 30%, var(--border-color));
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  width: fit-content;
+}
+
+.pim-edit-add:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  border-color: var(--primary);
+}
+
+.pim-edit-phase {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 40%, transparent);
+}
+
+.pim-edit-hito {
+  display: grid;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.pim-edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.pim-btn-cancel {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 80%, var(--bg-elevated));
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pim-btn-cancel:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-elevated) 100%, var(--bg-surface));
+}
+
+.pim-btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pim-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.pim-btn-save:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.pim-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

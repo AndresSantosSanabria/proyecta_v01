@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
-import { LoaderCircle, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle, Clock, Eye, Download, RotateCcw, AlertOctagon, X } from 'lucide-react';
+import { LoaderCircle, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle, Clock, Eye, Download, AlertOctagon, X } from 'lucide-react';
 import projectService from '../../services/projectService';
 import documentService from '../../services/documentService';
 import { useAuthContext } from '../../context/AuthContext';
 import ProjectOnboardingWizard from './ProjectOnboardingWizard';
 import { emitToast } from '../../utils/feedback';
+import './ProjectLifecycleGuard.css';
 
 const unwrapPayload = (value) => value?.data?.data ?? value?.data ?? value;
 
@@ -101,28 +102,26 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
     <div className="project-onboarding">
       <div className="project-onboarding__shell">
         <div className="project-onboarding__panel card-surface">
-          <div className="project-onboarding__header project-onboarding__hero">
-            <div className="project-onboarding__hero-copy">
-              <span className="modal-flow-badge">
-                {isDevuelta ? 'Documentos Devueltos' : 'Paso 1 - Director de Proyecto'}
-              </span>
-              <h2 className="page-title">
-                {isDevuelta ? 'Subsanar Documentos' : 'Cargar Documentos Pre-Wizard'}
-              </h2>
-              <p className="page-subtitle">
-                {isDevuelta
-                  ? 'El Gestor devolvio los documentos con observaciones. Por favor, subsane las observaciones y vuelva a cargar los 3 documentos.'
-                  : 'Para continuar con la completitud del proyecto, primero debe cargar los 3 documentos requeridos. El Gestor verificara los documentos antes de que pueda acceder al wizard de completitud.'}
-              </p>
-            </div>
+          <div className="plg-hero">
+            <span className={`plg-hero__badge ${isDevuelta ? 'plg-hero__badge--danger' : 'plg-hero__badge--warning'}`}>
+              {isDevuelta ? 'Documentos Devueltos' : 'Paso 1 - Director de Proyecto'}
+            </span>
+            <h2 className="plg-hero__title">
+              {isDevuelta ? 'Subsanar Documentos' : 'Cargar Documentos Pre-Wizard'}
+            </h2>
+            <p className="plg-hero__subtitle">
+              {isDevuelta
+                ? 'El Gestor devolvio los documentos con observaciones. Por favor, subsane las observaciones y vuelva a cargar los 3 documentos.'
+                : 'Para continuar con la completitud del proyecto, primero debe cargar los 3 documentos requeridos. El Gestor verificara los documentos antes de que pueda acceder al wizard de completitud.'}
+            </p>
           </div>
 
           {isDevuelta && completionStatus?.viabilidadObservaciones && (
-            <div className="error-banner" style={{ margin: '0 1.5rem', background: '#fff3cd', borderColor: '#ffc107', color: '#856404' }}>
+            <div className="plg-observation">
               <AlertTriangle size={18} />
               <div>
-                <strong>Observaciones del Gestor:</strong>
-                <p style={{ margin: '0.5rem 0 0 0' }}>{completionStatus.viabilidadObservaciones}</p>
+                <p className="plg-observation__label">Observaciones del Gestor</p>
+                <p className="plg-observation__text">{completionStatus.viabilidadObservaciones}</p>
               </div>
             </div>
           )}
@@ -137,28 +136,31 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
             </div>
           )}
 
-          <section className="project-onboarding__locked-grid" aria-label="Datos del proyecto">
-            <article className="project-onboarding__locked-card">
-              <span>Codigo</span>
-              <strong>{project?.id || 'PENDIENTE'}</strong>
+          <section className="plg-info-grid" aria-label="Datos del proyecto">
+            <article className="plg-info-card">
+              <span className="plg-info-card__label">Codigo</span>
+              <strong className="plg-info-card__value">{project?.id || 'PENDIENTE'}</strong>
             </article>
-            <article className="project-onboarding__locked-card">
-              <span>Proyecto</span>
-              <strong>{project?.nombre || 'Proyecto sin nombre'}</strong>
+            <article className="plg-info-card">
+              <span className="plg-info-card__label">Proyecto</span>
+              <strong className="plg-info-card__value">{project?.nombre || 'Proyecto sin nombre'}</strong>
             </article>
-            <article className="project-onboarding__locked-card">
-              <span>Director asignado</span>
-              <strong>{project?.director || 'Sin director'}</strong>
+            <article className="plg-info-card">
+              <span className="plg-info-card__label">Director asignado</span>
+              <strong className="plg-info-card__value">{project?.director || 'Sin director'}</strong>
             </article>
           </section>
 
-          <div className="step-form" style={{ padding: '1.5rem' }}>
-            <h3 className="step-title">Documentos Requeridos</h3>
-            <p className="help-text">
+          <section className="plg-docs-section">
+            <div className="plg-docs-section__header">
+              <h3 className="plg-docs-section__title">Documentos Requeridos</h3>
+              <span className="plg-docs-section__count">3</span>
+            </div>
+            <p className="plg-docs-section__hint">
               Cargue los 3 documentos en formato PDF. Todos son obligatorios para continuar.
             </p>
 
-            <div style={{ display: 'grid', gap: '1rem' }}>
+            <div className="plg-doc-list">
               {Object.entries(DOC_LABELS).map(([tipo, label]) => {
                 const file = files[tipo];
                 const progress = uploadProgress[tipo];
@@ -166,67 +168,75 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                 return (
                   <div
                     key={tipo}
-                    className={`doc-card ${file ? 'has-file' : ''}`}
+                    className={`plg-doc-card ${file ? 'plg-doc-card--has-file' : 'plg-doc-card--empty'}`}
                     onDragOver={(e) => { e.preventDefault(); }}
                     onDrop={(e) => handleDrop(tipo, e)}
                     onClick={!file ? () => handleFileSelect(tipo) : undefined}
-                    style={{ cursor: file ? 'default' : 'pointer' }}
                   >
                     {file ? (
-                      <div className="doc-file-selected">
-                        <div className="doc-file-icon">
+                      <div className="plg-doc-card__inner">
+                        <div className={`plg-doc-card__icon ${progress === 'uploading' ? 'plg-doc-card__icon--uploading' : ''}`}>
                           {progress === 'done' ? (
-                            <CheckCircle size={16} style={{ color: '#28a745' }} />
+                            <CheckCircle size={16} />
+                          ) : progress === 'uploading' ? (
+                            <LoaderCircle size={16} className="animate-spin" />
                           ) : (
                             <FileCheck size={16} strokeWidth={2.2} />
                           )}
                         </div>
-                        <div className="doc-file-info">
-                          <span className="doc-file-name">{file.name}</span>
-                          <span className="doc-file-size">{(file.size / 1024).toFixed(1)} KB</span>
+                        <div className="plg-doc-card__info">
+                          <span className="plg-doc-card__name">{file.name}</span>
+                          <span className="plg-doc-card__size">
+                            {progress === 'uploading' ? 'Subiendo...' : progress === 'done' ? 'Cargado' : `${(file.size / 1024).toFixed(1)} KB`}
+                          </span>
                         </div>
                         {!uploading && (
-                          <button
-                            type="button"
-                            className="doc-file-remove"
-                            onClick={(e) => { e.stopPropagation(); handleRemove(tipo); }}
-                          >
-                            <XCircle size={16} />
-                          </button>
+                          <div className="plg-doc-card__actions">
+                            <button
+                              type="button"
+                              className="plg-doc-card__btn plg-doc-card__btn--remove"
+                              onClick={(e) => { e.stopPropagation(); handleRemove(tipo); }}
+                              title="Quitar archivo"
+                            >
+                              <XCircle size={12} />
+                            </button>
+                          </div>
                         )}
                       </div>
                     ) : (
-                      <div className="doc-card-placeholder">
-                        <Upload size={24} />
-                        <p>{label}</p>
-                        <small>Arrastre o haga clic para seleccionar. Solo PDF, max 20 MB.</small>
+                      <div className="plg-doc-card__placeholder">
+                        <div className="plg-doc-card__placeholder-icon">
+                          <Upload size={20} />
+                        </div>
+                        <p className="plg-doc-card__placeholder-title">{label}</p>
+                        <p className="plg-doc-card__placeholder-hint">Arrastre o haga clic para seleccionar. Solo PDF, max 20 MB.</p>
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
+          </section>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleUploadAll}
-                disabled={!allFilesSelected || uploading}
-              >
-                {uploading ? (
-                  <>
-                    <LoaderCircle size={16} className="animate-spin" />
-                    Subiendo documentos...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={16} />
-                    {isDevuelta ? 'Cargar Documentos Subsanados' : 'Cargar 3 Documentos'}
-                  </>
-                )}
-              </button>
-            </div>
+          <div className="plg-footer">
+            <button
+              type="button"
+              className="plg-btn-primary"
+              onClick={handleUploadAll}
+              disabled={!allFilesSelected || uploading}
+            >
+              {uploading ? (
+                <>
+                  <LoaderCircle size={12} className="animate-spin" />
+                  Subiendo...
+                </>
+              ) : (
+                <>
+                  <Upload size={12} />
+                  {isDevuelta ? 'Subsanar Documentos' : 'Cargar Documentos'}
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -234,7 +244,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
   );
 };
 
-const DocumentosCargadosView = ({ project, completionStatus, onRefresh }) => {
+const DocumentosCargadosView = ({ project, onRefresh }) => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectObservaciones, setRejectObservaciones] = useState('');
   const [loadingAction, setLoadingAction] = useState(false);
@@ -330,81 +340,73 @@ const DocumentosCargadosView = ({ project, completionStatus, onRefresh }) => {
     <div className="project-onboarding">
       <div className="project-onboarding__shell">
         <div className="project-onboarding__panel card-surface">
-          <div className="project-onboarding__header project-onboarding__hero">
-            <div className="project-onboarding__hero-copy">
-              <span className="modal-flow-badge" style={{ background: '#ffc107', color: '#856404' }}>
-                Pendiente de Verificacion
-              </span>
-              <h2 className="page-title">Documentos Cargados</h2>
-              <p className="page-subtitle">
-                {isGestor
-                  ? 'Los 3 documentos fueron cargados por el Director. Verifique los documentos y tome una decision.'
-                  : 'Los 3 documentos fueron cargados y estan pendientes de verificacion por parte del Gestor.'}
-              </p>
-            </div>
+          <div className="plg-hero">
+            <span className="plg-hero__badge plg-hero__badge--warning">
+              Pendiente de Verificacion
+            </span>
+            <h2 className="plg-hero__title">Documentos Cargados</h2>
+            <p className="plg-hero__subtitle">
+              {isGestor
+                ? 'Los 3 documentos fueron cargados por el Director. Verifique los documentos y tome una decision.'
+                : 'Los 3 documentos fueron cargados y estan pendientes de verificacion por parte del Gestor.'}
+            </p>
           </div>
 
-          <section className="project-onboarding__locked-grid" aria-label="Datos del proyecto">
-            <article className="project-onboarding__locked-card">
-              <span>Codigo</span>
-              <strong>{project?.id || 'PENDIENTE'}</strong>
+          <section className="plg-info-grid" aria-label="Datos del proyecto">
+            <article className="plg-info-card">
+              <span className="plg-info-card__label">Codigo</span>
+              <strong className="plg-info-card__value">{project?.id || 'PENDIENTE'}</strong>
             </article>
-            <article className="project-onboarding__locked-card">
-              <span>Proyecto</span>
-              <strong>{project?.nombre || 'Proyecto sin nombre'}</strong>
+            <article className="plg-info-card">
+              <span className="plg-info-card__label">Proyecto</span>
+              <strong className="plg-info-card__value">{project?.nombre || 'Proyecto sin nombre'}</strong>
             </article>
-            <article className="project-onboarding__locked-card">
-              <span>Documentos</span>
-              <strong style={{ color: '#ffc107' }}>3 documentos cargados - En revision</strong>
+            <article className="plg-info-card">
+              <span className="plg-info-card__label">Estado</span>
+              <strong className="plg-info-card__value plg-info-card__value--warning">3 documentos cargados - En revision</strong>
             </article>
           </section>
 
-          <div className="step-form" style={{ padding: '1.5rem' }}>
-            <h3 className="step-title">Documentos Cargados</h3>
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <section className="plg-docs-section">
+            <div className="plg-docs-section__header">
+              <h3 className="plg-docs-section__title">Documentos Cargados</h3>
+              <span className="plg-docs-section__count">3</span>
+            </div>
+
+            <div className="plg-doc-list">
               {[
                 { tipo: 'VIABILIZACION', label: 'Documento de Viabilidad' },
                 { tipo: 'PLAN_COMUNICACIONES', label: 'Plan de Comunicaciones' },
                 { tipo: 'MATRIZ_RIESGOS_VIABILIDAD', label: 'Matriz de Riesgos de Viabilidad' },
               ].map(({ tipo, label }) => (
-                <div key={tipo} className="doc-card has-file" style={{ cursor: 'default' }}>
-                  <div className="doc-file-selected">
-                    <div className="doc-file-icon">
-                      <Clock size={16} style={{ color: '#ffc107' }} />
+                <div key={tipo} className="plg-doc-card plg-doc-card--has-file">
+                  <div className="plg-doc-card__inner">
+                    <div className="plg-doc-card__icon">
+                      <Clock size={16} />
                     </div>
-                    <div className="doc-file-info">
-                      <span className="doc-file-name">{label}</span>
-                      <span className="doc-file-size" style={{ color: '#ffc107' }}>Pendiente de revision</span>
+                    <div className="plg-doc-card__info">
+                      <span className="plg-doc-card__name">{label}</span>
+                      <span className="plg-doc-card__size">Pendiente de revision</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                    <div className="plg-doc-card__actions">
                       <button
                         type="button"
+                        className="plg-doc-card__btn plg-doc-card__btn--preview"
                         onClick={() => handlePreview(tipo, label)}
                         disabled={downloading[tipo] === 'previewing'}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)',
-                          background: 'rgba(59,130,246,0.15)', color: '#60a5fa', cursor: 'pointer',
-                          fontSize: '12px', fontWeight: 600, transition: 'all 0.15s',
-                        }}
                         title="Visualizar documento"
                       >
-                        <Eye size={14} />
+                        <Eye size={12} />
                         {downloading[tipo] === 'previewing' ? 'Abriendo...' : 'Ver'}
                       </button>
                       <button
                         type="button"
+                        className="plg-doc-card__btn plg-doc-card__btn--download"
                         onClick={() => handleDownload(tipo, label)}
                         disabled={downloading[tipo] === 'downloading'}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)',
-                          background: 'rgba(16,185,129,0.15)', color: '#34d399', cursor: 'pointer',
-                          fontSize: '12px', fontWeight: 600, transition: 'all 0.15s',
-                        }}
                         title="Descargar documento"
                       >
-                        <Download size={14} />
+                        <Download size={12} />
                         {downloading[tipo] === 'downloading' ? 'Descargando...' : 'Descargar'}
                       </button>
                     </div>
@@ -412,56 +414,65 @@ const DocumentosCargadosView = ({ project, completionStatus, onRefresh }) => {
                 </div>
               ))}
             </div>
+          </section>
 
-            {isGestor && (
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-                <button
-                  type="button"
-                  className="btn-outline"
-                  onClick={() => setShowRejectModal(true)}
-                  disabled={loadingAction}
-                >
-                  <XCircle size={16} />
-                  Devolver Documentos
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={handleApprove}
-                  disabled={loadingAction}
-                >
-                  {loadingAction ? (
-                    <LoaderCircle size={16} className="animate-spin" />
-                  ) : (
-                    <CheckCircle size={16} />
-                  )}
-                  Aprobar Documentos
-                </button>
-              </div>
-            )}
-          </div>
+          {isGestor && (
+            <div className="plg-footer">
+              <button
+                type="button"
+                className="plg-btn-outline"
+                onClick={() => setShowRejectModal(true)}
+                disabled={loadingAction}
+              >
+                <XCircle size={12} />
+                Devolver
+              </button>
+              <button
+                type="button"
+                className="plg-btn-primary"
+                onClick={handleApprove}
+                disabled={loadingAction}
+              >
+                {loadingAction ? (
+                  <LoaderCircle size={12} className="animate-spin" />
+                ) : (
+                  <CheckCircle size={12} />
+                )}
+                Aprobar
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {showRejectModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 1000 }}>
-          <div className="card-surface" style={{ width: '90%', maxWidth: '480px', padding: '1.5rem' }}>
-            <h3 style={{ margin: '0 0 1rem' }}>Devolver Documentos</h3>
-            <p className="help-text" style={{ marginBottom: '1rem' }}>
+        <div className="plg-modal-overlay">
+          <div className="plg-modal">
+            <div className="plg-modal__header">
+              <h3 className="plg-modal__title">Devolver Documentos</h3>
+              <button
+                type="button"
+                className="plg-modal__close"
+                onClick={() => { setShowRejectModal(false); setRejectObservaciones(''); }}
+                disabled={loadingAction}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="plg-modal__hint">
               Ingrese las observaciones para que el Director subsane los documentos.
             </p>
             <textarea
-              className="form-control"
+              className="plg-modal__textarea"
               rows={4}
               placeholder="Describa las observaciones..."
               value={rejectObservaciones}
               onChange={(e) => setRejectObservaciones(e.target.value)}
-              style={{ width: '100%', resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+            <div className="plg-modal__footer">
               <button
                 type="button"
-                className="btn-outline"
+                className="plg-btn-outline"
                 onClick={() => { setShowRejectModal(false); setRejectObservaciones(''); }}
                 disabled={loadingAction}
               >
@@ -469,12 +480,11 @@ const DocumentosCargadosView = ({ project, completionStatus, onRefresh }) => {
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="plg-btn-primary plg-btn-danger"
                 onClick={handleReject}
                 disabled={loadingAction || !rejectObservaciones.trim()}
-                style={{ background: '#dc3545' }}
               >
-                {loadingAction ? <LoaderCircle size={16} className="animate-spin" /> : <XCircle size={16} />}
+                {loadingAction ? <LoaderCircle size={12} className="animate-spin" /> : <XCircle size={12} />}
                 Devolver
               </button>
             </div>
@@ -483,26 +493,17 @@ const DocumentosCargadosView = ({ project, completionStatus, onRefresh }) => {
       )}
 
       {previewUrl && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'grid', placeItems: 'center', zIndex: 1100 }}
-          onClick={handleClosePreview}
-        >
-          <div
-            style={{ width: '90vw', height: '90vh', maxWidth: '1100px', background: '#1e1e2e', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: '14px' }}>{previewName}</span>
-              <button
-                onClick={handleClosePreview}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
-              >
-                <X size={20} />
+        <div className="plg-preview-overlay" onClick={handleClosePreview}>
+          <div className="plg-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="plg-preview-modal__header">
+              <span className="plg-preview-modal__name">{previewName}</span>
+              <button className="plg-preview-modal__close" onClick={handleClosePreview}>
+                <X size={18} />
               </button>
             </div>
             <iframe
               src={previewUrl}
-              style={{ flex: 1, border: 'none', width: '100%' }}
+              className="plg-preview-modal__body"
               title={previewName}
             />
           </div>
@@ -843,7 +844,6 @@ const ProjectLifecycleGuard = () => {
     return (
       <DocumentosCargadosView
         project={project}
-        completionStatus={completionStatus}
         onRefresh={refreshLifecycle}
       />
     );

@@ -1,0 +1,321 @@
+.ara-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.ara-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ara-btn:hover {
+  background: var(--bg-elevated);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-color));
+}
+
+.ara-btn--success {
+  border-color: color-mix(in srgb, var(--success) 35%, transparent);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.ara-btn--warning {
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.ara-btn--info {
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-surface));
+  color: var(--primary);
+}
+
+.ara-btn--danger {
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.ara-btn--pending {
+  opacity: 0.7;
+}
+
+/* ── Panel ── */
+.ara-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 340px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-premium);
+  z-index: 100;
+  animation: fadeInUp 0.15s ease;
+}
+
+.ara-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ara-panel-header strong {
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.ara-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ara-panel-close:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.ara-panel-body {
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ara-due {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--info-soft, #e0f2fe);
+  color: var(--info, #0284c7);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.ara-due--overdue {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.ara-file-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-panel);
+}
+
+.ara-file-info svg {
+  margin-top: 2px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.ara-file-meta {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ara-file-meta strong {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ara-file-meta span {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.ara-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ara-badge--success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.ara-badge--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.ara-upload-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  padding: 0.4rem;
+}
+
+.ara-return-note {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
+}
+
+.ara-return-note strong {
+  font-size: var(--text-xs);
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.ara-return-note p {
+  margin: 0.15rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Footer ── */
+.ara-panel-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.85rem;
+  border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.ara-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ara-action-btn:hover {
+  background: var(--bg-elevated);
+}
+
+.ara-action-btn--upload {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: var(--primary);
+}
+
+.ara-action-btn--upload:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.ara-action-btn--verify {
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  color: var(--success);
+}
+
+.ara-action-btn--verify:hover {
+  background: var(--success);
+  color: #fff;
+}
+
+.ara-action-btn--return {
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  color: var(--warning);
+}
+
+.ara-action-btn--return:hover {
+  background: var(--warning);
+  color: #fff;
+}
+
+.ara-action-btn--cancel {
+  color: var(--text-muted);
+}
+
+.ara-action-btn--cancel:hover {
+  background: var(--bg-elevated);
+  color: var(--text-main);
+}
+
+/* ── Return form ── */
+.ara-return-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.ara-return-form textarea {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-size: var(--text-xs);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.ara-return-form textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.ara-return-form-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.ara-spin {
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

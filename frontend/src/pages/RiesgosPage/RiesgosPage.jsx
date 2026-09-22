@@ -526,7 +526,7 @@ const RiesgosPage = () => {
                         <span>{formatLongText(risk.descripcion)}</span>
                       </td>
                       <td>
-                        <span className={`tipo-badge ${tipo.toLowerCase()}`}>{tipo === 'SEGURIDAD' ? 'Seguridad' : 'General'}</span>
+                        <span className={`tipo-badge ${tipo.toLowerCase()}`}>{tipo === 'SEGURIDAD' ? 'Riesgos de seguridad de la información' : 'General'}</span>
                       </td>
                       <td>
                         <span className="code-pill">{risk.probabilidad || '—'}</span>
@@ -622,7 +622,7 @@ const RiesgosPage = () => {
                   onChange={(val) => setForm((prev) => ({ ...prev, tipoRiesgo: val }))}
                   options={[
                     { value: 'GENERAL', label: 'General' },
-                    { value: 'SEGURIDAD', label: 'Seguridad' },
+                    { value: 'SEGURIDAD', label: 'Riesgos de seguridad de la información' },
                   ]}
                   placeholder="Seleccionar tipo..."
                   sortAlphabetically={false}

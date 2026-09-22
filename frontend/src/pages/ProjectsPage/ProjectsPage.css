@@ -333,3 +333,269 @@
 .btn-retry:hover {
   opacity: 0.9;
 }
+
+/* ── Export Excel Modal ── */
+.export-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.export-modal {
+  width: 95%;
+  max-width: 540px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
+  background: var(--bg-card);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  animation: fadeInUp 0.25s ease;
+  overflow: hidden;
+}
+
+.export-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+}
+
+.export-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.export-modal__title h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.export-modal__title svg {
+  color: var(--primary);
+}
+
+.export-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.export-modal__close:hover {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
+.export-modal__body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.export-modal__description {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.export-modal__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-main));
+  border: 1px solid color-mix(in srgb, var(--primary) 15%, transparent);
+  margin-bottom: 0.75rem;
+}
+
+.export-modal__summary-text {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.export-modal__summary-text strong {
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.export-modal__toggle-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.export-modal__toggle-all:hover {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.export-modal__states {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.export-modal__state {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+.export-modal__state:hover {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--bg-main) 60%, transparent);
+}
+
+.export-modal__state--active {
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-card));
+}
+
+.export-modal__state-check {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.export-modal__state--active .export-modal__state-check {
+  color: var(--primary);
+}
+
+.export-modal__state-info {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.export-modal__state-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.export-modal__state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.export-modal__state-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-color) 40%, transparent);
+  overflow: hidden;
+}
+
+.export-modal__state-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.export-modal__state-count {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--text-main);
+  min-width: 20px;
+  text-align: right;
+}
+
+.export-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+}
+
+.export-modal__btn-cancel {
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.export-modal__btn-cancel:hover {
+  background: color-mix(in srgb, var(--bg-main) 80%, transparent);
+  color: var(--text-main);
+}
+
+.export-modal__btn-cancel:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.export-modal__btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.export-modal__btn-export:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 85%, #000);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.export-modal__btn-export:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

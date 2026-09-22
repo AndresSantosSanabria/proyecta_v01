@@ -11,6 +11,7 @@ import ProgressTreeTable from '../../components/features/progress/ProgressTreeTa
 import ProjectBenefitImpactPanel from '../../components/projects/ProjectBenefitImpactPanel';
 import BenefitImpactReviewModal from '../../components/projects/BenefitImpactReviewModal';
 import ProjectInfoModal from '../../components/projects/ProjectInfoModal';
+import AdvanceReportActions from '../../components/common/AdvanceReportActions/AdvanceReportActions';
 import { formatDate } from '../../utils/locale';
 import { emitToast } from '../../utils/feedback';
 import './ProjectProgressPage.css';
@@ -339,6 +340,7 @@ const ProjectProgressPage = () => {
             {downloadingReport ? 'Descargando...' : 'Descargar reporte actual'}
           </button>
         )}
+        <AdvanceReportActions projectId={codigoProyecto} />
         {canViewBenefitModal && (
           <button
             type="button"

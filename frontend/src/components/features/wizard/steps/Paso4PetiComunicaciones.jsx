@@ -109,15 +109,6 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
           </div>
         </div>
       )}
-
-      <div className="form-group">
-        <label className="form-label" style={{ marginTop: '2rem', color: '#60a5fa', fontWeight: 600 }}>
-          Plan de Comunicaciones
-        </label>
-        <p className="help-text">
-          El Plan de Comunicaciones es un documento obligatorio. Deberá cargarlo en la gestión documental.
-        </p>
-      </div>
     </div>
   );
 };

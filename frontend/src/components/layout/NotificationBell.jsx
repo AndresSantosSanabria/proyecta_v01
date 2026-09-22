@@ -168,12 +168,16 @@ const NotificationBell = () => {
     : filteredItems;
 
   const handleNotificationClick = async (item) => {
+    const url = item.targetUrl;
+    if (url) {
+      setOpen(false);
+      navigate(url);
+    }
     try {
       await securityService.markNotificationAsRead(item.id);
-      await load();
-      if (item.targetUrl) navigate(item.targetUrl);
+      setCount((prev) => Math.max(0, prev - 1));
     } catch {
-      // keep panel open
+      // silent
     }
   };
 

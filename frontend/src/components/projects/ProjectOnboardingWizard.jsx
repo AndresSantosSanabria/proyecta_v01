@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, LockKeyhole, Save, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Save, X } from 'lucide-react';
 import { usePermission } from '../../hooks/usePermission';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
@@ -16,13 +16,13 @@ import '../../pages/NewProjectPage/NewProjectPage.css';
 import './ProjectOnboardingWizard.css';
 
 const STEPS = [
-  { id: 1, label: 'Datos complementarios' },
-  { id: 2, label: 'Patrocinador y equipo' },
-  { id: 3, label: 'Fases / hitos / entregables' },
-  { id: 4, label: 'PETI y comunicaciones' },
-  { id: 5, label: 'FURAG' },
-  { id: 6, label: 'Matriz de riesgos' },
-  { id: 7, label: 'Documentos del proyecto' },
+  { id: 1, label: 'Documentos del proyecto' },
+  { id: 2, label: 'Datos complementarios' },
+  { id: 3, label: 'Patrocinador y equipo' },
+  { id: 4, label: 'Fases / hitos / entregables' },
+  { id: 5, label: 'PETI y comunicaciones' },
+  { id: 6, label: 'FURAG' },
+  { id: 7, label: 'Matriz de riesgos' },
 ];
 
 const initialForm = (project) => ({
@@ -170,6 +170,73 @@ const buildDraftPayload = (step, form, fasesCompletadas) => ({
   ultimoGuardado: new Date().toISOString(),
 });
 
+const InfoEditCard = ({ label, value, onSave, onChange, disabled = false, wide = false }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  const startEditing = () => { setDraft(value); setEditing(true); };
+
+  const handleSave = async () => {
+    if (draft === value) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      await onSave(draft);
+      setEditing(false);
+    } catch {
+      setDraft(value);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => { setDraft(value); setEditing(false); };
+
+  return (
+    <article className={`project-onboarding__locked-card ${wide ? 'project-onboarding__locked-card--wide' : ''} ${editing ? 'is-editing' : ''}`}>
+      <span>{label}</span>
+      {disabled || !onSave ? (
+        <strong>{value}</strong>
+      ) : editing ? (
+        <div className="plg-info-edit">
+          {wide ? (
+            <textarea
+              className="plg-info-edit-input"
+              value={draft}
+              onChange={(e) => { setDraft(e.target.value); onChange?.(e.target.value); }}
+              rows={3}
+              autoFocus
+            />
+          ) : (
+            <input
+              className="plg-info-edit-input"
+              type="text"
+              value={draft}
+              onChange={(e) => { setDraft(e.target.value); onChange?.(e.target.value); }}
+              autoFocus
+            />
+          )}
+          <div className="plg-info-edit-actions">
+            <button type="button" className="plg-info-edit-btn plg-info-edit-btn--save" onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button type="button" className="plg-info-edit-btn plg-info-edit-btn--cancel" onClick={handleCancel} disabled={saving}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="plg-info-edit-trigger">
+          <strong>{value}</strong>
+          <button type="button" className="plg-info-edit-icon" onClick={startEditing} title="Editar">
+            ✎
+          </button>
+        </div>
+      )}
+    </article>
+  );
+};
+
 const ProjectOnboardingWizard = ({
   project,
   saving = false,
@@ -294,6 +361,11 @@ const ProjectOnboardingWizard = ({
     director: project?.directorNombre || project?.director || 'Sin director',
   }), [project]);
 
+  const handleInfoSave = async (fields) => {
+    await projectService.update(project.id, fields);
+    emitToast({ tone: 'success', title: 'Guardado', message: 'Información actualizada correctamente.' });
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -372,6 +444,11 @@ const ProjectOnboardingWizard = ({
     const nextErrors = {};
 
     if (targetStep === 1) {
+      if (!source.actaConstitucionPdf) nextErrors.actaConstitucionPdf = 'El Acta de Constitución es obligatoria.';
+      if (!source.cronogramaPdf) nextErrors.cronogramaPdf = 'El Cronograma del Proyecto es obligatorio.';
+    }
+
+    if (targetStep === 2) {
       if (!source.dependencia) nextErrors.dependencia = 'Seleccione una dependencia.';
       if (!String(source.alcanceDetallado || '').trim()) nextErrors.alcanceDetallado = 'El alcance es obligatorio.';
       if (source.presupuestoEstimado === '' || source.presupuestoEstimado == null) {
@@ -387,7 +464,7 @@ const ProjectOnboardingWizard = ({
       }
     }
 
-    if (targetStep === 2) {
+    if (targetStep === 3) {
       if (!source.patrocinador?.nombre?.trim()) nextErrors.patrocinadorNombre = 'El nombre del patrocinador es obligatorio.';
       if (!source.patrocinador?.cargo?.trim()) nextErrors.patrocinadorCargo = 'El cargo del patrocinador es obligatorio.';
       if ((source.equipoTrabajo || []).filter((m) => m?.nombre?.trim()).length === 0) {
@@ -398,7 +475,7 @@ const ProjectOnboardingWizard = ({
       }
     }
 
-    if (targetStep === 3) {
+    if (targetStep === 4) {
       if (!(source.fases || []).length) {
         nextErrors.fases = 'Debe configurar al menos una fase con hito y entregable.';
       }
@@ -451,7 +528,7 @@ const ProjectOnboardingWizard = ({
       }
     }
 
-    if (targetStep === 4) {
+    if (targetStep === 5) {
       if (source.peti === null) nextErrors.peti = 'Debe indicar si el proyecto esta en PETI.';
       if (source.peti === true) {
         if (!source.vigenciaPeti) nextErrors.vigenciaPeti = 'Seleccione la vigencia PETI.';
@@ -459,7 +536,7 @@ const ProjectOnboardingWizard = ({
       }
     }
 
-    if (targetStep === 5) {
+    if (targetStep === 6) {
       // Validate using dynamic catalog keys — not hardcoded ones
       const preguntasFurag = petiCatalog?.furagPreguntas || [];
       if (preguntasFurag.length === 0) {
@@ -474,7 +551,7 @@ const ProjectOnboardingWizard = ({
       }
     }
 
-    if (targetStep === 6) {
+    if (targetStep === 7) {
       const riesgos = source.riesgosIniciales || [];
       if (riesgos.length < 2) {
         nextErrors.riesgosIniciales = 'Debe registrar al menos 2 riesgos en la matriz de riesgos.';
@@ -488,11 +565,6 @@ const ProjectOnboardingWizard = ({
         if (!r.probabilidad) nextErrors[`riesgo_${i}_probabilidad`] = 'La probabilidad es obligatoria.';
         if (!r.impacto) nextErrors[`riesgo_${i}_impacto`] = 'El impacto es obligatorio.';
       });
-    }
-
-    if (targetStep === 7) {
-      if (!source.actaConstitucionPdf) nextErrors.actaConstitucionPdf = 'El Acta de Constitución es obligatoria.';
-      if (!source.planComunicacionesPdf) nextErrors.planComunicacionesPdf = 'El Plan de Comunicaciones es obligatorio.';
     }
 
     return nextErrors;
@@ -709,13 +781,16 @@ const ProjectOnboardingWizard = ({
     onComplete?.(payload, {
       actaConstitucionPdf: form.actaConstitucionPdf || null,
       cronogramaPdf: form.cronogramaPdf || null,
-      planComunicacionesPdf: form.planComunicacionesPdf || null,
       entregableFiles,
     });
   };
 
   const renderStep = () => {
     if (step === 1) {
+      return <Paso7GestionDocumental data={form} onChange={handleChange} errors={errors} />;
+    }
+
+    if (step === 2) {
       return (
         <div className="step-form">
           <h3 className="step-title">Datos complementarios</h3>
@@ -802,13 +877,13 @@ const ProjectOnboardingWizard = ({
       );
     }
 
-    if (step === 2) {
-      console.log('[RENDER Paso2] form.patrocinador:', form.patrocinador);
-      console.log('[RENDER Paso2] form.equipoTrabajo:', form.equipoTrabajo);
+    if (step === 3) {
+      console.log('[RENDER Paso3] form.patrocinador:', form.patrocinador);
+      console.log('[RENDER Paso3] form.equipoTrabajo:', form.equipoTrabajo);
       return <Paso2PatrocinadorEquipo data={form} onChange={handleChange} errors={errors} />;
     }
 
-    if (step === 3) {
+    if (step === 4) {
       return (
         <Paso3FasesHitosEntregables
           data={form}
@@ -821,7 +896,7 @@ const ProjectOnboardingWizard = ({
       );
     }
 
-    if (step === 4) {
+    if (step === 5) {
       return (
         <Paso4PetiComunicaciones
           data={form}
@@ -833,15 +908,11 @@ const ProjectOnboardingWizard = ({
       );
     }
 
-    if (step === 5) {
+    if (step === 6) {
       return <Paso5Furag data={form} onChange={handleChange} errors={errors} preguntas={petiCatalog?.furagPreguntas} />;
     }
 
-    if (step === 6) {
-      return <Paso6MatrizRiesgos data={form} onChange={handleChange} errors={errors} />;
-    }
-
-    return <Paso7GestionDocumental data={form} onChange={handleChange} errors={errors} />;
+    return <Paso6MatrizRiesgos data={form} onChange={handleChange} errors={errors} />;
   };
 
   return (
@@ -876,32 +947,31 @@ const ProjectOnboardingWizard = ({
             </button>
           </div>
 
-          <div className="project-onboarding__locked info-banner">
-            <LockKeyhole size={16} />
-            <div>
-              <strong>Datos protegidos por el gestor</strong>
-              <p>Codigo, nombre, objetivo y Director asignado no pueden modificarse desde este asistente.</p>
-            </div>
+          <div className="project-onboarding__locked-grid" aria-label="Datos del proyecto">
+            <InfoEditCard
+              label="Codigo"
+              value={projectSummary.codigo}
+              disabled
+            />
+            <InfoEditCard
+              label="Proyecto"
+              value={form.nombreProyecto || projectSummary.nombre}
+              onSave={(val) => handleInfoSave({ nombre: val })}
+              onChange={(val) => setForm((prev) => ({ ...prev, nombreProyecto: val }))}
+            />
+            <InfoEditCard
+              label="Director asignado"
+              value={projectSummary.director}
+              disabled
+            />
+            <InfoEditCard
+              label="Objetivo registrado"
+              value={form.objetivoGeneral || projectSummary.objetivo}
+              onSave={(val) => handleInfoSave({ objetivoGeneral: val })}
+              onChange={(val) => setForm((prev) => ({ ...prev, objetivoGeneral: val }))}
+              wide
+            />
           </div>
-
-          <section className="project-onboarding__locked-grid" aria-label="Datos base protegidos">
-            <article className="project-onboarding__locked-card">
-              <span>Codigo</span>
-              <strong>{projectSummary.codigo}</strong>
-            </article>
-            <article className="project-onboarding__locked-card">
-              <span>Proyecto</span>
-              <strong>{projectSummary.nombre}</strong>
-            </article>
-            <article className="project-onboarding__locked-card">
-              <span>Director asignado</span>
-              <strong>{projectSummary.director}</strong>
-            </article>
-            <article className="project-onboarding__locked-card project-onboarding__locked-card--wide">
-              <span>Objetivo registrado</span>
-              <p>{projectSummary.objetivo}</p>
-            </article>
-          </section>
 
           <div className="project-onboarding__stepbar-heading">
             <span>Asistente obligatorio de completitud</span>

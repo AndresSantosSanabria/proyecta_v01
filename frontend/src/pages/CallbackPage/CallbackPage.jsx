@@ -15,8 +15,9 @@ const CallbackPage = () => {
     handledRef.current = true;
 
     auth.signinRedirectCallback()
-      .then(() => {
-        navigate('/', { replace: true });
+      .then((user) => {
+        const returnUrl = user?.state || '/';
+        navigate(returnUrl, { replace: true });
       })
       .catch((err) => {
         console.error('Error procesando callback de OIDC:', err);

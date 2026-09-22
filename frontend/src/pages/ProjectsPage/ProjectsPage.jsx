@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Download, Filter, Plus, RefreshCw, Search, X } from 'lucide-react';
 import ProjectListTable from '../../components/features/projects/ProjectListTable';
 import EditProjectModal from '../../components/features/projects/EditProjectModal';
+import ExportExcelModal from '../../components/features/projects/ExportExcelModal';
 import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
@@ -24,6 +25,16 @@ const normalizeText = (value) =>
     .toLowerCase()
     .trim();
 
+const matchesProjectStatus = (project, statusFilter) => {
+  if (statusFilter === 'all') return true;
+  const parts = statusFilter.split(':');
+  const requiredEstado = parts[0];
+  const requiredViab = parts[1] || null;
+  if (normalizeText(project.estado) !== normalizeText(requiredEstado)) return false;
+  if (requiredViab && normalizeText(project.viabilidadEstado) !== normalizeText(requiredViab)) return false;
+  return true;
+};
+
 const extractProjects = (value) => {
   const payload = value?.data?.data ?? value?.data ?? value;
 
@@ -43,6 +54,7 @@ const ProjectsPage = () => {
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [editingProjectId, setEditingProjectId] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const canCreateProject = usePermission('PROYECTO:CREAR');
   const canEditProject = usePermission('PROYECTO:EDITAR');
   const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
@@ -102,7 +114,7 @@ const ProjectsPage = () => {
         .join(' ');
 
       const matchesSearch = !query || normalizeText(haystack).includes(query);
-      const matchesStatus = filters.status === 'all' || normalizeText(project.estado) === normalizeText(filters.status);
+      const matchesStatus = matchesProjectStatus(project, filters.status);
       const matchesDependency =
         filters.dependency === 'all' ||
         normalizeText(project.dependencia) === normalizeText(filters.dependency) ||
@@ -119,7 +131,18 @@ const ProjectsPage = () => {
     const chips = [];
     if (filters.query) chips.push({ key: 'query', label: `Busqueda: ${filters.query}` });
     if (filters.dependency !== 'all') chips.push({ key: 'dependency', label: `Dependencia: ${filters.dependency}` });
-    if (filters.status !== 'all') chips.push({ key: 'status', label: `Estado: ${filters.status}` });
+    if (filters.status !== 'all') {
+      const statusLabels = {
+        'PENDIENTE_COMPLETAR': 'Pendiente completar',
+        'ACTIVO': 'Activo',
+        'CON_RETRASOS': 'Con retrasos',
+        'CERRADO': 'Cerrado',
+        'CERRADO_FORZOSO': 'Cerrado forzoso',
+        'PENDIENTE_COMPLETAR:CARGADA': 'Docs. pendientes verificación',
+        'PENDIENTE_COMPLETAR:DEVUELTA': 'Docs. devueltos',
+      };
+      chips.push({ key: 'status', label: `Estado: ${statusLabels[filters.status] || filters.status}` });
+    }
     if (filters.peti !== 'all') chips.push({ key: 'peti', label: filters.peti === 'peti' ? 'Solo PETI' : 'Solo NO PETI' });
     return chips;
   }, [filters]);
@@ -143,16 +166,17 @@ const ProjectsPage = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (statuses) => {
     try {
       setExporting(true);
       const blob = await reportService.downloadPortafolioExcel({
         query: filters.query?.trim() || undefined,
         dependency: filters.dependency !== 'all' ? filters.dependency : undefined,
-        status: filters.status !== 'all' ? filters.status : undefined,
+        status: statuses || undefined,
         peti: filters.peti !== 'all' ? filters.peti : undefined,
       });
       triggerBlobDownload(blob, 'Consolidado Seguimiento Proyectos PETI.xlsx');
+      setShowExportModal(false);
     } catch (err) {
       console.error('Error exporting projects Excel:', err);
       window.alert('No fue posible descargar el Excel de proyectos.');
@@ -170,9 +194,9 @@ const ProjectsPage = () => {
                 <RefreshCw size={18} />
                 <span>{loading ? 'Actualizando' : 'Actualizar'}</span>
               </button>
-              <button className="btn-toolbar" onClick={handleExportExcel} disabled={loading || exporting}>
+              <button className="btn-toolbar" onClick={() => setShowExportModal(true)} disabled={loading || exporting}>
                 <Download size={18} />
-                <span>{exporting ? 'Exportando' : 'Exportar Excel'}</span>
+                <span>Exportar Excel</span>
               </button>
             {canCreateProject && (
               <button className="btn-new-project" onClick={() => navigate('/proyectos/nuevo')}>
@@ -263,7 +287,10 @@ const ProjectsPage = () => {
                 { value: 'PENDIENTE_COMPLETAR', label: 'Pendiente completar' },
                 { value: 'ACTIVO', label: 'Activo' },
                 { value: 'CON_RETRASOS', label: 'Con retrasos' },
+                { value: 'PENDIENTE_COMPLETAR:CARGADA', label: 'Docs. pendientes verificación' },
+                { value: 'PENDIENTE_COMPLETAR:DEVUELTA', label: 'Docs. devueltos' },
                 { value: 'CERRADO', label: 'Cerrado' },
+                { value: 'CERRADO_FORZOSO', label: 'Cerrado forzoso' },
               ]}
               placeholder="Buscar estado..."
               allLabel="Todos los estados"
@@ -329,6 +356,14 @@ const ProjectsPage = () => {
           onSaved={loadProjects}
         />
       )}
+
+      <ExportExcelModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportExcel}
+        projects={projectList}
+        exporting={exporting}
+      />
     </div>
   );
 };

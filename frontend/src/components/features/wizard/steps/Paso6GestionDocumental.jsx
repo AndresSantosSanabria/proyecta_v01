@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, FileText, X, FileCheck, AlertCircle } from 'lucide-react';
+import { Upload, FileText, X, AlertCircle } from 'lucide-react';
 import './Paso6GestionDocumental.css';
 
 const DOC_CONFIG = [
@@ -14,7 +14,7 @@ const DOC_CONFIG = [
     field: 'cronogramaPdf',
     label: 'Cronograma del Proyecto',
     icon: FileText,
-    required: false,
+    required: true,
     note: null,
   },
 ];
@@ -48,16 +48,7 @@ const Paso6GestionDocumental = ({ data, onChange, errors }) => {
     }
   };
 
-  const docs = [
-    ...DOC_CONFIG,
-    {
-      field: 'planComunicacionesPdf',
-      label: 'Plan de Comunicaciones',
-      icon: FileText,
-      required: true,
-      note: null,
-    },
-  ];
+  const docs = DOC_CONFIG;
 
   return (
     <div className="step-form">

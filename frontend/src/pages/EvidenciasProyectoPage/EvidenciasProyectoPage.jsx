@@ -6,6 +6,7 @@ import {
   FileStack, FileBadge, Archive, Download,
 } from 'lucide-react';
 import projectService from '../../services/projectService';
+import advanceReportService from '../../services/advanceReportService';
 import { formatDate } from '../../utils/locale';
 import EvidenciaDetailModal from '../../components/projects/EvidenciaDetailModal';
 import './EvidenciasProyectoPage.css';
@@ -21,6 +22,7 @@ const CATEGORIAS = [
   { key: 'CAMBIO_FECHA', label: 'Cambios de Fecha', icon: Clock },
   { key: 'CAMBIO_DESCRIPCION', label: 'Cambios de Descripcion', icon: FileEdit },
   { key: 'ACTA_CIERRE', label: 'Acta de Cierre', icon: Archive },
+  { key: 'INFORME_AVANCE', label: 'Informe de Avance', icon: FileBadge },
 ];
 
 const EvidenciasProyectoPage = () => {
@@ -42,9 +44,10 @@ const EvidenciasProyectoPage = () => {
       setLoading(true);
       setError(null);
 
-      const [evidenciasResponse, projectResponse] = await Promise.allSettled([
+      const [evidenciasResponse, projectResponse, advanceReportResponse] = await Promise.allSettled([
         projectService.getEvidenciasByProyecto(codigoProyecto),
         projectService.getById(codigoProyecto),
+        advanceReportService.getStatus(codigoProyecto),
       ]);
 
       const evidenciasData = evidenciasResponse.status === 'fulfilled'
@@ -52,6 +55,9 @@ const EvidenciasProyectoPage = () => {
         : [];
       const projectData = projectResponse.status === 'fulfilled'
         ? (projectResponse.value?.data?.data ?? projectResponse.value?.data ?? null)
+        : null;
+      const advanceReportData = advanceReportResponse.status === 'fulfilled'
+        ? (advanceReportResponse.value?.data ?? advanceReportResponse.value ?? null)
         : null;
 
       const items = evidenciasData
@@ -87,6 +93,40 @@ const EvidenciasProyectoPage = () => {
         justificacion: ev.justificacion || '',
         solucionesCount: ev.solucionesCount || 0,
       }));
+
+      if (advanceReportData && advanceReportData.isUploaded) {
+        items.push({
+          id: `adv-${advanceReportData.projectId}`,
+          categoria: 'INFORME_AVANCE',
+          nombre: advanceReportData.fileName || 'Informe de avance',
+          nombreArchivo: advanceReportData.fileName || '',
+          evidenciaUrl: null,
+          fechaRegistro: advanceReportData.uploadedAt || null,
+          fechaEntrega: null,
+          fechaLimite: advanceReportData.dueDate || null,
+          estado: 'CARGADO',
+          estadoCodigo: 'CARGADO',
+          usuario: advanceReportData.uploadedBy || '',
+          tipo: 'Informe de Avance',
+          tipoDocumento: null,
+          faseNombre: null,
+          hitoNombre: null,
+          entregableNombre: null,
+          entregableId: null,
+          descripcion: `Periodo: ${advanceReportData.periodo || ''}`,
+          observaciones: advanceReportData.observaciones || '',
+          cambioId: null,
+          riesgoId: null,
+          riesgoSolucionId: null,
+          archivoPdf: null,
+          fechaAnterior: null,
+          fechaNueva: null,
+          descripcionAnterior: null,
+          descripcionNueva: null,
+          justificacion: '',
+          solucionesCount: 0,
+        });
+      }
 
       setAllItems(items);
       setProjectInfo(projectData);
@@ -197,6 +237,7 @@ const EvidenciasProyectoPage = () => {
       CAMBIO_FECHA: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Cambio fecha' },
       CAMBIO_DESCRIPCION: { bg: 'var(--primary-soft)', color: 'var(--primary)', label: 'Cambio descripcion' },
       ACTA_CIERRE: { bg: '#fef3c7', color: '#d97706', label: 'Acta cierre' },
+      INFORME_AVANCE: { bg: '#ede9fe', color: '#6d28d9', label: 'Informe avance' },
     };
     return map[cat] || { bg: 'var(--bg-muted)', color: 'var(--text-muted)', label: cat };
   };
@@ -350,6 +391,7 @@ const EvidenciasProyectoPage = () => {
                             {item.categoria === 'CAMBIO_FECHA' && <Clock size={16} className="evp-td-icon evp-td-icon--warning" />}
                             {item.categoria === 'CAMBIO_DESCRIPCION' && <FileEdit size={16} className="evp-td-icon evp-td-icon--primary" />}
                             {item.categoria === 'ACTA_CIERRE' && <Archive size={16} className="evp-td-icon" style={{ color: '#d97706' }} />}
+                            {item.categoria === 'INFORME_AVANCE' && <FileBadge size={16} className="evp-td-icon" style={{ color: '#6d28d9' }} />}
                             <div>
                               <strong>{item.nombre || 'Sin nombre'}</strong>
                               {item.nombreArchivo && item.nombre !== item.nombreArchivo && <span className="evp-td-subtitle">{item.nombreArchivo}</span>}
@@ -416,6 +458,9 @@ const EvidenciasProyectoPage = () => {
                           )}
                           {!item.faseNombre && item.categoria === 'ACTA_CIERRE' && (
                             <span>Acta de cierre</span>
+                          )}
+                          {!item.faseNombre && item.categoria === 'INFORME_AVANCE' && (
+                            <span>Informe de avance</span>
                           )}
                         </td>
                         <td className="evp-td-actions">

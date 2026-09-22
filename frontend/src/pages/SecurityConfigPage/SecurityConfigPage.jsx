@@ -3,6 +3,7 @@ import {
   BadgeCheck,
   Ban,
   CircleAlert,
+  Clock,
   Clock3,
   Briefcase,
   FileText,
@@ -36,6 +37,7 @@ import ListaParametricaPanel from '../../components/security/ListaParametricaPan
 import StorageConfigPanel from '../../components/security/StorageConfigPanel';
 import UserPermissionMatrix from '../../components/security/UserPermissionMatrix';
 import AuditLogsPanel from '../../components/security/AuditLogsPanel';
+import AdvanceReportConfigPanel from '../../components/security/AdvanceReportConfigPanel';
 import './SecurityConfigPage.css';
 
 const SECURITY_TABS = {
@@ -50,6 +52,7 @@ const SECURITY_TABS = {
   STORAGE: 'almacenamiento',
   USER_PERMISSIONS: 'permisos_usuario',
   AUDIT: 'auditoria',
+  ADVANCE_REPORT: 'informe_avance',
 };
 
 const emptyUserForm = {
@@ -1110,6 +1113,16 @@ const SecurityConfigPage = () => {
               </button>
             )}
             {canConfigure && (
+              <button
+                type="button"
+                className={`quick-action roles ${activeSection === SECURITY_TABS.ADVANCE_REPORT ? 'active' : ''}`}
+                onClick={() => setActiveSection(SECURITY_TABS.ADVANCE_REPORT)}
+              >
+                <Clock size={14} />
+                Informe Avance
+              </button>
+            )}
+            {canConfigure && (
               <button type="button" className="quick-action create" onClick={handleNewUser}>
                 <Plus size={14} />
                 Crear Usuario
@@ -1144,7 +1157,7 @@ const SecurityConfigPage = () => {
         </div>
       )}
 
-      {[SECURITY_TABS.USERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS, SECURITY_TABS.CLOSURE_TEMPLATE, SECURITY_TABS.CLOSURE_QUESTIONS, SECURITY_TABS.LISTAS_PARAMETRICAS, SECURITY_TABS.STORAGE, SECURITY_TABS.USER_PERMISSIONS, SECURITY_TABS.AUDIT].includes(activeSection) && (
+      {[SECURITY_TABS.USERS, SECURITY_TABS.ASSIGNMENTS, SECURITY_TABS.NOTIFICATIONS, SECURITY_TABS.CLOSURE_TEMPLATE, SECURITY_TABS.CLOSURE_QUESTIONS, SECURITY_TABS.LISTAS_PARAMETRICAS, SECURITY_TABS.STORAGE, SECURITY_TABS.USER_PERMISSIONS, SECURITY_TABS.AUDIT, SECURITY_TABS.ADVANCE_REPORT].includes(activeSection) && (
         <section className="security-workspace users-workspace">
           {activeSection === SECURITY_TABS.USERS && (
           <article className="panel panel-main users-panel">
@@ -1388,6 +1401,9 @@ const SecurityConfigPage = () => {
           )}
           {canConfigure && activeSection === SECURITY_TABS.AUDIT && (
             <AuditLogsPanel />
+          )}
+          {canConfigure && activeSection === SECURITY_TABS.ADVANCE_REPORT && (
+            <AdvanceReportConfigPanel />
           )}
           {canConfigure && activeSection === SECURITY_TABS.ASSIGNMENTS && (
             <div

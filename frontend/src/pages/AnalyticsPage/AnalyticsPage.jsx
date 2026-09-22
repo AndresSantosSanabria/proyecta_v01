@@ -17,6 +17,11 @@ import {
   TrendingUp,
   X,
   Zap,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  User,
 } from 'lucide-react';
 import {
   Bar,
@@ -210,6 +215,10 @@ const AnalyticsPage = () => {
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [comparisonPage, setComparisonPage] = useState(1);
+  const [docFilter, setDocFilter] = useState('all');
+  const [docGestor, setDocGestor] = useState('all');
+  const [docPage, setDocPage] = useState(1);
+  const DOCS_PER_PAGE = 8;
 
   const loadAnalytics = async () => {
     try {
@@ -331,7 +340,22 @@ const AnalyticsPage = () => {
     const enTiempo = filteredProjects.filter((p) => normalizeText(p?.estado).includes('tiempo')).length;
     const enAtraso = filteredProjects.filter((p) => normalizeText(p?.estado).includes('atraso')).length;
     const saludPortafolio = total > 0 ? (enTiempo / total) * 100 : 0;
-    return { total, petiProjects, noPetiProjects, avancePromedio, eficaciaPromedio, eficienciaPromedio, furagPromedio, mitigacionPromedio, enTiempo, enAtraso, saludPortafolio };
+    const docsCargados = filteredProjects.filter((p) => Boolean(p?.documentosCargados)).length;
+    const docsVerificados = filteredProjects.filter((p) => Boolean(p?.documentosVerificados)).length;
+    const docsPendientes = total - docsCargados;
+    const conViabilidad = filteredProjects.filter((p) => p?.viabilidadEstado === 'CARGADA' || p?.viabilidadEstado === 'APROBADA').length;
+    const conCronograma = filteredProjects.filter((p) => Boolean(p?.tieneCronograma)).length;
+    const conActa = filteredProjects.filter((p) => Boolean(p?.tieneActaConstitucion)).length;
+    const conPlanComunicaciones = filteredProjects.filter((p) => Boolean(p?.tienePlanComunicaciones)).length;
+    const cumplimientoDocumental = total > 0
+      ? ((conViabilidad + conCronograma + conActa + conPlanComunicaciones) / (total * 4)) * 100
+      : 0;
+    return {
+      total, petiProjects, noPetiProjects, avancePromedio, eficaciaPromedio, eficienciaPromedio,
+      furagPromedio, mitigacionPromedio, enTiempo, enAtraso, saludPortafolio,
+      docsCargados, docsVerificados, docsPendientes, conViabilidad, conCronograma, conActa,
+      conPlanComunicaciones, cumplimientoDocumental
+    };
   }, [filteredProjects, getFuragCoverage]);
 
   /* â”€â”€â”€ Chart Data â”€â”€â”€ */
@@ -422,6 +446,58 @@ const AnalyticsPage = () => {
 
   /* â”€â”€â”€ Recharts shared axis tick style â”€â”€â”€ */
   const axisStyle = { fontSize: 11, fill: 'var(--text-muted)' };
+
+  const SkeletonLoader = () => (
+    <div className="analytics-page">
+      <section className="analytics-hero">
+        <div>
+          <span className="analytics-kicker">Gobernanza analítica</span>
+          <h1>Analíticas del Portafolio</h1>
+          <p>Cargando datos del portafolio ejecutivo...</p>
+        </div>
+        <div className="analytics-hero__actions">
+          <button className="analytics-refresh" disabled>
+            <RefreshCw size={18} /> Actualizando…
+          </button>
+        </div>
+      </section>
+      <div className="analytics-skeleton-grid">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="analytics-skeleton-card">
+            <div className="skeleton-line skeleton-line--label" />
+            <div className="skeleton-line skeleton-line--value" />
+            <div className="skeleton-line skeleton-line--detail" />
+            <div className="skeleton-line skeleton-line--bar" />
+          </div>
+        ))}
+      </div>
+      <div className="analytics-skeleton-charts">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="analytics-skeleton-chart">
+            <div className="skeleton-chart-header">
+              <div className="skeleton-line" />
+            </div>
+            <div className="skeleton-chart-body" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const KPI_ACCENTS = [
+    '--primary',
+    '#06b6d4',
+    '#3b82f6',
+    '#10b981',
+    '#f59e0b',
+    '#8b5cf6',
+    '#ef4444',
+    'var(--success)',
+  ];
+
+  if (loading && !data) {
+    return <SkeletonLoader />;
+  }
 
   return (
     <div className="analytics-page">
@@ -563,56 +639,454 @@ const AnalyticsPage = () => {
       </section>
 
       {/* â”€â”€ KPI Cards â”€â”€ */}
-      <section className="analytics-kpis analytics-kpis--wide">
-        <article className="analytics-kpi-card analytics-kpi-card--accent">
+      <section className="analytics-kpis">
+        <article className="analytics-kpi-card analytics-kpi-card--accent" style={{ '--kpi-accent': 'var(--primary)' }}>
           <span><Target size={14} /> Proyectos</span>
           <strong>{formatNumber(summary.total)}</strong>
           <small>{formatNumber(summary.enTiempo)} en tiempo · {formatNumber(summary.enAtraso)} en atraso</small>
-          <div className="kpi-spark kpi-spark--blue" />
+          <div className="kpi-progress" style={{ '--kpi-val': `${summary.total > 0 ? (summary.enTiempo / summary.total * 100) : 0}%`, '--kpi-color': 'var(--primary)' }} />
         </article>
-        <article className="analytics-kpi-card">
+        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#06b6d4' }}>
           <span><Sparkles size={14} /> PETI / No PETI</span>
           <strong>{formatNumber(summary.petiProjects)} <small className="kpi-slash">/ {formatNumber(summary.noPetiProjects)}</small></strong>
           <small>Estratégicos vs operativos</small>
-          <div className="kpi-spark kpi-spark--cyan" />
+          <div className="kpi-progress" style={{ '--kpi-val': `${summary.total > 0 ? (summary.petiProjects / summary.total * 100) : 0}%`, '--kpi-color': '#06b6d4' }} />
         </article>
-        <article className="analytics-kpi-card">
+        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#3b82f6' }}>
           <span><BarChart3 size={14} /> Avance promedio</span>
           <strong>{formatPercent(summary.avancePromedio)}</strong>
           <small>Progreso físico del portafolio</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.avancePromedio)}%`, '--kpi-color': '#3b82f6' }} />
         </article>
-        <article className="analytics-kpi-card">
+        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#10b981' }}>
           <span><Target size={14} /> Eficacia promedio</span>
           <strong className={toneClass(summary.eficaciaPromedio)}>{formatPercent(summary.eficaciaPromedio)}</strong>
           <small>Programado vs ejecutado</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.eficaciaPromedio)}%`, '--kpi-color': '#10b981' }} />
         </article>
-        <article className="analytics-kpi-card">
+        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#f59e0b' }}>
           <span><Zap size={14} /> Eficiencia promedio</span>
           <strong className={toneClass(summary.eficienciaPromedio)}>{formatPercent(summary.eficienciaPromedio)}</strong>
           <small>Entregas a tiempo / total entregas</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.eficienciaPromedio)}%`, '--kpi-color': '#f59e0b' }} />
         </article>
-        <article className="analytics-kpi-card">
+        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#8b5cf6' }}>
           <span><TrendingUp size={14} /> Cobertura FURAG</span>
           <strong>{formatPercent(summary.furagPromedio)}</strong>
           <small>{visibleRiskText}</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.furagPromedio)}%`, '--kpi-color': '#8b5cf6' }} />
         </article>
-        <article className="analytics-kpi-card">
+        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#ef4444' }}>
           <span><ShieldCheck size={14} /> Mitigación riesgos</span>
           <strong>{formatPercent(summary.mitigacionPromedio)}</strong>
           <small>{formatNumber(data?.riesgos?.tratados)} tratados en total</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.mitigacionPromedio)}%`, '--kpi-color': '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card analytics-kpi-card--health">
+        <article className="analytics-kpi-card analytics-kpi-card--health" style={{ '--kpi-accent': 'var(--success)' }}>
           <span><Activity size={14} /> Salud portafolio</span>
           <strong className={toneClass(summary.saludPortafolio)}>{formatPercent(summary.saludPortafolio)}</strong>
           <small>{formatNumber(summary.enTiempo)} proyectos en tiempo</small>
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.saludPortafolio)}%`, '--kpi-color': summary.saludPortafolio >= 80 ? '#10b981' : summary.saludPortafolio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
       </section>
+
+      {/* — Document Metrics — */}
+      <section className="analytics-panel">
+        <div className="analytics-panel__header">
+          <div>
+            <h2>Estado Documental del Portafolio</h2>
+            <p>Carga y verificación de los documentos iniciales requeridos por proyecto.</p>
+          </div>
+          <div className="analytics-panel__meta">
+            <span><FileText size={14} /> {formatNumber(summary.total)} proyectos</span>
+            <span><CheckCircle2 size={14} /> {formatNumber(summary.docsVerificados)} verificados</span>
+          </div>
+        </div>
+
+        <div className="doc-topbar">
+          <div className="doc-topbar__stat">
+            <span className="doc-topbar__stat-icon doc-topbar__stat-icon--ok"><CheckCircle2 size={16} /></span>
+            <div className="doc-topbar__stat-text">
+              <strong>{formatNumber(summary.docsCargados)}</strong>
+              <span>Documentos cargados</span>
+            </div>
+          </div>
+          <div className="doc-topbar__divider" />
+          <div className="doc-topbar__stat">
+            <span className="doc-topbar__stat-icon doc-topbar__stat-icon--danger"><XCircle size={16} /></span>
+            <div className="doc-topbar__stat-text">
+              <strong>{formatNumber(summary.docsPendientes)}</strong>
+              <span>Sin documentos</span>
+            </div>
+          </div>
+          <div className="doc-topbar__divider" />
+          <div className="doc-topbar__stat">
+            <span className="doc-topbar__stat-icon doc-topbar__stat-icon--warn"><Clock size={16} /></span>
+            <div className="doc-topbar__stat-text">
+              <strong>{formatPercent(summary.cumplimientoDocumental)}</strong>
+              <span>Cumplimiento documental</span>
+            </div>
+          </div>
+          <div className="doc-topbar__divider" />
+          <div className="doc-topbar__stat">
+            <span className="doc-topbar__stat-icon doc-topbar__stat-icon--ok"><ShieldCheck size={16} /></span>
+            <div className="doc-topbar__stat-text">
+              <strong>{formatNumber(summary.docsVerificados)}</strong>
+              <span>Verificados por director</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="doc-metrics-grid">
+          <div className="doc-metric-card" style={{ '--doc-accent': 'var(--primary)' }}>
+            <div className="doc-metric-card__top">
+              <span className="doc-metric-card__icon doc-metric-card__icon--viability"><FileText size={18} /></span>
+              <div className="doc-metric-card__numbers">
+                <strong>{formatNumber(summary.conViabilidad)}</strong>
+                <small>de {formatNumber(summary.total)}</small>
+              </div>
+            </div>
+            <div className="doc-metric-card__label">Viabilidad</div>
+            <div className="doc-metric-card__bar">
+              <div className="doc-metric-card__bar-fill" style={{ width: `${summary.total > 0 ? (summary.conViabilidad / summary.total * 100) : 0}%` }} />
+            </div>
+            <div className="doc-metric-card__percentage">
+              <span>{formatPercent(summary.total > 0 ? (summary.conViabilidad / summary.total * 100) : 0)}</span>
+              <strong>{summary.total - summary.conViabilidad} pendientes</strong>
+            </div>
+          </div>
+
+          <div className="doc-metric-card" style={{ '--doc-accent': '#f59e0b' }}>
+            <div className="doc-metric-card__top">
+              <span className="doc-metric-card__icon doc-metric-card__icon--schedule"><Clock size={18} /></span>
+              <div className="doc-metric-card__numbers">
+                <strong>{formatNumber(summary.conCronograma)}</strong>
+                <small>de {formatNumber(summary.total)}</small>
+              </div>
+            </div>
+            <div className="doc-metric-card__label">Cronograma</div>
+            <div className="doc-metric-card__bar">
+              <div className="doc-metric-card__bar-fill" style={{ width: `${summary.total > 0 ? (summary.conCronograma / summary.total * 100) : 0}%` }} />
+            </div>
+            <div className="doc-metric-card__percentage">
+              <span>{formatPercent(summary.total > 0 ? (summary.conCronograma / summary.total * 100) : 0)}</span>
+              <strong>{summary.total - summary.conCronograma} pendientes</strong>
+            </div>
+          </div>
+
+          <div className="doc-metric-card" style={{ '--doc-accent': '#10b981' }}>
+            <div className="doc-metric-card__top">
+              <span className="doc-metric-card__icon doc-metric-card__icon--constitution"><CheckCircle2 size={18} /></span>
+              <div className="doc-metric-card__numbers">
+                <strong>{formatNumber(summary.conActa)}</strong>
+                <small>de {formatNumber(summary.total)}</small>
+              </div>
+            </div>
+            <div className="doc-metric-card__label">Acta Constitución</div>
+            <div className="doc-metric-card__bar">
+              <div className="doc-metric-card__bar-fill" style={{ width: `${summary.total > 0 ? (summary.conActa / summary.total * 100) : 0}%` }} />
+            </div>
+            <div className="doc-metric-card__percentage">
+              <span>{formatPercent(summary.total > 0 ? (summary.conActa / summary.total * 100) : 0)}</span>
+              <strong>{summary.total - summary.conActa} pendientes</strong>
+            </div>
+          </div>
+
+          <div className="doc-metric-card" style={{ '--doc-accent': '#8b5cf6' }}>
+            <div className="doc-metric-card__top">
+              <span className="doc-metric-card__icon doc-metric-card__icon--comms"><FileText size={18} /></span>
+              <div className="doc-metric-card__numbers">
+                <strong>{formatNumber(summary.conPlanComunicaciones)}</strong>
+                <small>de {formatNumber(summary.total)}</small>
+              </div>
+            </div>
+            <div className="doc-metric-card__label">Plan Comunicaciones</div>
+            <div className="doc-metric-card__bar">
+              <div className="doc-metric-card__bar-fill" style={{ width: `${summary.total > 0 ? (summary.conPlanComunicaciones / summary.total * 100) : 0}%` }} />
+            </div>
+            <div className="doc-metric-card__percentage">
+              <span>{formatPercent(summary.total > 0 ? (summary.conPlanComunicaciones / summary.total * 100) : 0)}</span>
+              <strong>{summary.total - summary.conPlanComunicaciones} pendientes</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* — Document Metrics by Gestor — */}
+      {filteredProjects.length > 0 && (() => {
+        const gestorMap = {};
+        filteredProjects.forEach((p) => {
+          const g = p.registradoInicialPor || 'Sin gestor';
+          if (!gestorMap[g]) gestorMap[g] = { total: 0, docsCargados: 0, viabilidad: 0, cronograma: 0, acta: 0, plan: 0 };
+          gestorMap[g].total++;
+          if (p.documentosCargados) gestorMap[g].docsCargados++;
+          if (p.viabilidadEstado === 'CARGADA' || p.viabilidadEstado === 'APROBADA') gestorMap[g].viabilidad++;
+          if (p.tieneCronograma) gestorMap[g].cronograma++;
+          if (p.tieneActaConstitucion) gestorMap[g].acta++;
+          if (p.tienePlanComunicaciones) gestorMap[g].plan++;
+        });
+
+        const gestores = Object.entries(gestorMap)
+          .map(([name, m]) => ({
+            name,
+            ...m,
+            cumplimiento: m.total > 0 ? m.docsCargados / m.total : 0,
+            viabPct: m.total > 0 ? m.viabilidad / m.total : 0,
+            cronPct: m.total > 0 ? m.cronograma / m.total : 0,
+            actaPct: m.total > 0 ? m.acta / m.total : 0,
+            planPct: m.total > 0 ? m.plan / m.total : 0,
+          }))
+          .sort((a, b) => b.total - a.total);
+
+        return (
+          <section className="analytics-panel">
+            <div className="analytics-panel__header">
+              <div>
+                <h2>Métricas por Gestor</h2>
+                <p>Documentación cargada y verificada por cada gestor del portafolio.</p>
+              </div>
+              <div className="analytics-panel__meta">
+                <span><User size={14} /> {gestores.length} gestores</span>
+              </div>
+            </div>
+            <div className="doc-gestor-grid">
+              {gestores.map((g) => (
+                <div key={g.name} className="doc-gestor-card">
+                  <div className="doc-gestor-card__header">
+                    <div className="doc-gestor-card__avatar">
+                      <User size={18} />
+                    </div>
+                    <div className="doc-gestor-card__title">
+                      <strong>{g.name}</strong>
+                      <span>{g.total} proyecto{g.total !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="doc-gestor-card__badge">
+                      {formatPercent(g.cumplimiento * 100)}
+                    </div>
+                  </div>
+
+                  <div className="doc-gestor-card__bar-wrapper">
+                    <div className="doc-gestor-card__bar">
+                      <div className="doc-gestor-card__bar-fill" style={{ width: `${g.cumplimiento * 100}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="doc-gestor-card__docs">
+                    <div className="doc-gestor-card__doc-item">
+                      <FileText size={12} />
+                      <span>Viabilidad</span>
+                      <strong>{g.viabilidad}/{g.total}</strong>
+                      <div className="doc-gestor-card__mini-bar">
+                        <div className="doc-gestor-card__mini-fill doc-gestor-card__mini-fill--viab" style={{ width: `${g.viabPct * 100}%` }} />
+                      </div>
+                    </div>
+                    <div className="doc-gestor-card__doc-item">
+                      <Clock size={12} />
+                      <span>Cronograma</span>
+                      <strong>{g.cronograma}/{g.total}</strong>
+                      <div className="doc-gestor-card__mini-bar">
+                        <div className="doc-gestor-card__mini-fill doc-gestor-card__mini-fill--cron" style={{ width: `${g.cronPct * 100}%` }} />
+                      </div>
+                    </div>
+                    <div className="doc-gestor-card__doc-item">
+                      <CheckCircle2 size={12} />
+                      <span>Acta</span>
+                      <strong>{g.acta}/{g.total}</strong>
+                      <div className="doc-gestor-card__mini-bar">
+                        <div className="doc-gestor-card__mini-fill doc-gestor-card__mini-fill--acta" style={{ width: `${g.actaPct * 100}%` }} />
+                      </div>
+                    </div>
+                    <div className="doc-gestor-card__doc-item">
+                      <FileText size={12} />
+                      <span>Plan Com.</span>
+                      <strong>{g.plan}/{g.total}</strong>
+                      <div className="doc-gestor-card__mini-bar">
+                        <div className="doc-gestor-card__mini-fill doc-gestor-card__mini-fill--plan" style={{ width: `${g.planPct * 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* — Projects Without Documents — */}
+      {summary.docsPendientes > 0 && (() => {
+        const missingDocs = filteredProjects.filter((p) => !p?.documentosCargados);
+        const sorted = missingDocs.sort((a, b) => (a?.nombre || '').localeCompare(b?.nombre || '', 'es'));
+
+        const uniqueGestores = [...new Set(sorted.map((p) => p.registradoInicialPor).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+
+        const isMissingViab = (p) => !(p.viabilidadEstado === 'CARGADA' || p.viabilidadEstado === 'APROBADA');
+        const isMissingCron = (p) => !p.tieneCronograma;
+        const isMissingActa = (p) => !p.tieneActaConstitucion;
+        const isMissingPlan  = (p) => !p.tienePlanComunicaciones;
+
+        const countMissing = (pred) => missingDocs.filter(pred).length;
+
+        const filtered = sorted
+          .filter((p) => docFilter === 'all'
+            || (docFilter === 'viabilidad' && isMissingViab(p))
+            || (docFilter === 'cronograma' && isMissingCron(p))
+            || (docFilter === 'acta' && isMissingActa(p))
+            || (docFilter === 'plan' && isMissingPlan(p)))
+          .filter((p) => docGestor === 'all' || p.registradoInicialPor === docGestor);
+
+        const totalPages = Math.ceil(filtered.length / DOCS_PER_PAGE);
+        const paged = filtered.slice((docPage - 1) * DOCS_PER_PAGE, docPage * DOCS_PER_PAGE);
+
+        const filterChips = [
+          { key: 'all',        label: 'Todos',              count: missingDocs.length },
+          { key: 'viabilidad', label: 'Sin Viabilidad',     count: countMissing(isMissingViab) },
+          { key: 'cronograma', label: 'Sin Cronograma',     count: countMissing(isMissingCron) },
+          { key: 'acta',       label: 'Sin Acta',           count: countMissing(isMissingActa) },
+          { key: 'plan',       label: 'Sin Plan Com.',      count: countMissing(isMissingPlan) },
+        ];
+
+        const gestorCounts = missingDocs.reduce((acc, p) => {
+          const g = p.registradoInicialPor || 'Sin gestor';
+          acc[g] = (acc[g] || 0) + 1;
+          return acc;
+        }, {});
+
+        return (
+          <section className="analytics-panel">
+            <div className="analytics-panel__header">
+              <div>
+                <h2>Proyectos Sin Documentos Cargados</h2>
+                <p>Proyectos que aún no han completado la carga de documentos iniciales requeridos.</p>
+              </div>
+              <div className="analytics-panel__meta">
+                <span style={{ color: 'var(--danger)' }}><XCircle size={14} /> {formatNumber(summary.docsPendientes)} pendientes</span>
+              </div>
+            </div>
+
+            <div className="doc-filter-bar">
+              {filterChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  className={`doc-filter-chip ${docFilter === chip.key ? 'doc-filter-chip--active' : ''}`}
+                  onClick={() => { setDocFilter(chip.key); setDocPage(1); }}
+                >
+                  <span>{chip.label}</span>
+                  <span className="doc-filter-chip__count">{chip.count}</span>
+                </button>
+              ))}
+              {uniqueGestores.length > 0 && (
+                <div className="doc-gestor-filter">
+                  <User size={13} className="doc-gestor-filter__icon" />
+                  <select
+                    className="doc-gestor-select"
+                    value={docGestor}
+                    onChange={(e) => { setDocGestor(e.target.value); setDocPage(1); }}
+                  >
+                    <option value="all">Todos los gestores</option>
+                    {uniqueGestores.map((g) => (
+                      <option key={g} value={g}>{g} ({gestorCounts[g] || 0})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="analytics-empty">
+                {docFilter === 'all' && docGestor === 'all'
+                  ? 'Todos los proyectos filtrados tienen documentos cargados.'
+                  : `No hay proyectos que coincidan con los filtros seleccionados.`}
+              </div>
+            ) : (
+              <>
+                <div className="doc-pending-list">
+                  {paged.map((project) => (
+                    <div key={project.proyectoId} className="doc-pending-row">
+                      <div className="doc-pending-row__icon">
+                        <Building2 size={16} />
+                      </div>
+                      <div className="doc-pending-row__info">
+                        <strong>{project.nombre}</strong>
+                        <span>{project.dependencia}</span>
+                      </div>
+                      <div className="doc-pending-row__docs">
+                        <span className={`doc-chip ${project.viabilidadEstado === 'CARGADA' || project.viabilidadEstado === 'APROBADA' ? 'doc-chip--ok' : 'doc-chip--missing'}`}>
+                          {project.viabilidadEstado === 'CARGADA' || project.viabilidadEstado === 'APROBADA' ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                          Viabilidad
+                        </span>
+                        <span className={`doc-chip ${project.tieneCronograma ? 'doc-chip--ok' : 'doc-chip--missing'}`}>
+                          {project.tieneCronograma ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                          Cronograma
+                        </span>
+                        <span className={`doc-chip ${project.tieneActaConstitucion ? 'doc-chip--ok' : 'doc-chip--missing'}`}>
+                          {project.tieneActaConstitucion ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                          Acta
+                        </span>
+                        <span className={`doc-chip ${project.tienePlanComunicaciones ? 'doc-chip--ok' : 'doc-chip--missing'}`}>
+                          {project.tienePlanComunicaciones ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                          Plan Com.
+                        </span>
+                      </div>
+                      <div className="doc-pending-row__gestor">
+                        {project.registradoInicialPor && (
+                          <span className="doc-pending-row__tag">
+                            <User size={11} />
+                            {project.registradoInicialPor}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="doc-pagination">
+                    <button
+                      className="doc-pagination__btn"
+                      disabled={docPage <= 1}
+                      onClick={() => setDocPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} />
+                      Anterior
+                    </button>
+                    <div className="doc-pagination__pages">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((p) => p === 1 || p === totalPages || Math.abs(p - docPage) <= 2)
+                        .reduce((acc, p, idx, arr) => {
+                          if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                          acc.push(p);
+                          return acc;
+                        }, [])
+                        .map((p, idx) =>
+                          p === '...' ? (
+                            <span key={`ellipsis-${idx}`} className="doc-pagination__ellipsis">…</span>
+                          ) : (
+                            <button
+                              key={p}
+                              className={`doc-pagination__page ${docPage === p ? 'doc-pagination__page--active' : ''}`}
+                              onClick={() => setDocPage(p)}
+                            >
+                              {p}
+                            </button>
+                          )
+                        )}
+                    </div>
+                    <button
+                      className="doc-pagination__btn"
+                      disabled={docPage >= totalPages}
+                      onClick={() => setDocPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Siguiente
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        );
+      })()}
+
       <>
         <div className="analytics-charts-grid">
           <section className="analytics-panel analytics-panel--chart">
@@ -819,7 +1293,7 @@ const AnalyticsPage = () => {
         </section>
       </>
 
-      {loading ? <div className="analytics-loading">Cargando analíticas...</div> : null}
+      {loading ? <div className="analytics-loading"><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Actualizando datos del portafolio…</div> : null}
     </div>
   );
 };

@@ -26,7 +26,7 @@ export const auth = new UserManager({
   monitorSession: false,
   loadUserInfo: false,
   filterProtocolClaims: true,
-  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
+  userStore: new WebStorageStateStore({ store: window.localStorage }),
   metadata,
 });
 
@@ -42,14 +42,14 @@ export async function clearOidcStaleState() {
   }
 }
 
-export async function startLoginRedirect() {
+export async function startLoginRedirect(returnUrl) {
   if (loginRedirectPromise) {
     return loginRedirectPromise;
   }
 
   loginRedirectPromise = (async () => {
     await clearOidcStaleState();
-    return auth.signinRedirect();
+    return auth.signinRedirect({ state: returnUrl || window.location.pathname });
   })();
 
   try {

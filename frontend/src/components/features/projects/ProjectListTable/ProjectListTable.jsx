@@ -27,6 +27,11 @@ const statusMap = {
     class: 'default',
     tooltip: 'El proyecto finalizó y ya no recibe gestión operativa.',
   },
+  CERRADO_FORZOSO: {
+    label: 'Cerrado forzoso',
+    class: 'danger',
+    tooltip: 'El proyecto fue cerrado de forma extraordinaria sin cumplir el flujo normal de cierre.',
+  },
   PLANIFICACION: {
     label: 'Planificación',
     class: 'default',
@@ -107,9 +112,9 @@ const ProjectListTable = ({
                     };
                   } else if (viab === 'APROBADA') {
                     currentStatus = {
-                      label: 'Viabilidad aprobada',
-                      class: 'success',
-                      tooltip: 'La viabilidad fue verificada. El Director puede completar el proyecto.',
+                      label: 'Pendiente por completar',
+                      class: 'warning',
+                      tooltip: 'La viabilidad fue aprobada. El Director debe completar la información del proyecto.',
                     };
                   }
                 }

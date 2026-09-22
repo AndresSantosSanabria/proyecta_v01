@@ -167,12 +167,12 @@ const ProtectedRoute = () => {
   useEffect(() => {
     if (!loading && !isAuthenticated && !loginTriggeredRef.current) {
       loginTriggeredRef.current = true;
-      startLoginRedirect().catch((authError) => {
+      startLoginRedirect(location.pathname).catch((authError) => {
         loginTriggeredRef.current = false;
         console.error('Error iniciando login:', authError);
       });
     }
-  }, [loading, isAuthenticated]);
+  }, [loading, isAuthenticated, location.pathname]);
 
   if (loading || backendLoading) {
     return (
@@ -195,7 +195,7 @@ const ProtectedRoute = () => {
           : message}
         onRetry={() => {
           loginTriggeredRef.current = false;
-          startLoginRedirect().catch((authError) => {
+          startLoginRedirect(location.pathname).catch((authError) => {
             console.error('Error reiniciando login:', authError);
           });
         }}

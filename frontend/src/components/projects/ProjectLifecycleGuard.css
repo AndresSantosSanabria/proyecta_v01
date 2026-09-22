@@ -1,0 +1,706 @@
+/* ══════════════════════════════════════════════════════════
+   ProjectLifecycleGuard — Premium Document Views (Compact)
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Hero Header ──────────────────────────────────────── */
+.plg-hero {
+  position: relative;
+  padding: 18px 20px 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background:
+    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 50%),
+    radial-gradient(ellipse at 80% 100%, color-mix(in srgb, var(--warning) 5%, transparent), transparent 50%),
+    linear-gradient(170deg, color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-surface)), var(--bg-surface));
+  overflow: hidden;
+}
+
+.plg-hero::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 40%, var(--warning)));
+  opacity: 0.8;
+}
+
+.plg-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  width: fit-content;
+}
+
+.plg-hero__badge--warning {
+  color: #92400e;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 18%, var(--bg-surface)), color-mix(in srgb, var(--warning) 10%, var(--bg-surface)));
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
+}
+
+.plg-hero__badge--danger {
+  color: #991b1b;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 18%, var(--bg-surface)), color-mix(in srgb, var(--danger) 10%, var(--bg-surface)));
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+.plg-hero__title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.plg-hero__subtitle {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 520px;
+}
+
+/* ── Observation Banner ────────────────────────────────── */
+.plg-observation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 1.25rem;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 24%, var(--border-color));
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--warning) 8%, transparent), transparent 60%),
+    color-mix(in srgb, var(--warning-soft) 50%, var(--bg-surface));
+  animation: plg-fadeSlideIn 0.3s ease-out;
+}
+
+.plg-observation svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--warning);
+  width: 15px;
+  height: 15px;
+}
+
+.plg-observation__label {
+  margin: 0 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--warning);
+  letter-spacing: 0.02em;
+}
+
+.plg-observation__text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+/* ── Info Cards Grid ───────────────────────────────────── */
+.plg-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 0 1.25rem;
+}
+
+.plg-info-card {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--primary) 4%, transparent), transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 60%, var(--bg-surface)), var(--bg-surface));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.plg-info-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--border-color));
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--primary) 5%, transparent);
+}
+
+.plg-info-card__label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.plg-info-card__value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.plg-info-card__value--warning {
+  color: var(--warning);
+}
+
+/* ── Documents Section ─────────────────────────────────── */
+.plg-docs-section {
+  padding: 0 1.25rem;
+}
+
+.plg-docs-section__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.plg-docs-section__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.plg-docs-section__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 60%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.plg-docs-section__hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* ── Document Upload Cards ─────────────────────────────── */
+.plg-doc-list {
+  display: grid;
+  gap: 6px;
+}
+
+.plg-doc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 76%, transparent);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 40%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-surface) 82%, var(--bg-panel)), color-mix(in srgb, var(--bg-panel) 72%, var(--bg-surface)));
+  box-shadow: 0 2px 8px color-mix(in srgb, #020617 3%, transparent);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  overflow: hidden;
+}
+
+.plg-doc-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 12px 0 0 12px;
+  background: var(--primary);
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.plg-doc-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border-color));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--primary) 7%, transparent);
+  transform: translateY(-1px);
+}
+
+.plg-doc-card--empty {
+  cursor: pointer;
+}
+
+.plg-doc-card--empty:hover::before {
+  opacity: 1;
+  background: linear-gradient(180deg, var(--primary), color-mix(in srgb, var(--primary) 60%, var(--warning)));
+}
+
+.plg-doc-card--has-file::before {
+  background: linear-gradient(180deg, var(--success), color-mix(in srgb, var(--success) 60%, var(--primary)));
+  opacity: 1;
+}
+
+.plg-doc-card__inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+/* Empty state */
+.plg-doc-card__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 12px;
+  text-align: center;
+}
+
+.plg-doc-card__placeholder-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 50%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 14%, transparent);
+  transition: transform 0.2s ease;
+}
+
+.plg-doc-card--empty:hover .plg-doc-card__placeholder-icon {
+  transform: scale(1.06);
+}
+
+.plg-doc-card__placeholder-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.plg-doc-card__placeholder-hint {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* File selected state */
+.plg-doc-card__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success-soft) 55%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--success) 16%, transparent);
+  transition: background 0.2s ease;
+}
+
+.plg-doc-card__icon--uploading {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 55%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.plg-doc-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.plg-doc-card__name {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.plg-doc-card__size {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.plg-doc-card__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.plg-doc-card__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.12) 100%, var(--border-color));
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  transition: all 0.18s ease;
+}
+
+.plg-doc-card__btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.plg-doc-card__btn--preview {
+  color: #60a5fa;
+  border-color: color-mix(in srgb, #60a5fa 20%, transparent);
+  background: color-mix(in srgb, #60a5fa 10%, transparent);
+}
+
+.plg-doc-card__btn--preview:hover {
+  background: color-mix(in srgb, #60a5fa 18%, transparent);
+}
+
+.plg-doc-card__btn--download {
+  color: #34d399;
+  border-color: color-mix(in srgb, #34d399 20%, transparent);
+  background: color-mix(in srgb, #34d399 10%, transparent);
+}
+
+.plg-doc-card__btn--download:hover {
+  background: color-mix(in srgb, #34d399 18%, transparent);
+}
+
+.plg-doc-card__btn--remove {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 18%, transparent);
+  background: color-mix(in srgb, var(--danger-soft) 40%, var(--bg-surface));
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+.plg-doc-card__btn--remove:hover {
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--danger) 36%, transparent);
+  transform: scale(1.06);
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.plg-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 1.25rem;
+  margin-top: 6px;
+  width: fit-content;
+  margin-left: auto;
+  align-self: end;
+}
+
+.plg-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  white-space: nowrap;
+  line-height: 1;
+  background:
+    linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, var(--primary-hover)));
+  box-shadow:
+    0 2px 6px color-mix(in srgb, var(--primary) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.plg-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 10px color-mix(in srgb, var(--primary) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.plg-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.plg-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plg-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-main);
+  white-space: nowrap;
+  line-height: 1;
+  background: color-mix(in srgb, var(--bg-surface) 80%, var(--bg-elevated));
+  transition: all 0.2s ease;
+}
+
+.plg-btn-outline:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-soft) 12%, var(--bg-surface));
+  transform: translateY(-1px);
+}
+
+.plg-btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plg-btn-danger {
+  background: linear-gradient(135deg, var(--danger), color-mix(in srgb, var(--danger) 70%, #b91c1c));
+}
+
+.plg-btn-danger:hover:not(:disabled) {
+  box-shadow:
+    0 3px 10px color-mix(in srgb, var(--danger) 26%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes plg-fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes plg-cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.plg-doc-card {
+  animation: plg-cardFadeIn 0.3s ease-out backwards;
+}
+
+.plg-doc-card:nth-child(1) { animation-delay: 0.05s; }
+.plg-doc-card:nth-child(2) { animation-delay: 0.1s; }
+.plg-doc-card:nth-child(3) { animation-delay: 0.15s; }
+
+/* ── Preview Modal ─────────────────────────────────────── */
+.plg-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 1100;
+  animation: plg-fadeIn 0.2s ease-out;
+}
+
+.plg-preview-modal {
+  width: 90vw;
+  height: 90vh;
+  max-width: 1100px;
+  background: var(--bg-surface);
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  box-shadow: var(--shadow-premium);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.plg-preview-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+}
+
+.plg-preview-modal__name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.plg-preview-modal__close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plg-preview-modal__close:hover {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
+.plg-preview-modal__body {
+  flex: 1;
+  border: none;
+  width: 100%;
+}
+
+@keyframes plg-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Reject Modal ──────────────────────────────────────── */
+.plg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  animation: plg-fadeIn 0.2s ease-out;
+}
+
+.plg-modal {
+  width: 90%;
+  max-width: 420px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--danger) 5%, transparent), transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 80%, var(--bg-surface)), var(--bg-surface));
+  box-shadow: var(--shadow-premium);
+  animation: plg-fadeSlideIn 0.25s ease-out;
+}
+
+.plg-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.plg-modal__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.plg-modal__close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plg-modal__close:hover {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
+.plg-modal__hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.plg-modal__textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 80%, var(--bg-panel));
+  color: var(--text-main);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.plg-modal__textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border-color));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.plg-modal__footer {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .plg-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plg-hero {
+    padding: 14px 14px;
+  }
+
+  .plg-doc-card__inner {
+    flex-wrap: wrap;
+  }
+
+  .plg-doc-card__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

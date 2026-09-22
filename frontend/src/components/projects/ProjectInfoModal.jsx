@@ -3,10 +3,11 @@ import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, L
 import documentService from '../../services/documentService';
 import projectService from '../../services/projectService';
 import configCatalogService from '../../services/configCatalogService';
+import { AutocompleteSelect } from '../common/AutocompleteSelect';
 import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import './ProjectInfoModal.css';
 
-const Section = ({ title, icon: Icon, children, defaultOpen = true }) => {
+const Section = ({ title, icon: Icon, children, defaultOpen = true, onEdit, editing }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="pim-section">
@@ -15,7 +16,14 @@ const Section = ({ title, icon: Icon, children, defaultOpen = true }) => {
           <Icon size={16} />
           <span>{title}</span>
         </div>
-        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        <div className="pim-section-actions">
+          {onEdit && !editing && (
+            <button type="button" className="pim-section-edit-btn" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Editar">
+              <Pencil size={13} />
+            </button>
+          )}
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </div>
       </button>
       {open && <div className="pim-section-body">{children}</div>}
     </div>
@@ -665,6 +673,33 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const [savingFurag, setSavingFurag] = useState(false);
   const [furagEditError, setFuragEditError] = useState('');
 
+  const [editingDatos, setEditingDatos] = useState(false);
+  const [datosDraft, setDatosDraft] = useState({});
+  const [savingDatos, setSavingDatos] = useState(false);
+
+  const [editingPatrocinador, setEditingPatrocinador] = useState(false);
+  const [patrocinadorDraft, setPatrocinadorDraft] = useState({});
+  const [equipoDraft, setEquipoDraft] = useState([]);
+  const [stakeholdersDraft, setStakeholdersDraft] = useState([]);
+  const [savingPatrocinador, setSavingPatrocinador] = useState(false);
+
+  const [editingFases, setEditingFases] = useState(false);
+  const [fasesDraft, setFasesDraft] = useState([]);
+  const [savingFases, setSavingFases] = useState(false);
+
+  const [editingPeti, setEditingPeti] = useState(false);
+  const [petiDraft, setPetiDraft] = useState({});
+  const [savingPeti, setSavingPeti] = useState(false);
+
+  const [dependencias, setDependencias] = useState([]);
+  const [vigenciasPeti, setVigenciasPeti] = useState(['2020-2024', '2024-2027', '2027-2030']);
+  const [estrategiasPeti, setEstrategiasPeti] = useState([
+    { value: 'TECNOLOGIAS_INFORMACION', label: 'Tecnologías de la Información' },
+    { value: 'TRANSFORMACION_DIGITAL', label: 'Transformación Digital' },
+    { value: 'CIUDADES_TERRITORIOS_INTELIGENTES', label: 'Ciudades y Territorios Inteligentes' },
+    { value: 'GOBIERNO_DIGITAL', label: 'Gobierno Digital' },
+  ]);
+
   const proyectoId = project?.codigo || project?.id;
 
   const fetchDocuments = useCallback(async (signal) => {
@@ -720,6 +755,24 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       fetchDocuments(controller.signal);
       fetchFurag();
       fetchFuragLabels();
+
+      configCatalogService.listarValoresParametrica('DEPENDENCIA').then((data) => {
+        if (!controller.signal.aborted && Array.isArray(data)) {
+          setDependencias(data.map((d) => typeof d === 'string' ? d : d.nombre || d.label || d.valor || '').filter(Boolean));
+        }
+      }).catch(() => {});
+
+      configCatalogService.getPetiCatalog().then((res) => {
+        if (!controller.signal.aborted && res) {
+          if (Array.isArray(res.vigencias) && res.vigencias.length > 0) setVigenciasPeti(res.vigencias);
+          if (Array.isArray(res.estrategias) && res.estrategias.length > 0) {
+            setEstrategiasPeti(res.estrategias.map((e) => ({
+              value: e.value || e.codigo || e,
+              label: e.label || e.nombre || e.descripcion || e.value || e,
+            })));
+          }
+        }
+      }).catch(() => {});
     }
     return () => controller.abort();
   }, [open, proyectoId, fetchDocuments, fetchFurag, fetchFuragLabels]);
@@ -792,6 +845,103 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
     }
   };
 
+  const openDatosEdit = () => {
+    setDatosDraft({
+      dependencia: project.dependencia || '',
+      fechaInicio: project.fechaInicio || '',
+      presupuestoEstimado: project.presupuestoEstimado || '',
+      alcanceDetallado: project.alcanceDetallado || '',
+    });
+    setEditingDatos(true);
+  };
+
+  const saveDatos = async () => {
+    try {
+      setSavingDatos(true);
+      await projectService.update(proyectoId, datosDraft);
+      setEditingDatos(false);
+      onDocumentUploaded?.();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
+      alert(detail);
+    } finally {
+      setSavingDatos(false);
+    }
+  };
+
+  const openPatrocinadorEdit = () => {
+    setPatrocinadorDraft({ ...patrocinador });
+    setEquipoDraft(equipoTrabajo.map((m) => ({ ...m })));
+    setStakeholdersDraft(stakeholders.map((s) => ({ ...s })));
+    setEditingPatrocinador(true);
+  };
+
+  const savePatrocinador = async () => {
+    try {
+      setSavingPatrocinador(true);
+      await projectService.update(proyectoId, {
+        patrocinador: patrocinadorDraft,
+        equipoTrabajo: equipoDraft,
+        stakeholders: stakeholdersDraft,
+      });
+      setEditingPatrocinador(false);
+      onDocumentUploaded?.();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
+      alert(detail);
+    } finally {
+      setSavingPatrocinador(false);
+    }
+  };
+
+  const openFasesEdit = () => {
+    setFasesDraft(fases.map((f) => ({
+      ...f,
+      hitos: (f.hitos || []).map((h) => ({
+        ...h,
+        entregables: (h.entregables || []).map((e) => ({ ...e })),
+      })),
+    })));
+    setEditingFases(true);
+  };
+
+  const saveFases = async () => {
+    try {
+      setSavingFases(true);
+      await projectService.update(proyectoId, { fases: fasesDraft });
+      setEditingFases(false);
+      onDocumentUploaded?.();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
+      alert(detail);
+    } finally {
+      setSavingFases(false);
+    }
+  };
+
+  const openPetiEdit = () => {
+    setPetiDraft({
+      peti: project.peti ?? project.esPeti ?? false,
+      vigenciaPeti: project.vigenciaPeti || '',
+      estrategiaPeti: project.estrategiaPeti || '',
+    });
+    setEditingPeti(true);
+  };
+
+  const savePeti = async () => {
+    try {
+      setSavingPeti(true);
+      await projectService.update(proyectoId, petiDraft);
+      setEditingPeti(false);
+      onDocumentUploaded?.();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
+      alert(detail);
+    } finally {
+      setSavingPeti(false);
+    }
+  };
+
   return (
     <div className="pim-overlay" role="presentation" onClick={onClose}>
       <div className="pim-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -807,102 +957,259 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
         </header>
 
         <div className="pim-body">
-          <Section title="Datos generales" icon={ClipboardList}>
-            <div className="pim-grid">
-              <Field label="Dependencia" value={project.dependencia} />
-              <Field label="Fecha de inicio" value={project.fechaInicio} />
-              <Field label="Presupuesto estimado" value={project.presupuestoEstimado != null ? `$${Number(project.presupuestoEstimado).toLocaleString('es-CO')}` : null} />
-              <Field label="Estado" value={project.estado} />
-            </div>
-            <div className="pim-field pim-field-wide">
-              <span className="pim-field-label">Alcance</span>
-              <p className="pim-field-text">{project.alcanceDetallado || 'â€”'}</p>
-            </div>
-            {objetivos.length > 0 && (
-              <div className="pim-field pim-field-wide">
-                <span className="pim-field-label">Objetivos especificos</span>
-                <ul className="pim-list">
-                  {objetivos.map((obj, i) => <li key={i}>{obj}</li>)}
-                </ul>
+          <Section title="Datos generales" icon={ClipboardList} onEdit={openDatosEdit} editing={editingDatos}>
+            {editingDatos ? (
+              <div className="pim-edit-form">
+                <div className="pim-grid">
+                  <div className="pim-edit-field">
+                    <label>Dependencia</label>
+                    <AutocompleteSelect
+                      value={datosDraft.dependencia || ''}
+                      onChange={(val) => setDatosDraft((p) => ({ ...p, dependencia: val }))}
+                      options={dependencias.map((d) => ({ value: d, label: d }))}
+                      placeholder="Seleccione una dependencia"
+                      allLabel=""
+                      allValue=""
+                    />
+                  </div>
+                  <div className="pim-edit-field">
+                    <label>Fecha de inicio</label>
+                    <input type="date" value={datosDraft.fechaInicio} onChange={(e) => setDatosDraft((p) => ({ ...p, fechaInicio: e.target.value }))} />
+                  </div>
+                  <div className="pim-edit-field">
+                    <label>Presupuesto estimado</label>
+                    <input type="text" inputMode="numeric" value={datosDraft.presupuestoEstimado} onChange={(e) => setDatosDraft((p) => ({ ...p, presupuestoEstimado: e.target.value.replace(/[^0-9]/g, '') }))} />
+                  </div>
+                </div>
+                <div className="pim-edit-field pim-edit-field-wide">
+                  <label>Alcance</label>
+                  <textarea rows={4} value={datosDraft.alcanceDetallado} onChange={(e) => setDatosDraft((p) => ({ ...p, alcanceDetallado: e.target.value }))} />
+                </div>
+                <div className="pim-edit-actions">
+                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingDatos(false)} disabled={savingDatos}>Cancelar</button>
+                  <button type="button" className="pim-btn-save" onClick={saveDatos} disabled={savingDatos}>
+                    {savingDatos && <LoaderCircle size={14} className="animate-spin" />}
+                    {savingDatos ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
               </div>
+            ) : (
+              <>
+                <div className="pim-grid">
+                  <Field label="Dependencia" value={project.dependencia} />
+                  <Field label="Fecha de inicio" value={project.fechaInicio} />
+                  <Field label="Presupuesto estimado" value={project.presupuestoEstimado != null ? `$${Number(project.presupuestoEstimado).toLocaleString('es-CO')}` : null} />
+                  <Field label="Estado" value={project.estado} />
+                </div>
+                <div className="pim-field pim-field-wide">
+                  <span className="pim-field-label">Alcance</span>
+                  <p className="pim-field-text">{project.alcanceDetallado || '\u2014'}</p>
+                </div>
+                {objetivos.length > 0 && (
+                  <div className="pim-field pim-field-wide">
+                    <span className="pim-field-label">Objetivos especificos</span>
+                    <ul className="pim-list">
+                      {objetivos.map((obj, i) => <li key={i}>{obj}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
           </Section>
 
-          <Section title="Patrocinador y equipo" icon={Users}>
-            <div className="pim-grid">
-              <Field label="Nombre" value={patrocinador.nombre} />
-              <Field label="Cargo" value={patrocinador.cargo} />
-              <Field label="Proceso SIGC" value={patrocinador.procesoSigc} />
-              <Field label="Procedimiento SIGC" value={patrocinador.procedimientoSigc} />
-            </div>
-            {equipoTrabajo.length > 0 && (
-              <div className="pim-field pim-field-wide">
-                <span className="pim-field-label">Equipo de trabajo</span>
-                <div className="pim-team-list">
-                  {equipoTrabajo.map((m, i) => (
-                    <div key={i} className="pim-team-member">
-                      <strong>{m.nombre}</strong>
-                      <span>{m.cargo}{m.rol ? ` · ${m.rol}` : ''}</span>
-                      {m.dependencia && <span>{m.dependencia}</span>}
-                      {m.correo && <span>{m.correo}</span>}
-                      {m.telefono && <span>{m.telefono}</span>}
-                    </div>
-                  ))}
+          <Section title="Patrocinador y equipo" icon={Users} onEdit={openPatrocinadorEdit} editing={editingPatrocinador}>
+            {editingPatrocinador ? (
+              <div className="pim-edit-form">
+                <h4 className="pim-edit-subtitle">Patrocinador</h4>
+                <div className="pim-grid">
+                  <div className="pim-edit-field">
+                    <label>Nombre</label>
+                    <input type="text" value={patrocinadorDraft.nombre || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, nombre: e.target.value }))} />
+                  </div>
+                  <div className="pim-edit-field">
+                    <label>Cargo</label>
+                    <input type="text" value={patrocinadorDraft.cargo || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, cargo: e.target.value }))} />
+                  </div>
+                </div>
+                <h4 className="pim-edit-subtitle">Equipo de trabajo</h4>
+                {equipoDraft.map((m, i) => (
+                  <div key={i} className="pim-edit-row">
+                    <input type="text" placeholder="Nombre" value={m.nombre || ''} onChange={(e) => { const next = [...equipoDraft]; next[i] = { ...next[i], nombre: e.target.value }; setEquipoDraft(next); }} />
+                    <input type="text" placeholder="Cargo" value={m.cargo || ''} onChange={(e) => { const next = [...equipoDraft]; next[i] = { ...next[i], cargo: e.target.value }; setEquipoDraft(next); }} />
+                    <button type="button" className="pim-edit-remove" onClick={() => setEquipoDraft((prev) => prev.filter((_, j) => j !== i))}>x</button>
+                  </div>
+                ))}
+                <button type="button" className="pim-edit-add" onClick={() => setEquipoDraft((prev) => [...prev, { nombre: '', cargo: '', rol: '' }])}>+ Agregar miembro</button>
+                <div className="pim-edit-actions">
+                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingPatrocinador(false)} disabled={savingPatrocinador}>Cancelar</button>
+                  <button type="button" className="pim-btn-save" onClick={savePatrocinador} disabled={savingPatrocinador}>
+                    {savingPatrocinador && <LoaderCircle size={14} className="animate-spin" />}
+                    {savingPatrocinador ? 'Guardando...' : 'Guardar'}
+                  </button>
                 </div>
               </div>
-            )}
-            {stakeholders.length > 0 && (
-              <div className="pim-field pim-field-wide">
-                <span className="pim-field-label">Grupo de Interes (Stakeholders)</span>
-                <div className="pim-team-list">
-                  {stakeholders.map((s, i) => (
-                    <div key={i} className="pim-team-member">
-                      <strong>{s.rol}</strong>
-                      {s.descripcion && <span>{s.descripcion}</span>}
-                      {s.interes && <span><em>Interes:</em> {s.interes}</span>}
-                      {s.impacto && <span><em>Impacto:</em> {s.impacto}</span>}
-                    </div>
-                  ))}
+            ) : (
+              <>
+                <div className="pim-grid">
+                  <Field label="Nombre" value={patrocinador.nombre} />
+                  <Field label="Cargo" value={patrocinador.cargo} />
+                  <Field label="Proceso SIGC" value={patrocinador.procesoSigc} />
+                  <Field label="Procedimiento SIGC" value={patrocinador.procedimientoSigc} />
                 </div>
-              </div>
+                {equipoTrabajo.length > 0 && (
+                  <div className="pim-field pim-field-wide">
+                    <span className="pim-field-label">Equipo de trabajo</span>
+                    <div className="pim-team-list">
+                      {equipoTrabajo.map((m, i) => (
+                        <div key={i} className="pim-team-member">
+                          <strong>{m.nombre}</strong>
+                          <span>{m.cargo}{m.rol ? ` · ${m.rol}` : ''}</span>
+                          {m.dependencia && <span>{m.dependencia}</span>}
+                          {m.correo && <span>{m.correo}</span>}
+                          {m.telefono && <span>{m.telefono}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {stakeholders.length > 0 && (
+                  <div className="pim-field pim-field-wide">
+                    <span className="pim-field-label">Grupo de Interes (Stakeholders)</span>
+                    <div className="pim-team-list">
+                      {stakeholders.map((s, i) => (
+                        <div key={i} className="pim-team-member">
+                          <strong>{s.rol}</strong>
+                          {s.descripcion && <span>{s.descripcion}</span>}
+                          {s.interes && <span><em>Interes:</em> {s.interes}</span>}
+                          {s.impacto && <span><em>Impacto:</em> {s.impacto}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </Section>
 
-          <Section title="Fases, hitos y entregables" icon={Layers} defaultOpen={false}>
-            {fases.length > 0 ? fases.map((fase, fi) => (
-              <div key={fi} className="pim-phase">
-                <div className="pim-phase-header">
-                  <strong>Fase {fi + 1}: {fase.nombre}</strong>
-                  <span>{fase.ponderacion}%</span>
-                </div>
-                {(fase.hitos || []).map((hito, hi) => (
-                  <div key={hi} className="pim-hito">
-                    <div className="pim-hito-header">
-                      <span>Hito {fi + 1}.{hi + 1}: {hito.nombre}</span>
-                      <span>{hito.ponderacion}%</span>
+          <Section title="Fases, hitos y entregables" icon={Layers} defaultOpen={false} onEdit={openFasesEdit} editing={editingFases}>
+            {editingFases ? (
+              <div className="pim-edit-form">
+                {fasesDraft.map((fase, fi) => (
+                  <div key={fi} className="pim-edit-phase">
+                    <div className="pim-edit-row">
+                      <input type="text" placeholder="Nombre fase" value={fase.nombre || ''} onChange={(e) => { const next = [...fasesDraft]; next[fi] = { ...next[fi], nombre: e.target.value }; setFasesDraft(next); }} />
+                      <input type="text" inputMode="numeric" placeholder="%" value={fase.ponderacion || ''} onChange={(e) => { const next = [...fasesDraft]; next[fi] = { ...next[fi], ponderacion: e.target.value }; setFasesDraft(next); }} style={{ width: '60px' }} />
                     </div>
-                    {(hito.entregables || []).map((ent, ei) => (
-                      <div key={ei} className="pim-entregable">
-                        <span>{ent.nombre}</span>
-                        <span>{ent.ponderacion}% · {ent.fechaLimite || 'Sin fecha'}</span>
+                    {(fase.hitos || []).map((hito, hi) => (
+                      <div key={hi} className="pim-edit-hito">
+                        <div className="pim-edit-row">
+                          <input type="text" placeholder="Nombre hito" value={hito.nombre || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; h[hi] = { ...h[hi], nombre: e.target.value }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} />
+                          <input type="text" inputMode="numeric" placeholder="%" value={hito.ponderacion || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; h[hi] = { ...h[hi], ponderacion: e.target.value }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} style={{ width: '60px' }} />
+                        </div>
+                        {(hito.entregables || []).map((ent, ei) => (
+                          <div key={ei} className="pim-edit-row pim-edit-row-nested">
+                            <input type="text" placeholder="Nombre entregable" value={ent.nombre || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; const ents = [...(h[hi].entregables || [])]; ents[ei] = { ...ents[ei], nombre: e.target.value }; h[hi] = { ...h[hi], entregables: ents }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} />
+                            <input type="text" inputMode="numeric" placeholder="%" value={ent.ponderacion || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; const ents = [...(h[hi].entregables || [])]; ents[ei] = { ...ents[ei], ponderacion: e.target.value }; h[hi] = { ...h[hi], entregables: ents }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} style={{ width: '60px' }} />
+                            <input type="date" value={ent.fechaLimite || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; const ents = [...(h[hi].entregables || [])]; ents[ei] = { ...ents[ei], fechaLimite: e.target.value }; h[hi] = { ...h[hi], entregables: ents }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} />
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
                 ))}
+                <div className="pim-edit-actions">
+                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingFases(false)} disabled={savingFases}>Cancelar</button>
+                  <button type="button" className="pim-btn-save" onClick={saveFases} disabled={savingFases}>
+                    {savingFases && <LoaderCircle size={14} className="animate-spin" />}
+                    {savingFases ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
               </div>
-            )) : <p className="pim-empty">No hay fases configuradas.</p>}
+            ) : (
+              <>
+                {fases.length > 0 ? fases.map((fase, fi) => (
+                  <div key={fi} className="pim-phase">
+                    <div className="pim-phase-header">
+                      <strong>Fase {fi + 1}: {fase.nombre}</strong>
+                      <span>{fase.ponderacion}%</span>
+                    </div>
+                    {(fase.hitos || []).map((hito, hi) => (
+                      <div key={hi} className="pim-hito">
+                        <div className="pim-hito-header">
+                          <span>Hito {fi + 1}.{hi + 1}: {hito.nombre}</span>
+                          <span>{hito.ponderacion}%</span>
+                        </div>
+                        {(hito.entregables || []).map((ent, ei) => (
+                          <div key={ei} className="pim-entregable">
+                            <span>{ent.nombre}</span>
+                            <span>{ent.ponderacion}% · {ent.fechaLimite || 'Sin fecha'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )) : <p className="pim-empty">No hay fases configuradas.</p>}
+              </>
+            )}
           </Section>
 
-          <Section title="PETI" icon={Shield} defaultOpen={false}>
-            <div className="pim-grid">
-              <Field label="Proyecto en PETI" value={project.esPeti || project.peti ? 'Si' : 'No'} />
-              {(project.esPeti || project.peti) && (
-                <>
-                  <Field label="Vigencia" value={project.vigenciaPeti} />
-                  <Field label="Estrategia" value={project.estrategiaPeti} />
-                </>
-              )}
-            </div>
+          <Section title="PETI" icon={Shield} defaultOpen={false} onEdit={openPetiEdit} editing={editingPeti}>
+            {editingPeti ? (
+              <div className="pim-edit-form">
+                <div className="pim-grid">
+                  <div className="pim-edit-field">
+                    <label>Proyecto en PETI</label>
+                    <select value={petiDraft.peti ? 'si' : 'no'} onChange={(e) => setPetiDraft((p) => ({ ...p, peti: e.target.value === 'si' }))}>
+                      <option value="si">Si</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+                  {petiDraft.peti && (
+                    <>
+                      <div className="pim-edit-field">
+                        <label>Vigencia</label>
+                        <AutocompleteSelect
+                          value={petiDraft.vigenciaPeti || ''}
+                          onChange={(val) => setPetiDraft((p) => ({ ...p, vigenciaPeti: val }))}
+                          options={vigenciasPeti.map((v) => ({ value: v, label: v }))}
+                          placeholder="Seleccione la vigencia"
+                          allLabel=""
+                          allValue=""
+                        />
+                      </div>
+                      <div className="pim-edit-field">
+                        <label>Estrategia</label>
+                        <AutocompleteSelect
+                          value={petiDraft.estrategiaPeti || ''}
+                          onChange={(val) => setPetiDraft((p) => ({ ...p, estrategiaPeti: val }))}
+                          options={estrategiasPeti}
+                          placeholder="Seleccione la estrategia"
+                          allLabel=""
+                          allValue=""
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="pim-edit-actions">
+                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingPeti(false)} disabled={savingPeti}>Cancelar</button>
+                  <button type="button" className="pim-btn-save" onClick={savePeti} disabled={savingPeti}>
+                    {savingPeti && <LoaderCircle size={14} className="animate-spin" />}
+                    {savingPeti ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="pim-grid">
+                <Field label="Proyecto en PETI" value={project.esPeti || project.peti ? 'Si' : 'No'} />
+                {(project.esPeti || project.peti) && (
+                  <>
+                    <Field label="Vigencia" value={project.vigenciaPeti} />
+                    <Field label="Estrategia" value={project.estrategiaPeti} />
+                  </>
+                )}
+              </div>
+            )}
           </Section>
 
           <Section title="FURAG" icon={Target} defaultOpen={false}>

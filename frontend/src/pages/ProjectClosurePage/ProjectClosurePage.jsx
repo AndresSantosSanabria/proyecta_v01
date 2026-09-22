@@ -488,12 +488,13 @@ const ProjectClosurePage = () => {
 
   const isRechazado = cierreEstado === 'RECHAZADO';
   const isAprobado = cierreEstado === 'APROBADO';
-  const isDisabled = summaryData.estado === 'CERRADO' || cierreSolicitado || isAprobado || submitting;
+  const isClosed = summaryData.estado === 'CERRADO' || summaryData.estado === 'CERRADO_FORZOSO';
+  const isDisabled = isClosed || cierreSolicitado || isAprobado || submitting;
   const isDirector = hasRole('DIRECTOR_PROYECTO');
-  const canRequestClosure = isDirector && usePermission('CIERRE:SOLICITAR') && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && !cierreSolicitado;
-  const canReviewClosure = usePermission('CIERRE:APROBAR') && cierreSolicitado && cierreEstado === 'PENDIENTE' && summaryData.estado !== 'CERRADO';
-  const canExtraordinaryClosure = usePermission('CIERRE:EXTRAORDINARIO') && summaryData.estado !== 'CERRADO' && summaryData.estado !== 'FINALIZADO';
-  const canDownloadActa = isAprobado || summaryData.estado === 'CERRADO';
+  const canRequestClosure = isDirector && usePermission('CIERRE:SOLICITAR') && summaryData.puedeCerrar && !isClosed && !cierreSolicitado;
+  const canReviewClosure = usePermission('CIERRE:APROBAR') && cierreSolicitado && cierreEstado === 'PENDIENTE' && !isClosed;
+  const canExtraordinaryClosure = usePermission('CIERRE:EXTRAORDINARIO') && !isClosed && summaryData.estado !== 'FINALIZADO';
+  const canDownloadActa = isAprobado || isClosed;
   const missingQuestionIds = new Set((missingQuestions || []).map((q) => q.id));
 
   const isEditableClosureField = (campo) => {
@@ -598,7 +599,7 @@ const ProjectClosurePage = () => {
           <h1>Cierre del Proyecto</h1>
           <p className="subtitle">{summaryData.id} - {summaryData.nombre || 'Proyecto'}</p>
         </div>
-        {summaryData.estado !== 'CERRADO' && (
+        {!isClosed && (
           <div className="closure-header-actions">
             <button type="button" className="btn-secondary-closure" onClick={handleSaveDraft} disabled={savingDraft || isDisabled}>
               {savingDraft ? 'Guardando...' : 'Guardar borrador'}
@@ -630,7 +631,7 @@ const ProjectClosurePage = () => {
         </div>
       )}
 
-      {!summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
+      {!summaryData.puedeCerrar && !isClosed && (
         <div className="validation-warning-banner" id="warning-closure-banner">
           <AlertTriangle className="warning-icon" size={22} />
           <div className="banner-content">
@@ -806,7 +807,7 @@ const ProjectClosurePage = () => {
             </div>
           )}
 
-          {summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && cierreSolicitado && !canReviewClosure && !isAprobado && (
+          {summaryData.puedeCerrar && !isClosed && cierreSolicitado && !canReviewClosure && !isAprobado && (
             <div className="form-actions">
               <div className="closure-ready-note">
                 <Clock size={18} />
@@ -841,7 +842,7 @@ const ProjectClosurePage = () => {
             </div>
           )}
 
-          {!cierreSolicitado && !canRequestClosure && !isRechazado && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
+          {!cierreSolicitado && !canRequestClosure && !isRechazado && summaryData.puedeCerrar && !isClosed && (
             <div className="form-actions">
               <div className="closure-pending-note">
                 <Clock size={18} />
@@ -869,7 +870,7 @@ const ProjectClosurePage = () => {
             </div>
           )}
 
-          {isAprobado && summaryData.puedeCerrar && summaryData.estado !== 'CERRADO' && (
+          {isAprobado && summaryData.puedeCerrar && !isClosed && (
             <div className="form-actions">
               <div className="closure-ready-note">
                 <CheckCircle2 size={18} />
@@ -881,7 +882,7 @@ const ProjectClosurePage = () => {
             </div>
           )}
 
-          {summaryData.estado === 'CERRADO' && !successMsg && (
+      {isClosed && !successMsg && (
             <div className="form-actions">
               <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa}>
                 <Download size={16} style={{ marginRight: '8px' }} />
@@ -1005,7 +1006,7 @@ const ProjectClosurePage = () => {
               </button>
             </div>
             <h3>Cierre Extraordinario del Proyecto</h3>
-            <p>Esta acción cerrará el proyecto <strong>saltándose las validaciones normales</strong> de cierre. Se generará el acta de cierre y el proyecto pasará a estado <strong>CERRADO</strong>.</p>
+            <p>Esta acción cerrará el proyecto <strong>saltándose las validaciones normales</strong> de cierre. Se generará el acta de cierre y el proyecto pasará a estado <strong>CERRADO FORZOSO</strong>.</p>
             <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--text-muted)', background: 'rgba(239,68,68,0.06)', padding: '0.75rem', borderRadius: '8px', borderLeft: '3px solid var(--danger)' }}>
               <strong>Nota:</strong> Este tipo de cierre solo está disponible para roles con permisos especiales (Administrador o Gestor de Proyectos). Use esta opción solo cuando el proyecto esté atascado y no pueda cerrarse por el flujo normal.
             </p>

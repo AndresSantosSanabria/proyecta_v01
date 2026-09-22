@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import SidebarLayout from './components/layout/SidebarLayout/SidebarLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
@@ -7,6 +7,8 @@ import AdminRoute from './components/ProtectedRoute/AdminRoute';
 import AnalyticsRoute from './components/ProtectedRoute/AnalyticsRoute';
 import ProjectAccessRoute from './components/ProtectedRoute/ProjectAccessRoute';
 import ProjectLifecycleGuard from './components/projects/ProjectLifecycleGuard';
+import AdvanceReportLoginModal from './components/common/AdvanceReportLoginModal/AdvanceReportLoginModal';
+import advanceReportService from './services/advanceReportService';
 import { useAuthContext } from './context/AuthContext';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage/ProjectsPage';
@@ -102,12 +104,50 @@ const DefaultEntryRoute = () => {
 };
 
 /**
+ * AdvanceReportLoginCheck
+ * Shows the advance report pending modal once per login session
+ * after backend identity is fully loaded.
+ */
+const AdvanceReportLoginCheck = () => {
+  const { backendLoading, isAuthenticated, hasRole } = useAuthContext();
+  const [showModal, setShowModal] = useState(false);
+  const shownRef = useRef(false);
+
+  useEffect(() => {
+    if (shownRef.current || backendLoading || !isAuthenticated || !hasRole('DIRECTOR_PROYECTO')) return;
+    shownRef.current = true;
+    let cancelled = false;
+    let timer;
+    const run = async () => {
+      try {
+        const settings = await advanceReportService.getSettings();
+        const delay = parseInt(settings?.login_modal_delay_ms, 10) || 1200;
+        timer = setTimeout(() => { if (!cancelled) setShowModal(true); }, delay);
+      } catch {
+        timer = setTimeout(() => { if (!cancelled) setShowModal(true); }, 1200);
+      }
+    };
+    run();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [backendLoading, isAuthenticated, hasRole]);
+
+  return (
+    <AdvanceReportLoginModal
+      isOpen={showModal}
+      onClose={() => setShowModal(false)}
+    />
+  );
+};
+
+/**
  * App Component
  * Define el sistema de rutas de la aplicacion utilizando SidebarLayout como base.
  */
 function App() {
   return (
-    <Routes>
+    <>
+      <AdvanceReportLoginCheck />
+      <Routes>
       <Route path="/callback" element={<CallbackPage />} />
 
       <Route element={<ProtectedRoute />}>
@@ -153,7 +193,8 @@ function App() {
       </Route>
 
       <Route path="*" element={<div className="container"><h1>404 - Pagina no encontrada</h1></div>} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 
