@@ -44,7 +44,6 @@ const NewProjectPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [spellingErrors, setSpellingErrors] = useState(0);
 
   const selectedDirector = useMemo(
     () => directorOptions.find((director) => String(getDirectorId(director)) === String(formData.directorUsuarioId)) || null,
@@ -344,7 +343,6 @@ const NewProjectPage = () => {
                     className={`form-input ${errors.nombre ? 'input-error' : ''}`}
                     value={formData.nombre}
                     onChange={(event) => updateField('nombre', event.target.value)}
-                    onErrorChange={(hasError) => setSpellingErrors(prev => hasError ? prev + 1 : Math.max(0, prev - 1))}
                     placeholder="Ej: Modernizacion del Data Center"
                   />
                   {errors.nombre && <span className="error-text">{errors.nombre}</span>}
@@ -392,7 +390,6 @@ const NewProjectPage = () => {
                   className={`form-input form-textarea ${errors.objetivoGeneral ? 'input-error' : ''}`}
                   value={formData.objetivoGeneral}
                   onChange={(event) => updateField('objetivoGeneral', event.target.value)}
-                  onErrorChange={(hasError) => setSpellingErrors(prev => hasError ? prev + 1 : Math.max(0, prev - 1))}
                   placeholder="Describa el objetivo principal del proyecto..."
                   rows={5}
                 />

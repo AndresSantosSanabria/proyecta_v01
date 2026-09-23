@@ -108,13 +108,11 @@ const RiesgosPage = () => {
   const [solutionModalOpen, setSolutionModalOpen] = useState(false);
   const [solutionRisk, setSolutionRisk] = useState(null);
   const [solutionError, setSolutionError] = useState(null);
-  const [solutionMitigacion, setSolutionMitigacion] = useState('');
   const [previewSolution, setPreviewSolution] = useState(null);
   const [tratamientoTab, setTratamientoTab] = useState('history');
   const [tratamientos, setTratamientos] = useState([]);
   const [loadingTratamientos, setLoadingTratamientos] = useState(false);
   const [matrixHelpOpen, setMatrixHelpOpen] = useState(false);
-  const [openSelect, setOpenSelect] = useState(null);
   const [evidencias, setEvidencias] = useState([]);
   const [exportingExcel, setExportingExcel] = useState(false);
 
@@ -122,7 +120,6 @@ const RiesgosPage = () => {
     setModalOpen(false);
     setEditingId(null);
     setForm(emptyForm);
-    setOpenSelect(null);
     setEvidencias([]);
   };
 
@@ -159,10 +156,6 @@ const RiesgosPage = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [matrixHelpOpen, modalOpen, solutionModalOpen]);
-
-  const toggleSelect = (name) => {
-    setOpenSelect((current) => (current === name ? null : name));
-  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -279,7 +272,6 @@ const RiesgosPage = () => {
   const openSolutionModal = async (risk) => {
     if (!canEdit || !risk) return;
     setSolutionRisk(risk);
-    setSolutionMitigacion(risk.accionesMitigacion || '');
     setSolutionError(null);
     setTratamientoTab('history');
     setSolutionModalOpen(true);

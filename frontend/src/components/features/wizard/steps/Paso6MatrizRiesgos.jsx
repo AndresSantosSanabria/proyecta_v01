@@ -36,11 +36,6 @@ const LEVEL_COLORS = {
   EXTREMO: { bg: '#fecaca', color: '#991b1b' },
 };
 
-const TIPOS_RIESGO = [
-  { value: 'GENERAL', label: 'Riesgo General' },
-  { value: 'SEGURIDAD', label: 'Riesgos de seguridad de la información' },
-];
-
 const emptyRiesgo = (tipo = 'GENERAL') => ({
   descripcion: '',
   probabilidad: 'TRES',

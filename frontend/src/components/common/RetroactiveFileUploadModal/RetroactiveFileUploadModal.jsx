@@ -5,7 +5,7 @@ import './RetroactiveFileUploadModal.css';
 const MAX_SIZE_MB = 20;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
-const RetroactiveFileUploadModal = ({ open, entregableNombre, currentFile, onConfirm, onClose }) => {
+const RetroactiveFileUploadModal = ({ open, entregableNombre, onConfirm, onClose }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef(null);

@@ -7,7 +7,7 @@ import apiClient from '../../api/axiosConfig';
 import projectService from '../../services/projectService';
 import documentService from '../../services/documentService';
 import riskService from '../../services/riskService';
-import { formatDate, formatDateTime } from '../../utils/locale';
+import { formatDate } from '../../utils/locale';
 import './EvidenciaDetailModal.css';
 
 const normalizeEvidencePath = (url) => {
@@ -23,14 +23,6 @@ const getEvidenceBlob = async (url) => {
   if (!path) throw new Error('No se encontro la URL del archivo.');
   const response = await apiClient.get(path, { responseType: 'blob', headers: { Accept: 'application/pdf' } });
   return response.data;
-};
-
-const isPdfBlob = async (blob) => {
-  if (!(blob instanceof Blob) || blob.size === 0) return false;
-  try {
-    const sig = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
-    return new TextDecoder('ascii').decode(sig).startsWith('%PDF-');
-  } catch { return false; }
 };
 
 const estadoColors = {

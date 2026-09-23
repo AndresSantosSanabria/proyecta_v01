@@ -32,13 +32,6 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
   const { user, roles, primaryRole, backendProfile, formatRoleLabel, logout, assignedProjects, isVisualizador } = useAuthContext();
-  const canViewDashboard = usePermission('DASHBOARD:VER');
-  const canViewProjects = usePermission('PROYECTO:VER')
-    || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
-  const canCloseProject = usePermission('PROYECTO:CERRAR');
-  const canViewReports = usePermission('REPORTE:VER');
-  const canViewAnalytics = usePermission('ANALITICA:VER');
-  const canConfigure = usePermission('CONFIGURACION:VER') || usePermission('SISTEMA:CONFIGURAR');
   const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
 
   const sidebarDashboard = usePermission('SIDEBAR:DASHBOARD');

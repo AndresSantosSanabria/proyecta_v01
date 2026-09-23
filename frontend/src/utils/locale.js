@@ -32,9 +32,3 @@ export const formatDateTime = (value, options = {}) => {
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(APP_LOCALE, { ...dateTimeFormatOptions, ...options }).format(date);
 };
-
-export const formatNumber = (value, options = {}) => {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return '';
-  return new Intl.NumberFormat(APP_LOCALE, options).format(number);
-};

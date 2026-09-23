@@ -43,7 +43,6 @@ const ClosureTemplatePanel = () => {
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState({ codigo_proceso: 'A-GT-FR-004', nombre_documento: 'Acta de Cierre de Proyecto', version_num: 1 });
   const [blocks, setBlocks] = useState([]);
-  const [expandedBlock, setExpandedBlock] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -126,12 +125,10 @@ const ClosureTemplatePanel = () => {
     const block = createComponent(type);
     if (!block) return;
     setBlocks((prev) => [...prev, block]);
-    setExpandedBlock(block.id);
   };
 
   const removeBlock = (idx) => {
     setBlocks((prev) => prev.filter((_, i) => i !== idx));
-    setExpandedBlock(null);
   };
 
   const updateBlock = (idx, updates) => {

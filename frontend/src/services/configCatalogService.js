@@ -20,21 +20,6 @@ const configCatalogService = {
     return unwrap(response);
   },
 
-  guardarParametrica: async (payload) => {
-    const response = await apiClient.post('/configuracion/listas', payload);
-    return unwrap(response);
-  },
-
-  eliminarParametrica: async (id) => {
-    const response = await apiClient.delete(`/configuracion/listas/${encodeURIComponent(id)}`);
-    return unwrap(response);
-  },
-
-  toggleParametrica: async (id) => {
-    const response = await apiClient.patch(`/configuracion/listas/${encodeURIComponent(id)}/toggle`);
-    return unwrap(response);
-  },
-
   guardarValoresLista: async (listaClave, payload) => {
     const response = await apiClient.put(`/configuracion/listas/${encodeURIComponent(listaClave)}/valores`, payload);
     return unwrap(response);

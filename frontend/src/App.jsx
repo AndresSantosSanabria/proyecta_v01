@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import SidebarLayout from './components/layout/SidebarLayout/SidebarLayout';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
@@ -23,7 +23,6 @@ import EvidenciasProyectoPage from './pages/EvidenciasProyectoPage/EvidenciasPro
 import CallbackPage from './pages/CallbackPage/CallbackPage';
 import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
 import { hasProjectScopePermission, hasAdminScopePermission } from './utils/permissions';
-import { startLoginRedirect } from './utils/auth';
 import './App.css';
 
 const LoadingRedirectState = ({ title, subtitle }) => (
@@ -51,7 +50,6 @@ const DefaultEntryRoute = () => {
     backendLoading,
     permissions,
   } = useAuthContext();
-  const loginTriggeredRef = useRef(false);
 
   const canViewDashboard = isAdminLocal
     || transversal
@@ -64,12 +62,6 @@ const DefaultEntryRoute = () => {
   const canViewReports = hasPermission('REPORTE:VER');
   const canViewAnalytics = hasPermission('ANALITICA:VER');
   const canViewAdmin = hasAdminScopePermission(permissions);
-  const isRestricted = !backendLoading
-    && !canViewDashboard
-    && !canViewProjects
-    && !canViewReports
-    && !canViewAnalytics
-    && !canViewAdmin;
 
   if (backendLoading) {
     return <LoadingRedirectState title="Cargando perfil de usuario..." />;

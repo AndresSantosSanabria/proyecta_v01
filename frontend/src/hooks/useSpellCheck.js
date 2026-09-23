@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 // Singleton: un solo worker compartido por toda la app
 let sharedWorker = null;
@@ -76,7 +76,7 @@ export const useSpellCheck = () => {
       return;
     }
 
-    const worker = getWorker();
+    getWorker();
 
     const onReady = (success) => setIsLoaded(success);
     pendingCallbacks.set('__init__', onReady);

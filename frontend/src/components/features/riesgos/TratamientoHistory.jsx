@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Download, Eye, FileText, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Eye, FileText } from 'lucide-react';
 import riskService from '../../../services/riskService';
 
 const formatBytes = (bytes) => {

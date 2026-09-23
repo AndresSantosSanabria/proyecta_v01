@@ -19,14 +19,11 @@ export default function SpellCheckerInput({
     loading,
     errors,
     checkDebounced,
-    suggest,
-    addToUserDict,
   } = useSpellChecker({ enabled: spellCheck });
 
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const highlightRef = useRef(null);
-  const [contextMenu, setContextMenu] = useState(null);
   const [hlStyle, setHlStyle] = useState({});
 
   useEffect(() => {
@@ -63,44 +60,6 @@ export default function SpellCheckerInput({
       return () => inp.removeEventListener('scroll', syncScroll);
     }
   }, [syncScroll]);
-
-  const handleContextMenu = useCallback((e) => {
-    if (disabled || readOnly || !ready) return;
-
-    const sel = window.getSelection();
-    const selectedText = sel?.toString() || '';
-
-    if (selectedText && errors.has(selectedText.toLowerCase())) {
-      e.preventDefault();
-      const suggestions = suggest(selectedText);
-      setContextMenu({
-        x: e.clientX,
-        y: e.clientY,
-        word: selectedText,
-        suggestions: suggestions.slice(0, 6),
-      });
-    } else {
-      setContextMenu(null);
-    }
-  }, [disabled, readOnly, ready, errors, suggest]);
-
-  useEffect(() => {
-    const close = () => setContextMenu(null);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, []);
-
-  const handleReplaceWord = useCallback((original, replacement) => {
-    if (!onChange) return;
-    const newValue = value.replace(original, replacement);
-    onChange({ target: { value: newValue } });
-    setContextMenu(null);
-  }, [value, onChange]);
-
-  const handleAddToDict = useCallback((word) => {
-    addToUserDict(word);
-    setContextMenu(null);
-  }, [addToUserDict]);
 
   const buildHighlightedHTML = useCallback(() => {
     if (!ready || errors.size === 0 || !value) {
@@ -144,37 +103,6 @@ export default function SpellCheckerInput({
         {...rest}
       />
       {loading && <span className="spell-loading-badge spell-loading-badge-input">...</span>}
-
-      {contextMenu && (
-        <div
-          className="spell-context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {contextMenu.suggestions.length > 0 ? (
-            contextMenu.suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="spell-suggestion"
-                onClick={() => handleReplaceWord(contextMenu.word, s)}
-              >
-                {s}
-              </button>
-            ))
-          ) : (
-            <span className="spell-no-suggestions">Sin sugerencias</span>
-          )}
-          <div className="spell-menu-divider" />
-          <button
-            type="button"
-            className="spell-add-dict"
-            onClick={() => handleAddToDict(contextMenu.word)}
-          >
-            Agregar al diccionario
-          </button>
-        </div>
-      )}
     </div>
   );
 }

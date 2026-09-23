@@ -49,7 +49,11 @@ export async function startLoginRedirect(returnUrl) {
 
   loginRedirectPromise = (async () => {
     await clearOidcStaleState();
-    return auth.signinRedirect({ state: returnUrl || window.location.pathname });
+    let next = returnUrl || window.location.pathname || '/';
+    if (next === '/callback' || next.startsWith('/callback?')) {
+      next = '/';
+    }
+    return auth.signinRedirect({ state: next });
   })();
 
   try {

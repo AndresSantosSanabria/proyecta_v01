@@ -119,7 +119,6 @@ const ProjectProgressPage = () => {
   const canApproveBenefits = usePermission('BENEFICIO_IMPACTO:APROBAR');
   const canViewBenefits = usePermission('BENEFICIO_IMPACTO:VER');
   const hasBenefitData = benefitImpactData && ['DILIGENCIADO', 'OBSERVADO', 'RECHAZADO', 'APROBADO'].includes(benefitImpactData.estado);
-  const canReview = canApproveBenefits && hasBenefitData;
   const canViewBenefitModal = hasBenefitData && (canApproveBenefits || canViewBenefits);
   const canNotifyDirector = usePermission('PROYECTO:VER') && !hasRole('DIRECTOR_PROYECTO');
   const canDownloadCurrentReport = usePermission('REPORTE:DESCARGAR_ACTUAL');

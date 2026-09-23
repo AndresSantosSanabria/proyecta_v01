@@ -66,8 +66,6 @@ const HierarchySidebar = ({
     });
   };
 
-  const sumaFases = sumPonderacion(fases);
-
   if (!isOpen) {
     return (
       <button
@@ -109,7 +107,6 @@ const HierarchySidebar = ({
         {fases.map((fase, fIdx) => {
           const isExpanded = expandedFases.has(fIdx);
           const hitos = fase.hitos || [];
-          const sumaHitos = sumPonderacion(hitos);
 
           return (
             <div key={fIdx} className="hs-sidebar__node hs-sidebar__node--fase">
@@ -141,7 +138,6 @@ const HierarchySidebar = ({
                     const hKey = `${fIdx}-${hIdx}`;
                     const isHitoExpanded = expandedHitos.has(hKey);
                     const entregables = hito.entregables || [];
-                    const sumaEntregables = sumPonderacion(entregables);
 
                     return (
                       <div key={hIdx} className="hs-sidebar__node hs-sidebar__node--hito">

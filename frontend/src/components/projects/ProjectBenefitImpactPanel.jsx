@@ -1,20 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  AlertTriangle,
-  CheckCircle2,
-  Edit3,
-  FileText,
-  Lock,
   Save,
   ShieldAlert,
   X,
-  ChevronDown,
-  ChevronUp,
-  ThumbsUp,
-  ThumbsDown,
 } from 'lucide-react';
 import projectService from '../../services/projectService';
-import securityService from '../../services/securityService';
 import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
 import './ProjectBenefitImpactPanel.css';
 
@@ -40,56 +30,6 @@ const toFormState = (payload) => ({
   observaciones: payload?.observaciones ?? '',
 });
 
-const Field = ({ label, value, wide = false }) => (
-  <article className={`benefit-impact-field${wide ? ' wide' : ''}`}>
-    <span>{label}</span>
-    <strong>{value || 'No registrado'}</strong>
-  </article>
-);
-
-const AccordionField = ({ label, value }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <article
-      className="benefit-impact-field wide"
-      style={{ border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.75rem' }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          textAlign: 'left',
-          fontWeight: '600',
-        }}
-      >
-        <span>{label}</span>
-        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </button>
-      {open && (
-        <div style={{
-          marginTop: '0.75rem',
-          fontWeight: 'normal',
-          color: '#475569',
-          lineHeight: '1.5',
-          wordWrap: 'break-word',
-          overflowWrap: 'break-word',
-          whiteSpace: 'pre-wrap'
-        }}>
-          {value || 'No registrado'}
-        </div>
-      )}
-    </article>
-  );
-};
-
 const TextareaField = ({ label, name, value, onChange, placeholder, disabled = false, required = false }) => (
   <label className="benefit-impact-form-group">
     <span className="benefit-impact-label">
@@ -111,20 +51,14 @@ const TextareaField = ({ label, name, value, onChange, placeholder, disabled = f
 const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, onSaved, isGestor = false }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [success, setSuccess] = useState('');
   const [forbidden, setForbidden] = useState(false);
-  const [showRejectInput, setShowRejectInput] = useState(false);
-  const [observacion, setObservacion] = useState('');
-  const [rejectError, setRejectError] = useState('');
 
   const isEditable = Boolean(data?.editable) && !isGestor;
   const isRequired = Boolean(data?.requerido && data?.editable) && !isGestor;
-  const visibleForAudit = Boolean(data?.visibleParaGestor);
   const showEditor = Boolean(editorOpen && isEditable);
 
   useEffect(() => {
@@ -184,54 +118,6 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
     };
   }, [proyectoId, refreshToken, isGestor]);
 
-  const statusMeta = useMemo(() => {
-    if (forbidden) {
-      return {
-        tone: 'warning',
-        title: 'Aún no disponible para consulta',
-        detail: 'El registro de beneficio e impacto se publica cuando el Director lo diligencia.',
-      };
-    }
-
-    if (!data) {
-      return {
-        tone: 'neutral',
-        title: 'Sin requerimiento activo',
-        detail: 'El proyecto aún no alcanza el hito que obliga a diligenciar la información de impacto.',
-      };
-    }
-
-    if (data.estado === 'DILIGENCIADO') {
-      return {
-        tone: 'success',
-        title: 'Diligenciado',
-        detail: 'La información ya está disponible para revisión y auditoría.',
-      };
-    }
-
-    if (data.estado === 'OBSERVADO') {
-      return {
-        tone: 'danger',
-        title: 'Observado',
-        detail: 'El Gestor rechazó la información y el Director debe corregirla.',
-      };
-    }
-
-    if (data.estado === 'APROBADO') {
-      return {
-        tone: 'success',
-        title: 'Verificado',
-        detail: 'La información de beneficio e impacto ha sido auditada y verificada.',
-      };
-    }
-
-    return {
-      tone: 'warning',
-      title: 'Pendiente de diligenciar',
-      detail: 'El Director debe completar este formulario para habilitar el cierre formal del proyecto.',
-    };
-  }, [data, forbidden]);
-
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
@@ -244,7 +130,6 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
     try {
       setSaving(true);
       setError('');
-      setSuccess('');
 
       const response = await projectService.saveBenefitImpact(proyectoId, form);
       const saved = unwrap(response);
@@ -252,12 +137,6 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       setForm(toFormState(saved));
       setEditorOpen(false);
       const nextState = String(saved?.estado || 'DILIGENCIADO').toUpperCase();
-      const eventType = nextState === 'OBSERVADO'
-        ? 'BENEFICIO_IMPACTO_REENVIADO'
-        : nextState === 'APROBADO'
-          ? 'BENEFICIO_IMPACTO_APROBADO'
-          : 'BENEFICIO_IMPACTO_DILIGENCIADO';
-      setSuccess('La información de beneficio e impacto quedó guardada y lista para revisión.');
       emitGlobalToast({
         tone: 'success',
         title: 'Beneficio e impacto guardado',
@@ -269,20 +148,6 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
               : 'El registro fue diligenciado y se notificó al equipo.',
       });
       refreshNotifications();
-      void securityService.notifyProjectBenefitImpactEvent(proyectoId, {
-        proyectoId,
-        proyectoNombre: projectName || '',
-        evento: eventType,
-        estado: nextState,
-        mensaje:
-          nextState === 'APROBADO'
-            ? 'El beneficio e impacto fue verificado.'
-            : nextState === 'OBSERVADO'
-              ? 'El beneficio e impacto fue corregido y reenviado.'
-              : 'El beneficio e impacto fue diligenciado por el Director.',
-      }).catch((notifyError) => {
-        console.warn('No fue posible notificar a los involucrados del proyecto:', notifyError);
-      });
       if (onSaved) onSaved(saved);
     } catch (saveError) {
       const message =
@@ -293,62 +158,6 @@ const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, 
       setError(message);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleReview = async (aprobado) => {
-    if (!proyectoId || reviewing) return;
-    if (!aprobado && !observacion.trim()) {
-      setRejectError('Debe ingresar el motivo del rechazo para continuar.');
-      return;
-    }
-
-    try {
-      setReviewing(true);
-      setError('');
-      setSuccess('');
-      setRejectError('');
-      const response = await projectService.reviewBenefitImpact(proyectoId, aprobado, observacion);
-      const saved = unwrap(response);
-      setData(saved);
-      setForm(toFormState(saved));
-      setShowRejectInput(false);
-      setObservacion('');
-      setRejectError('');
-      if (!aprobado) {
-        setEditorOpen(Boolean(saved?.editable && !isGestor));
-      }
-      setSuccess(aprobado ? 'Información verificada exitosamente.' : 'Información observada. El Director debe corregirla y reenviarla.');
-      emitGlobalToast({
-        tone: aprobado ? 'success' : 'warning',
-        title: aprobado ? 'Beneficio e impacto verificado' : 'Beneficio e impacto observado',
-        message: aprobado
-          ? 'Se notificó la verificación al equipo del proyecto.'
-          : 'Se notificó la observación para que el Director corrija y reenvíe.',
-      });
-      refreshNotifications();
-      void securityService.notifyProjectBenefitImpactEvent(proyectoId, {
-        proyectoId,
-        proyectoNombre: projectName || '',
-        evento: aprobado ? 'BENEFICIO_IMPACTO_APROBADO' : 'BENEFICIO_IMPACTO_OBSERVADO',
-        estado: aprobado ? 'APROBADO' : 'OBSERVADO',
-        mensaje: aprobado
-          ? 'El beneficio e impacto fue verificado por el Gestor.'
-          : 'El beneficio e impacto fue observado por el Gestor y requiere correccion.',
-        observacion: aprobado ? '' : observacion.trim(),
-      }).catch((notifyError) => {
-        console.warn('No fue posible notificar la revision del beneficio e impacto:', notifyError);
-      });
-      if (onSaved) onSaved(saved);
-    } catch (reviewError) {
-      const message =
-        reviewError?.response?.data?.detail ||
-        reviewError?.response?.data?.message ||
-        reviewError?.message ||
-        'No fue posible registrar la revision.';
-      setError(message);
-    } finally {
-      setReviewing(false);
     }
   };
 

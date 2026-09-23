@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Save, X } from 'lucide-react';
 import { usePermission } from '../../hooks/usePermission';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
@@ -76,18 +76,6 @@ const getFuragValue = (furagState, key) => {
   });
 
   return entry ? entry[1] : null;
-};
-
-const toDateOnly = (value) => {
-  if (!value) return null;
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const isBeforeDate = (value, minValue) => {
-  const date = toDateOnly(value);
-  const minDate = toDateOnly(minValue);
-  return Boolean(date && minDate && date < minDate);
 };
 
 const getStorageKey = (project) => {
@@ -242,7 +230,6 @@ const ProjectOnboardingWizard = ({
   saving = false,
   error = '',
   onComplete,
-  completionDraft = null,
 }) => {
   const canEditFechaRegistro = usePermission('PROYECTO:EDITAR_FECHA_REGISTRO');
   const [savedState] = useState(() => loadSavedState(project));
@@ -253,11 +240,9 @@ const ProjectOnboardingWizard = ({
   const [petiCatalogLoading, setPetiCatalogLoading] = useState(false);
   const [dependencias, setDependencias] = useState([]);
   const [entregableFiles, setEntregableFiles] = useState({});
-  const [spellingErrors, setSpellingErrors] = useState(0);
-  
+
   // Backend draft states
   const [fasesCompletadas, setFasesCompletadas] = useState({});
-  const [loadingDraft, setLoadingDraft] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const isInitializedRef = useRef(false);
@@ -283,8 +268,7 @@ const ProjectOnboardingWizard = ({
     let active = true;
     const loadBackendDraft = async () => {
       if (!project?.id) return;
-      
-      setLoadingDraft(true);
+
       try {
         const response = await projectService.getCompletionDraft(project.id);
         const draft = response?.data?.data ?? response?.data ?? response;
@@ -345,8 +329,6 @@ const ProjectOnboardingWizard = ({
         console.error('Error cargando borrador del backend:', err);
         // Fallback to localStorage state
         isInitializedRef.current = true;
-      } finally {
-        if (active) setLoadingDraft(false);
       }
     };
     
@@ -846,7 +828,6 @@ const ProjectOnboardingWizard = ({
               className={`form-input form-textarea ${errors.alcanceDetallado ? 'input-error' : ''}`}
               value={form.alcanceDetallado || ''}
               onChange={(event) => handleChange({ alcanceDetallado: event.target.value })}
-              onErrorChange={(hasError) => setSpellingErrors(prev => hasError ? prev + 1 : Math.max(0, prev - 1))}
               rows={5}
               placeholder="Describa alcance, limites y resultados esperados."
             />
@@ -861,7 +842,6 @@ const ProjectOnboardingWizard = ({
                   className="form-input"
                   value={objective}
                   onChange={(event) => handleObjetivoChange(index, event.target.value)}
-                  onErrorChange={(hasError) => setSpellingErrors(prev => hasError ? prev + 1 : Math.max(0, prev - 1))}
                   placeholder={`Objetivo especifico ${index + 1}`}
                 />
                 <button type="button" className="btn-icon-danger" onClick={() => handleObjetivoRemove(index)}>

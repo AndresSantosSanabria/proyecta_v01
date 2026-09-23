@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Plus, Trash2, Save, Eye, EyeOff, GripVertical,
+  Plus, Trash2, Save, Eye, EyeOff,
   LoaderCircle, CheckCircle2, Pencil, X, ChevronDown, ChevronUp,
   Type, List, Calendar, Hash,
 } from 'lucide-react';

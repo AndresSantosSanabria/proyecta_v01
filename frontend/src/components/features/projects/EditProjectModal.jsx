@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle, X, FileText, Users, Target, Building2, User, Zap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, FileText, Target, Building2, User, Zap } from 'lucide-react';
 import projectService from '../../../services/projectService';
 import configCatalogService from '../../../services/configCatalogService';
 import { SpellCheckInput } from '../../common/SpellCheckInput/SpellCheckInput';

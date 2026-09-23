@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Download, X, CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, X, CheckSquare, Square } from 'lucide-react';
 
 const STATE_CONFIG = [
   { key: 'PENDIENTE_COMPLETAR', label: 'Pendiente completar', color: '#f59e0b' },
@@ -15,7 +15,6 @@ const STATE_CONFIG = [
 
 const ExportExcelModal = ({ isOpen, onClose, onExport, projects, exporting }) => {
   const [selected, setSelected] = useState(() => new Set(STATE_CONFIG.map((s) => s.key)));
-  const [showDetails, setShowDetails] = useState(false);
 
   const stateCounts = useMemo(() => {
     const counts = {};

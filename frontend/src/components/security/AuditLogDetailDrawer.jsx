@@ -16,20 +16,6 @@ import {
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
-const formatDateTime = (value) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return new Intl.DateTimeFormat('es-CO', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(date);
-};
-
 const formatDateTimeShort = (value) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -52,20 +38,6 @@ const accionMeta = {
   ELIMINACION: 'Eliminacion',
   LOGIN: 'Login',
   OTRO: 'Otro',
-};
-
-const accionBadgeClass = {
-  CONSULTA: 'consulta',
-  CREACION: 'creacion',
-  ACTUALIZACION: 'actualizacion',
-  ELIMINACION: 'eliminacion',
-  LOGIN: 'login',
-  OTRO: 'otro',
-};
-
-const estadoMeta = {
-  SUCCESS: 'Exito',
-  ERROR: 'Error',
 };
 
 const statusLabel = (code) => {
@@ -94,19 +66,6 @@ const parseJsonSafe = (str) => {
   } catch {
     return null;
   }
-};
-
-const extractJsonFields = (json) => {
-  if (!json || typeof json !== 'object') return [];
-  const result = [];
-  for (const [key, value] of Object.entries(json)) {
-    if (value !== null && value !== undefined && typeof value !== 'object') {
-      result.push({ campo: key, valor: String(value) });
-    } else if (value !== null && typeof value === 'object') {
-      result.push({ campo: key, valor: JSON.stringify(value) });
-    }
-  }
-  return result;
 };
 
 const buildFieldDiff = (requestBody, respuestaBody) => {
@@ -363,13 +322,10 @@ const CopyButton = ({ text }) => {
 
 const AuditLogDetailDrawer = ({ log, onClose }) => {
   const [showStack, setShowStack] = useState(false);
-  const [showCause, setShowCause] = useState(false);
   const [showRequestBody, setShowRequestBody] = useState(false);
   const [showResponseBody, setShowResponseBody] = useState(false);
 
   const accion = accionMeta[log.accion] || log.accion || '-';
-  const accionBadge = accionBadgeClass[log.accion] || '';
-  const estado = estadoMeta[log.estado] || log.estado || '-';
   const isError = String(log.estado || '').toUpperCase() === 'ERROR' || (log.codigoEstado != null && log.codigoEstado >= 400);
   const code = log.codigoEstado;
   const errorDetails = parseDetailedError(log.trazaError);

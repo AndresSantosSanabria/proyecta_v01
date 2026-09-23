@@ -150,7 +150,7 @@ const AdvanceReportActions = ({ projectId }) => {
         link.remove();
       }
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
-    } catch (err) {
+    } catch {
       emitToast({ title: 'Error al descargar', message: 'No fue posible descargar el archivo.', tone: 'error' });
     }
   };
@@ -164,7 +164,10 @@ const AdvanceReportActions = ({ projectId }) => {
   const dueDate = status?.dueDate;
   const hasDueDate = dueDate && dueDate !== null;
 
-  if (!status || (!isUploaded && !isVerified && !isReturned && !hasDueDate)) return null;
+  // No ocultar el disparador cuando el panel fue abierto via ?openReportUpload=true
+  // aunque el estado del informe aun no cargue o no haya fecha limite.
+  if (!panelOpen && !loading && !status) return null;
+  if (!panelOpen && status && !isUploaded && !isVerified && !isReturned && !hasDueDate) return null;
 
   const getButtonLabel = () => {
     if (isVerified) return 'Informe verificado';

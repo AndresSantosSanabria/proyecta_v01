@@ -29,11 +29,6 @@ export const normalizePermissions = (permissions = []) => (
     : []
 );
 
-export const hasAnyPermission = (permissions = [], candidates = []) => {
-  const normalizedPermissions = normalizePermissions(permissions);
-  return candidates.some((candidate) => normalizedPermissions.includes(normalizePermissionCode(candidate)));
-};
-
 export const hasPermissionPrefix = (permissions = [], prefixes = []) => {
   const normalizedPermissions = normalizePermissions(permissions);
   return normalizedPermissions.some((permission) => prefixes.some((prefix) => permission.startsWith(prefix)));
@@ -42,7 +37,3 @@ export const hasPermissionPrefix = (permissions = [], prefixes = []) => {
 export const hasProjectScopePermission = (permissions = []) => hasPermissionPrefix(permissions, PROJECT_PERMISSION_PREFIXES);
 
 export const hasAdminScopePermission = (permissions = []) => hasPermissionPrefix(permissions, ADMIN_PERMISSION_PREFIXES);
-
-export const isPermissionGranted = (permissions = [], permissionCode) => (
-  hasAnyPermission(permissions, [permissionCode])
-);

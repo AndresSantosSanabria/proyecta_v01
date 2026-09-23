@@ -71,18 +71,6 @@ const dateSortValue = (value) => {
   return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 };
 
-const toDateOnly = (value) => {
-  if (!value) return null;
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const isBeforeDate = (value, minValue) => {
-  const date = toDateOnly(value);
-  const minDate = toDateOnly(minValue);
-  return Boolean(date && minDate && date < minDate);
-};
-
 const isRetroactiveDate = (fechaLimite) => {
   if (!fechaLimite) return false;
   const hoy = new Date();

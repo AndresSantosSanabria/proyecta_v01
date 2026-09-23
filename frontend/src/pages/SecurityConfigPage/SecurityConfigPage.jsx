@@ -22,7 +22,6 @@ import {
   X,
   Users,
 } from 'lucide-react';
-import { useAuthContext } from '../../context/AuthContext';
 import { usePermission } from '../../hooks/usePermission';
 import projectService from '../../services/projectService';
 import securityService from '../../services/securityService';
@@ -240,11 +239,6 @@ const getUserRoleSearchSources = (user) => [
   .map((value) => String(value || '').trim())
   .filter(Boolean);
 
-const isSameUsername = (left, right) => {
-  if (!left || !right) return false;
-  return left.toString().trim().toLowerCase() === right.toString().trim().toLowerCase();
-};
-
 const getUserLastAccess = (user) => (
   user?.ultimoAcceso
   || user?.lastLogin
@@ -335,6 +329,22 @@ const extractCollection = (value) => {
   return [];
 };
 
+const dedupeByCode = (items, codeOf) => {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    const raw = codeOf(item);
+    const key = String(raw ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const HIDDEN_ROLE_CODES = new Set(['gestor_tic']);
+
+const selectableRoles = (items) => dedupeByCode(items, (role) => role?.codigo ?? role?.nombre)
+  .filter((role) => !HIDDEN_ROLE_CODES.has(String(role?.codigo ?? '').trim().toLowerCase()));
+
 const normalizeAssignmentCargos = (value) => {
   const payload = unwrapPayload(value);
   const cargos = Array.isArray(payload) ? payload : String(payload || '').split(',');
@@ -350,8 +360,6 @@ const getProjectId = (project) => project?.codigo || project?.id || project?.pro
 const getProjectName = (project) => project?.nombre || project?.nombreProyecto || project?.name || getProjectId(project);
 
 const SecurityConfigPage = () => {
-  const { accessToken } = useAuthContext();
-
   const [activeSection, setActiveSection] = useState(SECURITY_TABS.USERS);
   const [roles, setRoles] = useState([]);
   const [parametricRoles, setParametricRoles] = useState([]);
@@ -451,16 +459,20 @@ const SecurityConfigPage = () => {
         configCatalogService.listarParametrica('ROL_USUARIO', true),
       ]);
 
-      const rolesData = rolesResult.status === 'fulfilled' ? extractCollection(rolesResult.value) : [];
+      const rolesData = dedupeByCode(
+        rolesResult.status === 'fulfilled' ? extractCollection(rolesResult.value) : [],
+        (role) => role?.codigo ?? role?.nombre
+      );
       const permissionsData = permissionsResult.status === 'fulfilled' ? extractCollection(permissionsResult.value) : [];
       const usersData = usersResult.status === 'fulfilled' ? extractCollection(usersResult.value) : [];
       const projectsData = projectsResult.status === 'fulfilled' && Array.isArray(projectsResult.value)
         ? projectsResult.value
         : [];
       const cargosData = cargosResult.status === 'fulfilled' ? normalizeAssignmentCargos(cargosResult.value) : [];
-      const parametricRolesData = parametricRolesResult.status === 'fulfilled'
+      const rawParametricRoles = parametricRolesResult.status === 'fulfilled'
         ? (Array.isArray(parametricRolesResult.value) ? parametricRolesResult.value : [])
         : [];
+      const parametricRolesData = dedupeByCode(rawParametricRoles, (item) => item?.itemCodigo ?? item?.itemNombre);
       const resolvedUsersData = usersData.map((item) => {
         const explicitRoleObject = resolveClosestExistingRole(getUserRoleSearchSources(item), rolesData);
         const resolvedRoleObject = explicitRoleObject;
@@ -686,7 +698,7 @@ const SecurityConfigPage = () => {
     setSelectedUser(null);
     setUserForm({
       ...emptyUserForm,
-      rol: parametricRoles[0]?.itemCodigo || '',
+      rol: roles[0]?.codigo || parametricRoles[0]?.itemCodigo || '',
     });
     setActiveSection(SECURITY_TABS.USERS);
   };
@@ -1227,12 +1239,12 @@ const SecurityConfigPage = () => {
                       <AutocompleteSelect
                         value={userForm.rol}
                         onChange={(val) => handleUserFieldChange('rol')({ target: { value: val } })}
-                        disabled={!canConfigure || parametricRoles.length === 0}
-                        options={parametricRoles.map((item) => ({
-                          value: item.itemCodigo,
-                          label: `${item.itemNombre} - ${item.itemCodigo}`,
+                        disabled={!canConfigure || roles.length === 0}
+                        options={selectableRoles(roles).map((role) => ({
+                          value: role.codigo,
+                          label: `${role.nombre} - ${role.codigo}`,
                         }))}
-                        placeholder={parametricRoles.length === 0 ? 'Sin roles disponibles' : '-- Seleccione un rol --'}
+                        placeholder={roles.length === 0 ? 'Sin roles disponibles' : '-- Seleccione un rol --'}
                         allLabel=""
                         allValue=""
                       />
@@ -1704,7 +1716,7 @@ const SecurityConfigPage = () => {
                         value={userForm.rol}
                         onChange={(val) => handleUserFieldChange('rol')({ target: { value: val } })}
                         disabled={!canConfigure || roles.length === 0}
-                        options={roles.map((role) => ({
+                        options={selectableRoles(roles).map((role) => ({
                           value: role.codigo,
                           label: `${role.nombre} - ${role.codigo}`,
                         }))}
@@ -1958,7 +1970,7 @@ const SecurityConfigPage = () => {
                             value={roleTemplateCode}
                             onChange={(val) => handleRoleTemplateChange(val)}
                             disabled={!canConfigure || roles.length === 0}
-                            options={roles.map((role) => ({
+                            options={selectableRoles(roles).map((role) => ({
                               value: role.codigo,
                               label: `${role.nombre} - ${role.codigo}`,
                             }))}

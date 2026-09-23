@@ -327,8 +327,8 @@
 }
 
 .quick-action.create {
-  background: var(--primary-sleek);
-  color: var(--bg-card);
+  background: var(--primary);
+  color: #fff;
   border: none;
   box-shadow: 0 4px 12px rgba(11, 11, 15, 0.15);
 }
@@ -605,10 +605,13 @@
 
 .assignments-modal .assignment-grid {
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  overflow: hidden;
 }
 
 .assignments-modal .assignment-list-panel {
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .assignments-modal .assignment-table-shell {
@@ -800,7 +803,7 @@
 }
 
 .switch input:checked + span {
-  background: var(--primary-sleek);
+  background: var(--primary);
 }
 
 .switch input:checked + span::before {
@@ -1055,6 +1058,7 @@
   border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 32px color-mix(in srgb, var(--bg-main) 60%, transparent);
   overflow: hidden;
+  min-width: 0;
 }
 
 .assignment-panel .panel-topbar {
@@ -1092,9 +1096,13 @@
 .assignment-grid {
   display: grid;
   gap: 0;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .assignment-form {
@@ -1103,12 +1111,18 @@
   padding: 28px 32px;
   border-right: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
   background: color-mix(in srgb, var(--bg-surface) 100%, transparent);
+  position: relative;
+  z-index: 3;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
 }
 
 .assignment-form-grid {
   display: grid;
   gap: 20px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
 }
 
 .assignment-form-grid label {
@@ -1117,6 +1131,20 @@
   color: var(--text-main);
   font-size: 0.82rem;
   font-weight: 600;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.assignment-form-grid label > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.assignment-form-grid label > .acs-container {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .assignment-form-grid label span {
@@ -1181,6 +1209,8 @@
   display: grid;
   gap: 0;
   background: var(--bg-surface);
+  position: relative;
+  z-index: 1;
 }
 
 .assignment-list-head {

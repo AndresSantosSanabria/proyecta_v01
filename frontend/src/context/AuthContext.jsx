@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import apiClient from '../api/axiosConfig';
 import { auth, decodeJwtPayload, extractRolesFromToken, startLoginRedirect, startLogoutRedirect } from '../utils/auth';
 import authzService from '../services/authzService';
-import securityService from '../services/securityService';
 
 export const AuthContext = createContext(null);
 
@@ -142,24 +141,6 @@ const extractTokenProfile = (token, roleAliases = defaultRoleAliases) => {
     resourceRoles: payload?.resource_access ?? {},
   };
 };
-
-const buildUserSyncPayload = (tokenProfile) => ({
-  username: tokenProfile.username,
-  nombre: tokenProfile.nombre,
-  correo: tokenProfile.correo,
-  dependencia: tokenProfile.dependencia,
-  rol: tokenProfile.rolCodigo,
-  rolCodigo: tokenProfile.rolCodigo,
-  rolNombre: tokenProfile.rolNombre,
-  roles: tokenProfile.roles,
-  activo: true,
-  preferred_username: tokenProfile.payload?.preferred_username ?? '',
-  sub: tokenProfile.payload?.sub ?? '',
-  given_name: tokenProfile.payload?.given_name ?? '',
-  family_name: tokenProfile.payload?.family_name ?? '',
-  realm_roles: tokenProfile.realmRoles,
-  resource_roles: tokenProfile.resourceRoles,
-});
 
 const shouldSyncBackendUser = (backendUser, tokenProfile, roleAliases = defaultRoleAliases) => {
   if (!tokenProfile?.username || !tokenProfile?.rolCodigo) {

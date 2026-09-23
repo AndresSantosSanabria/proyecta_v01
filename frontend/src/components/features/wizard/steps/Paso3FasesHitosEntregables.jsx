@@ -57,8 +57,6 @@ const normalizeHierarchyNames = (fases = []) => {
   }));
 };
 
-const getProjectStartDate = (data) => data?.fechaInicioProyecto || data?.fechaInicio || data?.projectStartDate || '';
-
 const PesoIndicator = ({ actual }) => {
   const ok = Math.abs(actual - 100) < 0.01;
   return (
@@ -81,7 +79,6 @@ const Paso3FasesHitosEntregables = ({
   pendingFiles = {},
 }) => {
   const fases = normalizeHierarchyNames(data.fases || []);
-  const projectStartDate = getProjectStartDate(data);
   const [uploadModal, setUploadModal] = useState({ open: false, fIndex: -1, hIndex: -1, eIndex: -1 });
 
   const handleOpenUploadModal = (fIndex, hIndex, eIndex) => {
@@ -509,11 +506,6 @@ const Paso3FasesHitosEntregables = ({
                 return ent ? `${ent.nombre || ''} (${uploadModal.fIndex + 1}.${uploadModal.hIndex + 1}.${uploadModal.eIndex + 1})` : '';
               })()
             : ''
-        }
-        currentFile={
-          uploadModal.fIndex >= 0 && uploadModal.hIndex >= 0 && uploadModal.eIndex >= 0
-            ? pendingFiles[`${uploadModal.fIndex}-${uploadModal.hIndex}-${uploadModal.eIndex}`]
-            : null
         }
         onConfirm={handleConfirmUpload}
         onClose={handleCloseUploadModal}

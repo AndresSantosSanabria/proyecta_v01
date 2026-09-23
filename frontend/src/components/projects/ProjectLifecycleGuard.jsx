@@ -44,8 +44,15 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
 
   const uploadableTypes = Object.keys(DOC_LABELS).filter((tipo) => {
     if (!isResubmission) return true;
-    return docRevisions[tipo]?.estado !== 'APROBADO';
+    const rev = docRevisions[tipo];
+    if (rev?.estado === 'APROBADO') return false;
+    if (rev?.estado === 'PENDIENTE') return false;
+    return true;
   });
+
+  const returnedTypes = Object.keys(DOC_LABELS).filter(
+    (tipo) => docRevisions[tipo]?.estado === 'DEVUELTO'
+  );
 
   const handleFileSelect = (field) => {
     const input = document.createElement('input');
@@ -91,12 +98,13 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
         setUploadProgress((prev) => ({ ...prev, [tipo]: 'done' }));
       }
 
+      const count = uploadableTypes.length;
       emitToast({
         tone: 'success',
         title: isResubmission ? 'Documentos subsanados' : 'Documentos cargados',
         message: isResubmission
-          ? 'Los 3 documentos fueron cargados exitosamente. El Gestor sera notificado para su revision.'
-          : 'Los 3 documentos fueron cargados exitosamente. El Gestor sera notificado para su verificacion.',
+          ? `${count} documento(s) fueron cargados exitosamente. El Gestor sera notificado para su revision.`
+          : `${count} documento(s) fueron cargados exitosamente. El Gestor sera notificado para su verificacion.`,
       });
       onComplete();
     } catch (err) {
@@ -126,20 +134,10 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
             </h2>
             <p className="plg-hero__subtitle">
               {isDevuelta
-                ? 'El Gestor devolvio los documentos con observaciones. Por favor, subsane las observaciones y vuelva a cargar los 3 documentos.'
+                ? `El Gestor devolvio ${returnedTypes.length} documento(s) con observaciones. Subsanen solo los documentos devueltos y vuelva a cargarlos.`
                 : 'Para continuar con la completitud del proyecto, primero debe cargar los 3 documentos requeridos. El Gestor verificara los documentos antes de que pueda acceder al wizard de completitud.'}
             </p>
           </div>
-
-          {isDevuelta && completionStatus?.viabilidadObservaciones && (
-            <div className="plg-observation">
-              <AlertTriangle size={18} />
-              <div>
-                <p className="plg-observation__label">Observaciones del Gestor</p>
-                <p className="plg-observation__text">{completionStatus.viabilidadObservaciones}</p>
-              </div>
-            </div>
-          )}
 
           {!isDevuelta && (
             <div className="project-onboarding__locked info-banner">
@@ -173,7 +171,9 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
             </div>
             <p className="plg-docs-section__hint">
               {isResubmission
-                ? `Cargue los ${uploadableTypes.length} documento(s) devuelto(s). Los documentos ya verificados no requieren accion.`
+                ? uploadableTypes.length > 0
+                  ? `Cargue los ${uploadableTypes.length} documento(s) devuelto(s). Los demas documentos no requieren accion.`
+                  : 'Todos los documentos devueltos ya fueron cargados. El Gestor los revisara.'
                 : 'Cargue los 3 documentos en formato PDF. Todos son obligatorios para continuar.'}
             </p>
 
@@ -197,6 +197,23 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                           <span className="plg-doc-card__size">Verificado por el Gestor</span>
                         </div>
                         <span className="plg-doc-status plg-doc-status--approved">Verificado</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (isResubmission && revision && !isReturned) {
+                  return (
+                    <div key={tipo} className="plg-doc-card plg-doc-card--has-file">
+                      <div className="plg-doc-card__inner">
+                        <div className="plg-doc-card__icon">
+                          <FileCheck size={16} strokeWidth={2.2} />
+                        </div>
+                        <div className="plg-doc-card__info">
+                          <span className="plg-doc-card__name">{label}</span>
+                          <span className="plg-doc-card__size">Documento cargado - pendiente de revision</span>
+                        </div>
+                        <span className="plg-doc-status plg-doc-status--pending">En revision</span>
                       </div>
                     </div>
                   );
@@ -244,24 +261,22 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                         )}
                       </div>
                     ) : (
-                      <>
-                        <div className="plg-doc-card__placeholder">
-                          <div className="plg-doc-card__placeholder-icon">
-                            <Upload size={20} />
-                          </div>
-                          <p className="plg-doc-card__placeholder-title">{label}</p>
-                          <p className="plg-doc-card__placeholder-hint">Arrastre o haga clic para seleccionar. Solo PDF, max 20 MB.</p>
-                          {isReturned && (
-                            <span className="plg-doc-status plg-doc-status--returned">Devuelto</span>
-                          )}
+                      <div className="plg-doc-card__placeholder">
+                        <div className="plg-doc-card__placeholder-icon">
+                          <Upload size={20} />
                         </div>
-                        {isReturned && revision?.observacion && (
-                          <div className="plg-doc-card__observation">
-                            <AlertTriangle size={13} />
-                            <p>{revision.observacion}</p>
-                          </div>
+                        <p className="plg-doc-card__placeholder-title">{label}</p>
+                        <p className="plg-doc-card__placeholder-hint">Arrastre o haga clic para seleccionar. Solo PDF, max 20 MB.</p>
+                        {isReturned && (
+                          <span className="plg-doc-status plg-doc-status--returned">Devuelto</span>
                         )}
-                      </>
+                      </div>
+                    )}
+                    {isReturned && revision?.observacion && (
+                      <div className="plg-doc-card__observation">
+                        <AlertTriangle size={13} />
+                        <p>{revision.observacion}</p>
+                      </div>
                     )}
                   </div>
                 );
@@ -327,8 +342,20 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
   };
 
   useEffect(() => {
-    void loadRevisions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    const load = async () => {
+      if (!project?.id) return;
+      try {
+        const data = await documentService.listarRevisionesPreWizard(project.id);
+        if (!cancelled) {
+          setRevisions(data?.data?.documentos || data?.documentos || []);
+        }
+      } catch {
+        if (!cancelled) setRevisions([]);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, [project?.id]);
 
   const revisionMap = useMemo(() => {
@@ -724,16 +751,16 @@ const PlazoVencidoView = ({ project, completionStatus, onRefresh }) => {
 const ProjectLifecycleGuard = () => {
   const { id, codigoProyecto } = useParams();
   const location = useLocation();
-  const { isVisualizador } = useAuthContext();
+  const { isVisualizador, hasRole, isAdminLocal, transversal } = useAuthContext();
+  const isGestor = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
   const projectId = useMemo(() => String(id || codigoProyecto || '').trim(), [codigoProyecto, id]);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState(null);
   const [completionStatus, setCompletionStatus] = useState(null);
-  const [completionDraft, setCompletionDraft] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const refreshLifecycle = async () => {
+  const refreshLifecycle = async (silent = false) => {
     if (!projectId) return;
     if (isVisualizador) {
       setError(NO_ACCESS_MESSAGE);
@@ -741,7 +768,7 @@ const ProjectLifecycleGuard = () => {
       return;
     }
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError('');
       const projectResponse = await projectService.getById(projectId);
       const projectData = unwrapPayload(projectResponse);
@@ -755,18 +782,6 @@ const ProjectLifecycleGuard = () => {
       } catch {
         setCompletionStatus(null);
       }
-
-      if (projectNeedsCompletion(projectData, statusData)) {
-        try {
-          const draftResponse = await projectService.getCompletionDraft(projectId, { suppressAuthToast: true });
-          const draftData = unwrapPayload(draftResponse);
-          setCompletionDraft(draftData);
-        } catch {
-          setCompletionDraft(null);
-        }
-      } else {
-        setCompletionDraft(null);
-      }
     } catch (fetchError) {
       console.error('No fue posible cargar el ciclo de vida del proyecto:', fetchError);
       if (isVisualizador || isForbiddenError(fetchError)) {
@@ -775,7 +790,7 @@ const ProjectLifecycleGuard = () => {
         setError('No fue posible cargar el proyecto.');
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -787,7 +802,12 @@ const ProjectLifecycleGuard = () => {
     };
     void load();
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, isVisualizador]);
+
+  const silentRefresh = async () => {
+    await refreshLifecycle(true);
+  };
 
   const needsCompletion = useMemo(() => {
     return projectNeedsCompletion(project, completionStatus);
@@ -960,6 +980,14 @@ const ProjectLifecycleGuard = () => {
   }
 
   if (viabilidadEstado === 'DEVUELTA') {
+    if (isGestor) {
+      return (
+        <DocumentosCargadosView
+          project={project}
+          onRefresh={silentRefresh}
+        />
+      );
+    }
     return (
       <DocumentosPreWizardView
         project={project}
@@ -974,7 +1002,7 @@ const ProjectLifecycleGuard = () => {
     return (
       <DocumentosCargadosView
         project={project}
-        onRefresh={refreshLifecycle}
+        onRefresh={silentRefresh}
       />
     );
   }
@@ -996,7 +1024,6 @@ const ProjectLifecycleGuard = () => {
         saving={saving}
         error={error}
         onComplete={handleComplete}
-        completionDraft={completionDraft}
       />
     );
   }

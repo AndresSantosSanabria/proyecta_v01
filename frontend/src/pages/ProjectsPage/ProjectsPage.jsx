@@ -5,7 +5,6 @@ import ProjectListTable from '../../components/features/projects/ProjectListTabl
 import EditProjectModal from '../../components/features/projects/EditProjectModal';
 import ExportExcelModal from '../../components/features/projects/ExportExcelModal';
 import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
-import { useAuthContext } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
 import reportService from '../../services/reportService';
 import { usePermission } from '../../hooks/usePermission';
@@ -47,7 +46,6 @@ const extractProjects = (value) => {
 };
 
 const ProjectsPage = () => {
-  const { assignedProjects } = useAuthContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -59,7 +57,6 @@ const ProjectsPage = () => {
   const canEditProject = usePermission('PROYECTO:EDITAR');
   const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
   const navigate = useNavigate();
-  const hasAssignedProjects = Array.isArray(assignedProjects) && assignedProjects.length > 0;
   const shouldUseAssignedProjects = !canViewAllProjects;
 
   const loadProjects = async () => {
