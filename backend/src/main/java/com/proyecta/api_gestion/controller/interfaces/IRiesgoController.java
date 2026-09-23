@@ -78,14 +78,6 @@ public interface IRiesgoController {
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
             @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId);
 
-    @Operation(summary = "EP-RIESG-05 · Verificar tratamiento de un riesgo", description = "Marca un riesgo como tratado y registra la verificación.")
-    @StandardApiResponses
-    @PatchMapping("/{proyectoId}/riesgos/{riesgoId}/tratamiento")
-    ResponseEntity<ApiResponse<Void>> verificarTratamiento(
-            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId,
-            @RequestBody String verificacion);
-
     @Operation(summary = "EP-RIESG-06 · Listar soluciones cargadas para un riesgo")
     @StandardApiResponses
     @GetMapping("/{proyectoId}/riesgos/{riesgoId}/soluciones")

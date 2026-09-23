@@ -15,9 +15,6 @@ public final class DashboardSwaggerConstants {
     public static final String SUMMARY_GET_PROJECTS = "Listar resumen detallado de proyectos";
     public static final String DESCRIPTION_GET_PROJECTS = "Retorna la lista de proyectos activos con su nivel de avance, estado de cumplimiento y entregables pendientes para la tabla del dashboard.";
 
-    public static final String SUMMARY_GET_PROJECT_BY_ID = "Obtener resumen detallado de un proyecto por ID";
-    public static final String DESCRIPTION_GET_PROJECT_BY_ID = "Calcula métricas específicas para un proyecto (avance, ratio de entregables, atrasos y alertas de vencimiento) usando el parámetro de ventana configurado.";
-
     public static final String RESPONSE_200_DESC = "Operación exitosa";
     public static final String RESPONSE_201_DESC = "Recurso creado exitosamente";
     public static final String RESPONSE_301_DESC = "El recurso se ha movido permanentemente";

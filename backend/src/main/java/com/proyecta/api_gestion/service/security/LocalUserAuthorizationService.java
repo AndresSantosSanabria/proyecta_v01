@@ -50,11 +50,6 @@ public class LocalUserAuthorizationService {
         return usuario;
     }
 
-    public boolean isValid(Authentication authentication) {
-        requireLocalUser(authentication);
-        return true;
-    }
-
     public boolean hasBaseAccess(Authentication authentication) {
         if (hasAdminAuthority(authentication)) {
             return true;
@@ -74,30 +69,6 @@ public class LocalUserAuthorizationService {
 
         if (!hasFunctionalRole && !hasLocalRole) {
             throw new ForbiddenException("El usuario no tiene un rol funcional valido en Proyecta.");
-        }
-
-        return true;
-    }
-
-    public boolean hasAnyRole(Authentication authentication, String... allowedRoles) {
-        if (hasAdminAuthority(authentication)) {
-            return true;
-        }
-
-        SeguridadUsuario usuario = requireLocalUser(authentication);
-        String rolCodigo = SecurityRoleCatalog.normalize(clean(usuario.getRolCodigo()));
-        if (rolCodigo == null) {
-            throw new ForbiddenException("El usuario autenticado no tiene un rol local configurado.");
-        }
-
-        boolean allowed = Arrays.stream(allowedRoles)
-                .filter(Objects::nonNull)
-                .map(this::clean)
-                .map(SecurityRoleCatalog::normalize)
-                .anyMatch(rolCodigo::equals);
-
-        if (!allowed) {
-            throw new ForbiddenException("El usuario autenticado no tiene permisos para esta accion.");
         }
 
         return true;

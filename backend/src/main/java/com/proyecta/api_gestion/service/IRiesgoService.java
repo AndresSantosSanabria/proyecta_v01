@@ -18,7 +18,6 @@ public interface IRiesgoService {
     RiesgoCreatedResponseDTO createRisk(String projectId, RiesgoRequestDTO requestDto, Authentication authentication);
     RiesgoResponseDTO updateRisk(String projectId, Integer riesgoId, RiesgoRequestDTO requestDto);
     void deleteRisk(String projectId, Integer riesgoId);
-    void verificarTratamiento(String projectId, Integer riesgoId, String verificacion);
     List<RiesgoSolucionAdjuntoDTO> listarSoluciones(String projectId, Integer riesgoId);
     List<RiesgoSolucionAdjuntoDTO> agregarSoluciones(String projectId, Integer riesgoId, MultipartFile[] archivos);
     Resource descargarSolucion(String projectId, Integer riesgoId, Long solucionId);

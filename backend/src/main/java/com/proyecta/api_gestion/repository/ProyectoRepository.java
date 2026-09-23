@@ -155,8 +155,6 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     """)
     List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> getProjectsByDependencia();
 
-    List<Proyecto> findByViabilidadEstadoAndActaConstitucionCargadaFalse(ViabilidadEstado viabilidadEstado);
-
     List<Proyecto> findByDocumentosVerificadosTrueAndRequiereCompletitudDirectorTrueAndCierreForzosoFalse();
 
     /**

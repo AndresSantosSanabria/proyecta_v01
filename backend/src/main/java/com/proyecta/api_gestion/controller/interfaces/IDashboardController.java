@@ -5,7 +5,6 @@ import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
-import com.proyecta.api_gestion.dto.proyecto.ProyectoSummaryDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -135,30 +134,4 @@ public interface IDashboardController {
     })
     @StandardApiResponses
     ResponseEntity<ApiResponse<List<DashboardProjectSummaryDTO>>> getProjectSummary();
-
-    @Operation(
-        summary = DashboardSwaggerConstants.SUMMARY_GET_PROJECT_BY_ID,
-        description = DashboardSwaggerConstants.DESCRIPTION_GET_PROJECT_BY_ID
-    )
-    @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "200",
-            description = DashboardSwaggerConstants.RESPONSE_200_DESC,
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = DashboardSwaggerConstants.RESPONSE_404_DESC,
-            content = @Content
-        )
-    })
-    @StandardApiResponses
-    ResponseEntity<ApiResponse<ProyectoSummaryDTO>> getProjectSummaryById(@org.springframework.web.bind.annotation.PathVariable String id);
-
-    @Operation(
-        summary = "Obtener proyectos por dependencia",
-        description = "Retorna una lista con la cantidad de proyectos y el avance promedio agrupados por dependencia."
-    )
-    @StandardApiResponses
-    ResponseEntity<ApiResponse<List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO>>> getProjectsByDependencia();
 }

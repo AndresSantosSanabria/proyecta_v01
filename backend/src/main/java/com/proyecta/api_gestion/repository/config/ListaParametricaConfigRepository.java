@@ -12,5 +12,4 @@ public interface ListaParametricaConfigRepository extends JpaRepository<ListaPar
     List<ListaParametricaConfig> findByListaClaveAndActivoTrueOrderByOrdenAsc(String listaClave);
     List<ListaParametricaConfig> findByListaClaveOrderByOrdenAsc(String listaClave);
     Optional<ListaParametricaConfig> findByListaClaveAndItemCodigo(String listaClave, String itemCodigo);
-    boolean existsByListaClaveAndItemCodigo(String listaClave, String itemCodigo);
 }

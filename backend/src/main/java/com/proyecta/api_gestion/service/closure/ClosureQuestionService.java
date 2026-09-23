@@ -45,13 +45,6 @@ public class ClosureQuestionService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public ClosureQuestionDTO getById(Long id) {
-        ClosureQuestion q = questionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pregunta no encontrada: " + id));
-        return toQuestionDTO(q);
-    }
-
     @Transactional
     public ClosureQuestionDTO create(ClosureQuestionRequest request, String username) {
         ClosureQuestion q = new ClosureQuestion();

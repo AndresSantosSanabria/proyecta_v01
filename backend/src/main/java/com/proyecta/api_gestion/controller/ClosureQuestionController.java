@@ -49,12 +49,6 @@ public class ClosureQuestionController {
         return ResponseEntity.ok(ApiResponse.success(service.listActive(), "Preguntas activas"));
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
-    public ResponseEntity<ApiResponse<ClosureQuestionDTO>> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(service.getById(id), "Pregunta obtenida"));
-    }
-
     @PostMapping
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
     public ResponseEntity<ApiResponse<ClosureQuestionDTO>> create(

@@ -229,31 +229,6 @@ public class RiesgoServiceImpl implements IRiesgoService {
     }
 
     @Override
-    @Transactional
-    public void verificarTratamiento(String projectId, Integer riesgoId, String verificacion) {
-        Riesgo riesgo = riesgoRepository.findById(riesgoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Riesgo no encontrado con ID: " + riesgoId));
-
-        if (!riesgo.getProyecto().getId().equals(projectId)) {
-            throw new ForbiddenException("El riesgo no pertenece al proyecto especificado.");
-        }
-
-        riesgo.setTratamiento((riesgo.getTratamiento() == null ? "" : riesgo.getTratamiento()) + "\nVERIFICACION: " + verificacion);
-        riesgo.setEstado(EstadoRiesgo.TRATADO);
-        Riesgo saved = riesgoRepository.save(riesgo);
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.RISK_TREATED,
-                projectId,
-                "system",
-                java.util.Map.of(
-                        "riskCode", saved.getCodigo(),
-                        "riskLevel", saved.getNivel(),
-                        "projectName", saved.getProyecto().getNombre(),
-                        "recipients", List.of(saved.getProyecto().getCorreoDirector())
-                )));
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public List<RiesgoSolucionAdjuntoDTO> listarSoluciones(String projectId, Integer riesgoId) {
         Riesgo riesgo = cargarRiesgoDelProyecto(projectId, riesgoId);

@@ -36,7 +36,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -135,30 +134,6 @@ public class NotificationAdminController {
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.success(data, "Plantillas listadas correctamente"));
-    }
-
-    @GetMapping("/categorias")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listCategories() {
-        List<NotificationEventCatalog> events = eventCatalogRepository.findAll();
-
-        Map<String, List<NotificationEventCatalog>> grouped = events.stream()
-                .collect(Collectors.groupingBy(NotificationEventCatalog::getCategory));
-
-        List<Map<String, Object>> result = grouped.entrySet().stream().map(entry -> {
-            Map<String, Object> category = new LinkedHashMap<>();
-            category.put("category", entry.getKey());
-            category.put("eventCount", entry.getValue().size());
-            category.put("events", entry.getValue().stream().map(e -> {
-                Map<String, Object> event = new LinkedHashMap<>();
-                event.put("code", e.getCode());
-                event.put("name", e.getName());
-                event.put("active", e.getActive());
-                return event;
-            }).toList());
-            return category;
-        }).toList();
-
-        return ResponseEntity.ok(ApiResponse.success(result, "Categorias listadas correctamente"));
     }
 
     @PutMapping("/plantillas")

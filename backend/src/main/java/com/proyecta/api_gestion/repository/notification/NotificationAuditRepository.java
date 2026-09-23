@@ -13,16 +13,6 @@ import java.util.UUID;
 public interface NotificationAuditRepository extends JpaRepository<NotificationAudit, UUID> {
     long countByChannelAndStatus(String channel, String status);
 
-    long countByStatus(String status);
-
-    Page<NotificationAudit> findByStatus(String status, Pageable pageable);
-
-    Page<NotificationAudit> findByChannelAndStatus(String channel, String status, Pageable pageable);
-
-    Page<NotificationAudit> findByEventCodeAndStatus(String eventCode, String status, Pageable pageable);
-
-    Page<NotificationAudit> findByRecipientContainingIgnoreCaseAndStatus(String recipient, String status, Pageable pageable);
-
     @Query("SELECT na FROM NotificationAudit na WHERE na.status = :status " +
             "AND (:channel IS NULL OR na.channel = :channel) " +
             "AND (:eventCode IS NULL OR na.eventCode = :eventCode) " +

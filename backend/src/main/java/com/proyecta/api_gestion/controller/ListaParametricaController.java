@@ -2,7 +2,6 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.config.ListaParametricaItemDTO;
-import com.proyecta.api_gestion.dto.config.ListaParametricaUpsertRequest;
 import com.proyecta.api_gestion.service.config.ListaParametricaService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,22 +37,6 @@ public class ListaParametricaController {
                 "Valores listados correctamente"));
     }
 
-    @GetMapping("/metadata/all")
-    public ResponseEntity<ApiResponse<List<ListaParametricaItemDTO>>> listarMetadatas() {
-        return ResponseEntity.ok(ApiResponse.success(
-                service.listarMetadatas(),
-                "Metadatas listados correctamente"));
-    }
-
-    @PostMapping
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
-    public ResponseEntity<ApiResponse<ListaParametricaItemDTO>> guardar(
-            @RequestBody ListaParametricaUpsertRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                service.guardar(request),
-                "Item guardado correctamente"));
-    }
-
     @PutMapping("/{listaClave}/valores")
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
     public ResponseEntity<ApiResponse<Void>> guardarValores(
@@ -65,19 +48,5 @@ public class ListaParametricaController {
         List<String> valores = (List<String>) body.getOrDefault("valores", List.of());
         service.guardarValores(listaClave, nombreCampo, descripcion, valores);
         return ResponseEntity.ok(ApiResponse.success("Valores guardados correctamente"));
-    }
-
-    @DeleteMapping("/{id}")
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
-        service.eliminar(id);
-        return ResponseEntity.ok(ApiResponse.success("Item eliminado correctamente"));
-    }
-
-    @PatchMapping("/{id}/toggle")
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
-    public ResponseEntity<ApiResponse<ListaParametricaItemDTO>> toggleActivo(@PathVariable Long id) {
-        service.toggleActivo(id);
-        return ResponseEntity.ok(ApiResponse.success("Estado actualizado correctamente"));
     }
 }

@@ -2,7 +2,6 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.controller.interfaces.IAvanceProyectoController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.avance.DocumentoArchivoDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoReversionRequest;
 import com.proyecta.api_gestion.dto.avance.DocumentoSubsanacionRequest;
@@ -60,7 +59,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
     }
 
     @Override
-    @PostMapping(value = {"/{proyectoId}/avance/entregables/{entregableId}/evidencia", "/{proyectoId}/avance/entregables/{entregableId}/completar"}, consumes = "multipart/form-data")
+    @PostMapping(value = "/{proyectoId}/avance/entregables/{entregableId}/evidencia", consumes = "multipart/form-data")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('EVIDENCIA:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> registrarEvidencia(
             @PathVariable String proyectoId,
@@ -154,21 +153,6 @@ public class AvanceProyectoController implements IAvanceProyectoController {
         return ResponseEntity.ok(ApiResponse.success(
                 proyectoAvanceService.revertirVersion(proyectoId, entregableId, versionId, motivo, authentication),
                 "Version documental restaurada"));
-    }
-
-    @GetMapping("/{proyectoId}/avance/entregables/{entregableId}/versiones/{versionId}/archivo")
-    @PreAuthorize("@proyectoSecurity.canViewDocumentHistory(#proyectoId, authentication)")
-    public ResponseEntity<Resource> descargarVersion(
-            @PathVariable String proyectoId,
-            @PathVariable Integer entregableId,
-            @PathVariable Long versionId,
-            Authentication authentication) {
-        DocumentoArchivoDTO archivo = proyectoAvanceService.obtenerArchivoVersion(proyectoId, entregableId, versionId, authentication);
-        Resource resource = storageProvider.loadFileAsResource("evidencias", archivo.archivoStorage());
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(archivo.mimeType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, inlinePdfName(archivo.nombreArchivo()))
-                .body(resource);
     }
 
     @GetMapping("/{proyectoId}/avance/entregables/{entregableId}/evidencia")

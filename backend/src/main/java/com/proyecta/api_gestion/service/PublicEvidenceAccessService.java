@@ -49,17 +49,6 @@ public class PublicEvidenceAccessService {
         return access.getEntregable();
     }
 
-    @Transactional
-    public List<String> getTokensForProject(String proyectoId) {
-        return repository.findAll().stream()
-                .filter(a -> a.getActivo() && a.getEntregable() != null
-                        && a.getEntregable().getHito() != null
-                        && a.getEntregable().getHito().getFase() != null
-                        && proyectoId.equals(a.getEntregable().getHito().getFase().getProyecto().getId()))
-                .map(PublicEvidenceAccess::getToken)
-                .toList();
-    }
-
     private String generateToken() {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);

@@ -14,9 +14,5 @@ public interface ClosureAnswerRepository extends JpaRepository<ClosureAnswer, Lo
 
     Optional<ClosureAnswer> findByProyectoIdAndQuestionId(String proyectoId, Long questionId);
 
-    void deleteByProyectoId(String proyectoId);
-
-    void deleteByQuestionId(Long questionId);
-
     boolean existsByQuestionId(Long questionId);
 }

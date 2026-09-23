@@ -1,11 +1,9 @@
 package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.proyecto.DashboardDTO;
 import com.proyecta.api_gestion.dto.proyecto.CompletitudBorradorDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletarInformacionDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletionStatusDTO;
-import com.proyecta.api_gestion.dto.proyecto.ProyectoCreateDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoCreatedDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoListDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoRegistroInicialDTO;
@@ -14,7 +12,6 @@ import com.proyecta.api_gestion.dto.proyecto.ProyectoResumenDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
 import com.proyecta.api_gestion.dto.proyecto.ViabilidadDevolverDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
-import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.model.Furag;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
@@ -30,7 +27,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -78,12 +74,6 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerPorId(id), "Detalle del proyecto obtenido"));
-    }
-
-    @Override
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
-    public ResponseEntity<ApiResponse<ProyectoCreatedDTO>> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto) {
-        throw new BadRequestException("La creacion completa de proyectos esta deshabilitada. Use /api/v1/proyectos/registro-inicial.");
     }
 
     @Override
@@ -149,29 +139,9 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
-    public ResponseEntity<ApiResponse<DashboardDTO>> obtenerDashboard() {
-        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerDashboard(), "Métricas del dashboard obtenidas"));
-    }
-
-    @Override
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
-    public ResponseEntity<Void> eliminarProyecto(String id, Authentication authentication) {
-        proyectoService.eliminarProyecto(id, authentication);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Override
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResumenDTO>> obtenerResumen(String id) {
         return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerResumen(id), "Resumen del proyecto obtenido"));
-    }
-
-    @Override
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:CERRAR', #id, authentication)")
-    public ResponseEntity<Void> cerrarProyecto(String id) {
-        proyectoService.cerrarProyecto(id);
-        return ResponseEntity.ok().build();
     }
 
     @Override
@@ -185,14 +155,6 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     public ResponseEntity<Void> actualizarFurag(String id, Furag furag) {
         proyectoService.actualizarFurag(id, furag);
         return ResponseEntity.ok().build();
-    }
-
-    @Override
-    @PostMapping("/recalcular-avances")
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
-    public ResponseEntity<ApiResponse<Void>> recalcularAvances() {
-        proyectoService.recalcularAvances();
-        return ResponseEntity.ok(ApiResponse.success("Avances recalculados exitosamente"));
     }
 
     @Override

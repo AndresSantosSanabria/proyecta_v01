@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 
 @RestController
-@RequestMapping("/api/v1/projects")
+@RequestMapping("/api/v1/proyectos")
 public class SeguimientoExcelController {
 
     private final SeguimientoExcelGenerator seguimientoExcelGenerator;

@@ -1,11 +1,9 @@
 package com.proyecta.api_gestion.service.impl;
 
-import com.proyecta.api_gestion.dto.avance.DocumentoArchivoDTO;
-import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
+import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
 import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
-import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
-import com.proyecta.api_gestion.dto.proyecto.ProyectoSummaryDTO;
+import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
 import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.exception.UnprocessableEntityException;
@@ -137,19 +135,6 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         }
 
         return metricsService.construir(proyecto, LocalDate.now());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ProyectoSummaryDTO obtenerResumenProyecto(String proyectoId) {
-        ProyectoAvanceResponseDTO avance = obtenerAvanceDetallado(proyectoId);
-
-        return new ProyectoSummaryDTO(
-                avance.progresoEjecutado(),
-                avance.entregablesEntregadosAlCorte() + "/" + avance.entregablesProgramadosAlCorte(),
-                avance.entregablesAtrasados(),
-                avance.proximosAVencer()
-        );
     }
 
     @Override
@@ -479,20 +464,6 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         entityManager.refresh(entregable);
 
         return responseConAvance(proyectoId, entregable);
-    }
-
-    @Override
-    @Transactional
-    public DocumentoArchivoDTO obtenerArchivoVersion(String proyectoId, Integer entregableId, Long versionId, Authentication authentication) {
-        cargarEntregableDelProyecto(proyectoId, entregableId);
-        DocumentoVersion version = documentoVersionRepository.findByIdAndEntregableId(versionId, entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Version documental no encontrada: " + versionId));
-
-        if (!storageProvider.fileExists("evidencias", version.getArchivoStorage())) {
-            throw new ResourceNotFoundException("El archivo fisico de la version seleccionada no esta disponible.");
-        }
-
-        return new DocumentoArchivoDTO(version.getArchivoStorage(), version.getNombreArchivoOriginal(), version.getMimeType());
     }
 
     @Override

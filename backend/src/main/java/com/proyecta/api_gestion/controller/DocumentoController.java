@@ -7,14 +7,11 @@ import com.proyecta.api_gestion.dto.document.DocumentoPreWizardDevolverDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoVersionHistorialResponseDTO;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.DocumentoDinamico;
 import com.proyecta.api_gestion.repository.DocumentoDinamicoRepository;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,8 +20,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
@@ -104,29 +99,6 @@ public class DocumentoController implements IDocumentoController {
 
         Resource resource = documentoService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
         String filename = resource.getFilename();
-        boolean isPdf = filename != null && filename.toLowerCase().endsWith(".pdf");
-
-        return ResponseEntity.ok()
-                .contentType(isPdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        (isPdf ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
-                .body(resource);
-    }
-
-    @Override
-    @GetMapping(value = "/{proyectoId}/documentos-dinamicos/{documentoId}/descargar")
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<Resource> descargarDocumentoDinamico(
-            @PathVariable String proyectoId,
-            @PathVariable Long documentoId) {
-
-        DocumentoDinamico doc = documentoDinamicoRepository.findById(documentoId)
-                .filter(d -> proyectoId.equals(d.getProyectoId()))
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Documento dinamico no encontrado: " + documentoId + " para proyecto " + proyectoId));
-
-        Resource resource = storageProvider.loadFileAsResource(doc.getRutaAlmacenamiento(), doc.getNombreAlmacenado());
-        String filename = doc.getNombreOriginal();
         boolean isPdf = filename != null && filename.toLowerCase().endsWith(".pdf");
 
         return ResponseEntity.ok()

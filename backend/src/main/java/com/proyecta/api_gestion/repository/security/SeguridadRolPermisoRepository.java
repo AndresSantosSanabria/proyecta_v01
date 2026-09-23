@@ -19,10 +19,6 @@ public interface SeguridadRolPermisoRepository extends JpaRepository<SeguridadRo
     """)
     List<SeguridadRolPermiso> findActiveByRoleCodes(@Param("roleCodes") Collection<String> roleCodes);
 
-    @Modifying
-    @Query("DELETE FROM SeguridadRolPermiso rp WHERE rp.rol.codigo IN :roleCodes")
-    void deleteByRoleCodes(@Param("roleCodes") Set<String> roleCodes);
-
     @Query("""
         SELECT rp FROM SeguridadRolPermiso rp
         JOIN FETCH rp.rol r

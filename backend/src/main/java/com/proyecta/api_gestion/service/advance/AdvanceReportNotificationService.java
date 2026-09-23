@@ -129,12 +129,4 @@ public class AdvanceReportNotificationService {
     public AdvanceReportUpload getUpload(String projectId, String periodo) {
         return uploadRepository.findByProjectIdAndPeriodo(projectId, periodo).orElse(null);
     }
-
-    /**
-     * Retorna todos los uploads de un periodo.
-     */
-    @Transactional(readOnly = true)
-    public List<AdvanceReportUpload> getUploadsByPeriodo(String periodo) {
-        return uploadRepository.findByPeriodo(periodo);
-    }
 }

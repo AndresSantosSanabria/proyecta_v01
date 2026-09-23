@@ -10,6 +10,5 @@ import java.util.Optional;
 @Repository
 public interface AdvanceReportUploadRepository extends JpaRepository<AdvanceReportUpload, Long> {
     Optional<AdvanceReportUpload> findByProjectIdAndPeriodo(String projectId, String periodo);
-    List<AdvanceReportUpload> findByPeriodo(String periodo);
     boolean existsByProjectIdAndPeriodo(String projectId, String periodo);
 }

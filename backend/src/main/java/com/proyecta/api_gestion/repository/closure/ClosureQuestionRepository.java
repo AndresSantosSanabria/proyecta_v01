@@ -12,8 +12,4 @@ public interface ClosureQuestionRepository extends JpaRepository<ClosureQuestion
     List<ClosureQuestion> findAllByOrderByOrdenAsc();
 
     List<ClosureQuestion> findByActivoTrueOrderByOrdenAsc();
-
-    List<ClosureQuestion> findByActivoFalseOrderByOrdenAsc();
-
-    long countByActivoTrue();
 }

@@ -8,6 +8,5 @@ import java.util.Optional;
 
 public interface RiesgoTratamientoRepository extends JpaRepository<RiesgoTratamiento, Long> {
     List<RiesgoTratamiento> findByRiesgo_IdOrderByIteracionDesc(Integer riesgoId);
-    Optional<RiesgoTratamiento> findByRiesgo_IdAndIteracion(Integer riesgoId, Integer iteracion);
     long countByRiesgo_Id(Integer riesgoId);
 }

@@ -5,7 +5,6 @@ import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
 import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
-import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;

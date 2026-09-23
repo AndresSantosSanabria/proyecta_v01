@@ -60,9 +60,4 @@ public class PatrocinadorSeeder {
             logger.debug("Patrocinador creado: {}", nombre);
         }
     }
-
-    public Patrocinador obtenerPatrocinador(String nombre) {
-        return patrocinadorRepository.findByNombre(nombre)
-            .orElseThrow(() -> new RuntimeException("Patrocinador no encontrado: " + nombre));
-    }
 }

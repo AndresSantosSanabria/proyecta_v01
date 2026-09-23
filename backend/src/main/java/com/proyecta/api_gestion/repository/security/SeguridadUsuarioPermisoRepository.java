@@ -13,17 +13,9 @@ public interface SeguridadUsuarioPermisoRepository extends JpaRepository<Segurid
 
     List<SeguridadUsuarioPermiso> findByUsuario_Id(Long usuarioId);
 
-    Set<Long> findPermisoIdsByUsuario_Id(Long usuarioId);
-
-    @Modifying
-    @Query(value = "DELETE FROM proyecta_db.usuario_permiso WHERE usuario_id = :usuarioId", nativeQuery = true)
-    void deleteByUsuario_Id(@org.springframework.data.repository.query.Param("usuarioId") Long usuarioId);
-
     @Query("SELECT up.permiso.codigo FROM SeguridadUsuarioPermiso up WHERE up.usuario.id = :usuarioId AND up.concedido = true")
     Set<String> findGrantedPermissionCodesByUsuarioId(Long usuarioId);
 
     @Query("SELECT up.permiso.codigo FROM SeguridadUsuarioPermiso up WHERE up.usuario.id = :usuarioId AND up.concedido = false")
     Set<String> findDeniedPermissionCodesByUsuarioId(Long usuarioId);
-
-    boolean existsByUsuario_IdAndPermiso_CodigoIgnoreCase(Long usuarioId, String permisoCodigo);
 }

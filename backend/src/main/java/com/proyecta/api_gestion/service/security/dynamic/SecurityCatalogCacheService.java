@@ -77,12 +77,6 @@ public class SecurityCatalogCacheService {
         });
     }
 
-    public void evictRole(String roleCode) {
-        if (roleCode != null && !roleCode.isBlank()) {
-            permissionsByRoleCache.remove(roleCode.trim().toLowerCase(Locale.ROOT));
-        }
-    }
-
     public boolean isAssignedToProject(String username, String proyectoId) {
         if (username == null || username.isBlank() || proyectoId == null || proyectoId.isBlank()) {
             return false;
@@ -114,20 +108,6 @@ public class SecurityCatalogCacheService {
                 .filter(codigo -> codigo != null && !codigo.isBlank())
                 .map(codigo -> codigo.trim().toUpperCase(Locale.ROOT))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    /**
-     * Invalida la entrada de cache de asignacion proyecto-usuario.
-     * Debe llamarse cuando se modifica la asignacion de un usuario a un proyecto
-     * (alta, baja, cambio de cargo) para forzar una nueva consulta a BD.
-     */
-    public void evictProjectAssignment(String username, String proyectoId) {
-        if (username == null || username.isBlank() || proyectoId == null || proyectoId.isBlank()) {
-            return;
-        }
-        String cacheKey = (username.trim().toLowerCase(Locale.ROOT) + "::" + proyectoId.trim().toUpperCase(Locale.ROOT));
-        projectsByUserCache.remove(cacheKey);
-        log.debug("[AuthzCache] Evicted project assignment cache for user='{}' project='{}'", username, proyectoId);
     }
 
     public void evictAll() {

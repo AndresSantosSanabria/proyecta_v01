@@ -25,39 +25,6 @@ public interface SeguridadUsuarioProyectoRepository extends JpaRepository<Seguri
         SELECT up FROM SeguridadUsuarioProyecto up
         JOIN FETCH up.usuario u
         WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
-          AND LOWER(up.cargo) = LOWER(:cargo)
-          AND up.activo = true
-        ORDER BY up.fechaAsignacion DESC
-    """)
-    Optional<SeguridadUsuarioProyecto> findFirstByProyectoIdIgnoreCaseAndCargoIgnoreCaseAndActivoTrueOrderByFechaAsignacionDesc(
-            @Param("proyectoId") String proyectoId,
-            @Param("cargo") String cargo);
-
-    @Query("""
-        SELECT up FROM SeguridadUsuarioProyecto up
-        JOIN FETCH up.usuario u
-        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
-          AND up.activo = true
-          AND LOWER(up.cargo) IN :cargos
-        ORDER BY up.fechaAsignacion DESC
-    """)
-    List<SeguridadUsuarioProyecto> findActivasByProyectoIdAndCargoIn(
-            @Param("proyectoId") String proyectoId,
-            @Param("cargos") List<String> cargos);
-
-    @Query("""
-        SELECT up FROM SeguridadUsuarioProyecto up
-        JOIN FETCH up.usuario u
-        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
-          AND up.activo = true
-        ORDER BY up.fechaAsignacion DESC
-    """)
-    List<SeguridadUsuarioProyecto> findActivasByProyectoId(@Param("proyectoId") String proyectoId);
-
-    @Query("""
-        SELECT up FROM SeguridadUsuarioProyecto up
-        JOIN FETCH up.usuario u
-        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
           AND up.activo = true
           AND (
             LOWER(up.cargo) IN ('director_proyecto', 'director de proyecto', 'director_pro', 'lider_tecnico', 'lider tecnico', 'director_tecnico', 'director tecnico')

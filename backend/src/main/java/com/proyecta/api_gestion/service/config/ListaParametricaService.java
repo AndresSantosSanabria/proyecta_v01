@@ -1,7 +1,6 @@
 package com.proyecta.api_gestion.service.config;
 
 import com.proyecta.api_gestion.dto.config.ListaParametricaItemDTO;
-import com.proyecta.api_gestion.dto.config.ListaParametricaUpsertRequest;
 import com.proyecta.api_gestion.model.config.ListaParametricaConfig;
 import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
 import org.springframework.stereotype.Service;
@@ -32,63 +31,6 @@ public class ListaParametricaService {
                 .stream()
                 .map(ListaParametricaConfig::getItemNombre)
                 .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<ListaParametricaItemDTO> listarMetadatas() {
-        List<ListaParametricaConfig> all = repository.findAll();
-        return all.stream()
-                .collect(java.util.stream.Collectors.groupingBy(ListaParametricaConfig::getListaClave))
-                .entrySet().stream()
-                .map(e -> {
-                    ListaParametricaConfig first = e.getValue().get(0);
-                    return new ListaParametricaItemDTO(
-                            null,
-                            e.getKey(),
-                            null,
-                            null,
-                            null,
-                            null,
-                            first.getListaNombreCampo(),
-                            first.getListaDescripcion(),
-                            first.getListaTipo()
-                    );
-                })
-                .toList();
-    }
-
-    @Transactional
-    public ListaParametricaItemDTO guardar(ListaParametricaUpsertRequest request) {
-        ListaParametricaConfig entity = repository
-                .findByListaClaveAndItemCodigo(request.listaClave(), request.itemCodigo())
-                .orElseGet(ListaParametricaConfig::new);
-
-        entity.setListaClave(request.listaClave());
-        entity.setItemCodigo(request.itemCodigo());
-        entity.setItemNombre(request.itemNombre());
-        entity.setOrden(request.orden() != null ? request.orden() : 0);
-        entity.setActivo(request.activo() != null ? request.activo() : true);
-
-        if (Boolean.TRUE.equals(request.saveMetadata())) {
-            entity.setListaNombreCampo(request.listaNombreCampo());
-            entity.setListaDescripcion(request.listaDescripcion());
-            entity.setListaTipo(request.listaTipo() != null ? request.listaTipo() : "Lista");
-        }
-
-        return toDTO(repository.save(entity));
-    }
-
-    @Transactional
-    public void eliminar(Long id) {
-        repository.deleteById(id);
-    }
-
-    @Transactional
-    public void toggleActivo(Long id) {
-        ListaParametricaConfig entity = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Item no encontrado con id: " + id));
-        entity.setActivo(!entity.getActivo());
-        repository.save(entity);
     }
 
     @Transactional

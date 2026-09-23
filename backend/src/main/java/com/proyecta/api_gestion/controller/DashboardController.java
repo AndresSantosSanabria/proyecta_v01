@@ -4,9 +4,7 @@ import com.proyecta.api_gestion.controller.interfaces.IDashboardController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
-import com.proyecta.api_gestion.dto.proyecto.ProyectoSummaryDTO;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
-import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,11 +17,9 @@ import java.util.List;
 public class DashboardController implements IDashboardController {
 
     private final DashboardService dashboardService;
-    private final ProyectoAvanceService proyectoAvanceService;
 
-    public DashboardController(DashboardService dashboardService, ProyectoAvanceService proyectoAvanceService) {
+    public DashboardController(DashboardService dashboardService) {
         this.dashboardService = dashboardService;
-        this.proyectoAvanceService = proyectoAvanceService;
     }
 
     @Override
@@ -43,19 +39,5 @@ public class DashboardController implements IDashboardController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(projects, "Lista de avance por proyecto obtenida con éxito"));
-    }
-
-    @Override
-    @GetMapping("/proyectos/{id}/summary")
-    public ResponseEntity<ApiResponse<ProyectoSummaryDTO>> getProjectSummaryById(@PathVariable String id) {
-        ProyectoSummaryDTO summary = proyectoAvanceService.obtenerResumenProyecto(id);
-        return ResponseEntity.ok(ApiResponse.success(summary, "Resumen del proyecto obtenido con éxito"));
-    }
-
-    @Override
-    @GetMapping("/proyectos-por-dependencia")
-    public ResponseEntity<ApiResponse<List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO>>> getProjectsByDependencia() {
-        List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> result = dashboardService.getProjectsByDependencia();
-        return ResponseEntity.ok(ApiResponse.success(result, "Proyectos agrupados por dependencia obtenidos con éxito"));
     }
 }

@@ -6,6 +6,7 @@ import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.repository.ProyectoBeneficioImpactoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import org.slf4j.Logger;
@@ -56,6 +57,7 @@ public class ProyectoSecurity {
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final PermisoUsuarioService permisoUsuarioService;
     private final SeguridadUsuarioRepository seguridadUsuarioRepository;
+    private final SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository;
     private final ProyectoRepository proyectoRepository;
     private final ProyectoBeneficioImpactoRepository beneficioImpactoRepository;
 
@@ -65,6 +67,7 @@ public class ProyectoSecurity {
             LocalUserAuthorizationService localUserAuthorizationService,
             PermisoUsuarioService permisoUsuarioService,
             SeguridadUsuarioRepository seguridadUsuarioRepository,
+            SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository,
             ProyectoRepository proyectoRepository,
             ProyectoBeneficioImpactoRepository beneficioImpactoRepository) {
         this.identityExtractor = identityExtractor;
@@ -72,6 +75,7 @@ public class ProyectoSecurity {
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.permisoUsuarioService = permisoUsuarioService;
         this.seguridadUsuarioRepository = seguridadUsuarioRepository;
+        this.seguridadUsuarioProyectoRepository = seguridadUsuarioProyectoRepository;
         this.proyectoRepository = proyectoRepository;
         this.beneficioImpactoRepository = beneficioImpactoRepository;
     }
@@ -168,6 +172,27 @@ public class ProyectoSecurity {
         canAccess(permissionCode, proyectoId, authentication);
         assertOperationalProjectReady(proyectoId, authentication, permissionCode);
         return true;
+    }
+
+    /**
+     * Variante no lanzadora de {@link #canAccess}: devuelve {@code false} cuando el
+     * usuario no tiene acceso al proyecto en lugar de propagar {@link ForbiddenException}.
+     * Util para endpoints de listado (p.ej. informes de avance pendientes) que deben
+     * filtrar proyectos usando exactamente la misma regla de autorizacion que
+     * {@code GET /proyectos/{id}} y {@code GET /proyectos/{id}/avance}.
+     */
+    public boolean canAccessQuietly(String permissionCode, String proyectoId, Authentication authentication) {
+        try {
+            return canAccess(permissionCode, proyectoId, authentication);
+        } catch (ForbiddenException ex) {
+            logger.debug("canAccessQuietly: denegado user project perm reason={}",
+                    proyectoId, permissionCode, ex.getMessage());
+            return false;
+        } catch (RuntimeException ex) {
+            logger.warn("canAccessQuietly: error evaluando acceso user project perm: {}",
+                    proyectoId, permissionCode, ex.getMessage());
+            return false;
+        }
     }
 
     public boolean canSendDirectorNotification(String proyectoId, Authentication authentication) {
@@ -589,7 +614,28 @@ public class ProyectoSecurity {
             logger.warn("isProjectDirector: error consultando director_usuario_id para proyecto='{}', user='{}': {}",
                     proyectoId, username, e.getMessage());
         }
+
+        // Fallback: asignacion activa en usuario_proyecto con cargo de director
+        // (cubre proyectos legados cuyo director_usuario_id quedo NULL).
+        try {
+            if (usuarioProyectoHasDirectorCargo(username, proyectoId)) {
+                logger.debug("isProjectDirector: user='{}' es director (via usuario_proyecto) del proyecto '{}'",
+                        username, proyectoId);
+                return true;
+            }
+        } catch (Exception e) {
+            logger.warn("isProjectDirector: error consultando usuario_proyecto para proyecto='{}', user='{}': {}",
+                    proyectoId, username, e.getMessage());
+        }
         return false;
+    }
+
+    private boolean usuarioProyectoHasDirectorCargo(String username, String proyectoId) {
+        return seguridadUsuarioProyectoRepository
+                .findByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(
+                        username.trim(), proyectoId.trim(), "DIRECTOR_PROYECTO")
+                .map(asignacion -> Boolean.TRUE.equals(asignacion.getActivo()))
+                .orElse(false);
     }
 
     private static final Set<String> COMPLETION_ALLOWED_PERMISSIONS = Set.of(

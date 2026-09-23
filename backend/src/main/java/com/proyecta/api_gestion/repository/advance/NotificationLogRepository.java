@@ -9,9 +9,6 @@ import java.util.Optional;
 
 @Repository
 public interface NotificationLogRepository extends JpaRepository<NotificationLog, Long> {
-    Optional<NotificationLog> findByProjectIdAndNotificationDateAndNotificationType(
-            String projectId, LocalDate notificationDate, String notificationType);
-
     boolean existsByProjectIdAndNotificationDateAndNotificationType(
             String projectId, LocalDate notificationDate, String notificationType);
 }

@@ -9,8 +9,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface FuragRespuestaRepository extends JpaRepository<FuragRespuesta, Long> {
-    long countByProyecto_IdAndRespuestaIsNotNull(String proyectoId);
-
     long countByProyecto_IdAndObligatoriaTrue(String proyectoId);
 
     long countByProyecto_IdAndObligatoriaTrueAndRespuestaIsNotNull(String proyectoId);

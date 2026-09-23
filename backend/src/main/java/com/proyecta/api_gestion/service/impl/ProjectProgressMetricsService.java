@@ -113,14 +113,6 @@ public class ProjectProgressMetricsService {
         );
     }
 
-    public String serializar(ProyectoAvanceResponseDTO dto) {
-        try {
-            return objectMapper.writeValueAsString(dto);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("No fue posible serializar el snapshot de avance del proyecto.", ex);
-        }
-    }
-
     public ProyectoAvanceResponseDTO deserializar(String json) {
         try {
             return objectMapper.readValue(json, ProyectoAvanceResponseDTO.class);

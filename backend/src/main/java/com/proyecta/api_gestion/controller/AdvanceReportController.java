@@ -13,6 +13,7 @@ import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.impl.FileStorageServiceImpl;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import com.proyecta.api_gestion.service.security.dynamic.ProyectoSecurity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -41,6 +42,7 @@ public class AdvanceReportController {
     private final SystemParameterService systemParameterService;
     private final KeycloakIdentityExtractor identityExtractor;
     private final FileStorageServiceImpl fileStorageService;
+    private final ProyectoSecurity proyectoSecurity;
 
     public AdvanceReportController(
             AdvanceReportRuleEvaluator ruleEvaluator,
@@ -49,7 +51,8 @@ public class AdvanceReportController {
             AdvanceReportUploadRepository uploadRepository,
             SystemParameterService systemParameterService,
             KeycloakIdentityExtractor identityExtractor,
-            FileStorageServiceImpl fileStorageService) {
+            FileStorageServiceImpl fileStorageService,
+            ProyectoSecurity proyectoSecurity) {
         this.ruleEvaluator = ruleEvaluator;
         this.notificationService = notificationService;
         this.proyectoRepository = proyectoRepository;
@@ -57,6 +60,7 @@ public class AdvanceReportController {
         this.systemParameterService = systemParameterService;
         this.identityExtractor = identityExtractor;
         this.fileStorageService = fileStorageService;
+        this.proyectoSecurity = proyectoSecurity;
     }
 
     /**
@@ -133,17 +137,9 @@ public class AdvanceReportController {
         LocalDate today = LocalDate.now();
         String periodo = resolveCurrentPeriodo(today);
 
-        String username = identityExtractor.resolveUsername(authentication);
-        boolean isTransversal = authentication.getAuthorities().stream()
-                .anyMatch(a -> {
-                    String auth = a.getAuthority().toLowerCase();
-                    return auth.contains("admin") ||
-                           auth.contains("pm_office") ||
-                           auth.contains("gerente_portafolio") ||
-                           auth.contains("lider_funcional") ||
-                           auth.contains("auditor");
-                });
-
+        // Usa exactamente la misma regla de autorizacion que GET /proyectos/{id}
+        // (canAccess): evita mostrar proyectos a los que el usuario recibira 403
+        // al navegar desde el modal.
         List<AdvanceReportStatusDTO> pending = proyectoRepository.findAll().stream()
                 .filter(p -> p.getEstado() != null
                         && !p.esEstadoTerminal()
@@ -151,10 +147,7 @@ public class AdvanceReportController {
                         && !com.proyecta.api_gestion.model.enums.EstadoProyecto.PLANIFICACION.equals(p.getEstado()))
                 .filter(p -> p.documentosPreWizardCompletos()
                         && com.proyecta.api_gestion.model.enums.ViabilidadEstado.APROBADA.equals(p.getViabilidadEstado()))
-                .filter(p -> {
-                    if (isTransversal) return true;
-                    return proyectoRepository.existsDirectorByProyectoIdAndUsername(p.getId(), username);
-                })
+                .filter(p -> proyectoSecurity.canAccessQuietly("PROYECTO:VER", p.getId(), authentication))
                 .filter(p -> !notificationService.isUploaded(p.getId(), periodo))
                 .map(p -> new AdvanceReportStatusDTO(
                         p.getId(),

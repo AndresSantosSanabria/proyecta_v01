@@ -66,13 +66,6 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<Void> eliminarFase(String id, Integer faseId, Authentication authentication) {
-        projectHierarchyService.eliminarFase(id, faseId, authentication);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Override
-    @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
     public ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO>> agregarHito(String id, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
         com.proyecta.api_gestion.model.Hito hito = projectHierarchyService.agregarHito(id, faseId, dto, authentication);
         return ResponseEntity.ok(ApiResponse.success(new com.proyecta.api_gestion.dto.proyecto.HitoResponseDTO(hito.getId(), hito.getNombre(), hito.getDescripcion(), hito.getPonderacion(), hito.getAvanceCalculado(), null), "Hito agregado"));
@@ -87,19 +80,6 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
 
     @Override
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<Void> eliminarHito(String id, Integer faseId, Integer hitoId, Authentication authentication) {
-        projectHierarchyService.eliminarHito(id, faseId, hitoId, authentication);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Override
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
-    public ResponseEntity<ApiResponse<java.util.List<com.proyecta.api_gestion.dto.project.EntregableHierarchyDTO>>> listarEntregablesProyecto(String id) {
-        return ResponseEntity.ok(ApiResponse.success(projectHierarchyService.listarEntregablesProyecto(id), "Lista de entregables obtenida"));
-    }
-
-    @Override
-    @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
     public ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(String id, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(projectHierarchyService.agregarEntregable(id, faseId, hitoId, dto, authentication), "Entregable agregado"));
     }
@@ -108,13 +88,6 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
     @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
     public ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> editarEntregable(String id, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(projectHierarchyService.editarEntregable(id, entregableId, dto, authentication), "Entregable editado"));
-    }
-
-    @Override
-    @PreAuthorize("@proyectoSecurity.canManageProjectStructure(#id, authentication)")
-    public ResponseEntity<Void> eliminarEntregable(String id, Integer entregableId, Authentication authentication) {
-        projectHierarchyService.eliminarEntregable(id, entregableId, authentication);
-        return ResponseEntity.noContent().build();
     }
 
     // -----------------------------------------------------------------------

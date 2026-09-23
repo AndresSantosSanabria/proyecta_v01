@@ -30,7 +30,6 @@ import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
 import com.proyecta.api_gestion.service.report.ActaCierreDocxGenerator;
-import com.proyecta.api_gestion.service.closure.DynamicClosurePdfService;
 import com.proyecta.api_gestion.service.closure.ClosureTemplateService;
 import com.proyecta.api_gestion.service.closure.TemplateResolver;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
@@ -73,7 +72,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final ObjectMapper objectMapper;
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
-    private final DynamicClosurePdfService dynamicPdfService;
     private final ClosureTemplateService templateService;
     private final ClosureAnswerRepository closureAnswerRepository;
     private final ProjectClosureRecordRepository closureRecordRepository;
@@ -92,7 +90,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      ObjectMapper objectMapper,
                                      NotificationEventPublisherPort notificationPublisher,
                                      KeycloakIdentityExtractor identityExtractor,
-                                     DynamicClosurePdfService dynamicPdfService,
                                      ClosureTemplateService templateService,
                                      ClosureAnswerRepository closureAnswerRepository,
                                      ProjectClosureRecordRepository closureRecordRepository,
@@ -110,7 +107,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.objectMapper = objectMapper;
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
-        this.dynamicPdfService = dynamicPdfService;
         this.templateService = templateService;
         this.closureAnswerRepository = closureAnswerRepository;
         this.closureRecordRepository = closureRecordRepository;

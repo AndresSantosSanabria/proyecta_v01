@@ -8,5 +8,4 @@ import java.util.Optional;
 
 public interface ProyectoBeneficioImpactoRepository extends JpaRepository<ProyectoBeneficioImpacto, Long> {
     Optional<ProyectoBeneficioImpacto> findByProyecto_Id(String proyectoId);
-    boolean existsByProyecto_IdAndEstado(String proyectoId, EstadoBeneficioImpacto estado);
 }

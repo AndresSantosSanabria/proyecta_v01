@@ -12,10 +12,6 @@ import java.util.UUID;
 
 public interface NotificationMailDispatchLogRepository extends JpaRepository<NotificationMailDispatchLog, UUID> {
 
-    long countByStatus(String status);
-
-    Page<NotificationMailDispatchLog> findByStatus(String status, Pageable pageable);
-
     @Query("SELECT ndl FROM NotificationMailDispatchLog ndl WHERE ndl.status = :status " +
             "AND (:recipient IS NULL OR LOWER(ndl.recipient) LIKE LOWER(CONCAT('%', :recipient, '%'))) " +
             "AND (:from IS NULL OR ndl.createdAt >= :from) " +

@@ -39,10 +39,6 @@ public interface IProyectoController {
     @GetMapping("/{id}")
     ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable String id);
 
-    @Operation(summary = "EP-PROY-03 · Crear proyecto", description = "Crear un nuevo proyecto TIC (wizard completo).")
-    @PostMapping
-    ResponseEntity<ApiResponse<ProyectoCreatedDTO>> crearProyecto(@Valid @RequestBody ProyectoCreateDTO dto);
-
     @Operation(summary = "EP-PROY-03A - Siguiente codigo", description = "Retorna el siguiente codigo auto-generado para un nuevo proyecto con formato PROY-CUN-YYYY-NNN.")
     @GetMapping("/siguiente-codigo")
     ResponseEntity<ApiResponse<String>> obtenerSiguienteCodigo();
@@ -73,21 +69,9 @@ public interface IProyectoController {
             @Valid @RequestBody ProyectoUpdateDTO dto,
             Authentication authentication);
 
-    @Operation(summary = "EP-PROY-05 · Dashboard", description = "Métricas resumidas para el dashboard principal.")
-    @GetMapping("/dashboard")
-    ResponseEntity<ApiResponse<DashboardDTO>> obtenerDashboard();
-
-    @Operation(summary = "EP-PROY-06 · Eliminar proyecto", description = "Eliminar un proyecto por ID.")
-    @DeleteMapping("/{id}")
-    ResponseEntity<Void> eliminarProyecto(@PathVariable String id, Authentication authentication);
-
     @Operation(summary = "EP-PROY-07 · Resumen para cierre", description = "Obtener resumen ejecutivo para la pantalla de cierre.")
     @GetMapping("/{id}/resumen")
     ResponseEntity<ApiResponse<ProyectoResumenDTO>> obtenerResumen(@PathVariable String id);
-
-    @Operation(summary = "EP-PROY-08 · Cerrar proyecto", description = "Cerrar formalmente un proyecto (requiere 100% avance).")
-    @PatchMapping("/{id}/cerrar")
-    ResponseEntity<Void> cerrarProyecto(@PathVariable String id);
 
     @Operation(summary = "EP-PROY-09 · Obtener FURAG", description = "Obtener respuestas FURAG del proyecto.")
     @GetMapping("/{id}/furag")
@@ -96,10 +80,6 @@ public interface IProyectoController {
     @Operation(summary = "EP-PROY-10 · Actualizar FURAG", description = "Actualizar respuestas FURAG del proyecto.")
     @PutMapping("/{id}/furag")
     ResponseEntity<Void> actualizarFurag(@PathVariable String id, @RequestBody @jakarta.validation.Valid com.proyecta.api_gestion.model.Furag furag);
-
-    @Operation(summary = "EP-PROY-11 · Recalcular avances", description = "Recalcular avances de todos los proyectos basado en estado de entregables.")
-    @PostMapping("/recalcular-avances")
-    ResponseEntity<ApiResponse<Void>> recalcularAvances();
 
     @Operation(summary = "EP-PROY-12 · Guardar borrador completitud", description = "Guardar borrador de completitud por fase para que el Director pueda continuar despues.")
     @PatchMapping("/{id}/completitud-borrador")

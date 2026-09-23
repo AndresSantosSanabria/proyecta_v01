@@ -16,6 +16,4 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
 
     @Query("SELECT d FROM Documento d WHERE d.proyectoId = :proyectoId AND d.tipoDocumentoConfig.codigo = :codigo")
     Optional<Documento> findByProyectoIdAndTipoDocumentoConfigCodigo(@Param("proyectoId") String proyectoId, @Param("codigo") String codigo);
-
-    boolean existsByNombreAlmacenado(String nombreAlmacenado);
 }

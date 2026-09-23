@@ -14,7 +14,5 @@ public interface PublicEvidenceAccessRepository extends JpaRepository<PublicEvid
     @Query("SELECT pea FROM PublicEvidenceAccess pea JOIN FETCH pea.entregable WHERE pea.token = :token AND pea.activo = true")
     Optional<PublicEvidenceAccess> findByTokenAndActivoTrueWithEntregable(@Param("token") String token);
 
-    Optional<PublicEvidenceAccess> findByTokenAndActivoTrue(String token);
-
     Optional<PublicEvidenceAccess> findByEntregable_IdAndActivoTrue(Integer entregableId);
 }

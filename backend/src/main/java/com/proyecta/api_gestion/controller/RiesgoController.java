@@ -17,7 +17,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -86,17 +85,6 @@ public class RiesgoController implements IRiesgoController {
             @PathVariable Integer riesgoId) {
         riesgoService.deleteRisk(proyectoId, riesgoId);
         return ResponseEntity.noContent().build();
-    }
-
-    @Override
-    @PatchMapping("/{proyectoId}/riesgos/{riesgoId}/tratamiento")
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
-    public ResponseEntity<ApiResponse<Void>> verificarTratamiento(
-            @PathVariable String proyectoId,
-            @PathVariable Integer riesgoId,
-            @RequestBody String verificacion) {
-        riesgoService.verificarTratamiento(proyectoId, riesgoId, verificacion);
-        return ResponseEntity.ok(ApiResponse.success(null, "Tratamiento verificado y riesgo actualizado"));
     }
 
     @Override

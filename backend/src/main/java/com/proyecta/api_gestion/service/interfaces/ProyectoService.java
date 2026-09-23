@@ -13,7 +13,6 @@ public interface ProyectoService {
     List<ProyectoListDTO> listarProyectosAsignados(String username);
     List<SeguridadUsuarioDTO> listarDirectoresAsignables();
     ProyectoResponseDTO obtenerPorId(String id);
-    ProyectoCreatedDTO crearProyecto(ProyectoCreateDTO dto);
     ProyectoCreatedDTO registrarProyectoInicial(ProyectoRegistroInicialDTO dto, String gestorUsername);
     String obtenerSiguienteCodigo();
     ProyectoCompletionStatusDTO obtenerEstadoCompletitud(String id, String username);
