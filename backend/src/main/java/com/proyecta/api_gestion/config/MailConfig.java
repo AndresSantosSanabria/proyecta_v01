@@ -65,29 +65,35 @@ public class MailConfig {
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
         sender.setHost(host);
         sender.setPort(port);
-        sender.setUsername(username);
-        sender.setPassword(password);
         sender.setProtocol(protocol);
         sender.setDefaultEncoding("UTF-8");
+
+        if (authEnabled && username != null && !username.isBlank()) {
+            sender.setUsername(username);
+            sender.setPassword(password);
+        }
 
         Properties props = sender.getJavaMailProperties();
         props.put("mail.smtp.auth", String.valueOf(authEnabled));
         props.put("mail.smtp.starttls.enable", String.valueOf(startTlsEnabled));
         props.put("mail.smtp.starttls.required", String.valueOf(startTlsRequired));
         props.put("mail.smtp.ssl.protocols", sslProtocols);
-        props.put("mail.smtp.auth.mechanisms", authMechanisms);
         props.put("mail.smtp.connectiontimeout", String.valueOf(connectionTimeout));
         props.put("mail.smtp.timeout", String.valueOf(readTimeout));
         props.put("mail.smtp.writetimeout", String.valueOf(writeTimeout));
         props.put("mail.smtp.quitwait", String.valueOf(quitWait));
 
+        if (authEnabled && authMechanisms != null && !authMechanisms.isBlank()) {
+            props.put("mail.smtp.auth.mechanisms", authMechanisms);
+        }
+
         if (sslTrust != null && !sslTrust.isBlank()) {
             props.put("mail.smtp.ssl.trust", sslTrust);
         }
 
-        log.info("[MailConfig] SMTP listo -> {}://{}:{} | usuario={}", protocol, host, port, username);
-        log.info("[MailConfig] TLS starttls.enable={} required={} | auth={} mechanisms={} | timeouts(ms): connect={}, read={}, write={}",
-                startTlsEnabled, startTlsRequired, authEnabled, authMechanisms, connectionTimeout, readTimeout, writeTimeout);
+        log.info("[MailConfig] SMTP listo -> {}://{}:{} | auth={}", protocol, host, port, authEnabled);
+        log.info("[MailConfig] TLS starttls.enable={} required={} | timeouts(ms): connect={}, read={}, write={}",
+                startTlsEnabled, startTlsRequired, connectionTimeout, readTimeout, writeTimeout);
 
         return sender;
     }

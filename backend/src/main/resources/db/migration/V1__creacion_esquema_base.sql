@@ -245,8 +245,9 @@ CREATE TABLE proyecto (
     fecha_registro                TIMESTAMP    NOT NULL DEFAULT NOW(),
     requiere_completitud_director BOOLEAN      NOT NULL DEFAULT FALSE,
     primer_ingreso_director_at    TIMESTAMP,
-    completado_por_director_at    TIMESTAMP,
-    registrado_inicial_por        VARCHAR(120)
+     completado_por_director_at    TIMESTAMP,
+     registrado_inicial_por        VARCHAR(120),
+     email_message_id              VARCHAR(255)
 );
 
 -- FK diferida
@@ -513,6 +514,29 @@ CREATE TABLE documento_dinamico (
 );
 
 CREATE INDEX idx_proyecto_tipo ON documento_dinamico(proyecto_id, tipo_documento);
+
+-- 5.9 Revisión individual de documentos pre-wizard
+CREATE TABLE documento_pre_wizard_revision (
+    documento_pre_wizard_revision_id BIGSERIAL   PRIMARY KEY,
+    proyecto_id                      VARCHAR(30) NOT NULL,
+    tipo_documento                   VARCHAR(30) NOT NULL,
+    estado                           VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE',
+    observacion                      VARCHAR(1000),
+    revisado_por                     VARCHAR(200),
+    revisado_en                      TIMESTAMP,
+    creado_en                        TIMESTAMP    NOT NULL DEFAULT NOW(),
+    actualizado_en                   TIMESTAMP    NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_pre_wizard_revision UNIQUE (proyecto_id, tipo_documento),
+    CONSTRAINT chk_pre_wizard_estado CHECK (estado IN ('PENDIENTE', 'APROBADO', 'DEVUELTO')),
+    CONSTRAINT chk_pre_wizard_tipo CHECK (tipo_documento IN (
+        'VIABILIZACION',
+        'PLAN_COMUNICACIONES',
+        'MATRIZ_RIESGOS_VIABILIDAD'
+    ))
+);
+
+CREATE INDEX idx_pre_wizard_revision_proyecto
+    ON documento_pre_wizard_revision (proyecto_id);
 
 -- 5.7 Log de notificaciones de avance
 CREATE TABLE notification_log (
@@ -930,6 +954,25 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
+
+-- 5.10 Documentación interna (solo gestores/admin)
+CREATE TABLE documento_interno (
+    id                       BIGSERIAL    PRIMARY KEY,
+    codigo                   VARCHAR(30)  NOT NULL UNIQUE,
+    nombre                   VARCHAR(255) NOT NULL,
+    descripcion              VARCHAR(1000),
+    fecha_creacion           DATE         NOT NULL DEFAULT CURRENT_DATE,
+    nombre_original          VARCHAR(255) NOT NULL,
+    nombre_almacenado        VARCHAR(255) NOT NULL UNIQUE,
+    ruta_almacenamiento      VARCHAR(500) NOT NULL,
+    mime_type                VARCHAR(100) NOT NULL,
+    tamano_bytes             BIGINT       NOT NULL,
+    creado_por               VARCHAR(200) NOT NULL,
+    creado_en                TIMESTAMP    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_documento_interno_fecha ON documento_interno(fecha_creacion);
+CREATE INDEX idx_documento_interno_nombre ON documento_interno(nombre);
 
 -- =============================================================================
 -- FIN DEL ESQUEMA

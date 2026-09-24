@@ -14,6 +14,7 @@ public interface SeguridadUsuarioRepository extends JpaRepository<SeguridadUsuar
     Optional<SeguridadUsuario> findByUsernameIgnoreCase(String username);
     Optional<SeguridadUsuario> findByCorreoIgnoreCase(String correo);
     Optional<SeguridadUsuario> findByKeycloakSubIgnoreCase(String keycloakSub);
+    List<SeguridadUsuario> findByNombreIgnoreCase(String nombre);
     List<SeguridadUsuario> findByRecibirNotificacionesGlobalesTrue();
 
     @Query("""

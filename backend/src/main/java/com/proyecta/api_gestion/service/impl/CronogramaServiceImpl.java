@@ -19,6 +19,10 @@ import com.proyecta.api_gestion.repository.HitoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.CronogramaService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -42,19 +46,22 @@ public class CronogramaServiceImpl implements CronogramaService {
     private final EntregableRepository entregableRepository;
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
     private final FileStorageServiceImpl fileStorageService;
+    private final NotificationEventPublisherPort notificationPublisher;
 
     public CronogramaServiceImpl(ProyectoRepository proyectoRepository,
                                  FaseRepository faseRepository,
                                  HitoRepository hitoRepository,
                                  EntregableRepository entregableRepository,
                                  SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
-                                 FileStorageServiceImpl fileStorageService) {
+                                 FileStorageServiceImpl fileStorageService,
+                                 NotificationEventPublisherPort notificationPublisher) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
         this.entregableRepository = entregableRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
         this.fileStorageService = fileStorageService;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -176,6 +183,22 @@ public class CronogramaServiceImpl implements CronogramaService {
 
         proyecto.setCronogramaPdf(storedPath);
         proyectoRepository.save(proyecto);
+
+        if (!proyecto.requiereCompletitudDirector()) {
+            var recipients = ProjectNotificationRecipients.resolve(proyecto);
+            if (recipients != null && !recipients.isEmpty()) {
+                notificationPublisher.publish(new NotificationContext(
+                        NotificationEventType.PROJECT_DOCUMENT_UPLOADED,
+                        proyecto.getId(),
+                        "system",
+                        java.util.Map.of(
+                                "projectName", proyecto.getNombre() != null ? proyecto.getNombre() : "",
+                                "documentType", "CRONOGRAMA",
+                                "documentName", file.getOriginalFilename() != null ? file.getOriginalFilename() : "Cronograma",
+                                "recipients", recipients
+                        )));
+            }
+        }
 
         return new CronogramaUploadResponseDTO(
                 proyecto.getId(),

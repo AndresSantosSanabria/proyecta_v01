@@ -104,6 +104,7 @@ public class AdvanceReportNotificationService {
                 "system",
                 Map.of(
                         "projectName", projectName,
+                        "periodo", periodo != null ? periodo : "",
                         "dueDate", ruleEvaluator.getDueDate() != null ? ruleEvaluator.getDueDate().toString() : "N/A",
                         "message", decision.message() != null ? decision.message() : "",
                         "recipients", recipients,
@@ -128,5 +129,59 @@ public class AdvanceReportNotificationService {
     @Transactional(readOnly = true)
     public AdvanceReportUpload getUpload(String projectId, String periodo) {
         return uploadRepository.findByProjectIdAndPeriodo(projectId, periodo).orElse(null);
+    }
+
+    @Transactional
+    public void notificarInformeCargado(Proyecto proyecto, String periodo, String fileName, String actorUsername) {
+        if (proyecto == null) return;
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (recipients.isEmpty()) return;
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.ADVANCE_REPORT_UPLOADED,
+                proyecto.getId(),
+                actorUsername == null || actorUsername.isBlank() ? "system" : actorUsername,
+                Map.of(
+                        "projectName", nombreProyecto(proyecto),
+                        "periodo", periodo != null ? periodo : "",
+                        "fileName", fileName != null ? fileName : "",
+                        "recipients", recipients
+                )));
+    }
+
+    @Transactional
+    public void notificarInformeVerificado(Proyecto proyecto, String periodo, String actorUsername) {
+        if (proyecto == null) return;
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (recipients.isEmpty()) return;
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.ADVANCE_REPORT_VERIFIED,
+                proyecto.getId(),
+                actorUsername == null || actorUsername.isBlank() ? "system" : actorUsername,
+                Map.of(
+                        "projectName", nombreProyecto(proyecto),
+                        "periodo", periodo != null ? periodo : "",
+                        "recipients", recipients
+                )));
+    }
+
+    @Transactional
+    public void notificarInformeDevuelto(Proyecto proyecto, String periodo, String observaciones, String actorUsername) {
+        if (proyecto == null) return;
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (recipients.isEmpty()) return;
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.ADVANCE_REPORT_RETURNED,
+                proyecto.getId(),
+                actorUsername == null || actorUsername.isBlank() ? "system" : actorUsername,
+                Map.of(
+                        "projectName", nombreProyecto(proyecto),
+                        "periodo", periodo != null ? periodo : "",
+                        "observaciones", observaciones != null && !observaciones.isBlank() ? observaciones : "Sin observaciones",
+                        "recipients", recipients
+                )));
+    }
+
+    private String nombreProyecto(Proyecto proyecto) {
+        return proyecto.getNombre() != null ? proyecto.getNombre() : proyecto.getId();
     }
 }

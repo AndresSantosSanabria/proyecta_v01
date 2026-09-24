@@ -2,7 +2,6 @@ package com.proyecta.api_gestion.service.advance;
 
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -12,8 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 
 /**
- * Job diario que escanea proyectos activos con upload_status=false
- * y aplica las reglas de ventana/intervalo para notificar.
+ * Job diario que escanea proyectos elegibles (estado iniciado, viabilidad aprobada,
+ * antiguedad minima configurable) sin informe del periodo vigente y aplica las
+ * reglas de ventana/intervalo para notificar. Todas las reglas son parametrizables
+ * desde Configuracion via AdvanceReportPeriodService.
  */
 @Service
 public class AdvanceReportReminderScheduler {
@@ -23,27 +24,34 @@ public class AdvanceReportReminderScheduler {
     private final ProyectoRepository proyectoRepository;
     private final AdvanceReportNotificationService notificationService;
     private final AdvanceReportRuleEvaluator ruleEvaluator;
+    private final AdvanceReportPeriodService periodService;
 
     public AdvanceReportReminderScheduler(
             ProyectoRepository proyectoRepository,
             AdvanceReportNotificationService notificationService,
-            AdvanceReportRuleEvaluator ruleEvaluator) {
+            AdvanceReportRuleEvaluator ruleEvaluator,
+            AdvanceReportPeriodService periodService) {
         this.proyectoRepository = proyectoRepository;
         this.notificationService = notificationService;
         this.ruleEvaluator = ruleEvaluator;
+        this.periodService = periodService;
     }
 
     @Scheduled(cron = "${notifications.advance-report.cron:0 0 7 * * *}")
     @Transactional
     public void scanAndNotifyPendingReports() {
         LocalDate today = LocalDate.now();
-        String periodo = resolveCurrentPeriodo(today);
+        String periodo = periodService.currentPeriodo(today);
+
+        if (!periodService.isEnabled()) {
+            log.info("Informe de avance deshabilitado (advance_report_enabled=false), omitiendo escaneo");
+            return;
+        }
 
         log.info("▶ Evaluando informes de avance para periodo {}", periodo);
 
-        // Get all active projects (not closed, not finalized)
         var proyectos = proyectoRepository.findAll().stream()
-                .filter(p -> !isTerminal(p))
+                .filter(p -> periodService.esElegible(p, today))
                 .toList();
 
         int notified = 0;
@@ -58,24 +66,7 @@ public class AdvanceReportReminderScheduler {
             }
         }
 
-        log.info("✓ Evaluación de informes completada: {}/{} proyectos notificados", notified, proyectos.size());
-    }
-
-    private boolean isTerminal(Proyecto proyecto) {
-        if (proyecto.getEstadoConfig() != null) {
-            return proyecto.getEstadoConfig().getEsTerminal();
-        }
-        return EstadoProyecto.CERRADO.equals(proyecto.getEstado())
-                || EstadoProyecto.CERRADO_FORZOSO.equals(proyecto.getEstado())
-                || EstadoProyecto.FINALIZADO.equals(proyecto.getEstado());
-    }
-
-    /**
-     * Genera el código de periodo basado en la fecha.
-     * Formato: YYYY-QN (ej: 2026-Q3) basado en trimestre.
-     */
-    private String resolveCurrentPeriodo(LocalDate date) {
-        int quarter = (date.getMonthValue() - 1) / 3 + 1;
-        return String.format("%d-Q%d", date.getYear(), quarter);
+        log.info("✓ Evaluación de informes completada: {}/{} proyectos elegibles notificados",
+                notified, proyectos.size());
     }
 }

@@ -479,10 +479,14 @@ public class Proyecto {
         this.fechaLimiteCompletar = null;
     }
 
-    public void cerrarForzoso(String gestorUsername) {
+    public void cerrarForzoso(String gestorUsername, String comentario) {
+        if (comentario == null || comentario.isBlank()) {
+            throw new IllegalStateException("El comentario es obligatorio para el cierre forzoso.");
+        }
         this.cierreForzoso = true;
         this.cierreForzosoPor = gestorUsername;
         this.cierreForzosoEn = LocalDateTime.now();
+        this.cierreObservaciones = comentario.trim();
         this.estado = EstadoProyecto.CERRADO_FORZOSO;
         this.estadoConfig = null;
         this.requiereCompletitudDirector = false;

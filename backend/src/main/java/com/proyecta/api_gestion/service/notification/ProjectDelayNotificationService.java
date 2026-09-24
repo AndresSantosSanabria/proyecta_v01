@@ -45,6 +45,11 @@ public class ProjectDelayNotificationService {
             return;
         }
 
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (recipients.isEmpty()) {
+            return;
+        }
+
         SeguridadUsuario recipient = usuarioRepository.findByUsernameIgnoreCase(director)
                 .or(() -> usuarioRepository.findByCorreoIgnoreCase(director))
                 .orElse(null);
@@ -69,7 +74,7 @@ public class ProjectDelayNotificationService {
                 Map.of(
                         "projectName", proyecto.getNombre(),
                         "overdueDeliverables", snapshot.entregablesAtrasados(),
-                        "recipients", List.of(director),
+                        "recipients", recipients,
                         "title", "Proyecto con retrasos: " + proyecto.getNombre()
                 )));
     }

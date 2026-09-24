@@ -1,4 +1,4 @@
-﻿# api-gestion — Proyecta
+# api-gestion — Proyecta
 
 Sistema de gestión de proyectos y dashboard analítico desarrollado con Spring Boot.
 

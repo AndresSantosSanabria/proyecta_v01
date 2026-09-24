@@ -6,6 +6,7 @@ import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -51,9 +52,9 @@ public class ActaConstitucionReminderService {
     }
 
     private void notificarCompletarProyecto(Proyecto proyecto) {
-        String directorUsername = proyecto.getDirector();
-        if (directorUsername == null || directorUsername.isBlank()) {
-            log.warn("Proyecto {} no tiene director asignado. Saltando notificacion.", proyecto.getId());
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (recipients.isEmpty()) {
+            log.warn("Proyecto {} no tiene destinatarios (gestor/director). Saltando notificacion.", proyecto.getId());
             return;
         }
 
@@ -67,39 +68,25 @@ public class ActaConstitucionReminderService {
                 java.util.Map.of(
                         "projectName", proyecto.getNombre(),
                         "diasRestantes", diasRestantes,
-                        "recipients", List.of(directorUsername)
+                        "recipients", recipients
                 )));
     }
 
     private void notificarPlazoVencido(Proyecto proyecto) {
-        String directorUsername = proyecto.getDirector();
-        String gestorUsername = proyecto.getRegistradoInicialPor();
-
-        if (directorUsername != null && !directorUsername.isBlank()) {
-            notificationPublisher.publish(new NotificationContext(
-                    NotificationEventType.ACTA_CONSTITUCION_REMINDER,
-                    proyecto.getId(),
-                    "SYSTEM",
-                    java.util.Map.of(
-                            "projectName", proyecto.getNombre(),
-                            "diasRestantes", 0L,
-                            "plazoVencido", true,
-                            "recipients", List.of(directorUsername)
-                    )));
+        List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (recipients.isEmpty()) {
+            return;
         }
 
-        if (gestorUsername != null && !gestorUsername.isBlank()) {
-            notificationPublisher.publish(new NotificationContext(
-                    NotificationEventType.ACTA_CONSTITUCION_REMINDER,
-                    proyecto.getId(),
-                    "SYSTEM",
-                    java.util.Map.of(
-                            "projectName", proyecto.getNombre(),
-                            "diasRestantes", 0L,
-                            "plazoVencido", true,
-                            "notificarGestor", true,
-                            "recipients", List.of(gestorUsername)
-                    )));
-        }
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.ACTA_CONSTITUCION_REMINDER,
+                proyecto.getId(),
+                "SYSTEM",
+                java.util.Map.of(
+                        "projectName", proyecto.getNombre(),
+                        "diasRestantes", 0L,
+                        "plazoVencido", true,
+                        "recipients", recipients
+                )));
     }
 }

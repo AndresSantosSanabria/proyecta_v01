@@ -463,6 +463,22 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         entityManager.flush();
         entityManager.refresh(entregable);
 
+        Proyecto proyectoRevert = cargarProyecto(proyectoId);
+        var revertRecipients = ProjectNotificationRecipients.resolve(proyectoRevert);
+        if (revertRecipients != null && !revertRecipients.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.EVIDENCE_VERSION_REVERTED,
+                    proyectoId,
+                    actor.username(),
+                    java.util.Map.of(
+                            "projectName", proyectoRevert.getNombre() != null ? proyectoRevert.getNombre() : "",
+                            "deliverableName", entregable.getNombre() != null ? entregable.getNombre() : "",
+                            "versionNumber", version.getNumeroVersion() != null ? version.getNumeroVersion() : 0,
+                            "motivo", motivo.trim(),
+                            "recipients", revertRecipients
+                    )));
+        }
+
         return responseConAvance(proyectoId, entregable);
     }
 

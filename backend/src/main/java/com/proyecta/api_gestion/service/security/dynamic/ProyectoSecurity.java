@@ -235,6 +235,39 @@ public class ProyectoSecurity {
         return true;
     }
 
+    /**
+     * Cierre forzoso / extraordinario desde la lista de proyectos, sin necesidad de
+     * entrar al proyecto y sin importar si tiene documentacion inicial cargada.
+     * Permitido solo para Administrador o Gestores (gestor_tic / gestor_proyectos).
+     */
+    public boolean canForceCloseExtraordinary(Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean allowedRole = roleCodes.stream().anyMatch(EVIDENCE_REVIEW_ROLE_CODES::contains);
+        if (!allowedRole) {
+            throw new ForbiddenException("Solo el Administrador o un Gestor pueden realizar el cierre extraordinario del proyecto.");
+        }
+
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
+                .map(this::normalize)
+                .anyMatch("PROYECTO:VER"::equals);
+
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: PROYECTO:VER");
+        }
+
+        return true;
+    }
+
     public boolean canViewBenefitImpact(String proyectoId, Authentication authentication) {
         if (isAdmin(authentication)) {
             return true;
@@ -366,6 +399,37 @@ public class ProyectoSecurity {
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
             throw new ForbiddenException("El usuario no estÃ¡ asignado al proyecto solicitado.");
+        }
+
+        return true;
+    }
+
+    /**
+     * Gate de carga del informe de avance: solo Director de Proyecto asignado (o admin).
+     */
+    public boolean canUploadAdvanceReport(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean director = roleCodes.stream().anyMatch("director_proyecto"::equalsIgnoreCase);
+        if (!director) {
+            throw new ForbiddenException("Solo el Director de Proyecto puede cargar el informe de avance.");
+        }
+
+        if (proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)
+                && !isProjectDirector(username, proyectoId, authentication)) {
+            throw new ForbiddenException("El usuario no est\u00e1 asignado al proyecto solicitado.");
         }
 
         return true;

@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.interfaces;
 
 import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardConfirmacionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoVersionHistorialResponseDTO;
@@ -18,4 +19,5 @@ public interface IDocumentoService {
     DocumentoPreWizardRevisionDTO.Listado listarRevisionesPreWizard(String proyectoId);
     DocumentoPreWizardRevisionDTO aprobarDocumentoPreWizard(String proyectoId, String tipoDocumento, Authentication authentication);
     DocumentoPreWizardRevisionDTO devolverDocumentoPreWizard(String proyectoId, String tipoDocumento, String observaciones, Authentication authentication);
+    DocumentoPreWizardConfirmacionDTO confirmarRevisionPreWizard(String proyectoId, Authentication authentication);
 }

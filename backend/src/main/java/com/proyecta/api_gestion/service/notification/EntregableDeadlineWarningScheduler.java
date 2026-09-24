@@ -76,6 +76,11 @@ public class EntregableDeadlineWarningScheduler {
             return;
         }
 
+        List<String> recipients = ProjectNotificationRecipients.resolve(entregable.getHito().getFase().getProyecto());
+        if (recipients.isEmpty()) {
+            return;
+        }
+
         var recipient = usuarioRepository.findByUsernameIgnoreCase(director)
                 .or(() -> usuarioRepository.findByCorreoIgnoreCase(director))
                 .orElse(null);
@@ -101,7 +106,7 @@ public class EntregableDeadlineWarningScheduler {
                         "projectName", projectName,
                         "diasRestantes", diasRestantes,
                         "fechaLimite", entregable.getFechaLimite().toString(),
-                        "recipients", List.of(director),
+                        "recipients", recipients,
                         "title", "Entregable vence en " + diasRestantes + " días: " + entregable.getNombre()
                 )));
     }

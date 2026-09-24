@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.controller.interfaces;
 import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardConfirmacionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardDevolverDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
@@ -138,5 +139,19 @@ public interface IDocumentoController {
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
             @Parameter(description = "Tipo de documento pre-wizard") @PathVariable String tipoDocumento,
             @Valid @RequestBody DocumentoPreWizardDevolverDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-DOC-10 - Confirmar revision pre-wizard y enviar notificacion consolidada")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Notificacion consolidada enviada",
+            content = @Content(schema = @Schema(implementation = DocumentoPreWizardConfirmacionDTO.class))
+        )
+    })
+    @StandardApiResponses
+    @PostMapping("/{proyectoId}/documentos-pre-wizard/confirmar-revision")
+    ResponseEntity<ApiResponse<DocumentoPreWizardConfirmacionDTO>> confirmarRevisionPreWizard(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
             Authentication authentication);
 }

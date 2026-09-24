@@ -56,7 +56,10 @@ INSERT INTO permisos (codigo, nombre, descripcion) VALUES
 ('SISTEMA:VER_AUDITORIA',                'Ver Auditoría',                       'Consultar logs de auditoría'),
 ('SISTEMA:GESTIONAR_USUARIOS',           'Gestionar Usuarios',                  'Administrar usuarios del sistema'),
 ('SIDEBAR:VER_ADMINISTRACION',           'Ver Menú Administración',             'Visible en menú de administración'),
-('SIDEBAR:VER_CONFIGURACION',            'Ver Menú Configuración',              'Visible en menú de configuración');
+('SIDEBAR:VER_CONFIGURACION',            'Ver Menú Configuración',              'Visible en menú de configuración'),
+('DOCUMENTO_INTERNO:VER',                'Ver Documentación Interna',           'Consultar documentación interna del sistema'),
+('DOCUMENTO_INTERNO:CARGAR',             'Cargar Documentación Interna',        'Subir archivos de documentación interna'),
+('SIDEBAR:DOCUMENTACION_INTERNA',        'Mostrar Documentación Interna en menú', 'Controla la visibilidad del módulo de documentación interna en el sidebar');
 
 -- =============================================================================
 -- 3. ASIGNACIÓN DE PERMISOS A ROLES
@@ -257,7 +260,18 @@ INSERT INTO system_parameters (param_key, param_value, descripcion) VALUES
 ('advance_report_max_periodo',          '2027-12','Periodo máximo para reportes de avance'),
 ('notifications.deadline-warning.days','7',       'Días de anticipación para alerta de vencimiento'),
 ('notifications.overdue-reminder.days','1',       'Días entre recordatorios de atraso'),
-('notifications.deadline-warning.enabled','true', 'Habilitar alertas de vencimiento');
+('notifications.deadline-warning.enabled','true', 'Habilitar alertas de vencimiento'),
+('notif_prewizard_cargue_titulo',       'SE REALIZÓ EL CARGUE DE LOS DOCUMENTOS INICIALES DE PROYECTO', 'Título del correo de cargue de documentos iniciales'),
+('notif_prewizard_cargue_intro',        'Se cargaron los documentos iniciales requeridos para continuar con el proceso del proyecto.', 'Intro del correo de cargue de documentos iniciales'),
+('notif_prewizard_aprobado_titulo',     'SE APROBARON LOS DOCUMENTOS INICIALES DE PROYECTO', 'Título del correo de aprobación de documentos iniciales'),
+('notif_prewizard_aprobado_intro',      'Los documentos iniciales del proyecto fueron verificados y aprobados por el gestor.', 'Intro del correo de aprobación'),
+('notif_prewizard_devuelto_titulo',     'SE DEVOLVIERON DOCUMENTOS INICIALES DE PROYECTO PARA CORRECCIÓN', 'Título del correo de devolución de documentos iniciales'),
+('notif_prewizard_devuelto_intro',      'Los documentos iniciales del proyecto fueron devueltos con observaciones para su corrección.', 'Intro del correo de devolución'),
+('notif_prewizard_estado_etiqueta',     'Estado de los documentos iniciales del proyecto:', 'Etiqueta de estados en correos pre-wizard'),
+('notif_prewizard_enlace_texto',        'Puede acceder directamente a través del siguiente enlace:', 'Texto del enlace en correos pre-wizard')
+ON CONFLICT (param_key) DO UPDATE SET
+    param_value  = EXCLUDED.param_value,
+    descripcion  = EXCLUDED.descripcion;
 
 -- =============================================================================
 -- 12. CONFIGURACIÓN DE REPORTES
@@ -279,48 +293,357 @@ INSERT INTO reporte_config (id, nombre, descripcion, orden) VALUES
 -- =============================================================================
 
 INSERT INTO notification_event_catalog (code, name, description, category, default_enabled, requires_project_context) VALUES
-('PROJECT_CREATED',              'Proyecto Creado',              'Notificación cuando se crea un nuevo proyecto',              'PROYECTO',  TRUE,  TRUE),
-('PROJECT_DIRECTOR_ASSIGNED',    'Director Asignado',            'Notificación cuando se asigna director a un proyecto',       'PROYECTO',  TRUE,  TRUE),
-('PROJECT_STATUS_CHANGED',       'Estado de Proyecto Cambiado',  'Notificación cuando cambia el estado del proyecto',          'PROYECTO',  TRUE,  TRUE),
-('DELIVERABLE_APPROVED',         'Entregable Aprobado',          'Notificación cuando se aprueba un entregable',               'ENTREGABLE', TRUE,  TRUE),
-('DELIVERABLE_REJECTED',         'Entregable Rechazado',         'Notificación cuando se rechaza un entregable',               'ENTREGABLE', TRUE,  TRUE),
-('DELIVERABLE_DEADLINE_WARNING', 'Alerta de Vencimiento',        'Alerta antes del vencimiento de un entregable',              'ENTREGABLE', TRUE,  TRUE),
-('DELIVERABLE_OVERDUE',          'Entregable Atrasado',          'Notificación cuando un entregable está atrasado',            'ENTREGABLE', TRUE,  TRUE),
-('EVIDENCE_UPLOADED',            'Evidencia Subida',             'Notificación cuando se sube una evidencia',                  'EVIDENCIA',  TRUE,  TRUE),
-('EVIDENCE_APPROVED',            'Evidencia Aprobada',           'Notificación cuando se aprueba una evidencia',               'EVIDENCIA',  TRUE,  TRUE),
-('EVIDENCE_OBSERVATION',         'Observación en Evidencia',     'Notificación cuando se agrega observación a evidencia',      'EVIDENCIA',  TRUE,  TRUE),
-('DOCUMENT_UPLOADED',            'Documento Subido',             'Notificación cuando se sube un documento',                   'DOCUMENTO',  TRUE,  TRUE),
-('CLOSURE_REQUESTED',            'Cierre Solicitado',            'Notificación cuando se solicita cierre de proyecto',         'CIERRE',     TRUE,  TRUE),
-('CLOSURE_APPROVED',             'Cierre Aprobado',              'Notificación cuando se aprueba el cierre',                   'CIERRE',     TRUE,  TRUE),
-('CLOSURE_REJECTED',             'Cierre Rechazado',             'Notificación cuando se rechaza el cierre',                   'CIERRE',     TRUE,  TRUE),
-('BENEFIT_IMPACT_REQUESTED',     'Beneficio/Impacto Solicitado', 'Notificación cuando se solicita información de beneficio',   'BENEFICIO',  TRUE,  TRUE),
-('BENEFIT_IMPACT_REVIEWED',      'Beneficio/Impacto Revisado',   'Notificación cuando se revisa el beneficio/impacto',         'BENEFICIO',  TRUE,  TRUE),
-('DIRECTOR_ALERT',               'Alerta del Director',          'Alerta general para el director de proyecto',                'SISTEMA',    TRUE,  TRUE),
-('PROJECT_DELAY_INTERNAL',       'Retraso Interno',              'Notificación interna de retraso de proyecto',                'SISTEMA',    TRUE,  FALSE);
+('PROJECT_INITIAL_REGISTERED',        'Proyecto Registrado',                 'Notificación cuando se registra un nuevo proyecto',                 'PROYECTO',    TRUE,  TRUE),
+('PROJECT_INITIAL_COMPLETED',         'Información Inicial Completada',      'Notificación cuando el director completa la información inicial',    'PROYECTO',    TRUE,  TRUE),
+('PROJECT_UPDATED',                   'Proyecto Actualizado',                'Notificación cuando se actualizan datos del proyecto',               'PROYECTO',    TRUE,  TRUE),
+('PROJECT_DELAYED',                   'Proyecto con Retrasos',               'Notificación cuando el proyecto presenta entregables vencidos',      'PROYECTO',    TRUE,  TRUE),
+('PROJECT_CLOSED',                    'Proyecto Cerrado',                    'Notificación cuando el proyecto es cerrado',                         'PROYECTO',    TRUE,  TRUE),
+('PROJECT_ASSIGNMENT_CREATED',        'Asignación en Proyecto',              'Notificación cuando se asigna un usuario al proyecto',               'PROYECTO',    TRUE,  TRUE),
+('DELIVERABLE_EVIDENCE_UPLOADED',     'Evidencia Cargada',                   'Notificación cuando se carga evidencia en un entregable',            'ENTREGABLE',  TRUE,  TRUE),
+('DELIVERABLE_APPROVED',              'Entregable Aprobado',                 'Notificación cuando se aprueba un entregable',                       'ENTREGABLE',  TRUE,  TRUE),
+('DELIVERABLE_REJECTED',              'Entregable Rechazado',                'Notificación cuando se rechaza un entregable',                       'ENTREGABLE',  TRUE,  TRUE),
+('OBSERVATION_SUBSANATED',            'Observación Subsanada',               'Notificación cuando se subsana una observación',                     'ENTREGABLE',  TRUE,  TRUE),
+('PROJECT_BENEFIT_IMPACT_REQUIRED',   'Beneficio e Impacto Requerido',       'Notificación cuando se requiere diligenciar beneficio e impacto',     'BENEFICIO',   TRUE,  TRUE),
+('PROJECT_BENEFIT_IMPACT_SUBMITTED',  'Beneficio e Impacto Diligenciado',    'Notificación cuando el director registra beneficio e impacto',        'BENEFICIO',   TRUE,  TRUE),
+('PROJECT_BENEFIT_IMPACT_RESUBMITTED','Beneficio e Impacto Corregido',       'Notificación cuando el director reenvía beneficio e impacto',         'BENEFICIO',   TRUE,  TRUE),
+('PROJECT_BENEFIT_IMPACT_REVIEWED',   'Beneficio e Impacto Revisado',        'Notificación cuando el gestor revisa beneficio e impacto',            'BENEFICIO',   TRUE,  TRUE),
+('RISK_CREATED',                      'Riesgo Creado',                       'Notificación cuando se crea un riesgo',                               'RIESGO',      TRUE,  TRUE),
+('RISK_UPDATED',                      'Riesgo Actualizado',                  'Notificación cuando se modifica un riesgo',                           'RIESGO',      TRUE,  TRUE),
+('RISK_TREATED',                      'Riesgo Tratado',                      'Notificación cuando un riesgo pasa a estado tratado',                 'RIESGO',      TRUE,  TRUE),
+('CLOSURE_REQUESTED',                 'Solicitud de Cierre',                 'Notificación cuando se solicita cierre de proyecto',                  'CIERRE',      TRUE,  TRUE),
+('CLOSURE_APPROVED',                  'Cierre Aprobado',                     'Notificación cuando se aprueba el cierre',                            'CIERRE',      TRUE,  TRUE),
+('CLOSURE_REJECTED',                  'Cierre Rechazado',                    'Notificación cuando se rechaza el cierre',                            'CIERRE',      TRUE,  TRUE),
+('ENTREGABLE_FECHA_CAMBIADA',         'Fecha de Entrega Cambiada',           'Notificación cuando cambia la fecha de un entregable',                'ENTREGABLE',  TRUE,  TRUE),
+('ENTREGABLE_DEADLINE_WARNING',       'Vencimiento Próximo',                 'Alerta antes del vencimiento de un entregable',                       'ENTREGABLE',  TRUE,  TRUE),
+('ENTREGABLE_OVERDUE_REMINDER',       'Entregable Vencido',                  'Recordatorio periódico de entregable vencido',                        'ENTREGABLE',  TRUE,  TRUE),
+('PROJECT_DOCUMENT_UPLOADED',         'Documento Cargado',                   'Notificación cuando se carga un documento del proyecto',              'DOCUMENTO',   TRUE,  TRUE),
+('PROJECT_DOCUMENT_DELETED',          'Documento Eliminado',                 'Notificación cuando se elimina un documento del proyecto',            'DOCUMENTO',   TRUE,  TRUE),
+('PROJECT_DIRECTOR_ALERT',            'Seguimiento de Avance',               'Alerta de seguimiento de avance para el director',                    'SISTEMA',     TRUE,  TRUE),
+('SECURITY_ROLE_UPDATED',             'Rol de Seguridad Actualizado',        'Notificación cuando se modifica un rol de seguridad',                 'SEGURIDAD',   TRUE,  FALSE),
+('SECURITY_USER_UPDATED',             'Usuario de Seguridad Actualizado',    'Notificación cuando se actualizan datos de un usuario de seguridad',  'SEGURIDAD',   TRUE,  FALSE),
+('VIABILIDAD_UPLOADED',               'Documentos Pre-Wizard Cargados',      'Notificación unificada con el estado de los 3 documentos pre-wizard', 'DOCUMENTO',   TRUE,  TRUE),
+('VIABILIDAD_APPROVED',               'Documentos Pre-Wizard Aprobados',     'Notificación unificada: documentos pre-wizard aprobados',             'DOCUMENTO',   TRUE,  TRUE),
+('VIABILIDAD_RETURNED',               'Documentos Pre-Wizard Devueltos',     'Notificación unificada: documentos pre-wizard devueltos',             'DOCUMENTO',   TRUE,  TRUE),
+('ACTA_CONSTITUCION_REMINDER',        'Recordatorio Acta de Constitución',   'Recordatorio de plazo para cargar el acta de constitución',           'PROYECTO',    TRUE,  TRUE),
+('ADVANCE_REPORT_DUE_NOTIFICATION',   'Informe de Avance Pendiente',         'Notificación de informe de avance pendiente o vencido',               'PROYECTO',    TRUE,  TRUE),
+('ADVANCE_REPORT_UPLOADED',           'Informe de Avance Cargado',           'Notificación cuando el director carga el informe de avance',          'PROYECTO',    TRUE,  TRUE),
+('ADVANCE_REPORT_VERIFIED',           'Informe de Avance Verificado',        'Notificación cuando el gestor verifica el informe de avance',         'PROYECTO',    TRUE,  TRUE),
+('ADVANCE_REPORT_RETURNED',           'Informe de Avance Devuelto',          'Notificación cuando el gestor devuelve el informe de avance',         'PROYECTO',    TRUE,  TRUE),
+('RISK_DELETED',                      'Riesgo Eliminado',                    'Notificación cuando se elimina un riesgo',                            'RIESGO',      TRUE,  TRUE),
+('EVIDENCE_VERSION_REVERTED',         'Versión de Evidencia Revertida',      'Notificación cuando el gestor revierte una versión de evidencia',     'ENTREGABLE',  TRUE,  TRUE)
+ON CONFLICT (code) DO UPDATE SET
+    name                     = EXCLUDED.name,
+    description              = EXCLUDED.description,
+    category                 = EXCLUDED.category,
+    default_enabled          = EXCLUDED.default_enabled,
+    requires_project_context = EXCLUDED.requires_project_context,
+    active                   = TRUE;
 
 -- =============================================================================
 -- 14. PLANTILLAS DE NOTIFICACIÓN
 -- =============================================================================
 
-INSERT INTO notification_template (event_code, enabled, subject_template, body_template, target_roles) VALUES
-('PROJECT_CREATED',            TRUE, 'Nuevo Proyecto: {{projectName}}',       'Se ha creado el proyecto {{projectName}} con código {{projectId}}.', '["admin","gestor_tic"]'),
-('PROJECT_DIRECTOR_ASSIGNED',  TRUE, 'Director Asignado: {{projectName}}',    'Ha sido asignado como director del proyecto {{projectName}}.', '["director_proyecto"]'),
-('PROJECT_STATUS_CHANGED',     TRUE, 'Cambio de Estado: {{projectName}}',     'El proyecto {{projectName}} ha cambiado de estado a {{newStatus}}.', '["admin","gestor_tic","director_proyecto"]'),
-('DELIVERABLE_APPROVED',       TRUE, 'Entregable Aprobado: {{deliverableName}}','El entregable {{deliverableName}} ha sido aprobado.', '["director_proyecto","gestor_tic"]'),
-('DELIVERABLE_REJECTED',       TRUE, 'Entregable Rechazado: {{deliverableName}}','El entregable {{deliverableName}} ha sido rechazado. Motivo: {{reason}}', '["director_proyecto","gestor_tic"]'),
-('DELIVERABLE_DEADLINE_WARNING',TRUE,'Alerta de Vencimiento: {{deliverableName}}','El entregable {{deliverableName}} vence en {{daysLeft}} días.', '["director_proyecto","gestor_tic"]'),
-('DELIVERABLE_OVERDUE',        TRUE, 'Entregable Atrasado: {{deliverableName}}','El entregable {{deliverableName}} tiene {{daysOverdue}} días de retraso.', '["director_proyecto","gestor_tic","admin"]'),
-('EVIDENCE_UPLOADED',          TRUE, 'Evidencia Subida: {{deliverableName}}', 'Se ha subido una nueva evidencia para el entregable {{deliverableName}}.', '["director_proyecto","gestor_tic"]'),
-('EVIDENCE_APPROVED',          TRUE, 'Evidencia Aprobada: {{deliverableName}}','La evidencia del entregable {{deliverableName}} ha sido aprobada.', '["director_proyecto","gestor_tic"]'),
-('EVIDENCE_OBSERVATION',       TRUE, 'Observación en Evidencia: {{deliverableName}}','Se ha agregado una observación a la evidencia del entregable {{deliverableName}}.', '["director_proyecto","gestor_tic"]'),
-('DOCUMENT_UPLOADED',          TRUE, 'Documento Subido: {{projectName}}',     'Se ha subido el documento {{docType}} al proyecto {{projectName}}.', '["director_proyecto","gestor_tic"]'),
-('CLOSURE_REQUESTED',          TRUE, 'Cierre Solicitado: {{projectName}}',    'Se ha solicitado el cierre del proyecto {{projectName}}.', '["admin","gestor_tic"]'),
-('CLOSURE_APPROVED',           TRUE, 'Cierre Aprobado: {{projectName}}',      'El cierre del proyecto {{projectName}} ha sido aprobado.', '["director_proyecto","gestor_tic"]'),
-('CLOSURE_REJECTED',           TRUE, 'Cierre Rechazado: {{projectName}}',     'El cierre del proyecto {{projectName}} ha sido rechazado. Motivo: {{reason}}', '["director_proyecto","gestor_tic"]'),
-('BENEFIT_IMPACT_REQUESTED',   TRUE, 'Beneficio/Impacto Solicitado: {{projectName}}','Se ha solicitado información de beneficio e impacto para el proyecto {{projectName}}.', '["director_proyecto"]'),
-('BENEFIT_IMPACT_REVIEWED',    TRUE, 'Beneficio/Impacto Revisado: {{projectName}}','La información de beneficio e impacto del proyecto {{projectName}} ha sido revisada.', '["director_proyecto","gestor_tic"]'),
-('DIRECTOR_ALERT',             TRUE, 'Alerta: {{projectName}}',               '{{alertMessage}}', '["director_proyecto"]'),
-('PROJECT_DELAY_INTERNAL',     TRUE, 'Retraso Interno: {{projectName}}',      'El proyecto {{projectName}} presenta un retraso de {{delayDays}} días.', '["admin","gestor_tic"]');
+INSERT INTO notification_template (event_code, enabled, subject_template, body_template, target_roles, updated_by, updated_at) VALUES
+('PROJECT_INITIAL_REGISTERED', TRUE,
+ 'Nuevo proyecto registrado: {{projectName}}',
+ 'El proyecto "{{projectName}}" ({{projectId}}) fue registrado por {{actorUsername}} y actualmente se encuentra en estado "{{state}}". Por favor, diríjase al proyecto para que el director pueda completar la información inicial.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_INITIAL_COMPLETED', TRUE,
+ 'Informacion inicial completada: {{projectName}}',
+ 'El director {{actorUsername}} completó la información inicial del proyecto "{{projectName}}" ({{projectId}}). El proyecto se encuentra ahora en estado "{{state}}" y puede avanzar en su ejecución.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_UPDATED', TRUE,
+ 'Proyecto actualizado: {{projectName}}',
+ 'Se actualizaron los datos del proyecto "{{projectName}}" ({{projectId}}) por {{actorUsername}}. Por favor, revise los cambios en la plataforma para verificar que la información esté al día.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_DELAYED', TRUE,
+ 'Proyecto con retrasos: {{projectName}}',
+ 'El proyecto "{{projectName}}" ({{projectId}}) presenta {{overdueDeliverables}} entregable(s) con fecha de entrega vencida. Es necesario revisar el avance y tomar acciones para recuperar el cronograma.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_CLOSED', TRUE,
+ 'Proyecto cerrado: {{projectName}}',
+ 'El proyecto "{{projectName}}" ({{projectId}}) ha sido cerrado exitosamente. El proyecto pasó al estado "{{state}}" y ya no acepta modificaciones.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_ASSIGNMENT_CREATED', TRUE,
+ 'Nueva asignacion en proyecto: {{projectName}}',
+ 'El usuario {{assignedUsername}} fue asignado al proyecto "{{projectName}}" ({{projectId}}) con el cargo de "{{assignmentRole}}". Ya puede acceder a la información del proyecto en la plataforma.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('DELIVERABLE_EVIDENCE_UPLOADED', TRUE,
+ 'Evidencia cargada: {{deliverableName}} - {{projectName}}',
+ 'Se cargó una nueva evidencia en el entregable "{{deliverableName}}" del proyecto "{{projectName}}" ({{projectId}}). Por favor, revise la evidencia adjunta en la sección de avance del entregable.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('DELIVERABLE_APPROVED', TRUE,
+ 'Entregable aprobado: {{deliverableName}} - {{projectName}}',
+ 'El entregable "{{deliverableName}}" del proyecto "{{projectName}}" ({{projectId}}) fue aprobado por {{actorUsername}}. El avance del proyecto se ha actualizado automáticamente.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('DELIVERABLE_REJECTED', TRUE,
+ 'Entregable rechazado: {{deliverableName}} - {{projectName}}',
+ 'El entregable "{{deliverableName}}" del proyecto "{{projectName}}" ({{projectId}}) fue rechazado por {{actorUsername}}. Observación: "{{observation}}". Por favor, subsane la observación y vuelva a enviar la evidencia.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('OBSERVATION_SUBSANATED', TRUE,
+ 'Observacion subsanada: {{deliverableName}} - {{projectName}}',
+ 'La observación #{{observationId}} del entregable "{{deliverableName}}" del proyecto "{{projectName}}" ({{projectId}}) fue subsanada por {{actorUsername}}. La evidencia ha sido corregida y está lista para nueva revisión.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_BENEFIT_IMPACT_REQUIRED', TRUE,
+ 'Beneficio e impacto requerido: {{projectName}}',
+ 'El proyecto "{{projectName}}" ({{projectId}}) alcanzó el 100% de entregables aprobados. El Director debe diligenciar la información de beneficio e impacto para continuar con el proceso de cierre.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_BENEFIT_IMPACT_SUBMITTED', TRUE,
+ 'Beneficio e impacto diligenciado: {{projectName}}',
+ 'El director {{actorUsername}} registró la información de beneficio e impacto del proyecto "{{projectName}}" ({{projectId}}). La información está disponible para revisión del gestor.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_BENEFIT_IMPACT_RESUBMITTED', TRUE,
+ 'Beneficio e impacto corregido: {{projectName}}',
+ 'El director {{actorUsername}} corrigió y reenvió la información de beneficio e impacto del proyecto "{{projectName}}" ({{projectId}}) después de una observación. Revise la información corregida.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_BENEFIT_IMPACT_REVIEWED', TRUE,
+ 'Beneficio e impacto {{aprobado}}: {{projectName}}',
+ 'La información de beneficio e impacto del proyecto "{{projectName}}" ({{projectId}}) fue {{aprobado}} por el gestor. {{observaciones}}
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('RISK_CREATED', TRUE,
+ 'Riesgo creado: {{riskCode}} - {{projectName}}',
+ 'Se registró el riesgo {{riskCode}} en el proyecto "{{projectName}}" ({{projectId}}) con nivel de impacto "{{riskLevel}}". Por favor, revise los detalles del riesgo en la sección de gestión de riesgos del proyecto.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('RISK_UPDATED', TRUE,
+ 'Riesgo actualizado: {{riskCode}} - {{projectName}}',
+ 'El riesgo {{riskCode}} del proyecto "{{projectName}}" ({{projectId}}) fue modificado por {{actorUsername}}. Verifique los cambios realizados en la sección de gestión de riesgos.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('RISK_TREATED', TRUE,
+ 'Riesgo tratado: {{riskCode}} - {{projectName}}',
+ 'El riesgo {{riskCode}} del proyecto "{{projectName}}" ({{projectId}}) pasó a estado "Tratado". Se aplicaron las acciones de mitigación o tratamiento correspondientes.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('CLOSURE_REQUESTED', TRUE,
+ 'Solicitud de cierre: {{projectName}}',
+ 'El usuario {{requester}} solicitó formalmente el cierre del proyecto "{{projectName}}" ({{projectId}}). Como gestor, proceda con las validaciones correspondientes y apruebe o rechace la solicitud.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos"]', 'seeder', CURRENT_TIMESTAMP),
+
+('CLOSURE_APPROVED', TRUE,
+ 'Cierre aprobado: {{projectName}}',
+ 'La solicitud de cierre del proyecto "{{projectName}}" ({{projectId}}) fue aprobada por {{approver}}. El proyecto está formalmente cerrado y no aceptará más modificaciones.',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('CLOSURE_REJECTED', TRUE,
+ 'Cierre rechazado: {{projectName}}',
+ 'La solicitud de cierre del proyecto "{{projectName}}" ({{projectId}}) fue rechazada por {{rejector}}. Motivo: "{{observaciones}}". Por favor, corrija las observaciones y envíe una nueva solicitud de cierre.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ENTREGABLE_FECHA_CAMBIADA', TRUE,
+ 'Fecha de entrega cambiada: {{entregableNombre}}',
+ 'La fecha del entregable "{{entregableNombre}}" fue cambiada. Fecha anterior: {{fechaAnterior}}. Nueva fecha: {{fechaNueva}}. Justificación: "{{justificacion}}". Verifique el impacto en el cronograma del proyecto.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ENTREGABLE_DEADLINE_WARNING', TRUE,
+ 'Vencimiento proximo: {{entregableNombre}} - {{diasRestantes}} dias',
+ 'El entregable "{{entregableNombre}}" del proyecto "{{projectName}}" vence en {{diasRestantes}} días (fecha limite: {{fechaLimite}}). Por favor, asegúrese de gestionar la evidencia correspondiente antes de la fecha de corte.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ENTREGABLE_OVERDUE_REMINDER', TRUE,
+ 'Entregable vencido: {{entregableNombre}} - {{diasVencido}} dias de atraso',
+ 'El entregable "{{entregableNombre}}" del proyecto "{{projectName}}" se encuentra vencido desde hace {{diasVencido}} días (fecha limite: {{fechaLimite}}). Este es un recordatorio periódico. Por favor, gestione la entrega pendiente lo antes posible.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_DOCUMENT_UPLOADED', TRUE,
+ 'Documento cargado: {{documentType}} - {{projectName}}',
+ 'Se cargó el documento "{{documentType}}" ({{documentName}}) en el proyecto "{{projectName}}" ({{projectId}}) por {{actorUsername}}. Por favor, revise el documento en la sección de documentos del proyecto.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_DOCUMENT_DELETED', TRUE,
+ 'Documento eliminado: {{documentType}} - {{projectName}}',
+ 'El documento "{{documentType}}" ({{documentName}}) del proyecto "{{projectName}}" ({{projectId}}) fue eliminado por {{actorUsername}}. Verifique si es necesario restaurarlo o reemplazarlo.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('PROJECT_DIRECTOR_ALERT', TRUE,
+ 'Seguimiento de avance: {{projectName}} ({{projectId}})',
+ 'Proyecto: {{projectName}}
+Estado: {{projectState}}
+Avance total: {{avanceTotal}}
+Riesgos pendientes ({{pendingRisksCount}}):
+{{pendingRisksDetail}}
+Entregables pendientes ({{pendingDeliverablesCount}}):
+{{pendingDeliverablesDetail}}
+Entregables vencidos ({{overdueCount}}):
+{{overdueDetail}}
+Documentos faltantes:
+{{missingDocumentsDetail}}
+Enviado por: {{sentBy}}
+Fecha: {{sentAt}}
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('SECURITY_ROLE_UPDATED', TRUE,
+ 'Configuracion de seguridad actualizada',
+ 'Se modificó el rol "{{roleCode}}" en la configuración de seguridad del sistema. Si tiene permisos afectados, verifique que su acceso siga funcionando correctamente.',
+ '["admin"]', 'seeder', CURRENT_TIMESTAMP),
+
+('SECURITY_USER_UPDATED', TRUE,
+ 'Usuario actualizado',
+ 'Se actualizaron datos de seguridad para {{username}}.',
+ '["admin"]', 'seeder', CURRENT_TIMESTAMP),
+
+('VIABILIDAD_UPLOADED', TRUE,
+ '{{mensajeTitulo}}: {{projectName}}',
+ '{{mensajeIntro}}
+Proyecto: "{{projectName}}" ({{projectId}}).
+
+{{estadoEtiqueta}}
+{{documentStatuses}}
+
+{{enlaceTexto}}
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('VIABILIDAD_APPROVED', TRUE,
+ '{{mensajeTitulo}}: {{projectName}}',
+ '{{mensajeIntro}}
+Proyecto: "{{projectName}}" ({{projectId}}). Revisado por {{actorUsername}}.
+
+{{estadoEtiqueta}}
+{{documentStatuses}}
+
+{{enlaceTexto}}
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('VIABILIDAD_RETURNED', TRUE,
+ '{{mensajeTitulo}}: {{projectName}}',
+ '{{mensajeIntro}}
+Proyecto: "{{projectName}}" ({{projectId}}).
+
+{{estadoEtiqueta}}
+{{documentStatuses}}
+
+Observaciones: {{observaciones}}
+
+{{enlaceTexto}}
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ACTA_CONSTITUCION_REMINDER', TRUE,
+ 'Recordatorio acta de constitución: {{projectName}}',
+ 'El proyecto "{{projectName}}" ({{projectId}}) tiene el acta de constitución pendiente. Quedan {{diasRestantes}} día(s) para cargarla.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ADVANCE_REPORT_DUE_NOTIFICATION', TRUE,
+ 'Informe de avance pendiente: {{projectName}}',
+ 'El proyecto "{{projectName}}" ({{projectId}}) tiene un informe de avance pendiente. Fecha límite: {{dueDate}}.
+{{message}}
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ADVANCE_REPORT_UPLOADED', TRUE,
+ 'Informe de avance cargado: {{projectName}}',
+ 'Se cargó el informe de avance del periodo {{periodo}} para el proyecto "{{projectName}}" ({{projectId}}).
+Archivo: {{fileName}}
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ADVANCE_REPORT_VERIFIED', TRUE,
+ 'Informe de avance verificado: {{projectName}}',
+ 'El informe de avance del periodo {{periodo}} del proyecto "{{projectName}}" ({{projectId}}) fue verificado y aprobado.
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('ADVANCE_REPORT_RETURNED', TRUE,
+ 'Informe de avance devuelto: {{projectName}}',
+ 'El informe de avance del periodo {{periodo}} del proyecto "{{projectName}}" ({{projectId}}) fue devuelto con observaciones:
+{{observaciones}}
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('RISK_DELETED', TRUE,
+ 'Riesgo eliminado en {{projectName}}',
+ 'Se eliminó el riesgo {{riskCode}} del proyecto "{{projectName}}" ({{projectId}}).
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP),
+
+('EVIDENCE_VERSION_REVERTED', TRUE,
+ 'Evidencia revertida en {{projectName}}',
+ 'Se revirtió la evidencia del entregable "{{deliverableName}}" del proyecto "{{projectName}}" ({{projectId}}).
+Motivo: {{motivo}}
+Puede acceder directamente a través del siguiente enlace:
+{{targetUrl}}',
+ '["admin","gestor_tic","gestor_proyectos","director_proyecto"]', 'seeder', CURRENT_TIMESTAMP)
+ON CONFLICT (event_code) DO UPDATE SET
+    enabled          = EXCLUDED.enabled,
+    subject_template = EXCLUDED.subject_template,
+    body_template    = EXCLUDED.body_template,
+    target_roles     = EXCLUDED.target_roles,
+    updated_by       = EXCLUDED.updated_by,
+    updated_at       = EXCLUDED.updated_at;
+
 
 -- =============================================================================
 -- 15. PLANTILLAS DE CIERRE

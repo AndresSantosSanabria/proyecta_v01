@@ -30,6 +30,7 @@ import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.UserProvisioningService;
@@ -459,16 +460,32 @@ public class SecurityAdministrationService {
         }
 
         catalogCacheService.evictAll();
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.PROJECT_ASSIGNMENT_CREATED,
-                proyectoId,
-                username,
-                java.util.Map.of(
-                        "assignedUsername", username,
-                        "assignmentRole", cargoNormalizado,
-                        "projectName", proyectoRepository.findById(proyectoId).map(Proyecto::getNombre).orElse(""),
-                        "recipients", List.of(usuario.getCorreo(), proyectoRepository.findById(proyectoId).map(Proyecto::getCorreoDirector).orElse(null))
-                )));
+        Proyecto proyectoAsign = proyectoRepository.findById(proyectoId).orElse(null);
+        String projectNameAsign = proyectoAsign != null && proyectoAsign.getNombre() != null ? proyectoAsign.getNombre() : "";
+        java.util.List<String> assignmentRecipients = new java.util.ArrayList<>();
+        if (usuario.getCorreo() != null && !usuario.getCorreo().isBlank()) {
+            assignmentRecipients.add(usuario.getCorreo().trim());
+        }
+        if (proyectoAsign != null) {
+            assignmentRecipients.addAll(ProjectNotificationRecipients.resolve(proyectoAsign));
+        }
+        assignmentRecipients = assignmentRecipients.stream()
+                .filter(v -> v != null && !v.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        if (!assignmentRecipients.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.PROJECT_ASSIGNMENT_CREATED,
+                    proyectoId,
+                    username,
+                    java.util.Map.of(
+                            "assignedUsername", username,
+                            "assignmentRole", cargoNormalizado,
+                            "projectName", projectNameAsign,
+                            "recipients", assignmentRecipients
+                    )));
+        }
         return toUsuarioProyectoDTO(saved);
     }
 

@@ -85,7 +85,34 @@ public class SpringMailNotificationSenderAdapter implements NotificationSenderPo
         helper.setTo(to);
         helper.setSubject(message.subject());
         helper.setText(message.body(), message.html());
+        applyThreadHeaders(mimeMessage, message);
         javaMailSender.send(mimeMessage);
+    }
+
+    private void applyThreadHeaders(MimeMessage mimeMessage, NotificationMessage message) throws MessagingException {
+        String projectId = message.projectId();
+        if (projectId == null || projectId.isBlank()) {
+            return;
+        }
+        String domain = resolveThreadDomain();
+        String threadRoot = "<proyecta-" + projectId.trim().toLowerCase(java.util.Locale.ROOT) + "@" + domain + ">";
+        mimeMessage.setHeader("References", threadRoot);
+        mimeMessage.setHeader("In-Reply-To", threadRoot);
+        String topic = message.threadTopic();
+        if (topic == null || topic.isBlank()) {
+            topic = projectId;
+        }
+        mimeMessage.setHeader("Thread-Topic", topic);
+        mimeMessage.setHeader("X-PROYECTA-Project-Id", projectId.trim());
+    }
+
+    private String resolveThreadDomain() {
+        String from = resolveFromEmail();
+        int at = from == null ? -1 : from.lastIndexOf('@');
+        if (at > 0 && at < from.length() - 1) {
+            return from.substring(at + 1).trim().toLowerCase(java.util.Locale.ROOT);
+        }
+        return "cundinamarca.gov.co";
     }
 
     private String resolveFromEmail() {

@@ -97,6 +97,68 @@ public class SystemParameterSeeder {
             "Ruta padre de almacenamiento de archivos. Si esta vacia se usa la ruta por defecto del servidor."
         );
 
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_CARGUE_TITULO,
+            "SE REALIZÓ EL CARGUE DE LOS DOCUMENTOS INICIALES DE PROYECTO",
+            "Título del correo de notificación al cargar los documentos iniciales del proyecto"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_CARGUE_INTRO,
+            "Se cargaron los documentos iniciales requeridos para continuar con el proceso del proyecto.",
+            "Texto introductorio del correo de cargue de documentos iniciales"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_APROBADO_TITULO,
+            "SE APROBARON LOS DOCUMENTOS INICIALES DE PROYECTO",
+            "Título del correo al aprobar los documentos iniciales"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_APROBADO_INTRO,
+            "Los documentos iniciales del proyecto fueron verificados y aprobados por el gestor.",
+            "Texto introductorio del correo de aprobación de documentos iniciales"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_DEVUELTO_TITULO,
+            "SE DEVOLVIERON DOCUMENTOS INICIALES DE PROYECTO PARA CORRECCIÓN",
+            "Título del correo al devolver documentos iniciales"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_DEVUELTO_INTRO,
+            "Los documentos iniciales del proyecto fueron devueltos con observaciones para su corrección.",
+            "Texto introductorio del correo de devolución de documentos iniciales"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_ESTADO_ETIQUETA,
+            "Estado de los documentos iniciales del proyecto:",
+            "Etiqueta de la sección de estados en los correos pre-wizard"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.NOTIF_PREWIZARD_ENLACE_TEXTO,
+            "Puede acceder directamente a través del siguiente enlace:",
+            "Texto del enlace en los correos pre-wizard"
+        );
+
+        crearParametroSiNoExiste(
+            SystemParameterKeys.ADVANCE_REPORT_MIN_PROJECT_AGE_MONTHS,
+            "3",
+            "Meses minimos desde el inicio del proyecto para exigir informes de avance"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.ADVANCE_REPORT_PERIOD_MONTHS,
+            "3",
+            "Cadencia de solicitud de informes de avance en meses (3 = trimestres de calendario)"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.ADVANCE_REPORT_DUE_DAY,
+            "0",
+            "Dia limite dentro del periodo para el informe de avance (0 = ultimo dia del periodo)"
+        );
+        crearParametroSiNoExiste(
+            SystemParameterKeys.ADVANCE_REPORT_ELIGIBLE_STATES,
+            "ACTIVO,CON_RETRASOS,EN_REVISION",
+            "Estados del proyecto con solicitud de informe de avance habilitada"
+        );
+
         logger.info("Parametros del sistema cargados");
     }
 

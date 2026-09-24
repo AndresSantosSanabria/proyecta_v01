@@ -3,10 +3,14 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.avance.ProjectEvidenceDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
+import com.proyecta.api_gestion.model.advance.AdvanceReportUpload;
+import com.proyecta.api_gestion.model.advance.AdvanceReportVersion;
 import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
 import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.repository.*;
+import com.proyecta.api_gestion.repository.advance.AdvanceReportUploadRepository;
+import com.proyecta.api_gestion.repository.advance.AdvanceReportVersionRepository;
 import com.proyecta.api_gestion.service.interfaces.ProjectEvidenceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +24,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Service
 public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
@@ -32,7 +38,8 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             "VIABILIZACION", "Documento de viabilidad",
             "ACTA_CONSTITUCION", "Acta de constitucion",
             "CRONOGRAMA", "Cronograma del proyecto",
-            "PLAN_COMUNICACIONES", "Plan de comunicaciones"
+            "PLAN_COMUNICACIONES", "Plan de comunicaciones",
+            "MATRIZ_RIESGOS_VIABILIDAD", "Matriz de Riesgos de Viabilidad"
     );
 
     private final ProyectoRepository proyectoRepository;
@@ -45,6 +52,8 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     private final DocumentoDinamicoRepository documentoDinamicoRepository;
     private final ActaCierreRepository actaCierreRepository;
     private final DocumentoVersionRepository documentoVersionRepository;
+    private final AdvanceReportUploadRepository advanceReportUploadRepository;
+    private final AdvanceReportVersionRepository advanceReportVersionRepository;
 
     public ProjectEvidenceServiceImpl(ProyectoRepository proyectoRepository,
                                       EntregableRepository entregableRepository,
@@ -55,7 +64,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                                       EntregableCambioDescripcionRepository entregableCambioDescripcionRepository,
                                       DocumentoDinamicoRepository documentoDinamicoRepository,
                                       ActaCierreRepository actaCierreRepository,
-                                      DocumentoVersionRepository documentoVersionRepository) {
+                                      DocumentoVersionRepository documentoVersionRepository,
+                                      AdvanceReportUploadRepository advanceReportUploadRepository,
+                                      AdvanceReportVersionRepository advanceReportVersionRepository) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.documentoProyectoVersionRepository = documentoProyectoVersionRepository;
@@ -66,6 +77,8 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         this.documentoDinamicoRepository = documentoDinamicoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.documentoVersionRepository = documentoVersionRepository;
+        this.advanceReportUploadRepository = advanceReportUploadRepository;
+        this.advanceReportVersionRepository = advanceReportVersionRepository;
     }
 
     @Override
@@ -78,11 +91,17 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
         boolean shouldCollectAll = (categoria == null || categoria.isBlank() || "TODOS".equals(categoria));
 
+        Set<String> tiposConVersionActual = documentoProyectoVersionRepository
+                .findByProyectoIdOrderBySubidoEnDesc(proyectoId).stream()
+                .filter(v -> DocumentoProyectoVersionEstado.ACTUAL.equals(v.getEstado()))
+                .map(DocumentoProyectoVersion::getTipoDocumento)
+                .collect(Collectors.toSet());
+
         if (shouldCollectAll || "DOCUMENTO_PROYECTO".equals(categoria)) {
             safeAddAll(evidencias, () -> colDocumentosProyecto(proyectoId), "DOCUMENTO_PROYECTO");
         }
         if (shouldCollectAll || "DOCUMENTO_PROYECTO_AVANZADO".equals(categoria)) {
-            safeAddAll(evidencias, () -> colDocumentosProyectoAvanzado(proyecto), "DOCUMENTO_PROYECTO_AVANZADO");
+            safeAddAll(evidencias, () -> colDocumentosProyectoAvanzado(proyecto, tiposConVersionActual), "DOCUMENTO_PROYECTO_AVANZADO");
         }
         if (shouldCollectAll || "DOCUMENTO_DINAMICO".equals(categoria)) {
             safeAddAll(evidencias, () -> colDocumentosDinamicos(proyectoId), "DOCUMENTO_DINAMICO");
@@ -91,7 +110,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             safeAddAll(evidencias, () -> colEvidenciasEntregables(proyectoId), "EVIDENCIA_ENTREGABLE");
         }
         if (shouldCollectAll || "CRONOGRAMA".equals(categoria)) {
-            safeAddAll(evidencias, () -> colCronograma(proyecto), "CRONOGRAMA");
+            safeAddAll(evidencias, () -> colCronograma(proyecto, tiposConVersionActual), "CRONOGRAMA");
         }
         if (shouldCollectAll || "RIESGO".equals(categoria)) {
             safeAddAll(evidencias, () -> colSolucionesRiesgos(proyectoId), "RIESGO");
@@ -107,6 +126,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         }
         if (shouldCollectAll || "ACTA_CIERRE".equals(categoria)) {
             safeAddAll(evidencias, () -> colActaCierre(proyectoId), "ACTA_CIERRE");
+        }
+        if (shouldCollectAll || "INFORME_AVANCE".equals(categoria)) {
+            safeAddAll(evidencias, () -> colInformesAvance(proyectoId), "INFORME_AVANCE");
         }
 
         return evidencias;
@@ -170,7 +192,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                 .toList();
     }
 
-    private List<ProjectEvidenceDTO> colDocumentosProyectoAvanzado(Proyecto proyecto) {
+    private List<ProjectEvidenceDTO> colDocumentosProyectoAvanzado(Proyecto proyecto, Set<String> tiposConVersionActual) {
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
         String proyectoId = proyecto.getId();
 
@@ -185,6 +207,10 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             String pdfPath = entry.getValue();
 
             if (pdfPath == null || pdfPath.isBlank()) {
+                continue;
+            }
+
+            if (tiposConVersionActual.contains(codigo)) {
                 continue;
             }
 
@@ -340,8 +366,12 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         return evidencias;
     }
 
-    private List<ProjectEvidenceDTO> colCronograma(Proyecto proyecto) {
+    private List<ProjectEvidenceDTO> colCronograma(Proyecto proyecto, Set<String> tiposConVersionActual) {
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
+
+        if (tiposConVersionActual.contains("CRONOGRAMA")) {
+            return evidencias;
+        }
 
         if (proyecto.getCronogramaPdf() != null && !proyecto.getCronogramaPdf().isBlank()) {
             String nombreArchivo = extractFileName(proyecto.getCronogramaPdf());
@@ -733,6 +763,53 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                 ));
             }
         });
+
+        return evidencias;
+    }
+
+    private List<ProjectEvidenceDTO> colInformesAvance(String proyectoId) {
+        List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
+
+        for (AdvanceReportUpload upload : advanceReportUploadRepository.findByProjectIdOrderByUploadedAtDesc(proyectoId)) {
+            String url = "/api/v1/advance-report/download/" + proyectoId + "?periodo=" + upload.getPeriodo();
+            AdvanceReportVersion actual = advanceReportVersionRepository
+                    .findByUploadIdAndEstado(upload.getId(), AdvanceReportVersion.ESTADO_ACTUAL)
+                    .orElse(null);
+
+            evidencias.add(new ProjectEvidenceDTO(
+                    "informe-avance-" + upload.getId(),
+                    "INFORME_AVANCE",
+                    "Informe de avance " + upload.getPeriodo(),
+                    upload.getFileName(),
+                    url,
+                    upload.getUploadedAt() != null ? upload.getUploadedAt().toLocalDate() : null,
+                    null,
+                    null,
+                    upload.getEstado(),
+                    upload.getEstado(),
+                    upload.getUploadedBy(),
+                    "Informe de avance",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Periodo " + upload.getPeriodo(),
+                    upload.getObservaciones(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    upload.getFileName(),
+                    null,
+                    null,
+                    null,
+                    upload.getFileSize(),
+                    actual != null ? actual.getMimeType() : null,
+                    null,
+                    null,
+                    null
+            ));
+        }
 
         return evidencias;
     }

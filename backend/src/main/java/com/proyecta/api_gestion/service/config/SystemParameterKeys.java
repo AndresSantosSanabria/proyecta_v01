@@ -27,4 +27,17 @@ public final class SystemParameterKeys {
     public static final String ADVANCE_REPORT_MAX_SIZE_MB = "advance_report_max_size_mb";
     public static final String ADVANCE_REPORT_LOGIN_MODAL_DELAY_MS = "advance_report_login_modal_delay_ms";
     public static final String ADVANCE_REPORT_ENABLED = "advance_report_enabled";
+    public static final String ADVANCE_REPORT_MIN_PROJECT_AGE_MONTHS = "advance_report_min_project_age_months";
+    public static final String ADVANCE_REPORT_PERIOD_MONTHS = "advance_report_period_months";
+    public static final String ADVANCE_REPORT_DUE_DAY = "advance_report_due_day";
+    public static final String ADVANCE_REPORT_ELIGIBLE_STATES = "advance_report_eligible_states";
+
+    public static final String NOTIF_PREWIZARD_CARGUE_TITULO = "notif_prewizard_cargue_titulo";
+    public static final String NOTIF_PREWIZARD_CARGUE_INTRO = "notif_prewizard_cargue_intro";
+    public static final String NOTIF_PREWIZARD_APROBADO_TITULO = "notif_prewizard_aprobado_titulo";
+    public static final String NOTIF_PREWIZARD_APROBADO_INTRO = "notif_prewizard_aprobado_intro";
+    public static final String NOTIF_PREWIZARD_DEVUELTO_TITULO = "notif_prewizard_devuelto_titulo";
+    public static final String NOTIF_PREWIZARD_DEVUELTO_INTRO = "notif_prewizard_devuelto_intro";
+    public static final String NOTIF_PREWIZARD_ESTADO_ETIQUETA = "notif_prewizard_estado_etiqueta";
+    public static final String NOTIF_PREWIZARD_ENLACE_TEXTO = "notif_prewizard_enlace_texto";
 }

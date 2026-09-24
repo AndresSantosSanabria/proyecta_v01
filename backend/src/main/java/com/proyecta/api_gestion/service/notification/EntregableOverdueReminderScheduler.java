@@ -76,6 +76,11 @@ public class EntregableOverdueReminderScheduler {
             return;
         }
 
+        List<String> recipients = ProjectNotificationRecipients.resolve(entregable.getHito().getFase().getProyecto());
+        if (recipients.isEmpty()) {
+            return;
+        }
+
         var recipient = usuarioRepository.findByUsernameIgnoreCase(director)
                 .or(() -> usuarioRepository.findByCorreoIgnoreCase(director))
                 .orElse(null);
@@ -101,7 +106,7 @@ public class EntregableOverdueReminderScheduler {
                         "projectName", projectName,
                         "diasVencido", diasVencido,
                         "fechaLimite", entregable.getFechaLimite().toString(),
-                        "recipients", List.of(director),
+                        "recipients", recipients,
                         "title", "Entregable vencido hace " + diasVencido + " días: " + entregable.getNombre()
                 )));
     }

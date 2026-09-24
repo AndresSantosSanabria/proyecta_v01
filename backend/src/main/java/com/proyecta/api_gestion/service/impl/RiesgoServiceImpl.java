@@ -28,6 +28,7 @@ import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.core.io.ByteArrayResource;
@@ -163,16 +164,19 @@ public class RiesgoServiceImpl implements IRiesgoService {
         Riesgo savedRisk = riesgoRepository.save(riesgo);
         savedRisk.setCodigo("R" + String.format("%02d", savedRisk.getId()));
         riesgoRepository.save(savedRisk);
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.RISK_CREATED,
-                projectId,
-                "system",
-                java.util.Map.of(
-                        "riskCode", savedRisk.getCodigo(),
-                        "riskLevel", savedRisk.getNivel(),
-                        "projectName", proyecto.getNombre(),
-                        "recipients", List.of(proyecto.getCorreoDirector())
-                )));
+        var riskRecipients = ProjectNotificationRecipients.resolve(proyecto);
+        if (!riskRecipients.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.RISK_CREATED,
+                    projectId,
+                    resolvedUser,
+                    java.util.Map.of(
+                            "riskCode", savedRisk.getCodigo(),
+                            "riskLevel", savedRisk.getNivel() != null ? savedRisk.getNivel() : "",
+                            "projectName", proyecto.getNombre() != null ? proyecto.getNombre() : "",
+                            "recipients", riskRecipients
+                    )));
+        }
 
         return new RiesgoCreatedResponseDTO(
                 savedRisk.getId(),
@@ -198,16 +202,19 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
         aplicarRequest(riesgo, requestDto, riesgo.getProyecto());
         Riesgo saved = riesgoRepository.save(riesgo);
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.RISK_UPDATED,
-                projectId,
-                "system",
-                java.util.Map.of(
-                        "riskCode", saved.getCodigo(),
-                        "riskLevel", saved.getNivel(),
-                        "projectName", saved.getProyecto().getNombre(),
-                        "recipients", List.of(saved.getProyecto().getCorreoDirector())
-                )));
+        var updateRecipients = ProjectNotificationRecipients.resolve(saved.getProyecto());
+        if (!updateRecipients.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.RISK_UPDATED,
+                    projectId,
+                    "system",
+                    java.util.Map.of(
+                            "riskCode", saved.getCodigo() != null ? saved.getCodigo() : "",
+                            "riskLevel", saved.getNivel() != null ? saved.getNivel() : "",
+                            "projectName", saved.getProyecto().getNombre() != null ? saved.getProyecto().getNombre() : "",
+                            "recipients", updateRecipients
+                    )));
+        }
         return convertToResponseDto(saved);
     }
 
@@ -225,7 +232,22 @@ public class RiesgoServiceImpl implements IRiesgoService {
             throw new ForbiddenException("No se pueden eliminar riesgos de un proyecto cerrado.");
         }
 
+        String riskCode = riesgo.getCodigo() != null ? riesgo.getCodigo() : String.valueOf(riesgo.getId());
+        Proyecto proyectoRiesgo = riesgo.getProyecto();
         riesgoRepository.delete(riesgo);
+
+        var deleteRecipients = ProjectNotificationRecipients.resolve(proyectoRiesgo);
+        if (!deleteRecipients.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.RISK_DELETED,
+                    projectId,
+                    "system",
+                    java.util.Map.of(
+                            "riskCode", riskCode,
+                            "projectName", proyectoRiesgo.getNombre() != null ? proyectoRiesgo.getNombre() : "",
+                            "recipients", deleteRecipients
+                    )));
+        }
     }
 
     @Override
@@ -268,9 +290,27 @@ public class RiesgoServiceImpl implements IRiesgoService {
             resultado.add(toSolutionDto(guardado));
         }
 
+        boolean cambioATratado = false;
         if (riesgo.getEstado() == null || riesgo.getEstado() == EstadoRiesgo.PENDIENTE) {
             riesgo.setEstado(EstadoRiesgo.TRATADO);
             riesgoRepository.save(riesgo);
+            cambioATratado = true;
+        }
+
+        if (cambioATratado) {
+            var treatedRecipients = ProjectNotificationRecipients.resolve(riesgo.getProyecto());
+            if (treatedRecipients != null && !treatedRecipients.isEmpty()) {
+                notificationPublisher.publish(new NotificationContext(
+                        NotificationEventType.RISK_TREATED,
+                        projectId,
+                        "system",
+                        java.util.Map.of(
+                                "riskCode", riesgo.getCodigo() != null ? riesgo.getCodigo() : String.valueOf(riesgo.getId()),
+                                "riskLevel", riesgo.getNivel() != null ? riesgo.getNivel() : "",
+                                "projectName", riesgo.getProyecto().getNombre() != null ? riesgo.getProyecto().getNombre() : "",
+                                "recipients", treatedRecipients
+                        )));
+            }
         }
 
         return resultado;

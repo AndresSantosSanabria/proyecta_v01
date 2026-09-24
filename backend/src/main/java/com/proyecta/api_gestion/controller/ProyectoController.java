@@ -10,7 +10,6 @@ import com.proyecta.api_gestion.dto.proyecto.ProyectoRegistroInicialDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoResponseDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoResumenDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
-import com.proyecta.api_gestion.dto.proyecto.ViabilidadDevolverDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.model.Furag;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
@@ -199,36 +198,14 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
-    @PatchMapping("/{id}/viabilidad/aprobar")
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #id, authentication)")
-    public ResponseEntity<ApiResponse<Void>> aprobarViabilidad(
-            @PathVariable String id,
-            Authentication authentication) {
-        String gestorUsername = identityExtractor.resolveUsername(authentication);
-        proyectoService.aprobarViabilidad(id, gestorUsername);
-        return ResponseEntity.ok(ApiResponse.success(null, "Viabilidad aprobada exitosamente"));
-    }
-
-    @Override
-    @PatchMapping("/{id}/viabilidad/devolver")
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #id, authentication)")
-    public ResponseEntity<ApiResponse<Void>> devolverViabilidad(
-            @PathVariable String id,
-            @Valid @RequestBody ViabilidadDevolverDTO dto,
-            Authentication authentication) {
-        String gestorUsername = identityExtractor.resolveUsername(authentication);
-        proyectoService.devolverViabilidad(id, dto, gestorUsername);
-        return ResponseEntity.ok(ApiResponse.success(null, "Viabilidad devuelta exitosamente"));
-    }
-
-    @Override
     @PatchMapping("/{id}/cierre-forzoso")
-    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #id, authentication)")
+    @PreAuthorize("@proyectoSecurity.canForceCloseExtraordinary(authentication)")
     public ResponseEntity<ApiResponse<Void>> cerrarForzoso(
             @PathVariable String id,
+            @Valid @RequestBody com.proyecta.api_gestion.dto.proyecto.CierreForzosoDTO dto,
             Authentication authentication) {
         String gestorUsername = identityExtractor.resolveUsername(authentication);
-        proyectoService.cerrarForzoso(id, gestorUsername);
-        return ResponseEntity.ok(ApiResponse.success(null, "Proyecto cerrado forzosamente"));
+        proyectoService.cerrarForzoso(id, gestorUsername, dto.comentario());
+        return ResponseEntity.ok(ApiResponse.success(null, "Proyecto cerrado forzosamente (cierre extraordinario)"));
     }
 }

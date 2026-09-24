@@ -17,5 +17,7 @@ public record AdvanceReportStatusDTO(
         String uploadedAt,
         String uploadedBy,
         String estado,
-        String observaciones
+        String observaciones,
+        String verifiedBy,
+        String returnedBy
 ) {}

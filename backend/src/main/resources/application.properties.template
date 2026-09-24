@@ -38,16 +38,16 @@ spring.flyway.locations=classpath:db/migration
 # In deployed environments set this to the externally reachable API domain.
 app.public-url.base=${APP_PUBLIC_URL_BASE:http://localhost:8082}
 
-# Mail / Notifications
-spring.mail.host=${MAIL_HOST:smtp.office365.com}
-spring.mail.port=${MAIL_PORT:587}
-spring.mail.username=${MAIL_USERNAME:notificaciones_proyecta@cundinamarca.gov.co}
-spring.mail.password=${MAIL_PASSWORD:kAx7WABR2gus}
+# Mail / Notifications (relay interno - smtp.office365.com bloqueado por firewall)
+spring.mail.host=${MAIL_HOST:correo.cundinamarca.gov.co}
+spring.mail.port=${MAIL_PORT:25}
+spring.mail.username=${MAIL_USERNAME:}
+spring.mail.password=${MAIL_PASSWORD:}
 spring.mail.protocol=${MAIL_PROTOCOL:smtp}
-spring.mail.properties.mail.smtp.auth=${MAIL_SMTP_AUTH:true}
+spring.mail.properties.mail.smtp.auth=${MAIL_SMTP_AUTH:false}
 spring.mail.properties.mail.smtp.starttls.enable=${MAIL_SMTP_STARTTLS_ENABLE:true}
-spring.mail.properties.mail.smtp.starttls.required=${MAIL_SMTP_STARTTLS_REQUIRED:true}
-spring.mail.properties.mail.smtp.ssl.trust=${MAIL_SMTP_SSL_TRUST:smtp.office365.com}
+spring.mail.properties.mail.smtp.starttls.required=${MAIL_SMTP_STARTTLS_REQUIRED:false}
+spring.mail.properties.mail.smtp.ssl.trust=${MAIL_SMTP_SSL_TRUST:correo.cundinamarca.gov.co}
 spring.mail.properties.mail.smtp.ssl.protocols=${MAIL_SMTP_SSL_PROTOCOLS:TLSv1.2 TLSv1.3}
 spring.mail.properties.mail.smtp.connectiontimeout=${MAIL_SMTP_CONNECTION_TIMEOUT:30000}
 spring.mail.properties.mail.smtp.timeout=${MAIL_SMTP_TIMEOUT:30000}

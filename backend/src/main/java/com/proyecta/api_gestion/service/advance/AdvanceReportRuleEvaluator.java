@@ -23,9 +23,12 @@ public class AdvanceReportRuleEvaluator {
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final SystemParameterService systemParameterService;
+    private final AdvanceReportPeriodService periodService;
 
-    public AdvanceReportRuleEvaluator(SystemParameterService systemParameterService) {
+    public AdvanceReportRuleEvaluator(SystemParameterService systemParameterService,
+                                      AdvanceReportPeriodService periodService) {
         this.systemParameterService = systemParameterService;
+        this.periodService = periodService;
     }
 
     /**
@@ -58,9 +61,9 @@ public class AdvanceReportRuleEvaluator {
      * Retorna el tipo de notificación y un mensaje descriptivo, o NONE si no corresponde.
      */
     public DecisionResult evaluate(LocalDate today) {
-        LocalDate dueDate = resolveDueDate();
+        LocalDate dueDate = resolveDueDate(today);
         if (dueDate == null) {
-            log.debug("No hay advance_report_due_date configurado, saltando evaluación");
+            log.debug("No fue posible resolver la fecha limite del periodo, saltando evaluacion");
             return DecisionResult.none();
         }
 
@@ -110,17 +113,17 @@ public class AdvanceReportRuleEvaluator {
     }
 
     /**
-     * Retorna la fecha límite configurada, o null si no está configurada.
+     * Retorna la fecha limite configurada, o null si no está configurada.
      */
     public LocalDate getDueDate() {
-        return resolveDueDate();
+        return resolveDueDate(LocalDate.now());
     }
 
     /**
      * Retorna true si el periodo actual está vencido (today > due_date).
      */
     public boolean isOverdue(LocalDate today) {
-        LocalDate dueDate = resolveDueDate();
+        LocalDate dueDate = resolveDueDate(today);
         return dueDate != null && today.isAfter(dueDate);
     }
 
@@ -128,21 +131,17 @@ public class AdvanceReportRuleEvaluator {
      * Retorna los días restantes hasta la fecha límite (negativo si vencido).
      */
     public long getDaysUntilDue(LocalDate today) {
-        LocalDate dueDate = resolveDueDate();
+        LocalDate dueDate = resolveDueDate(today);
         if (dueDate == null) return Long.MAX_VALUE;
         return ChronoUnit.DAYS.between(today, dueDate);
     }
 
-    private LocalDate resolveDueDate() {
-        String raw = systemParameterService.getString(
-                SystemParameterKeys.ADVANCE_REPORT_DUE_DATE, "");
-        if (raw == null || raw.isBlank()) return null;
-        try {
-            return LocalDate.parse(raw.trim(), ISO_DATE);
-        } catch (Exception e) {
-            log.warn("Valor inválido para advance_report_due_date: '{}'", raw);
-            return null;
-        }
+    /**
+     * Fecha limite del periodo vigente. Siempre hay fecha (fin de periodo por defecto);
+     * advance_report_due_date solo actua como override manual dentro del periodo.
+     */
+    private LocalDate resolveDueDate(LocalDate today) {
+        return periodService.dueDateForPeriodo(today);
     }
 
     private List<LocalDate> resolveOverrideDates() {

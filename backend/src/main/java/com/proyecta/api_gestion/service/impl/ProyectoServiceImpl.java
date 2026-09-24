@@ -291,7 +291,9 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
 
         String viabilidadEstado;
-        if (todosAprobado && documentosCargados) {
+        boolean confirmada = proyecto.viabilidadAprobada()
+                && Boolean.TRUE.equals(proyecto.getDocumentosVerificados());
+        if (confirmada && todosAprobado && documentosCargados) {
             viabilidadEstado = ViabilidadEstado.APROBADA.name();
         } else if (algunoDevuelto) {
             viabilidadEstado = ViabilidadEstado.DEVUELTA.name();
@@ -301,7 +303,7 @@ public class ProyectoServiceImpl implements ProyectoService {
             viabilidadEstado = ViabilidadEstado.PENDIENTE.name();
         }
 
-        boolean documentosVerificados = Boolean.TRUE.equals(proyecto.getDocumentosVerificados())
+        boolean documentosVerificados = confirmada
                 && todosAprobado && documentosCargados;
         boolean puedeCargarViabilidad = requiereCompletitud && directorAsignado
                 && (ViabilidadEstado.PENDIENTE.name().equals(viabilidadEstado)
@@ -390,7 +392,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 Map.of(
                         "projectName", guardado.getNombre(),
                         "state", guardado.getEstadoCodigo(),
-                        "recipients", List.of(guardado.getCorreoDirector(), guardado.getRegistradoInicialPor())
+                        "recipients", ProjectNotificationRecipients.resolve(guardado)
                 )));
         return proyectoRepository.findById(guardado.getId()).map(p -> {
             initializeLazyCollections(p);
@@ -1283,7 +1285,11 @@ public class ProyectoServiceImpl implements ProyectoService {
                 (int) total,
                 (int) conformes,
                 (int) atrasados,
-                p.getFurag() != null ? buildFuragDetalle(p.getFurag()) : List.of()
+                p.getFurag() != null ? buildFuragDetalle(p.getFurag()) : List.of(),
+                Boolean.TRUE.equals(p.getCierreForzoso()),
+                p.getCierreObservaciones(),
+                p.getCierreForzosoPor(),
+                p.getCierreForzosoEn()
         );
     }
 
@@ -1550,99 +1556,23 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
     }
 
-    // ==================== QUALITY GATE: DOCUMENTOS PRE-WIZARD ====================
-
-    private void sincRevisionesPreWizardMasivo(String proyectoId, DocumentoPreWizardEstado estado,
-                                               String observacion, String gestorUsername) {
-        java.time.LocalDateTime ahora = java.time.LocalDateTime.now();
-        for (String tipo : java.util.List.of("VIABILIZACION", "PLAN_COMUNICACIONES", "MATRIZ_RIESGOS_VIABILIDAD")) {
-            DocumentoPreWizardRevision revision = preWizardRevisionRepository
-                    .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
-                    .orElseGet(() -> {
-                        DocumentoPreWizardRevision nueva = new DocumentoPreWizardRevision();
-                        nueva.setProyectoId(proyectoId);
-                        nueva.setTipoDocumento(tipo);
-                        return nueva;
-                    });
-            revision.setEstado(estado);
-            revision.setObservacion(estado == DocumentoPreWizardEstado.DEVUELTO ? observacion : null);
-            revision.setRevisadoPor(gestorUsername);
-            revision.setRevisadoEn(ahora);
-            preWizardRevisionRepository.save(revision);
-        }
-    }
+// ==================== QUALITY GATE: CIERRE FORZOSO ====================
 
     @Override
     @Transactional
-    public void aprobarViabilidad(String id, String gestorUsername) {
+    public void cerrarForzoso(String id, String gestorUsername, String comentario) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
 
-        recalcularDocumentosCargados(proyecto);
-
-        if (!proyecto.getDocumentosCargados()) {
-            proyectoRepository.save(proyecto);
-            return;
+        if (proyecto.esEstadoTerminal()) {
+            throw new BadRequestException("El proyecto ya se encuentra cerrado o finalizado.");
+        }
+        if (comentario == null || comentario.isBlank()) {
+            throw new BadRequestException("El comentario es obligatorio para el cierre forzoso.");
         }
 
-        proyecto.aprobarDocumentos(gestorUsername);
-        proyectoRepository.save(proyecto);
-
-        sincRevisionesPreWizardMasivo(proyecto.getId(), DocumentoPreWizardEstado.APROBADO, null, gestorUsername);
-
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.VIABILIDAD_APPROVED,
-                proyecto.getId(),
-                gestorUsername,
-                java.util.Map.of(
-                        "projectName", proyecto.getNombre(),
-                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
-                )));
-    }
-
-    @Override
-    @Transactional
-    public void devolverViabilidad(String id, ViabilidadDevolverDTO dto, String gestorUsername) {
-        final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
-
-        recalcularDocumentosCargados(proyecto);
-
-        if (!proyecto.getDocumentosCargados()) {
-            proyectoRepository.save(proyecto);
-            return;
-        }
-
-        proyecto.devolverDocumentos(dto.observaciones(), gestorUsername);
-        proyectoRepository.save(proyecto);
-
-        sincRevisionesPreWizardMasivo(proyecto.getId(), DocumentoPreWizardEstado.DEVUELTO, dto.observaciones(), gestorUsername);
-
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.VIABILIDAD_RETURNED,
-                proyecto.getId(),
-                gestorUsername,
-                java.util.Map.of(
-                        "projectName", proyecto.getNombre(),
-                        "observaciones", dto.observaciones(),
-                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
-                )));
-    }
-
-    @Override
-    @Transactional
-    public void cerrarForzoso(String id, String gestorUsername) {
-        final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
-
-        if (!proyecto.requiereCompletitudDirector()) {
-            throw new BadRequestException("No se puede cerrar forzosamente un proyecto que no esta pendiente de completar.");
-        }
-
-        proyecto.cerrarForzoso(gestorUsername);
+        proyecto.cerrarForzoso(gestorUsername, comentario);
         proyectoRepository.save(proyecto);
 
         notificationPublisher.publish(new NotificationContext(
@@ -1651,7 +1581,9 @@ public class ProyectoServiceImpl implements ProyectoService {
                 gestorUsername,
                 java.util.Map.of(
                         "projectName", proyecto.getNombre(),
-                        " motivo", "Cierre forzoso por Gestor",
+                        "state", proyecto.getEstadoCodigo() != null ? proyecto.getEstadoCodigo() : proyecto.getEstado().name(),
+                        "motivo", "Cierre forzoso / extraordinario",
+                        "comentario", comentario.trim(),
                         "recipients", ProjectNotificationRecipients.resolve(proyecto)
                 )));
     }

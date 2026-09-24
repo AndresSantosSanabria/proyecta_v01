@@ -34,7 +34,5 @@ public interface ProyectoService {
     ProyectoResponseDTO completarFaseCompletitud(String id, Integer fase, String username);
 
     // Quality Gate: Viabilidad
-    void aprobarViabilidad(String id, String gestorUsername);
-    void devolverViabilidad(String id, ViabilidadDevolverDTO dto, String gestorUsername);
-    void cerrarForzoso(String id, String gestorUsername);
+    void cerrarForzoso(String id, String gestorUsername, String comentario);
 }

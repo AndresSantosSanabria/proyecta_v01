@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.dto.proyecto;
 import com.proyecta.api_gestion.dto.config.FuragPreguntaRespuestaDTO;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record ProyectoListDTO(
@@ -19,5 +20,9 @@ public record ProyectoListDTO(
     Integer entregablesTotal,
     Integer entregablesConformes,
     Integer entregablesAtrasados,
-    List<FuragPreguntaRespuestaDTO> furagDetalle
+    List<FuragPreguntaRespuestaDTO> furagDetalle,
+    Boolean cierreForzoso,
+    String cierreObservaciones,
+    String cierreForzosoPor,
+    LocalDateTime cierreForzosoEn
 ) {}

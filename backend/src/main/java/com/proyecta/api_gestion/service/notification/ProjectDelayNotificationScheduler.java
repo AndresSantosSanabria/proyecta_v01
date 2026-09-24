@@ -46,9 +46,17 @@ public class ProjectDelayNotificationScheduler {
 
         for (DashboardProjectSummaryDTO project : delayedProjects) {
             String projectId = project.getCodigo();
-            String director = proyectoRepository.findById(projectId)
-                    .map(proyecto -> proyecto.getCorreoDirector())
-                    .orElse(null);
+            var proyectoOpt = proyectoRepository.findById(projectId);
+            if (proyectoOpt.isEmpty()) {
+                continue;
+            }
+            var proyecto = proyectoOpt.get();
+            List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
+            if (recipients.isEmpty()) {
+                continue;
+            }
+
+            String director = proyecto.getCorreoDirector();
             if (director == null || director.isBlank()) {
                 continue;
             }
@@ -72,7 +80,7 @@ public class ProjectDelayNotificationScheduler {
                         java.util.Map.of(
                                 "projectName", project.getNombreProyecto(),
                                 "overdueDeliverables", project.getEntregablesAtrasados(),
-                                "recipients", List.of(director),
+                                "recipients", recipients,
                                 "title", "Proyecto con retrasos: " + project.getNombreProyecto()
                         )));
             } catch (Exception ex) {

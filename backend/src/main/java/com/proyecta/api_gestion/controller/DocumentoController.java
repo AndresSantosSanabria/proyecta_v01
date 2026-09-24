@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.controller.interfaces.IDocumentoController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardConfirmacionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardDevolverDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
@@ -139,5 +140,16 @@ public class DocumentoController implements IDocumentoController {
         DocumentoPreWizardRevisionDTO response = documentoService.devolverDocumentoPreWizard(
                 proyectoId, tipoDocumento, dto.observaciones(), authentication);
         return ResponseEntity.ok(ApiResponse.success(response, "Documento devuelto exitosamente"));
+    }
+
+    @Override
+    @PostMapping("/{proyectoId}/documentos-pre-wizard/confirmar-revision")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardConfirmacionDTO>> confirmarRevisionPreWizard(
+            @PathVariable String proyectoId,
+            Authentication authentication) {
+        DocumentoPreWizardConfirmacionDTO response =
+                documentoService.confirmarRevisionPreWizard(proyectoId, authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, response.mensaje()));
     }
 }

@@ -74,7 +74,10 @@ public class SecurityCatalogSeeder {
             new PermissionSeed("SIDEBAR:REPORTES", "Mostrar Reportes en menu", "Controla la visibilidad del modulo Reportes en el sidebar"),
             new PermissionSeed("SIDEBAR:ANALITICAS", "Mostrar Analiticas en menu", "Controla la visibilidad del modulo Analiticas en el sidebar"),
             new PermissionSeed("SIDEBAR:SEGURIDAD", "Mostrar Configuracion Seguridad en menu", "Controla la visibilidad del modulo Configuracion y Seguridad en el sidebar"),
-            new PermissionSeed("AUDITORIA:VER", "Ver auditoria", "Permite consultar el registro de auditoria de acciones y logs del sistema")
+            new PermissionSeed("AUDITORIA:VER", "Ver auditoria", "Permite consultar el registro de auditoria de acciones y logs del sistema"),
+            new PermissionSeed("DOCUMENTO_INTERNO:VER", "Ver documentacion interna", "Permite consultar la documentacion interna del sistema"),
+            new PermissionSeed("DOCUMENTO_INTERNO:CARGAR", "Cargar documentacion interna", "Permite subir archivos de documentacion interna"),
+            new PermissionSeed("SIDEBAR:DOCUMENTACION_INTERNA", "Mostrar Documentacion Interna en menu", "Controla la visibilidad del modulo de documentacion interna en el sidebar")
     );
 
     private static final Map<String, List<String>> ROLE_PERMISSIONS = Map.of(
@@ -90,7 +93,8 @@ public class SecurityCatalogSeeder {
                     "CIERRE:SOLICITAR", "CIERRE:APROBAR",
                     "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR",
                     "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD",
-                    "AUDITORIA:VER"),
+                    "AUDITORIA:VER",
+                    "DOCUMENTO_INTERNO:VER", "DOCUMENTO_INTERNO:CARGAR", "SIDEBAR:DOCUMENTACION_INTERNA"),
             "gestor_tic", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
                     "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER", "CONFIGURACION:VER",
@@ -102,7 +106,8 @@ public class SecurityCatalogSeeder {
                     "BENEFICIO_IMPACTO:VER",
                     "CIERRE:APROBAR",
                     "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD"),
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD",
+                    "DOCUMENTO_INTERNO:VER", "DOCUMENTO_INTERNO:CARGAR", "SIDEBAR:DOCUMENTACION_INTERNA"),
             "gestor_proyectos", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
                     "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER", "CONFIGURACION:VER",
@@ -114,7 +119,8 @@ public class SecurityCatalogSeeder {
                     "BENEFICIO_IMPACTO:VER",
                     "CIERRE:SOLICITAR", "CIERRE:APROBAR",
                     "SISTEMA:VER", "SISTEMA:CONFIGURAR",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD"),
+                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD",
+                    "DOCUMENTO_INTERNO:VER", "DOCUMENTO_INTERNO:CARGAR", "SIDEBAR:DOCUMENTACION_INTERNA"),
             "director_proyecto", List.of(
                     "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:EDITAR",
                     "ENTREGABLE:VER", "EVIDENCIA:VER", "EVIDENCIA:CARGAR",

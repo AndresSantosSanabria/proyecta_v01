@@ -1,5 +1,7 @@
 package com.proyecta.api_gestion.service.notification;
 
+import com.proyecta.api_gestion.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,20 +16,26 @@ import java.util.Set;
 public class NotificationActorResolver {
 
     private final KeycloakIdentityExtractor identityExtractor;
+    private final SeguridadUsuarioRepository usuarioRepository;
 
-    public NotificationActorResolver(KeycloakIdentityExtractor identityExtractor) {
+    public NotificationActorResolver(KeycloakIdentityExtractor identityExtractor,
+                                     SeguridadUsuarioRepository usuarioRepository) {
         this.identityExtractor = identityExtractor;
+        this.usuarioRepository = usuarioRepository;
     }
 
     public Set<String> resolveActorIdentifiers(String fallbackActorUsername) {
         Set<String> identifiers = new LinkedHashSet<>();
         addIfPresent(identifiers, normalize(fallbackActorUsername));
+        expandWithLocalUser(identifiers, fallbackActorUsername);
 
         Authentication authentication = SecurityContextHolder.getContext() != null
                 ? SecurityContextHolder.getContext().getAuthentication()
                 : null;
         if (authentication != null) {
-            addIfPresent(identifiers, normalize(identityExtractor.resolveUsername(authentication)));
+            String contextUsername = identityExtractor.resolveUsername(authentication);
+            addIfPresent(identifiers, normalize(contextUsername));
+            expandWithLocalUser(identifiers, contextUsername);
             addIfPresent(identifiers, normalize(identityExtractor.resolveEmail(authentication)));
             addIfPresent(identifiers, normalize(identityExtractor.resolveSub(authentication)));
 
@@ -40,6 +48,28 @@ public class NotificationActorResolver {
         }
 
         return identifiers;
+    }
+
+    private void expandWithLocalUser(Set<String> identifiers, String candidate) {
+        if (candidate == null || candidate.isBlank()) {
+            return;
+        }
+        String value = candidate.trim();
+        usuarioRepository.findByUsernameIgnoreCase(value)
+                .or(() -> usuarioRepository.findByCorreoIgnoreCase(value))
+                .ifPresent(user -> addLocalUserIdentifiers(identifiers, user));
+        usuarioRepository.findByNombreIgnoreCase(value)
+                .forEach(user -> addLocalUserIdentifiers(identifiers, user));
+    }
+
+    private void addLocalUserIdentifiers(Set<String> identifiers, SeguridadUsuario user) {
+        if (user == null) {
+            return;
+        }
+        addIfPresent(identifiers, normalize(user.getUsername()));
+        addIfPresent(identifiers, normalize(user.getCorreo()));
+        addIfPresent(identifiers, normalize(user.getNombre()));
+        addIfPresent(identifiers, normalize(user.getKeycloakSub()));
     }
 
     public boolean isActor(String candidate, Set<String> actorIdentifiers) {

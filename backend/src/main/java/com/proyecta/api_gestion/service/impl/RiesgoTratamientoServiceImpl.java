@@ -16,6 +16,10 @@ import com.proyecta.api_gestion.repository.RiesgoTratamientoAdjuntoRepository;
 import com.proyecta.api_gestion.repository.RiesgoTratamientoRepository;
 import com.proyecta.api_gestion.service.IRiesgoTratamientoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -40,15 +44,18 @@ public class RiesgoTratamientoServiceImpl implements IRiesgoTratamientoService {
     private final RiesgoTratamientoAdjuntoRepository adjuntoRepository;
     private final RiesgoRepository riesgoRepository;
     private final IStorageProvider storageProvider;
+    private final NotificationEventPublisherPort notificationPublisher;
 
     public RiesgoTratamientoServiceImpl(RiesgoTratamientoRepository tratamientoRepository,
                                          RiesgoTratamientoAdjuntoRepository adjuntoRepository,
                                          RiesgoRepository riesgoRepository,
-                                         IStorageProvider storageProvider) {
+                                         IStorageProvider storageProvider,
+                                         NotificationEventPublisherPort notificationPublisher) {
         this.tratamientoRepository = tratamientoRepository;
         this.adjuntoRepository = adjuntoRepository;
         this.riesgoRepository = riesgoRepository;
         this.storageProvider = storageProvider;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Override
@@ -102,6 +109,20 @@ public class RiesgoTratamientoServiceImpl implements IRiesgoTratamientoService {
         if (riesgo.getEstado() == null || riesgo.getEstado() == EstadoRiesgo.PENDIENTE) {
             riesgo.setEstado(EstadoRiesgo.TRATADO);
             riesgoRepository.save(riesgo);
+
+            var treatedRecipients = ProjectNotificationRecipients.resolve(riesgo.getProyecto());
+            if (treatedRecipients != null && !treatedRecipients.isEmpty()) {
+                notificationPublisher.publish(new NotificationContext(
+                        NotificationEventType.RISK_TREATED,
+                        projectId,
+                        "system",
+                        java.util.Map.of(
+                                "riskCode", riesgo.getCodigo() != null ? riesgo.getCodigo() : String.valueOf(riesgo.getId()),
+                                "riskLevel", riesgo.getNivel() != null ? riesgo.getNivel() : "",
+                                "projectName", riesgo.getProyecto().getNombre() != null ? riesgo.getProyecto().getNombre() : "",
+                                "recipients", treatedRecipients
+                        )));
+            }
         }
 
         return toDto(guardado);
