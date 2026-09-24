@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, Clock, FileText, ExternalLink, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import advanceReportService from '../../../services/advanceReportService';

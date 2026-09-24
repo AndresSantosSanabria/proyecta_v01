@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { LogIn, RefreshCcw, ShieldAlert, Sparkles } from 'lucide-react';
+import { LogIn, ShieldAlert, Sparkles } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import { startLoginRedirect } from '../../utils/auth';
+import logoProyecta from '../../assets/Logo Proyecta Icon.png';
 
 const LoadingState = ({ title, subtitle }) => (
   <div style={{
@@ -27,19 +28,38 @@ const LoadingState = ({ title, subtitle }) => (
       backdropFilter: 'blur(18px)',
     }}>
       <div style={{
-        width: '72px',
-        height: '72px',
+        width: '88px',
+        height: '88px',
         borderRadius: '22px',
         margin: '0 auto 18px',
         display: 'grid',
         placeItems: 'center',
-        background: 'rgba(14, 165, 233, 0.12)',
-        color: '#7dd3fc',
+        background: 'rgba(14, 165, 233, 0.10)',
+        border: '1px solid rgba(148, 163, 184, 0.14)',
+        overflow: 'hidden',
       }}>
-        <RefreshCcw size={34} />
+        <img
+          src={logoProyecta}
+          alt="Proyecta"
+          style={{ width: '64px', height: '64px', objectFit: 'contain' }}
+        />
       </div>
       <h2 style={{ margin: '0 0 10px', fontSize: '1.6rem' }}>{title}</h2>
       <p style={{ margin: 0, color: '#cbd5e1', lineHeight: 1.65 }}>{subtitle}</p>
+      <div style={{
+        width: '48px',
+        height: '3px',
+        borderRadius: '999px',
+        margin: '20px auto 0',
+        background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)',
+        animation: 'proyectaPulse 1.2s ease-in-out infinite',
+      }} />
+      <style>{`
+        @keyframes proyectaPulse {
+          0%, 100% { opacity: 0.35; transform: scaleX(0.7); }
+          50% { opacity: 1; transform: scaleX(1); }
+        }
+      `}</style>
     </div>
   </div>
 );

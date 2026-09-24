@@ -16,6 +16,7 @@ import {
   CheckSquare,
   BarChart3,
   ClipboardCheck,
+  FolderOpen,
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import dashboardService from '../../../services/dashboardService';
@@ -39,6 +40,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
   const sidebarReportes = usePermission('SIDEBAR:REPORTES');
   const sidebarAnaliticas = usePermission('SIDEBAR:ANALITICAS');
   const sidebarSeguridad = usePermission('SIDEBAR:SEGURIDAD');
+  const sidebarDocInterna = usePermission('SIDEBAR:DOCUMENTACION_INTERNA');
 
   const projectMatch = location.pathname.match(/^\/(?:projects|proyectos)\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectMatch ? projectMatch[1] : null;
@@ -138,6 +140,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
       items: compactItems([
         (!isVisualizador && sidebarReportes) ? { name: 'Reportes', path: '/reports', icon: <FileText size={22} /> } : null,
         (!isVisualizador && sidebarAnaliticas) ? { name: 'Portafolio', path: '/analytics', icon: <BarChart3 size={22} /> } : null,
+        (!isVisualizador && sidebarDocInterna) ? { name: 'Documentacion Interna', path: '/documentacion-interna', icon: <FolderOpen size={22} /> } : null,
       ])
     },
     ...((!isVisualizador && sidebarSeguridad) ? [{

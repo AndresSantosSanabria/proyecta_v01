@@ -112,7 +112,8 @@ export default function AutocompleteSelect({
       const left = Math.min(rect.left, window.innerWidth - width - 12);
       setDropdownStyle({
         position: 'fixed',
-        top: openUp ? rect.top - maxH - 4 : rect.bottom + 4,
+        top: openUp ? undefined : rect.bottom + 4,
+        bottom: openUp ? window.innerHeight - rect.top + 4 : undefined,
         left: Math.max(12, left),
         width,
         maxWidth: `calc(100vw - 24px)`,

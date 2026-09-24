@@ -654,6 +654,25 @@ const ProjectClosurePage = () => {
         </div>
       )}
 
+      {summaryData.estado === 'CERRADO_FORZOSO' && !successMsg && (
+        <div className="info-closed-banner force-closed-banner">
+          <ShieldAlert className="closed-icon" size={22} />
+          <div className="banner-content">
+            <p><strong>Proyecto cerrado forzosamente (cierre extraordinario).</strong></p>
+            {cierreObservaciones && (
+              <div className="force-close-reason-detail">
+                <span>Motivo del cierre:</span>
+                <p>"{cierreObservaciones}"</p>
+              </div>
+            )}
+            <button type="button" className="btn-primary-closure" onClick={handleDownloadActa} disabled={downloadingActa} style={{ marginTop: '12px' }}>
+              <Download size={16} style={{ marginRight: '8px' }} />
+              {downloadingActa ? 'Descargando acta...' : 'Descargar acta de cierre'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="closure-card">
         <div className="card-header">
           <div className="card-title">
@@ -997,17 +1016,40 @@ const ProjectClosurePage = () => {
 
       {showExtraordinaryConfirm && (
         <div className="closure-confirm-overlay" onClick={() => setShowExtraordinaryConfirm(false)}>
-          <div className="closure-confirm-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="closure-confirm-modal closure-confirm-modal--danger"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="extraordinary-confirm-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="reject-modal-header">
               <div className="closure-confirm-icon-wrapper" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}>
                 <ShieldAlert size={24} style={{ color: '#ef4444' }} />
               </div>
-              <button className="reject-modal-close" onClick={() => setShowExtraordinaryConfirm(false)} disabled={extraordinaryClosureLoading}>
+              <button className="reject-modal-close" onClick={() => setShowExtraordinaryConfirm(false)} disabled={extraordinaryClosureLoading} aria-label="Cerrar">
                 <X size={20} />
               </button>
             </div>
-            <h3>Cierre Extraordinario del Proyecto</h3>
-            <p>Esta acción cerrará el proyecto <strong>saltándose las validaciones normales</strong> de cierre. Se generará el acta de cierre y el proyecto pasará a estado <strong>CERRADO FORZOSO</strong>.</p>
+            <h3 id="extraordinary-confirm-title">Cierre Extraordinario del Proyecto</h3>
+
+            <div className="force-close-danger" role="alert">
+              <div className="force-close-danger__icon" aria-hidden="true">
+                <AlertTriangle size={18} />
+              </div>
+              <div className="force-close-danger__body">
+                <strong>¿Está seguro de cerrar el proyecto?</strong>
+                <p>
+                  Esta acción <mark>NO es reversible</mark>. El proyecto pasará al estado{' '}
+                  <strong>CERRADO FORZOSO</strong> y no podrá reabrirse por el flujo normal.
+                </p>
+              </div>
+            </div>
+
+            <p>
+              Esta acción cierra el proyecto <strong>saltándose las validaciones normales</strong> de cierre.
+              Se generará el acta de cierre formal.
+            </p>
             <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--text-muted)', background: 'rgba(239,68,68,0.06)', padding: '0.75rem', borderRadius: '8px', borderLeft: '3px solid var(--danger)' }}>
               <strong>Nota:</strong> Este tipo de cierre solo está disponible para roles con permisos especiales (Administrador o Gestor de Proyectos). Use esta opción solo cuando el proyecto esté atascado y no pueda cerrarse por el flujo normal.
             </p>
@@ -1017,7 +1059,7 @@ const ProjectClosurePage = () => {
               </button>
               <button className="btn-extraordinary-closure-modal" onClick={confirmExtraordinaryClosure} disabled={extraordinaryClosureLoading} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <ShieldAlert size={16} />
-                {extraordinaryClosureLoading ? 'Procesando...' : 'Confirmar cierre extraordinario'}
+                {extraordinaryClosureLoading ? 'Procesando...' : 'Sí, cerrar definitivamente'}
               </button>
             </div>
           </div>

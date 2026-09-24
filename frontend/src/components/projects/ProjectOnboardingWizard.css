@@ -21,6 +21,8 @@
 .project-onboarding__panel {
   display: grid;
   gap: 12px;
+  grid-auto-rows: min-content;
+  align-content: start;
   flex: 1;
   min-height: 0;
   max-height: 100%;

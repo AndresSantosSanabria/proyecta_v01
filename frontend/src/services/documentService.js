@@ -71,6 +71,13 @@ const documentService = {
     );
     return data;
   },
+
+  confirmarRevisionPreWizard: async (proyectoId) => {
+    const { data } = await apiClient.post(
+      `/proyectos/${proyectoId}/documentos-pre-wizard/confirmar-revision`
+    );
+    return data;
+  },
 };
 
 export default documentService;

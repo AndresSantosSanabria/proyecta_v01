@@ -1,8 +1,8 @@
-﻿import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   FileText, Upload, CheckCircle2, RotateCcw, Clock, AlertTriangle,
-  X, LoaderCircle, Eye
+  X, LoaderCircle, Eye, History, ChevronDown, ChevronUp, Download
 } from 'lucide-react';
 import advanceReportService from '../../../services/advanceReportService';
 import { emitToast } from '../../../utils/feedback';
@@ -33,6 +33,9 @@ const AdvanceReportActions = ({ projectId }) => {
   const [showReturnForm, setShowReturnForm] = useState(false);
   const fileInputRef = useRef(null);
   const panelRef = useRef(null);
+  const [versions, setVersions] = useState([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
 
   const isDirector = hasRole('DIRECTOR_PROYECTO');
   const isGestor = hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
@@ -53,6 +56,27 @@ const AdvanceReportActions = ({ projectId }) => {
   useEffect(() => {
     loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    if (!panelOpen || !projectId || !status?.isUploaded || !status?.periodo) return undefined;
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setLoadingVersions(true);
+      setVersions([]);
+      setShowVersions(false);
+      advanceReportService.getVersions(projectId, status.periodo)
+        .then((list) => {
+          if (cancelled) return;
+          setVersions(Array.isArray(list) ? list : (Array.isArray(list?.data) ? list.data : []));
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setLoadingVersions(false);
+        });
+    });
+    return () => { cancelled = true; };
+  }, [panelOpen, projectId, status?.isUploaded, status?.periodo]);
 
   useEffect(() => {
     if (!panelOpen) return;
@@ -134,10 +158,30 @@ const AdvanceReportActions = ({ projectId }) => {
     e.target.value = '';
   };
 
+  const handleDownloadVersion = async (version) => {
+    if (!projectId || !version) return;
+    try {
+      const blob = await advanceReportService.downloadReport(projectId, {
+        periodo: status?.periodo,
+        version: version.numeroVersion,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = version.fileName || `informe-v${version.numeroVersion}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    } catch {
+      emitToast({ title: 'Error al descargar', message: 'No fue posible descargar la version.', tone: 'error' });
+    }
+  };
+
   const handleDownload = async () => {
     if (!projectId || !status?.fileName) return;
     try {
-      const blob = await advanceReportService.downloadReport(projectId);
+      const blob = await advanceReportService.downloadReport(projectId, { periodo: status.periodo });
       const url = window.URL.createObjectURL(blob);
       if (status.fileName.toLowerCase().endsWith('.pdf')) {
         window.open(url, '_blank');
@@ -233,9 +277,17 @@ const AdvanceReportActions = ({ projectId }) => {
                 <FileText size={16} />
                 <div className="ara-file-meta">
                   <strong>{status.fileName}</strong>
-                  <span>{status.uploadedAt} — por {status.uploadedBy || 'desconocido'}</span>
-                  {isVerified && <span className="ara-badge ara-badge--success">Verificado</span>}
-                  {isReturned && <span className="ara-badge ara-badge--warning">Devuelto</span>}
+                  <span>{status.uploadedAt} — por {status.uploadedBy || 'desconocido'} · {status.periodo}</span>
+                  {isVerified && (
+                    <span className="ara-badge ara-badge--success">
+                      Verificado{status.verifiedBy ? ` por ${status.verifiedBy}` : ''}
+                    </span>
+                  )}
+                  {isReturned && (
+                    <span className="ara-badge ara-badge--warning">
+                      Devuelto{status.returnedBy ? ` por ${status.returnedBy}` : ''}
+                    </span>
+                  )}
                 </div>
                 <button 
                   className="ara-action-btn ara-action-btn--download" 
@@ -245,6 +297,49 @@ const AdvanceReportActions = ({ projectId }) => {
                 >
                   <Eye size={18} />
                 </button>
+              </div>
+            )}
+
+            {isUploaded && versions.length > 0 && (
+              <div className="ara-versions">
+                <button
+                  type="button"
+                  className="ara-versions-toggle"
+                  onClick={() => setShowVersions((prev) => !prev)}
+                >
+                  <History size={13} />
+                  Historial de versiones ({versions.length})
+                  {showVersions ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </button>
+                {loadingVersions && (
+                  <div className="ara-versions-loading">
+                    <LoaderCircle size={13} className="ara-spin" /> Cargando historial...
+                  </div>
+                )}
+                {showVersions && !loadingVersions && (
+                  <ul className="ara-versions-list">
+                    {versions.map((v) => (
+                      <li key={v.numeroVersion} className="ara-version-row">
+                        <span className="ara-version-num">v{v.numeroVersion}</span>
+                        <span className="ara-version-meta">
+                          {v.fileName}
+                          <small>
+                            {v.subidoPor || '—'}{v.subidoRol ? ` · ${v.subidoRol}` : ''}
+                            {v.subidoEn ? ` · ${String(v.subidoEn).replace('T', ' ').slice(0, 16)}` : ''}
+                          </small>
+                        </span>
+                        <button
+                          type="button"
+                          className="ara-action-btn"
+                          title="Descargar version"
+                          onClick={() => handleDownloadVersion(v)}
+                        >
+                          <Download size={12} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 

@@ -7,6 +7,7 @@ import apiClient from '../../api/axiosConfig';
 import projectService from '../../services/projectService';
 import documentService from '../../services/documentService';
 import riskService from '../../services/riskService';
+import advanceReportService from '../../services/advanceReportService';
 import { formatDate } from '../../utils/locale';
 import './EvidenciaDetailModal.css';
 
@@ -34,6 +35,8 @@ const estadoColors = {
   RECHAZADO: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Rechazado' },
   COMPLETADO: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Completado' },
   CARGADO: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Cargado' },
+  VERIFICADO: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Verificado' },
+  DEVUELTO: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Devuelto' },
 };
 
 const normalizeEstado = (estado) => {
@@ -87,6 +90,20 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
         const response = await projectService.getEntregableVersions(proyectoId, evidencia.entregableId);
         const payload = response?.data ?? response;
         setVersions(Array.isArray(payload) ? payload : []);
+      } else if (evidencia.categoria === 'INFORME_AVANCE' && evidencia.evidenciaUrl) {
+        const periodo = new URLSearchParams(String(evidencia.evidenciaUrl).split('?')[1] || '').get('periodo');
+        const payload = await advanceReportService.getVersions(proyectoId, periodo);
+        const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
+        setVersions(list.map((v) => ({
+          id: v.numeroVersion,
+          numeroVersion: v.numeroVersion,
+          nombreArchivo: v.fileName,
+          subidoEn: v.subidoEn ? String(v.subidoEn).replace('T', ' ').slice(0, 16) : '',
+          subidoPor: v.subidoPor,
+          subidoRol: v.subidoRol,
+          observacion: v.observacion,
+          descargaUrl: `/api/v1/advance-report/download/${proyectoId}?periodo=${encodeURIComponent(periodo || '')}&version=${v.numeroVersion}`,
+        })));
       } else {
         setVersions([]);
       }
@@ -211,6 +228,10 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
     }
 
     if (evidencia?.categoria === 'EVIDENCIA_ENTREGABLE') {
+      url = evidencia.evidenciaUrl;
+    }
+
+    if (evidencia?.categoria === 'INFORME_AVANCE' && evidencia.evidenciaUrl) {
       url = evidencia.evidenciaUrl;
     }
 
@@ -377,8 +398,13 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
     ? true
     : data.categoria === 'ACTA_CIERRE'
     ? true
+    : data.categoria === 'INFORME_AVANCE'
+    ? true
     : Boolean(data.evidenciaUrl || data.archivoPdf);
   const isDateChange = data.categoria === 'CAMBIO_FECHA';
+  const periodoInforme = data.categoria === 'INFORME_AVANCE'
+    ? new URLSearchParams(String(data.evidenciaUrl || '').split('?')[1] || '').get('periodo')
+    : null;
 
   return (
     <div className="edm-overlay" role="presentation" onClick={onClose}>
@@ -396,6 +422,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
               {data.categoria === 'CAMBIO_FECHA' && 'Cambio de Fecha'}
               {data.categoria === 'CAMBIO_DESCRIPCION' && 'Cambio de Descripcion'}
               {data.categoria === 'ACTA_CIERRE' && 'Acta de Cierre'}
+              {data.categoria === 'INFORME_AVANCE' && 'Informe de Avance'}
             </span>
             <h2>{nombreArchivo}</h2>
             <p>{proyectoId}{entregableNombre ? ` - ${entregableNombre}` : ''}</p>
@@ -434,8 +461,21 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
                 <span className="edm-field-label"><User size={14} /> Usuario</span>
                 <strong className="edm-field-value">{usuarioCarga || 'Sin usuario'}</strong>
               </div>
+              {periodoInforme && (
+                <div className="edm-field">
+                  <span className="edm-field-label"><Calendar size={14} /> Periodo</span>
+                  <strong className="edm-field-value">{periodoInforme}</strong>
+                </div>
+              )}
             </div>
           </section>
+
+          {data.categoria === 'INFORME_AVANCE' && data.observaciones && (
+            <section className="edm-section">
+              <h3 className="edm-section-title"><Info size={16} /> Observaciones del Gestor</h3>
+              <div className="edm-description-box"><p>{data.observaciones}</p></div>
+            </section>
+          )}
 
           {isDateChange && (
             <section className="edm-section">

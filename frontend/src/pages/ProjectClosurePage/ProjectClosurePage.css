@@ -144,6 +144,37 @@
   color: var(--primary);
 }
 
+.force-closed-banner {
+  background-color: rgba(220, 53, 69, 0.08);
+  border-color: rgba(220, 53, 69, 0.3);
+  color: var(--danger);
+}
+
+.force-close-reason-detail {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.06);
+  border-left: 3px solid var(--danger);
+  border-radius: 6px;
+}
+
+.force-close-reason-detail span {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+  color: var(--danger);
+}
+
+.force-close-reason-detail p {
+  margin: 0;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
 .closure-ready-note {
   display: inline-flex;
   align-items: center;
@@ -918,6 +949,66 @@
 .btn-extraordinary-closure-modal:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.closure-confirm-modal--danger {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-color));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--danger) 18%, transparent),
+    0 18px 40px -12px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.force-close-danger {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0.75rem 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--danger) 12%, transparent), color-mix(in srgb, var(--danger) 5%, transparent)),
+    var(--bg-surface, #fff);
+}
+
+.force-close-danger__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  color: #fff;
+  background: var(--danger);
+  box-shadow: 0 4px 10px -2px color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+.force-close-danger__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.force-close-danger__body strong {
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.force-close-danger__body p {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.force-close-danger__body mark {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  color: var(--danger);
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 4px;
 }
 
 /* Animations */

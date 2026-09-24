@@ -140,6 +140,18 @@ const templateVariables = [
   { key: 'dias_restantes', label: 'Días restantes', description: 'Días para el vencimiento del entregable.' },
   { key: 'dias_vencido', label: 'Días vencido', description: 'Días desde el vencimiento del entregable.' },
   { key: 'fecha_limite', label: 'Fecha límite', description: 'Fecha límite del entregable.' },
+  { key: 'projectId', label: 'ID del proyecto', description: 'Identificador del proyecto.' },
+  { key: 'projectName', label: 'Nombre del proyecto (evento)', description: 'Nombre del proyecto en el evento.' },
+  { key: 'actorUsername', label: 'Usuario actor', description: 'Usuario que ejecutó la acción.' },
+  { key: 'documentStatuses', label: 'Estado documentos iniciales', description: 'Consolidado de los 3 documentos pre-wizard.' },
+  { key: 'documentName', label: 'Nombre del documento', description: 'Documento pre-wizard relacionado.' },
+  { key: 'documentType', label: 'Tipo de documento', description: 'Código del tipo de documento.' },
+  { key: 'observaciones', label: 'Observaciones', description: 'Observaciones del gestor.' },
+  { key: 'mensajeTitulo', label: 'Título configurable', description: 'Texto del título parametrizable en Configuración > Parámetros.' },
+  { key: 'mensajeIntro', label: 'Intro configurable', description: 'Texto introductorio parametrizable en Configuración > Parámetros.' },
+  { key: 'estadoEtiqueta', label: 'Etiqueta de estados', description: 'Encabezado de la sección de estados (parametrizable).' },
+  { key: 'enlaceTexto', label: 'Texto del enlace', description: 'Texto previo al enlace (parametrizable).' },
+  { key: 'targetUrl', label: 'Enlace destino', description: 'URL absoluta al módulo relacionado.' },
 ];
 
 const extractApiDetail = (error) => error?.response?.data?.detail || error?.response?.data?.title || error?.message || '';

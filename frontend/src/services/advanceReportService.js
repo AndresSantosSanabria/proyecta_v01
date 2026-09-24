@@ -1,4 +1,4 @@
-﻿import apiClient from '../api/axiosConfig';
+import apiClient from '../api/axiosConfig';
 
 const normalizeProjectId = (id) => String(id || '').trim().toUpperCase();
 
@@ -10,11 +10,22 @@ const advanceReportService = {
     return data?.data ?? data;
   },
 
-  downloadReport: async (projectId) => {
-    const response = await apiClient.get(`/advance-report/download/${normalizeProjectId(projectId)}`, {
-      responseType: 'blob',
-    });
+  downloadReport: async (projectId, options = {}) => {
+    const params = new URLSearchParams();
+    if (options.periodo) params.set('periodo', options.periodo);
+    if (options.version) params.set('version', options.version);
+    const query = params.toString();
+    const response = await apiClient.get(
+      `/advance-report/download/${normalizeProjectId(projectId)}${query ? `?${query}` : ''}`,
+      { responseType: 'blob' },
+    );
     return response.data;
+  },
+
+  getVersions: async (projectId, periodo) => {
+    const params = periodo ? `?periodo=${encodeURIComponent(periodo)}` : '';
+    const { data } = await apiClient.get(`/advance-report/versions/${normalizeProjectId(projectId)}${params}`);
+    return data?.data ?? data;
   },
 
   getPendingProjects: async () => {

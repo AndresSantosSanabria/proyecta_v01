@@ -448,24 +448,10 @@ const projectService = {
     return data;
   },
 
-  aprobarViabilidad: async (proyectoId) => {
+  cerrarForzoso: async (proyectoId, comentario) => {
     const { data } = await apiClient.patch(
-      `/proyectos/${normalizeProjectId(proyectoId)}/viabilidad/aprobar`
-    );
-    return data;
-  },
-
-  devolverViabilidad: async (proyectoId, observaciones) => {
-    const { data } = await apiClient.patch(
-      `/proyectos/${normalizeProjectId(proyectoId)}/viabilidad/devolver`,
-      { observaciones }
-    );
-    return data;
-  },
-
-  cerrarForzoso: async (proyectoId) => {
-    const { data } = await apiClient.patch(
-      `/proyectos/${normalizeProjectId(proyectoId)}/cierre-forzoso`
+      `/proyectos/${normalizeProjectId(proyectoId)}/cierre-forzoso`,
+      { comentario }
     );
     return data;
   },

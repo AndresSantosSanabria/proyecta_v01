@@ -8,6 +8,7 @@ import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import projectService from '../../services/projectService';
 import reportService from '../../services/reportService';
 import { usePermission } from '../../hooks/usePermission';
+import { useAuthContext } from '../../context/AuthContext';
 import './ProjectsPage.css';
 
 const DEFAULT_FILTERS = {
@@ -56,6 +57,8 @@ const ProjectsPage = () => {
   const canCreateProject = usePermission('PROYECTO:CREAR');
   const canEditProject = usePermission('PROYECTO:EDITAR');
   const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
+  const { hasRole, isAdminLocal, transversal } = useAuthContext();
+  const canForceClose = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
   const navigate = useNavigate();
   const shouldUseAssignedProjects = !canViewAllProjects;
 
@@ -343,6 +346,8 @@ const ProjectsPage = () => {
           loading={loading}
           canEditProject={canEditProject && !shouldUseAssignedProjects}
           onEditProject={(id) => setEditingProjectId(id)}
+          canForceClose={canForceClose}
+          onForceClosed={loadProjects}
         />
       </section>
 

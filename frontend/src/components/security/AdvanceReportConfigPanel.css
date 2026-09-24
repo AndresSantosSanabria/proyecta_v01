@@ -182,3 +182,28 @@
 .arp-btn--save:hover:not(:disabled) {
   opacity: 0.9;
 }
+
+/* Checkboxes de estados elegibles */
+.arp-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.35rem;
+}
+
+.arp-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--text-main);
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+.arp-field .arp-check input[type='checkbox'] {
+  padding: 0;
+  width: auto;
+  height: auto;
+  accent-color: var(--primary);
+  cursor: pointer;
+}

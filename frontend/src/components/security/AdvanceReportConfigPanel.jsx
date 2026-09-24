@@ -13,7 +13,16 @@ const DEFAULTS = {
   max_size_mb: '20',
   login_modal_delay_ms: '1200',
   enabled: 'true',
+  min_project_age_months: '3',
+  period_months: '3',
+  due_day: '0',
+  eligible_states: 'ACTIVO,CON_RETRASOS,EN_REVISION',
 };
+
+const ESTADOS_PROYECTO = [
+  'PENDIENTE_COMPLETAR', 'PLANIFICACION', 'ACTIVO', 'CON_RETRASOS',
+  'EN_REVISION', 'CERRADO', 'CERRADO_FORZOSO', 'FINALIZADO',
+];
 
 const AdvanceReportConfigPanel = () => {
   const [settings, setSettings] = useState({ ...DEFAULTS });
@@ -64,6 +73,18 @@ const AdvanceReportConfigPanel = () => {
 
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(original);
 
+  const estadosSeleccionados = (settings.eligible_states || '')
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+
+  const toggleEstado = (estado) => {
+    const actual = new Set(estadosSeleccionados);
+    if (actual.has(estado)) actual.delete(estado);
+    else actual.add(estado);
+    handleChange('eligible_states', ESTADOS_PROYECTO.filter((e) => actual.has(e)).join(','));
+  };
+
   if (loading) {
     return (
       <div className="arp-loading">
@@ -98,6 +119,63 @@ const AdvanceReportConfigPanel = () => {
           <span>{notice}</span>
         </div>
       )}
+
+      <div className="arp-section">
+        <h4><Clock size={15} /> Periodo y Elegibilidad</h4>
+        <div className="arp-grid">
+          <div className="arp-field">
+            <label>Frecuencia del periodo</label>
+            <select
+              value={settings.period_months}
+              onChange={(e) => handleChange('period_months', e.target.value)}
+            >
+              <option value="1">Mensual (1 mes)</option>
+              <option value="3">Trimestral (3 meses)</option>
+              <option value="6">Semestral (6 meses)</option>
+              <option value="12">Anual (12 meses)</option>
+            </select>
+            <span className="arp-hint">Define el formato del periodo (ej. 2026-Q3).</span>
+          </div>
+          <div className="arp-field">
+            <label>Dia de vencimiento</label>
+            <input
+              type="number"
+              min="0"
+              max="28"
+              value={settings.due_day}
+              onChange={(e) => handleChange('due_day', e.target.value)}
+            />
+            <span className="arp-hint">Dia del periodo. 0 = ultimo dia del periodo.</span>
+          </div>
+          <div className="arp-field">
+            <label>Antiguedad minima del proyecto (meses)</label>
+            <input
+              type="number"
+              min="0"
+              max="60"
+              value={settings.min_project_age_months}
+              onChange={(e) => handleChange('min_project_age_months', e.target.value)}
+            />
+            <span className="arp-hint">Meses desde fecha_inicio para ser elegible.</span>
+          </div>
+        </div>
+        <div className="arp-field arp-field--full" style={{ marginTop: '0.6rem' }}>
+          <label>Estados del proyecto que generan obligacion</label>
+          <div className="arp-check-grid">
+            {ESTADOS_PROYECTO.map((estado) => (
+              <label key={estado} className="arp-check">
+                <input
+                  type="checkbox"
+                  checked={estadosSeleccionados.includes(estado)}
+                  onChange={() => toggleEstado(estado)}
+                />
+                {estado.replace(/_/g, ' ')}
+              </label>
+            ))}
+          </div>
+          <span className="arp-hint">Solo los proyectos en estos estados y con informe pendiente generan recordatorios.</span>
+        </div>
+      </div>
 
       <div className="arp-section">
         <h4><Clock size={15} /> Fechas y Ventanas</h4>

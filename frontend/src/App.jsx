@@ -22,6 +22,7 @@ import RiesgosPage from './pages/RiesgosPage/RiesgosPage';
 import EvidenciasProyectoPage from './pages/EvidenciasProyectoPage/EvidenciasProyectoPage';
 import CallbackPage from './pages/CallbackPage/CallbackPage';
 import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
+import DocumentacionInternaPage from './pages/DocumentacionInternaPage/DocumentacionInternaPage';
 import { hasProjectScopePermission, hasAdminScopePermission } from './utils/permissions';
 import './App.css';
 
@@ -173,6 +174,9 @@ function App() {
 
           <Route element={<PermissionRoute permissions={['REPORTE:VER']} />}>
             <Route path="reports" element={<ReportsPage />} />
+          </Route>
+          <Route element={<PermissionRoute permissions={['DOCUMENTO_INTERNO:VER']} />}>
+            <Route path="documentacion-interna" element={<DocumentacionInternaPage />} />
           </Route>
           <Route element={<AnalyticsRoute />}>
             <Route path="analytics" element={<AnalyticsPage />} />

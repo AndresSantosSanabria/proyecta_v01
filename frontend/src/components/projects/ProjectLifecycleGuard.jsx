@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
-import { LoaderCircle, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle, Clock, Eye, Download, AlertOctagon, X } from 'lucide-react';
+import { Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { LoaderCircle, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle, Clock, Eye, Download, AlertOctagon, X, ShieldAlert } from 'lucide-react';
 import projectService from '../../services/projectService';
 import documentService from '../../services/documentService';
 import { useAuthContext } from '../../context/AuthContext';
@@ -27,6 +27,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
   });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const navigate = useNavigate();
 
   const DOC_LABELS = {
     VIABILIZACION: 'Documento de Viabilidad',
@@ -126,6 +127,15 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
       <div className="project-onboarding__shell">
         <div className="project-onboarding__panel card-surface">
           <div className="plg-hero">
+            <button
+              type="button"
+              className="plg-hero__close"
+              onClick={() => navigate('/projects')}
+              aria-label="Cerrar"
+              title="Cerrar"
+            >
+              <X size={18} />
+            </button>
             <span className={`plg-hero__badge ${isDevuelta ? 'plg-hero__badge--danger' : 'plg-hero__badge--warning'}`}>
               {isDevuelta ? 'Documentos Devueltos' : 'Paso 1 - Director de Proyecto'}
             </span>
@@ -148,6 +158,27 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
               </div>
             </div>
           )}
+
+          <div className="plg-info-text">
+            <h3 className="plg-info-text__title">DOCUMENTACIÓN CLAVE DEL PROYECTO</h3>
+            <p className="plg-info-text__intro">
+              Para garantizar una gestión sólida y una ejecución controlada, es indispensable cargar en el aplicativo tres documentos fundamentales del proyecto:
+            </p>
+            <ul className="plg-info-text__list">
+              <li>
+                <strong>Documentos de Viabilidad:</strong> Son la brújula que confirma que el proyecto es técnica, económica y legalmente posible. Sin ellos, no hay certeza de que el esfuerzo tenga un retorno o un impacto real.
+              </li>
+              <li>
+                <strong>Plan de Comunicaciones:</strong> Define cómo, cuándo y a quién se informará. Una comunicación clara evita malentendidos, alinea a los interesados y mantiene a todo el equipo trabajando en la misma dirección.
+              </li>
+              <li>
+                <strong>Matriz de Riesgos:</strong> Identifica las amenazas potenciales y las estrategias para mitigarlas. Anticiparse a los problemas es la mejor herramienta para proteger los plazos y el presupuesto.
+              </li>
+            </ul>
+            <p className="plg-info-text__closing">
+              Por favor, adjunte estos archivos a continuación para habilitar la siguiente fase del proyecto.
+            </p>
+          </div>
 
           <section className="plg-info-grid" aria-label="Datos del proyecto">
             <article className="plg-info-card">
@@ -321,6 +352,7 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
   const [previewName, setPreviewName] = useState('');
   const [downloading, setDownloading] = useState({});
   const [revisions, setRevisions] = useState([]);
+  const navigate = useNavigate();
 
   const { hasRole, isAdminLocal, transversal } = useAuthContext();
   const isGestor = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
@@ -365,6 +397,10 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
   }, [revisions]);
 
   const aprobados = revisions.filter((r) => r.estado === 'APROBADO').length;
+  const devueltos = revisions.filter((r) => r.estado === 'DEVUELTO').length;
+  const pendientes = revisions.filter((r) => r.estado !== 'APROBADO' && r.estado !== 'DEVUELTO').length;
+  const revisionCompleta = revisions.length >= 3 && pendientes === 0;
+  const hayDevuelto = devueltos > 0;
 
   const handlePreview = async (tipo, label) => {
     try {
@@ -461,6 +497,26 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
     }
   };
 
+  const handleConfirmarRevision = async () => {
+    setLoadingAction(true);
+    try {
+      const data = await documentService.confirmarRevisionPreWizard(project.id);
+      const payload = data?.data || data;
+      emitToast({
+        tone: 'success',
+        title: hayDevuelto ? 'Observaciones enviadas' : 'Verificacion confirmada',
+        message: payload?.mensaje || 'Notificacion consolidada enviada al Director y Gestor.',
+      });
+      onRefresh?.();
+      navigate('/projects');
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || 'Error confirmando la revision';
+      emitToast({ tone: 'error', title: 'Error', message: detail });
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
   const statusInfo = (estado) => {
     if (estado === 'APROBADO') return { label: 'Verificado', className: 'plg-doc-status--approved', icon: <CheckCircle size={16} />, iconClass: 'plg-doc-card__icon--approved' };
     if (estado === 'DEVUELTO') return { label: 'Devuelto', className: 'plg-doc-status--returned', icon: <XCircle size={16} />, iconClass: 'plg-doc-card__icon--returned' };
@@ -472,13 +528,22 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
       <div className="project-onboarding__shell">
         <div className="project-onboarding__panel card-surface">
           <div className="plg-hero">
+            <button
+              type="button"
+              className="plg-hero__close"
+              onClick={() => navigate('/projects')}
+              aria-label="Cerrar"
+              title="Cerrar"
+            >
+              <X size={18} />
+            </button>
             <span className="plg-hero__badge plg-hero__badge--warning">
               Verificacion Individual - {aprobados}/3
             </span>
             <h2 className="plg-hero__title">Documentos Cargados</h2>
             <p className="plg-hero__subtitle">
               {isGestor
-                ? 'Verifique o devuelva cada documento por separado. El wizard se habilita cuando los 3 documentos esten verificados.'
+                ? 'Verifique o devuelva cada documento. Al terminar, use el boton final para enviar UNA sola notificacion consolidada.'
                 : 'Los documentos estan en revision individual por parte del Gestor. El wizard se habilita cuando los 3 esten verificados.'}
             </p>
           </div>
@@ -589,6 +654,43 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
               })}
             </div>
           </section>
+
+          {isGestor && revisionCompleta && (
+            <section className="plg-confirm-bar" aria-label="Confirmar revision">
+              <div className="plg-confirm-bar__info">
+                <span className="plg-confirm-bar__count">
+                  {aprobados}/3 verificados{devueltos > 0 ? ` · ${devueltos} devuelto(s)` : ''}
+                </span>
+                <p className="plg-confirm-bar__hint">
+                  {hayDevuelto
+                    ? 'Al finalizar se enviara UNA sola notificacion consolidada con el estado de los 3 documentos y las observaciones.'
+                    : 'Al confirmar se enviara UNA sola notificacion consolidada de verificacion al Director y Gestor.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className={`plg-btn-primary ${hayDevuelto ? 'plg-btn-danger' : ''}`}
+                onClick={handleConfirmarRevision}
+                disabled={loadingAction}
+              >
+                {loadingAction
+                  ? <LoaderCircle size={12} className="animate-spin" />
+                  : hayDevuelto ? <XCircle size={12} /> : <CheckCircle size={12} />}
+                {loadingAction
+                  ? 'Enviando...'
+                  : hayDevuelto ? 'Finalizar observaciones' : 'Confirmar verificacion'}
+              </button>
+            </section>
+          )}
+          {isGestor && !revisionCompleta && (
+            <section className="plg-confirm-bar plg-confirm-bar--muted" aria-label="Revision incompleta">
+              <div className="plg-confirm-bar__info">
+                <p className="plg-confirm-bar__hint">
+                  Decida Verificar o Devolver los 3 documentos para habilitar el envio de la notificacion consolidada.
+                </p>
+              </div>
+            </section>
+          )}
         </div>
       </div>
 
@@ -662,19 +764,54 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
 
 const PlazoVencidoView = ({ project, completionStatus, onRefresh }) => {
   const [loadingAction, setLoadingAction] = useState(false);
+  const [showForceCloseModal, setShowForceCloseModal] = useState(false);
+  const [forceCloseStep, setForceCloseStep] = useState('warning');
+  const [forceCloseComment, setForceCloseComment] = useState('');
   const { hasRole, isAdminLocal, transversal } = useAuthContext();
   const isGestor = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
 
+  const openForceCloseModal = () => {
+    setForceCloseComment('');
+    setForceCloseStep('warning');
+    setShowForceCloseModal(true);
+  };
+
+  const closeForceCloseModal = () => {
+    if (loadingAction) return;
+    setShowForceCloseModal(false);
+    setForceCloseStep('warning');
+    setForceCloseComment('');
+  };
+
+  const acceptForceCloseWarning = () => {
+    setForceCloseStep('comment');
+  };
+
+  const backToWarningStep = () => {
+    if (loadingAction) return;
+    setForceCloseStep('warning');
+  };
+
   const handleForceClose = async () => {
-    if (!window.confirm('Esta seguro de cerrar forzosamente este proyecto? Esta accion no se puede deshacer.')) return;
+    const comment = forceCloseComment.trim();
+    if (comment.length < 10) {
+      emitToast({
+        tone: 'warning',
+        title: 'Comentario requerido',
+        message: 'Debe ingresar un comentario de al menos 10 caracteres para continuar.',
+      });
+      return;
+    }
     setLoadingAction(true);
     try {
-      await projectService.cerrarForzoso(project.id);
+      await projectService.cerrarForzoso(project.id, comment);
       emitToast({
         tone: 'success',
         title: 'Proyecto cerrado',
-        message: 'El proyecto fue cerrado forzosamente.',
+        message: 'El proyecto fue cerrado forzosamente (cierre extraordinario).',
       });
+      setShowForceCloseModal(false);
+      setForceCloseComment('');
       onRefresh?.();
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.message || 'Error cerrando proyecto';
@@ -729,7 +866,7 @@ const PlazoVencidoView = ({ project, completionStatus, onRefresh }) => {
               <button
                 type="button"
                 className="btn-primary"
-                onClick={handleForceClose}
+                onClick={openForceCloseModal}
                 disabled={loadingAction}
                 style={{ background: '#dc3545' }}
               >
@@ -744,6 +881,134 @@ const PlazoVencidoView = ({ project, completionStatus, onRefresh }) => {
           )}
         </div>
       </div>
+
+      {showForceCloseModal && forceCloseStep === 'warning' && (
+        <div className="plg-modal-overlay" onClick={closeForceCloseModal}>
+          <div
+            className="plg-modal plg-modal--danger"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="plg-force-close-warning-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="plg-modal__header">
+              <div className="plg-modal__header-title">
+                <span className="plg-modal__icon" aria-hidden="true">
+                  <ShieldAlert size={16} />
+                </span>
+                <h3 className="plg-modal__title" id="plg-force-close-warning-title">Advertencia: cierre forzoso</h3>
+              </div>
+              <button
+                type="button"
+                className="plg-modal__close"
+                onClick={closeForceCloseModal}
+                aria-label="Cerrar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="plg-danger-alert" role="alert">
+              <div className="plg-danger-alert__icon" aria-hidden="true">
+                <AlertTriangle size={16} />
+              </div>
+              <div className="plg-danger-alert__body">
+                <strong>¿Está seguro de cerrar el proyecto?</strong>
+                <p>
+                  Esta acción <mark>NO es reversible</mark>. El proyecto pasará al estado{' '}
+                  <strong>CERRADO FORZOSO</strong> y no podrá reabrirse por el flujo normal.
+                </p>
+              </div>
+            </div>
+
+            <p className="plg-modal__hint">
+              Proyecto: <strong>{project?.nombre || project?.id}</strong>.
+              Si confirma, deberá indicar el motivo del cierre en el siguiente paso.
+            </p>
+
+            <div className="plg-modal__footer">
+              <button
+                type="button"
+                className="plg-btn-outline"
+                onClick={closeForceCloseModal}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="plg-btn-primary plg-btn-danger"
+                onClick={acceptForceCloseWarning}
+              >
+                <AlertOctagon size={12} />
+                Sí, continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showForceCloseModal && forceCloseStep === 'comment' && (
+        <div className="plg-modal-overlay" onClick={closeForceCloseModal}>
+          <div
+            className="plg-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plg-force-close-comment-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="plg-modal__header">
+              <div className="plg-modal__header-title">
+                <span className="plg-modal__icon" aria-hidden="true">
+                  <ShieldAlert size={16} />
+                </span>
+                <h3 className="plg-modal__title" id="plg-force-close-comment-title">Cierre forzoso / extraordinario</h3>
+              </div>
+              <button
+                type="button"
+                className="plg-modal__close"
+                onClick={closeForceCloseModal}
+                disabled={loadingAction}
+                aria-label="Cerrar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="plg-modal__hint">
+              Proyecto: <strong>{project?.nombre || project?.id}</strong>.
+              Para confirmar, escriba el motivo del cierre (mínimo 10 caracteres).
+            </p>
+            <textarea
+              className="plg-modal__textarea"
+              rows={4}
+              placeholder="Motivo del cierre extraordinario (minimo 10 caracteres)..."
+              value={forceCloseComment}
+              onChange={(e) => setForceCloseComment(e.target.value)}
+              disabled={loadingAction}
+              autoFocus
+            />
+            <div className="plg-modal__footer">
+              <button
+                type="button"
+                className="plg-btn-outline"
+                onClick={backToWarningStep}
+                disabled={loadingAction}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                className="plg-btn-primary plg-btn-danger"
+                onClick={handleForceClose}
+                disabled={loadingAction || forceCloseComment.trim().length < 10}
+              >
+                {loadingAction ? <LoaderCircle size={12} className="animate-spin" /> : <AlertOctagon size={12} />}
+                {loadingAction ? 'Cerrando...' : 'Sí, cerrar definitivamente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

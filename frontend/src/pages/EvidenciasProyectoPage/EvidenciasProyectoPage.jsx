@@ -3,10 +3,9 @@ import { useParams } from 'react-router-dom';
 import {
   FileText, Search, Eye, Calendar, User, Tag, ChevronDown, ChevronUp,
   AlertCircle, LoaderCircle, FolderOpen, ClipboardCheck, Clock, Shield, FileEdit,
-  FileStack, FileBadge, Archive, Download,
+  FileStack, FileBadge, Archive,
 } from 'lucide-react';
 import projectService from '../../services/projectService';
-import advanceReportService from '../../services/advanceReportService';
 import { formatDate } from '../../utils/locale';
 import EvidenciaDetailModal from '../../components/projects/EvidenciaDetailModal';
 import { resolveLoadErrorMessage } from '../../utils/accessMessages';
@@ -45,10 +44,9 @@ const EvidenciasProyectoPage = () => {
       setLoading(true);
       setError(null);
 
-      const [evidenciasResponse, projectResponse, advanceReportResponse] = await Promise.allSettled([
+      const [evidenciasResponse, projectResponse] = await Promise.allSettled([
         projectService.getEvidenciasByProyecto(codigoProyecto),
         projectService.getById(codigoProyecto),
-        advanceReportService.getStatus(codigoProyecto),
       ]);
 
       const evidenciasData = evidenciasResponse.status === 'fulfilled'
@@ -56,9 +54,6 @@ const EvidenciasProyectoPage = () => {
         : [];
       const projectData = projectResponse.status === 'fulfilled'
         ? (projectResponse.value?.data?.data ?? projectResponse.value?.data ?? null)
-        : null;
-      const advanceReportData = advanceReportResponse.status === 'fulfilled'
-        ? (advanceReportResponse.value?.data ?? advanceReportResponse.value ?? null)
         : null;
 
       const items = evidenciasData
@@ -95,40 +90,6 @@ const EvidenciasProyectoPage = () => {
         solucionesCount: ev.solucionesCount || 0,
       }));
 
-      if (advanceReportData && advanceReportData.isUploaded) {
-        items.push({
-          id: `adv-${advanceReportData.projectId}`,
-          categoria: 'INFORME_AVANCE',
-          nombre: advanceReportData.fileName || 'Informe de avance',
-          nombreArchivo: advanceReportData.fileName || '',
-          evidenciaUrl: null,
-          fechaRegistro: advanceReportData.uploadedAt || null,
-          fechaEntrega: null,
-          fechaLimite: advanceReportData.dueDate || null,
-          estado: 'CARGADO',
-          estadoCodigo: 'CARGADO',
-          usuario: advanceReportData.uploadedBy || '',
-          tipo: 'Informe de Avance',
-          tipoDocumento: null,
-          faseNombre: null,
-          hitoNombre: null,
-          entregableNombre: null,
-          entregableId: null,
-          descripcion: `Periodo: ${advanceReportData.periodo || ''}`,
-          observaciones: advanceReportData.observaciones || '',
-          cambioId: null,
-          riesgoId: null,
-          riesgoSolucionId: null,
-          archivoPdf: null,
-          fechaAnterior: null,
-          fechaNueva: null,
-          descripcionAnterior: null,
-          descripcionNueva: null,
-          justificacion: '',
-          solucionesCount: 0,
-        });
-      }
-
       setAllItems(items);
       setProjectInfo(projectData);
     } catch (err) {
@@ -149,25 +110,6 @@ const EvidenciasProyectoPage = () => {
     } else {
       setSortField(field);
       setSortDirection('desc');
-    }
-  };
-
-  const handleDownloadSeguimiento = async () => {
-    try {
-      setLoading(true);
-      const response = await projectService.downloadSeguimientoExcel(codigoProyecto);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Seguimiento_Proyecto_${codigoProyecto}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-    } catch (err) {
-      console.error('Error downloading excel:', err);
-      setError('No se pudo descargar el reporte de seguimiento.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -261,16 +203,6 @@ const EvidenciasProyectoPage = () => {
           <span className="evp-kicker">Evidencias de Gestion</span>
           <h1>{projectInfo?.nombre || 'Proyecto'}</h1>
           <p>{codigoProyecto}{projectInfo?.dependencia ? ` - ${projectInfo.dependencia}` : ''}</p>
-          <button 
-            type="button" 
-            className="evp-btn-action" 
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '1rem', padding: '0.5rem 1rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-            onClick={handleDownloadSeguimiento}
-            title="Descargar reporte de seguimiento en Excel"
-          >
-            <Download size={16} />
-            <span>Descargar Seguimiento</span>
-          </button>
         </div>
         <div className="evp-header-stats">
           <div className="evp-stat-card">
