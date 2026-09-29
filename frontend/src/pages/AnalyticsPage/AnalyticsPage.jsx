@@ -209,6 +209,43 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
 };
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+const SkeletonLoader = () => (
+  <div className="analytics-page">
+    <section className="analytics-hero">
+      <div>
+        <span className="analytics-kicker">Gobernanza analítica</span>
+        <h1>TABLERO DE CONTROL - ANALITICA DE PORTAFOLIO</h1>
+        <p>Cargando datos del portafolio ejecutivo...</p>
+      </div>
+      <div className="analytics-hero__actions">
+        <button className="analytics-refresh" disabled>
+          <RefreshCw size={18} /> Actualizando…
+        </button>
+      </div>
+    </section>
+    <div className="analytics-skeleton-grid">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="analytics-skeleton-card">
+          <div className="skeleton-line skeleton-line--label" />
+          <div className="skeleton-line skeleton-line--value" />
+          <div className="skeleton-line skeleton-line--detail" />
+          <div className="skeleton-line skeleton-line--bar" />
+        </div>
+      ))}
+    </div>
+    <div className="analytics-skeleton-charts">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="analytics-skeleton-chart">
+          <div className="skeleton-chart-header">
+            <div className="skeleton-line" />
+          </div>
+          <div className="skeleton-chart-body" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 const AnalyticsPage = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -451,43 +488,6 @@ const AnalyticsPage = () => {
 
   /* â”€â”€â”€ Recharts shared axis tick style â”€â”€â”€ */
   const axisStyle = { fontSize: 11, fill: 'var(--text-muted)' };
-
-  const SkeletonLoader = () => (
-    <div className="analytics-page">
-      <section className="analytics-hero">
-        <div>
-          <span className="analytics-kicker">Gobernanza analítica</span>
-          <h1>TABLERO DE CONTROL - ANALITICA DE PORTAFOLIO</h1>
-          <p>Cargando datos del portafolio ejecutivo...</p>
-        </div>
-        <div className="analytics-hero__actions">
-          <button className="analytics-refresh" disabled>
-            <RefreshCw size={18} /> Actualizando…
-          </button>
-        </div>
-      </section>
-      <div className="analytics-skeleton-grid">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="analytics-skeleton-card">
-            <div className="skeleton-line skeleton-line--label" />
-            <div className="skeleton-line skeleton-line--value" />
-            <div className="skeleton-line skeleton-line--detail" />
-            <div className="skeleton-line skeleton-line--bar" />
-          </div>
-        ))}
-      </div>
-      <div className="analytics-skeleton-charts">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="analytics-skeleton-chart">
-            <div className="skeleton-chart-header">
-              <div className="skeleton-line" />
-            </div>
-            <div className="skeleton-chart-body" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 
   if (loading && !data) {
     return <SkeletonLoader />;

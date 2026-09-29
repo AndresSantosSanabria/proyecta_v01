@@ -7,6 +7,7 @@ import { useAuthContext } from '../../context/AuthContext';
 import ProjectOnboardingWizard from './ProjectOnboardingWizard';
 import { emitToast } from '../../utils/feedback';
 import { NO_ACCESS_MESSAGE, isForbiddenError } from '../../utils/accessMessages';
+import { createSafePdfObjectUrl } from '../../utils/safePdfPreview';
 import './ProjectLifecycleGuard.css';
 
 const unwrapPayload = (value) => value?.data?.data ?? value?.data ?? value;
@@ -406,7 +407,12 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
     try {
       setDownloading((prev) => ({ ...prev, [tipo]: 'previewing' }));
       const blob = await documentService.descargarDocumento(project.id, tipo);
-      const url = window.URL.createObjectURL(blob);
+      // CWE-79: solo previsualizar blobs con magic bytes %PDF reales.
+      const url = await createSafePdfObjectUrl(blob);
+      if (!url) {
+        emitToast({ tone: 'error', title: 'Error', message: 'El documento no es un PDF valido para visualizar.' });
+        return;
+      }
       setPreviewUrl(url);
       setPreviewName(label);
     } catch {

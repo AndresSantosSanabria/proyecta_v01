@@ -604,7 +604,8 @@ const ProjectOnboardingWizard = ({
       setSavingDraft(false);
     }
     clearSavedState(project);
-    window.location.href = '/projects';
+    // BASE_URL conserva el prefijo de despliegue (subruta) al recargar.
+    window.location.href = `${import.meta.env.BASE_URL}projects`;
   };
 
   const cancelCloseWizard = () => {

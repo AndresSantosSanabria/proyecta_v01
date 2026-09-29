@@ -25,6 +25,11 @@ const CATEGORIAS = [
   { key: 'INFORME_AVANCE', label: 'Informe de Avance', icon: FileBadge },
 ];
 
+const SortIcon = ({ field, sortField, sortDirection }) => {
+  if (sortField !== field) return <ChevronDown size={14} style={{ opacity: 0.3 }} />;
+  return sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
+};
+
 const EvidenciasProyectoPage = () => {
   const params = useParams();
   const codigoProyecto = (params.codigoProyecto || params.id || '').toUpperCase();
@@ -111,11 +116,6 @@ const EvidenciasProyectoPage = () => {
       setSortField(field);
       setSortDirection('desc');
     }
-  };
-
-  const SortIcon = ({ field }) => {
-    if (sortField !== field) return <ChevronDown size={14} style={{ opacity: 0.3 }} />;
-    return sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
   };
 
   const filteredItems = allItems
@@ -281,20 +281,20 @@ const EvidenciasProyectoPage = () => {
                 <tr>
                   <th className="evp-th-sortable" onClick={() => handleSort('nombre')}>
                     <span>Nombre</span>
-                    <SortIcon field="nombre" />
+                    <SortIcon field="nombre" sortField={sortField} sortDirection={sortDirection} />
                   </th>
                   <th onClick={() => handleSort('fechaRegistro')}>
                     <span>Fecha</span>
-                    <SortIcon field="fechaRegistro" />
+                    <SortIcon field="fechaRegistro" sortField={sortField} sortDirection={sortDirection} />
                   </th>
                   <th onClick={() => handleSort('categoria')}>
                     <span>Categoria</span>
-                    <SortIcon field="categoria" />
+                    <SortIcon field="categoria" sortField={sortField} sortDirection={sortDirection} />
                   </th>
                   <th>Tipo</th>
                   <th onClick={() => handleSort('usuario')}>
                     <span>Usuario</span>
-                    <SortIcon field="usuario" />
+                    <SortIcon field="usuario" sortField={sortField} sortDirection={sortDirection} />
                   </th>
                   <th>Ubicacion</th>
                   <th>Acciones</th>

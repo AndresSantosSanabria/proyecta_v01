@@ -15,10 +15,6 @@ const StorageConfigPanel = () => {
   const [notice, setNotice] = useState('');
   const [testResult, setTestResult] = useState(null);
 
-  useEffect(() => {
-    loadParameter();
-  }, []);
-
   const loadParameter = async () => {
     try {
       setLoading(true);
@@ -36,6 +32,10 @@ const StorageConfigPanel = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadParameter();
+  }, []);
 
   const handleSave = async () => {
     try {

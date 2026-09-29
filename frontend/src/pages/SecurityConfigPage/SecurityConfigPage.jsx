@@ -397,7 +397,10 @@ const SecurityConfigPage = () => {
   const [savingPermissions, setSavingPermissions] = useState(false);
   const assignmentsSectionRef = useRef(null);
 
-  const canConfigure = usePermission('CONFIGURACION:VER') || usePermission('SISTEMA:CONFIGURAR');
+  // rules-of-hooks: ambos hooks se evaluan siempre (sin || cortocircuitado).
+  const canViewConfig = usePermission('CONFIGURACION:VER');
+  const canConfigureSystem = usePermission('SISTEMA:CONFIGURAR');
+  const canConfigure = canViewConfig || canConfigureSystem;
   const selectedRole = useMemo(
     () => roles.find((role) => role.codigo === selectedRoleCode) || null,
     [roles, selectedRoleCode]

@@ -172,7 +172,7 @@ const shouldSyncBackendUser = (backendUser, tokenProfile, roleAliases = defaultR
     || (tokenDependency && backendDependency !== tokenDependency);
 };
 
-const syncBackendUserFromToken = async (currentUser, roleAliases = defaultRoleAliases) => {
+const syncBackendUserFromToken = async () => {
   try {
     // Al llamar a /authz/me, el backend hace un upsert automático.
     const response = await authzService.getMe();
@@ -481,11 +481,6 @@ export function AuthProvider({ children }) {
     businessTokenRoles,
     primaryRole,
     formatRoleLabel,
-    backendProfile,
-    roles,
-    tokenRoles: resolvedTokenRoles,
-    businessTokenRoles,
-    primaryRole,
     permissions,
     assignedProjects,
     roleAliases,

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Download, Eye, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Eye, FileText, X } from 'lucide-react';
 import riskService from '../../../services/riskService';
+import { createSafePdfObjectUrl } from '../../../utils/safePdfPreview';
 
 const formatBytes = (bytes) => {
   if (!bytes) return '0 B';
@@ -33,7 +34,12 @@ const TratamientoHistory = ({ tratamientos = [], proyectoId, riesgoId }) => {
   const handlePreview = async (adjunto, tratamientoId) => {
     try {
       const blob = await riskService.descargarAdjuntoTratamiento(proyectoId, riesgoId, tratamientoId, adjunto.id);
-      const url = window.URL.createObjectURL(blob);
+      // CWE-79: solo previsualizar blobs con magic bytes %PDF reales.
+      const url = await createSafePdfObjectUrl(blob);
+      if (!url) {
+        console.error('El adjunto no es un PDF valido para previsualizar');
+        return;
+      }
       setPreviewBlob(url);
       setPreviewName(adjunto.nombreOriginal);
     } catch {

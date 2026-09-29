@@ -175,7 +175,7 @@ const NotificationTemplatesPanel = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');

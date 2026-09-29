@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import projectService from '../../services/projectService';
 import reportService from '../../services/reportService';
+import { createSafePdfObjectUrl } from '../../utils/safePdfPreview';
 import './ReportsPage.css';
 
 const REPORT_BEHAVIORS = {
@@ -521,7 +522,12 @@ const ReportsPage = () => {
     setReportError('');
     try {
       const blob = await selectedBehaviorDownload();
-      const previewUrl = window.URL.createObjectURL(blob);
+      // CWE-79: solo previsualizar blobs con magic bytes %PDF reales.
+      const previewUrl = await createSafePdfObjectUrl(blob);
+      if (!previewUrl) {
+        setReportError('El archivo generado no es un PDF valido para previsualizar.');
+        return;
+      }
       setPreviewModal((current) => {
         if (current.url) {
           window.URL.revokeObjectURL(current.url);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth, clearOidcStaleState } from '../../utils/auth';
+import { auth, clearOidcStaleState, stripBasePath } from '../../utils/auth';
 
 const CALLBACK_TIMEOUT_MS = 12000;
 
@@ -19,7 +19,7 @@ const CallbackPage = () => {
     handledRef.current = true;
 
     const safeReturnUrl = (raw) => {
-      const value = typeof raw === 'string' ? raw.trim() : '';
+      const value = stripBasePath(typeof raw === 'string' ? raw.trim() : '');
       if (!value || value === '/callback' || value.startsWith('/callback?')) {
         return '/';
       }

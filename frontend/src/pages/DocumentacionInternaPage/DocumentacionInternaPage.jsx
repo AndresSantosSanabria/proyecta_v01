@@ -117,11 +117,6 @@ const DocumentacionInternaPage = () => {
     setError(null);
   };
 
-  const handleFilterChange = (setter) => (e) => {
-    setter(e.target.value);
-    setPage(0);
-  };
-
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!form.nombre.trim()) {

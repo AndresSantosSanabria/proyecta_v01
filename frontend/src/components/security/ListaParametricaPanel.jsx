@@ -16,8 +16,6 @@ const ListaParametricaPanel = () => {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
 
-  useEffect(() => { loadAll(); }, []);
-
   const getBackendError = (err) => {
     const data = err.response?.data;
     if (data?.detail) return data.detail;
@@ -94,6 +92,8 @@ const ListaParametricaPanel = () => {
       setSaving(false);
     }
   };
+
+  useEffect(() => { loadAll(); }, []);
 
   if (loading) {
     return (

@@ -211,7 +211,7 @@ self.onmessage = async (e) => {
     }
 
     const text = payload || "";
-    const words = text.replace(/[.,\/#!$%\^&*;:{}=\-_`~()¿¡]/g,"").split(/\s+/);
+    const words = text.replace(/[.,/#!$%^&*;:{}=\-_`~()¿¡]/g,"").split(/\s+/);
     const misspelledWords = [];
 
     words.forEach(word => {

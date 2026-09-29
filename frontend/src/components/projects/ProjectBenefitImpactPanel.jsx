@@ -48,14 +48,14 @@ const TextareaField = ({ label, name, value, onChange, placeholder, disabled = f
   </label>
 );
 
-const ProjectBenefitImpactPanel = ({ proyectoId, projectName, refreshToken = 0, onSaved, isGestor = false }) => {
+const ProjectBenefitImpactPanel = ({ proyectoId, refreshToken = 0, onSaved, isGestor = false }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [data, setData] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [forbidden, setForbidden] = useState(false);
+  const [, setForbidden] = useState(false);
 
   const isEditable = Boolean(data?.editable) && !isGestor;
   const isRequired = Boolean(data?.requerido && data?.editable) && !isGestor;

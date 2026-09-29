@@ -26,13 +26,33 @@ export const auth = new UserManager({
   monitorSession: false,
   loadUserInfo: false,
   filterProtocolClaims: true,
-  userStore: new WebStorageStateStore({ store: window.localStorage }),
+  // CWE-922: los tokens OIDC se guardan en sessionStorage (no localStorage)
+  // para que se borren al cerrar el navegador y la ventana de ataque de XSS
+  // no persista tras la sesión.
+  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
   metadata,
 });
 
 let loginRedirectPromise = null;
 let silentRenewPromise = null;
 let logoutRedirectPromise = null;
+
+/**
+ * Prefijo de despliegue (Vite `base`), ej. '/apps/proyecta/public/' en producción
+ * o '/' en desarrollo local.
+ */
+export const BASE_PATH = import.meta.env.BASE_URL;
+
+/**
+ * Quita el prefijo de despliegue de un pathname para que las rutas internas de
+ * React Router (que ya resuelven contra `basename`) no lleven el prefijo dos veces.
+ */
+export function stripBasePath(pathname) {
+  if (typeof pathname !== 'string' || pathname === '') return '/';
+  if (BASE_PATH === '/' || !pathname.startsWith(BASE_PATH)) return pathname;
+  const rest = pathname.slice(BASE_PATH.length);
+  return rest ? `/${rest}` : '/';
+}
 
 export async function clearOidcStaleState() {
   try {
@@ -49,7 +69,7 @@ export async function startLoginRedirect(returnUrl) {
 
   loginRedirectPromise = (async () => {
     await clearOidcStaleState();
-    let next = returnUrl || window.location.pathname || '/';
+    let next = stripBasePath(returnUrl || window.location.pathname || '/');
     if (next === '/callback' || next.startsWith('/callback?')) {
       next = '/';
     }
@@ -119,7 +139,9 @@ export async function startLogoutRedirect() {
 
     await clearLocalOidcState();
 
-    const postLogoutRedirectUri = `${window.location.origin}/`;
+    // Bajo subruta, origin + '/' llevaría a la raíz del dominio (otra app);
+    // se usa el prefijo de despliegue para volver al inicio de Proyecta.
+    const postLogoutRedirectUri = `${window.location.origin}${BASE_PATH}`;
 
     notifyLogout({
       message: 'Se cerro la sesion local y se redirigira al login de Keycloak.',

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertTriangle, Calendar, CheckCircle2, Download, FileText, ListTodo, Lock, Send, ShieldAlert, Clock, XCircle, X, Plus, Trash2, Paperclip, Eye } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileText, Send, ShieldAlert, Clock, XCircle, X, Plus, Trash2, Eye } from 'lucide-react';
 import projectService from '../../services/projectService';
-import authzService from '../../services/authzService';
 import securityService from '../../services/securityService';
 import apiClient from '../../api/axiosConfig';
 import { usePermission } from '../../hooks/usePermission';
 import { useAuthContext } from '../../context/AuthContext';
 import SpellCheckerTextarea from '../../components/common/SpellCheckerTextarea';
 import { resolveLoadErrorMessage } from '../../utils/accessMessages';
+import { createSafePdfObjectUrl } from '../../utils/safePdfPreview';
 import './ProjectClosurePage.css';
 
 const triggerBlobDownload = (blob, fileName) => {
@@ -79,22 +79,30 @@ const ProjectClosurePage = () => {
     entregables: [],
   });
 
-  const [questions, setQuestions] = useState([]);
+  const [questions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [resolvedTemplate, setResolvedTemplate] = useState(null);
   const [missingQuestions, setMissingQuestions] = useState([]);
 
+  const TRANSFERENCIA_FIELD_ID = 'transferencia_actividad';
+
+  const parseTransferenciaEntries = (jsonStr) => {
+    if (!jsonStr || typeof jsonStr !== 'string') return [{ actividad: '', fecha: '', evidenciaNombre: '' }];
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [{ actividad: '', fecha: '', evidenciaNombre: '' }];
+    } catch {
+      return [{ actividad: jsonStr, fecha: '', evidenciaNombre: '' }];
+    }
+  };
+
   useEffect(() => {
     const fetchAll = async () => {
       try {
         setLoading(true);
-        const [response, meResponse] = await Promise.all([
-          projectService.getSummary(id),
-          authzService.getMe(),
-        ]);
+        const response = await projectService.getSummary(id);
         const apiData = response.data || response;
-        const meData = meResponse.data || meResponse;
 
         if (apiData) {
           setSummaryData({
@@ -185,18 +193,6 @@ const ProjectClosurePage = () => {
 
   const updateAnswer = (questionId, value) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  };
-
-  const TRANSFERENCIA_FIELD_ID = 'transferencia_actividad';
-
-  const parseTransferenciaEntries = (jsonStr) => {
-    if (!jsonStr || typeof jsonStr !== 'string') return [{ actividad: '', fecha: '', evidenciaNombre: '' }];
-    try {
-      const parsed = JSON.parse(jsonStr);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [{ actividad: '', fecha: '', evidenciaNombre: '' }];
-    } catch {
-      return [{ actividad: jsonStr, fecha: '', evidenciaNombre: '' }];
-    }
   };
 
   const updateTransferenciaEntry = (index, field, value) => {
@@ -406,7 +402,7 @@ const ProjectClosurePage = () => {
     setTransferenciaEntries(resolvedEntries);
     const payload = Array.from(questionIds).map((qId) => ({
       questionId: qId,
-      respuesta: qId === transferenciaQId ? JSON.stringify(resolvedEntries.map(({ evidenciaFile, ...rest }) => rest)) : (answers[qId] || ''),
+      respuesta: qId === transferenciaQId ? JSON.stringify(resolvedEntries.map((entry) => Object.fromEntries(Object.entries(entry).filter(([key]) => key !== 'evidenciaFile')))) : (answers[qId] || ''),
     }));
     await securityService.saveClosureAnswers(id, payload);
   };
@@ -478,6 +474,12 @@ const ProjectClosurePage = () => {
     }
   };
 
+  // CWE-rules-of-hooks: usePermission debe ejecutarse SIEMPRE en el mismo orden
+  // de render; se declara antes del early-return de loading.
+  const permCierreSolicitar = usePermission('CIERRE:SOLICITAR');
+  const permCierreAprobar = usePermission('CIERRE:APROBAR');
+  const permCierreExtraordinario = usePermission('CIERRE:EXTRAORDINARIO');
+
   if (loading) {
     return (
       <div className="closure-page-loading">
@@ -492,9 +494,9 @@ const ProjectClosurePage = () => {
   const isClosed = summaryData.estado === 'CERRADO' || summaryData.estado === 'CERRADO_FORZOSO';
   const isDisabled = isClosed || cierreSolicitado || isAprobado || submitting;
   const isDirector = hasRole('DIRECTOR_PROYECTO');
-  const canRequestClosure = isDirector && usePermission('CIERRE:SOLICITAR') && summaryData.puedeCerrar && !isClosed && !cierreSolicitado;
-  const canReviewClosure = usePermission('CIERRE:APROBAR') && cierreSolicitado && cierreEstado === 'PENDIENTE' && !isClosed;
-  const canExtraordinaryClosure = usePermission('CIERRE:EXTRAORDINARIO') && !isClosed && summaryData.estado !== 'FINALIZADO';
+  const canRequestClosure = isDirector && permCierreSolicitar && summaryData.puedeCerrar && !isClosed && !cierreSolicitado;
+  const canReviewClosure = permCierreAprobar && cierreSolicitado && cierreEstado === 'PENDIENTE' && !isClosed;
+  const canExtraordinaryClosure = permCierreExtraordinario && !isClosed && summaryData.estado !== 'FINALIZADO';
   const canDownloadActa = isAprobado || isClosed;
   const missingQuestionIds = new Set((missingQuestions || []).map((q) => q.id));
 
@@ -737,8 +739,12 @@ const ProjectClosurePage = () => {
                                             try {
                                               const storedName = entry.evidenciaStoredName || entry.evidenciaNombre;
                                               const resp = await apiClient.get(`/proyectos/${id}/cierre/evidencia-transferencia/${encodeURIComponent(storedName)}`, { responseType: 'blob' });
-                                              const blobUrl = window.URL.createObjectURL(resp.data);
-                                              window.open(blobUrl, '_blank');
+                                              const blobUrl = await createSafePdfObjectUrl(resp.data);
+                                              if (blobUrl) {
+                                                window.open(blobUrl, '_blank', 'noopener,noreferrer');
+                                              } else {
+                                                console.error('La evidencia no es un PDF valido para visualizar');
+                                              }
                                             } catch (err) {
                                               console.error('Error viewing evidence:', err);
                                             }

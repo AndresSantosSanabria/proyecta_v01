@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import advanceReportService from '../../../services/advanceReportService';
 import { emitToast } from '../../../utils/feedback';
+import { createSafePdfObjectUrl } from '../../../utils/safePdfPreview';
 import { useAuthContext } from '../../../context/AuthContext';
 import './AdvanceReportActions.css';
 
@@ -184,7 +185,19 @@ const AdvanceReportActions = ({ projectId }) => {
       const blob = await advanceReportService.downloadReport(projectId, { periodo: status.periodo });
       const url = window.URL.createObjectURL(blob);
       if (status.fileName.toLowerCase().endsWith('.pdf')) {
-        window.open(url, '_blank');
+        // CWE-79: abrir en nueva pestaña solo blobs %PDF validados + sin opener.
+        const safeUrl = await createSafePdfObjectUrl(blob);
+        if (safeUrl) {
+          window.open(safeUrl, '_blank', 'noopener,noreferrer');
+          setTimeout(() => window.URL.revokeObjectURL(safeUrl), 10000);
+        } else {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = status.fileName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }
       } else {
         const link = document.createElement('a');
         link.href = url;

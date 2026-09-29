@@ -38,16 +38,6 @@ const UserPermissionMatrix = ({ onClose }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  useEffect(() => {
-    if (selectedUserId) {
-      loadMatrix(selectedUserId);
-    }
-  }, [selectedUserId]);
-
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -141,6 +131,16 @@ const UserPermissionMatrix = ({ onClose }) => {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  useEffect(() => {
+    if (selectedUserId) {
+      loadMatrix(selectedUserId);
+    }
+  }, [selectedUserId]);
 
   const toggleCategory = (cat) => {
     setExpandedCategories((prev) => {

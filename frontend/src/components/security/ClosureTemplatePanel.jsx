@@ -46,8 +46,6 @@ const ClosureTemplatePanel = () => {
   const [questions, setQuestions] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  useEffect(() => { loadTemplate(); loadQuestions(); }, []);
-
   const getBackendError = (err) => {
     const data = err.response?.data;
     if (data?.detail) return data.detail;
@@ -120,6 +118,8 @@ const ClosureTemplatePanel = () => {
       console.error('Error loading questions:', err);
     }
   };
+
+  useEffect(() => { loadTemplate(); loadQuestions(); }, []);
 
   const addBlock = (type) => {
     const block = createComponent(type);

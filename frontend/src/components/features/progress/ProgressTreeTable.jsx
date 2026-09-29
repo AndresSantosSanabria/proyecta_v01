@@ -145,7 +145,7 @@ const toHierarchyNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const buildHierarchyValidation = (fases = [], fechaInicioProyecto = '', pendingFiles = {}) => {
+const buildHierarchyValidation = (fases = [], pendingFiles = {}) => {
   const errors = {};
 
   if (fases.length === 0) {
@@ -303,7 +303,9 @@ const TreeTableRow = ({
   const canReviewEvidence = usePermission('ENTREGABLE:APROBAR') && !hasRole('DIRECTOR_PROYECTO');
   const canViewDocumentHistory = usePermission('DOCUMENTO:HISTORIAL');
   const canModificarFecha = usePermission('ENTREGABLE:CAMBIAR_FECHA');
-  const canModificarDescripcion = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC') || usePermission('ENTREGABLE:CAMBIAR_DESCRIPCION');
+  // rules-of-hooks: el hook se evalua siempre; la precedencia || se resuelve despues.
+  const canCambiarDescPerm = usePermission('ENTREGABLE:CAMBIAR_DESCRIPCION');
+  const canModificarDescripcion = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC') || canCambiarDescPerm;
   const ponderacionFase = toNumber(fase.ponderacion);
   const programadoFase = toNumber(fase.progresoProgramado ?? fase.avanceProgramado ?? fase.avance ?? 0);
   const ejecutadoFase = toNumber(fase.progresoEjecutado ?? fase.avance ?? 0);
@@ -583,7 +585,9 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   const [showEvidenceModal, setShowEvidenceModal] = React.useState(null);
   const canEditProject = usePermission('PROYECTO:EDITAR');
   const isProjectClosed = String(projectInfo?.estado || '').toUpperCase() === 'CERRADO';
-  const canManageHierarchy = (canEditProject || usePermission('PROYECTO:EDITAR_ESTRUCTURA')) && !isProjectClosed;
+  // rules-of-hooks: usePermission nunca puede quedar tras un || cortocircuitado.
+  const canEditStructure = usePermission('PROYECTO:EDITAR_ESTRUCTURA');
+  const canManageHierarchy = (canEditProject || canEditStructure) && !isProjectClosed;
   const [reviewModal, setReviewModal] = React.useState({
     open: false,
     entregableId: null,
@@ -816,7 +820,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   const handleSaveHierarchy = async (event) => {
     event.preventDefault();
 
-    const validation = buildHierarchyValidation(hierarchyModal.fases, hierarchyModal.fechaInicioProyecto, hierarchyModal.pendingFiles);
+    const validation = buildHierarchyValidation(hierarchyModal.fases, hierarchyModal.pendingFiles);
     if (validation.message) {
       setHierarchyModal((current) => ({
         ...current,

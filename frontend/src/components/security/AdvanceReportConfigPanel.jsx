@@ -32,10 +32,6 @@ const AdvanceReportConfigPanel = () => {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
   const loadSettings = async () => {
     try {
       setLoading(true);
@@ -50,6 +46,10 @@ const AdvanceReportConfigPanel = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
 
   const handleChange = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }));

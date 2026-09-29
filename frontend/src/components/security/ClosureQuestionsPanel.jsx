@@ -29,8 +29,6 @@ const ClosureQuestionsPanel = () => {
   const [form, setForm] = useState({ texto: '', tipoRespuesta: 'texto_libre', activo: true, opciones: [] });
   const [newOption, setNewOption] = useState('');
 
-  useEffect(() => { loadQuestions(); }, []);
-
   const getBackendError = (err) => {
     const data = err.response?.data;
     if (data?.detail) return data.detail;
@@ -51,6 +49,8 @@ const ClosureQuestionsPanel = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => { loadQuestions(); }, []);
 
   const handleToggle = async (id) => {
     try {

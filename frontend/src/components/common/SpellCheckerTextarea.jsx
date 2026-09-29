@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import useSpellChecker from '../../hooks/useSpellChecker';
+import { buildSpellHighlightHtml } from '../../utils/spellHighlight';
 import './SpellCheckerTextarea.css';
 
 export default function SpellCheckerTextarea({
@@ -62,21 +63,13 @@ export default function SpellCheckerTextarea({
     }
   }, [syncScroll]);
 
+  // CWE-79: el HTML de resaltado se construye dividiendo el texto original en
+  // segmentos y escapando cada uno aisladamente (ver utils/spellHighlight.js).
   const buildHighlightedHTML = useCallback(() => {
     if (!ready || errors.size === 0 || !value) {
-      return escapeHTML(value || '');
+      return buildSpellHighlightHtml(value || '', null, { multiline: true });
     }
-
-    const lines = value.split('\n');
-    return lines.map((line) => {
-      if (!line) return '&nbsp;';
-      return line.replace(/[\p{L}\p{M}]+/gu, (word) => {
-        if (errors.has(word.toLowerCase())) {
-          return `<mark class="spell-error" data-word="${escapeAttr(word)}">${escapeHTML(word)}</mark>`;
-        }
-        return escapeHTML(word);
-      });
-    }).join('\n');
+    return buildSpellHighlightHtml(value, errors, { multiline: true });
   }, [value, ready, errors]);
 
   const textareaClasses = [
@@ -112,13 +105,3 @@ export default function SpellCheckerTextarea({
   );
 }
 
-function escapeHTML(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function escapeAttr(str) {
-  return str.replace(/"/g, '&quot;');
-}

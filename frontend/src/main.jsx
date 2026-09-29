@@ -31,7 +31,8 @@ createRoot(document.getElementById('root')).render(
     <AppAuthProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <BrowserRouter>
+          {/* BASE_URL = prefijo de despliegue (Vite `base`, ej. /apps/proyecta/public/) */}
+          <BrowserRouter basename={import.meta.env.BASE_URL}>
             <App />
           </BrowserRouter>
         </ThemeProvider>
