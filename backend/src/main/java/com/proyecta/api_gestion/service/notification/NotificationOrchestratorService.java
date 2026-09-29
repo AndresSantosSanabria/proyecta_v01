@@ -339,7 +339,10 @@ public class NotificationOrchestratorService {
                 .replace("&#39;", "'");
         if (absoluteTargetUrl != null && !absoluteTargetUrl.isBlank()) {
             text = text.replace(absoluteTargetUrl, " ");
-            text = text.replace(absoluteTargetUrl.replace("http://localhost:5173", ""), " ");
+            String relativePath = absoluteTargetUrl.replaceFirst("^https?://[^/]+", "");
+            if (!relativePath.isBlank() && !"/".equals(relativePath)) {
+                text = text.replace(relativePath, " ");
+            }
         }
         text = text.replaceAll("https?://\\S+", " ");
         text = text.replaceAll("\\s+", " ").trim();

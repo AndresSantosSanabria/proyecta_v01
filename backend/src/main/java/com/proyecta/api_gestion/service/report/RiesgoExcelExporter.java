@@ -24,14 +24,17 @@ import java.util.Locale;
 public class RiesgoExcelExporter {
 
     private final String publicUrlBase;
+    private final com.proyecta.api_gestion.service.PublicEvidenceUrlSigner urlSigner;
 
-    public RiesgoExcelExporter(PublicUrlProperties publicUrlProperties) {
+    public RiesgoExcelExporter(PublicUrlProperties publicUrlProperties,
+                               com.proyecta.api_gestion.service.PublicEvidenceUrlSigner urlSigner) {
         this.publicUrlBase = normalizeBase(publicUrlProperties.getBase());
+        this.urlSigner = urlSigner;
     }
 
     private String normalizeBase(String base) {
         if (base == null || base.isBlank()) {
-            return "http://localhost:8082";
+            return "";
         }
         return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
     }
@@ -244,7 +247,7 @@ public class RiesgoExcelExporter {
     }
 
     private String publicTreatmentUrl(String projectId, Integer riesgoId, Long tratamientoId, Long adjuntoId) {
-        return publicUrlBase + "/api/v1/public/riesgos/" + projectId + "/" + riesgoId + "/tratamientos/" + tratamientoId + "/adjuntos/" + adjuntoId + "?inline=true";
+        return urlSigner.appendSignature(publicUrlBase + "/api/v1/public/riesgos/" + projectId + "/" + riesgoId + "/tratamientos/" + tratamientoId + "/adjuntos/" + adjuntoId + "?inline=true");
     }
 
     private int score(Object probabilidad, Object impacto) {

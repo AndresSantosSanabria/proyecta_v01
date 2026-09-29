@@ -7,11 +7,13 @@ import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtract
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/notificaciones")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class InAppNotificationController {
     private final InAppNotificationService service;
     private final KeycloakIdentityExtractor identityExtractor;
@@ -38,8 +40,10 @@ public class InAppNotificationController {
     }
 
     @PatchMapping("/{id}/leer")
-    public ResponseEntity<ApiResponse<Void>> read(@PathVariable Long id) {
-        service.markRead(id);
+    public ResponseEntity<ApiResponse<Void>> read(@PathVariable Long id, Authentication authentication) {
+        // CWE-639: solo el dueno de la notificacion puede marcarla como leida.
+        String username = identityExtractor.resolveUsername(authentication);
+        service.markRead(id, username);
         return ResponseEntity.ok(ApiResponse.success("Notificacion marcada como leida"));
     }
 

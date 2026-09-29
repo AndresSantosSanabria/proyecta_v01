@@ -37,7 +37,8 @@ public class PublicEvidenceAccessService {
         access.setActivo(true);
         access.setCreatedBy(username);
         repository.save(access);
-        log.info("Token de evidencia publica creado para entregable {}: {}", entregable.getId(), token);
+        // CWE-532: el token es un secreto de acceso; solo se registra el recurso, nunca el valor.
+        log.info("Token de evidencia publica creado para entregable {}", entregable.getId());
         return token;
     }
 

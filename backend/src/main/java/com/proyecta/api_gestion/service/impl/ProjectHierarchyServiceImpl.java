@@ -741,13 +741,13 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private void validarPdfMagicBytes(MultipartFile file) {
-        try {
-            byte[] header = new byte[4];
-            int read = file.getInputStream().read(header, 0, 4);
-            if (read < 4 || header[0] != '%' || header[1] != 'P' || header[2] != 'D' || header[3] != 'F') {
+        // CWE-404: un solo InputStream cerrado con try-with-resources. La version
+        // anterior abria dos streams sin cerrarlos y llamaba reset() sin mark().
+        try (java.io.InputStream in = file.getInputStream()) {
+            byte[] header = in.readNBytes(4);
+            if (header.length < 4 || header[0] != '%' || header[1] != 'P' || header[2] != 'D' || header[3] != 'F') {
                 throw new BadRequestException("El archivo no es un PDF valido (cabecera %PDF no detectada).");
             }
-            file.getInputStream().reset();
         } catch (BadRequestException e) {
             throw e;
         } catch (IOException e) {

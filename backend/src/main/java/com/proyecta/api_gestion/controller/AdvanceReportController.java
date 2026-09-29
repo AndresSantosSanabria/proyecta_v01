@@ -39,7 +39,6 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/advance-report")
-@CrossOrigin(origins = "*")
 public class AdvanceReportController {
 
     private static final Logger log = LoggerFactory.getLogger(AdvanceReportController.class);
@@ -86,6 +85,7 @@ public class AdvanceReportController {
      * (default: periodo vigente y version ACTUAL).
      */
     @GetMapping("/download/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<Resource> downloadReport(
             @PathVariable String projectId,
             @RequestParam(required = false) String periodo,
@@ -112,13 +112,16 @@ public class AdvanceReportController {
 
         Resource resource = fileStorageService.loadFileAsResource("informes-avance", versionEntity.getFilePath());
 
+        // CWE-113: nunca ecoar el nombre original sin sanear en la cabecera.
+        String safeFileName = upload.getFileName().replaceAll("[^a-zA-Z0-9._-]", "_");
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + versionEntity.getFileName() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeFileName + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
 
     @GetMapping("/status/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<AdvanceReportStatusDTO>> getStatus(
             @PathVariable String projectId,
             Authentication authentication) {
@@ -236,7 +239,7 @@ public class AdvanceReportController {
      * Verifica (aprueba) un informe de avance. Rol gestor.
      */
     @PutMapping("/verify/{projectId}")
-    @PreAuthorize("@proyectoSecurity.canReviewEvidence(#projectId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canReviewAdvanceReport(#projectId, authentication)")
     public ResponseEntity<ApiResponse<String>> verifyReport(
             @PathVariable String projectId,
             Authentication authentication) {
@@ -263,7 +266,7 @@ public class AdvanceReportController {
      * Devuelve un informe de avance al director con observaciones. Rol gestor.
      */
     @PutMapping("/return/{projectId}")
-    @PreAuthorize("@proyectoSecurity.canReviewEvidence(#projectId, authentication)")
+    @PreAuthorize("@proyectoSecurity.canReviewAdvanceReport(#projectId, authentication)")
     public ResponseEntity<ApiResponse<String>> returnReport(
             @PathVariable String projectId,
             @RequestBody Map<String, String> body,
@@ -312,9 +315,14 @@ public class AdvanceReportController {
         String periodo = periodService.currentPeriodo(today);
         String username = identityExtractor.resolveUsername(authentication);
 
-        Set<String> allowedExtensions = new HashSet<>(Arrays.asList(
+        // Validate file: extensiones con trim y sin entradas vacias (CWE-183)
+        Set<String> allowedExtensions = Arrays.stream(
                 systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_ALLOWED_EXTENSIONS, "pdf,pptx")
-                        .split(",")));
+                        .split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(java.util.stream.Collectors.toCollection(HashSet::new));
         long maxSizeBytes = systemParameterService.getLong(SystemParameterKeys.ADVANCE_REPORT_MAX_SIZE_MB, 20) * 1024 * 1024;
 
         String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "sin_nombre";
@@ -327,6 +335,8 @@ public class AdvanceReportController {
             return ResponseEntity.badRequest().body(ApiResponse.error("El archivo supera el tamaño máximo permitido de "
                     + (maxSizeBytes / 1024 / 1024) + " MB."));
         }
+        // CWE-434: validar magic bytes reales, no solo el Content-Type declarado por el cliente.
+        validateMagicBytes(file, ext);
         if ("pdf".equalsIgnoreCase(ext)) {
             validarPdfReal(file);
         }
@@ -335,7 +345,11 @@ public class AdvanceReportController {
         boolean esNuevaCabecera = upload == null;
 
         int siguienteVersion = esNuevaCabecera ? 1 : versionRepository.findMaxNumeroVersion(upload.getId()) + 1;
-        String storedName = String.format("%s_%s_v%d_%s_%s", pid, periodo, siguienteVersion, sanitize(username), originalFilename);
+        // CWE-22/CWE-73: base de nombre sin ruta ni caracteres de separacion.
+        String safeBaseName = originalFilename
+                .substring(0, originalFilename.lastIndexOf('.') > 0 ? originalFilename.lastIndexOf('.') : originalFilename.length())
+                .replaceAll("[^a-zA-Z0-9._-]", "_");
+        String storedName = String.format("%s_%s_v%d_%s_%s", pid, periodo, siguienteVersion, sanitize(username), safeBaseName);
         String filePath = fileStorageService.storeFile(file, "informes-avance", storedName);
 
         if (esNuevaCabecera) {
@@ -431,6 +445,29 @@ public class AdvanceReportController {
     private void updateIfPresent(String key, String value) {
         if (value != null) {
             systemParameterService.set(key, value);
+        }
+    }
+
+    /**
+     * CWE-434: valida la cabecera binaria real del archivo (magic bytes) segun su extension.
+     * El Content-Type del multipart lo declara el cliente y no es confiable.
+     */
+    private void validateMagicBytes(MultipartFile file, String extension) {
+        try (java.io.InputStream in = file.getInputStream()) {
+            byte[] header = in.readNBytes(4);
+            boolean valid = switch (extension.toLowerCase()) {
+                case "pdf" -> header.length >= 4
+                        && header[0] == '%' && header[1] == 'P' && header[2] == 'D' && header[3] == 'F';
+                case "pptx", "docx", "xlsx" -> header.length >= 2 && header[0] == 'P' && header[1] == 'K';
+                default -> true;
+            };
+            if (!valid) {
+                throw new com.proyecta.api_gestion.exception.BadRequestException(
+                        "El contenido del archivo no corresponde a la extension declarada (." + extension + ").");
+            }
+        } catch (java.io.IOException ex) {
+            throw new com.proyecta.api_gestion.exception.BadRequestException(
+                    "No se pudo validar el contenido del archivo.");
         }
     }
 

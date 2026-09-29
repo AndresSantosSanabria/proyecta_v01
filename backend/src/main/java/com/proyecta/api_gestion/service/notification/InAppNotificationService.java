@@ -68,9 +68,16 @@ public class InAppNotificationService {
     }
 
     @Transactional
-    public void markRead(Long id) {
+    public void markRead(Long id, String requesterUsername) {
         InAppNotification notification = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Notificacion no encontrada: " + id));
+        // CWE-639: verificacion de dueno. Se responde con el mismo mensaje que
+        // cuando el id no existe para no revelar la existencia de notificaciones ajenas.
+        if (notification.getRecipient() == null
+                || requesterUsername == null
+                || !requesterUsername.equalsIgnoreCase(notification.getRecipient().getUsername())) {
+            throw new IllegalArgumentException("Notificacion no encontrada: " + id);
+        }
         notification.setReadStatus(true);
         notification.setReadAt(LocalDateTime.now());
         repository.save(notification);

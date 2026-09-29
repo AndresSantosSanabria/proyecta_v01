@@ -23,6 +23,7 @@ import com.proyecta.api_gestion.repository.RiesgoRepository;
 import com.proyecta.api_gestion.repository.RiesgoSolucionAdjuntoRepository;
 import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.service.IRiesgoService;
+import com.proyecta.api_gestion.service.PublicEvidenceUrlSigner;
 import com.proyecta.api_gestion.service.report.RiesgoExcelExporter;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
@@ -98,6 +99,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     private final NotificationEventPublisherPort notificationPublisher;
     private final RiesgoExcelExporter riesgoExcelExporter;
     private final String publicUrlBase;
+    private final PublicEvidenceUrlSigner urlSigner;
 
     public RiesgoServiceImpl(RiesgoRepository riesgoRepository,
                              ProyectoRepository proyectoRepository,
@@ -106,7 +108,8 @@ public class RiesgoServiceImpl implements IRiesgoService {
                              IStorageProvider storageProvider,
                              NotificationEventPublisherPort notificationPublisher,
                              RiesgoExcelExporter riesgoExcelExporter,
-                             PublicUrlProperties publicUrlProperties) {
+                             PublicUrlProperties publicUrlProperties,
+                             PublicEvidenceUrlSigner urlSigner) {
         this.riesgoRepository = riesgoRepository;
         this.proyectoRepository = proyectoRepository;
         this.matrizRiesgoRepository = matrizRiesgoRepository;
@@ -114,8 +117,9 @@ public class RiesgoServiceImpl implements IRiesgoService {
         this.storageProvider = storageProvider;
         this.notificationPublisher = notificationPublisher;
         this.riesgoExcelExporter = riesgoExcelExporter;
+        this.urlSigner = urlSigner;
         String base = publicUrlProperties.getBase();
-        this.publicUrlBase = (base == null || base.isBlank()) ? "http://localhost:8082" : (base.endsWith("/") ? base.substring(0, base.length() - 1) : base);
+        this.publicUrlBase = (base == null) ? "" : base.replaceAll("/+$", "");
     }
 
     @Override
@@ -340,7 +344,8 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
     @Override
     public String construirUrlPublicaSolucion(String projectId, Integer riesgoId, Long solucionId) {
-        return publicUrlBase + "/api/v1/public/riesgos/" + projectId + "/" + riesgoId + "/soluciones/" + solucionId;
+        return urlSigner.appendSignature(
+                publicUrlBase + "/api/v1/public/riesgos/" + projectId + "/" + riesgoId + "/soluciones/" + solucionId);
     }
 
     @Override

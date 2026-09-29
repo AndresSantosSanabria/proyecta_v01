@@ -19,7 +19,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/admin/closure-questions")
-@CrossOrigin(origins = "*")
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ClosureQuestionController {
 
@@ -45,6 +44,7 @@ public class ClosureQuestionController {
     }
 
     @GetMapping("/active")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
     public ResponseEntity<ApiResponse<List<ClosureQuestionDTO>>> listActive() {
         return ResponseEntity.ok(ApiResponse.success(service.listActive(), "Preguntas activas"));
     }
@@ -85,12 +85,17 @@ public class ClosureQuestionController {
         return ResponseEntity.ok(ApiResponse.success(null, "Pregunta eliminada"));
     }
 
+    // CWE-862: los endpoints con {projectId} exigen pertenencia al proyecto.
+    // Lecturas -> PROYECTO:VER; escritura de respuestas -> CIERRE:SOLICITAR
+    // (el Director diligencia el cierre; los Gestores tambien lo poseen).
     @GetMapping("/answers/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<List<ClosureAnswerDTO>>> getAnswers(@PathVariable String projectId) {
         return ResponseEntity.ok(ApiResponse.success(service.getAnswersByProject(projectId), "Respuestas obtenidas"));
     }
 
     @PostMapping("/answers/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:SOLICITAR', #projectId, authentication)")
     public ResponseEntity<ApiResponse<Void>> saveAnswers(
             @PathVariable String projectId,
             @RequestBody List<Map<String, Object>> body,
@@ -106,6 +111,7 @@ public class ClosureQuestionController {
     }
 
     @GetMapping("/resolved-template/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<String>> getResolvedTemplate(@PathVariable String projectId) {
         Map<Long, String> answerMap = service.getAnswersMapByProject(projectId);
         String resolved = templateService.getActiveTemplateJsonResolved(answerMap);
@@ -113,6 +119,7 @@ public class ClosureQuestionController {
     }
 
     @GetMapping("/draft/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<String>> getDraftTemplate(@PathVariable String projectId) {
         return ResponseEntity.ok(ApiResponse.success(
                 draftService.getResolvedTemplateJson(projectId),
@@ -120,6 +127,7 @@ public class ClosureQuestionController {
     }
 
     @GetMapping("/missing/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<List<ClosureQuestionDTO>>> getMissingQuestions(@PathVariable String projectId) {
         return ResponseEntity.ok(ApiResponse.success(
                 draftService.getMissingQuestions(projectId),

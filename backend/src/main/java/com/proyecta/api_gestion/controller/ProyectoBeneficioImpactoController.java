@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
-@CrossOrigin(origins = "*")
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ProyectoBeneficioImpactoController implements IProyectoBeneficioImpactoController {
 
@@ -41,6 +40,7 @@ public class ProyectoBeneficioImpactoController implements IProyectoBeneficioImp
     }
 
     @PostMapping("/{proyectoId}/beneficio-impacto/revision")
+    @PreAuthorize("@proyectoSecurity.canReviewBenefitImpact(#proyectoId, authentication)")
     public ResponseEntity<ApiResponse<ProyectoBeneficioImpactoResponseDTO>> revisar(
             @PathVariable String proyectoId,
             @RequestParam boolean aprobado,

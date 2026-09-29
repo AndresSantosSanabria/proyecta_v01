@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/closure-templates")
-@CrossOrigin(origins = "*")
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ClosureTemplateController {
 
@@ -51,13 +50,17 @@ public class ClosureTemplateController {
         return ResponseEntity.ok(ApiResponse.success(dto, "Plantilla guardada exitosamente"));
     }
 
+    // CWE-862: registro de cierre por proyecto; lectura -> PROYECTO:VER,
+    // escritura -> CIERRE:SOLICITAR (mismo flujo que las respuestas de cierre).
     @GetMapping("/closure-record/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<ProjectClosureRecordDTO>> getClosureRecord(@PathVariable String projectId) {
         ProjectClosureRecordDTO dto = recordService.getByProject(projectId);
         return ResponseEntity.ok(ApiResponse.success(dto, "Registro de cierre"));
     }
 
     @PostMapping("/closure-record/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('CIERRE:SOLICITAR', #projectId, authentication)")
     public ResponseEntity<ApiResponse<ProjectClosureRecordDTO>> saveClosureRecord(
             @PathVariable String projectId,
             @RequestBody java.util.Map<String, String> body,

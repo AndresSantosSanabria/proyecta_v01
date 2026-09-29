@@ -292,6 +292,82 @@ public class ProyectoSecurity {
             return true;
         }
 
+        // CWE-862: ademas del permiso global, el usuario no transversal debe estar
+        // asignado al proyecto (misma regla que canEditBenefitImpact / canAccess).
+        if (proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+        }
+
+        return true;
+    }
+
+    /**
+     * Autoriza a aprobar u observar la informacion de beneficio e impacto (CWE-862).
+     * Solo Administrador o roles Gestor con permiso BENEFICIO_IMPACTO:APROBAR.
+     * El Director de Proyecto solo diligencia; la revision la hacen los Gestores.
+     */
+    public boolean canReviewBenefitImpact(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean hasReviewerRole = roleCodes.stream().anyMatch(EVIDENCE_REVIEW_ROLE_CODES::contains);
+        if (!hasReviewerRole) {
+            throw new ForbiddenException("Solo un Gestor puede revisar la informacion de beneficio e impacto.");
+        }
+
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
+                .map(this::normalize)
+                .anyMatch("BENEFICIO_IMPACTO:APROBAR"::equals);
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: BENEFICIO_IMPACTO:APROBAR");
+        }
+
+        if (isTransversal(roleCodes) || proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+        }
+
+        return true;
+    }
+
+    /**
+     * Autoriza la consulta de KPIs y resumen del dashboard (CWE-862).
+     * Requiere el permiso DASHBOARD:VER. A diferencia de canAccessGlobal no exige
+     * rol transversal: directores, auditores y consultas usan el dashboard por diseño.
+     */
+    public boolean canViewDashboard(Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
+                .map(this::normalize)
+                .anyMatch("DASHBOARD:VER"::equals);
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: DASHBOARD:VER");
+        }
+
         return true;
     }
 
@@ -429,7 +505,48 @@ public class ProyectoSecurity {
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)
                 && !isProjectDirector(username, proyectoId, authentication)) {
-            throw new ForbiddenException("El usuario no est\u00e1 asignado al proyecto solicitado.");
+            throw new ForbiddenException("El usuario no está asignado al proyecto solicitado.");
+        }
+
+        return true;
+    }
+
+    /**
+     * Autoriza a verificar o devolver un informe de avance (CWE-639 / CWE-862).
+     * Solo Administrador o roles Gestor (transversal o asignado al proyecto) con
+     * permiso EVIDENCIA:APROBAR. El Director de Proyecto NO puede validar su
+     * propio informe: evita auto-aprobacion.
+     */
+    public boolean canReviewAdvanceReport(String proyectoId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        String username = identityExtractor.resolveUsername(authentication);
+        if (username == null || username.isBlank()) {
+            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
+        }
+
+        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        boolean allowedRole = roleCodes.stream().anyMatch(EVIDENCE_REVIEW_ROLE_CODES::contains);
+        if (!allowedRole) {
+            throw new ForbiddenException("Solo un Gestor de Proyectos puede verificar o devolver informes de avance.");
+        }
+
+        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
+        boolean hasPermission = effectivePermissions.stream()
+                .map(this::normalize)
+                .anyMatch("EVIDENCIA:APROBAR"::equals);
+        if (!hasPermission) {
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: EVIDENCIA:APROBAR");
+        }
+
+        if (isTransversal(roleCodes) || proyectoId == null || proyectoId.isBlank()) {
+            return true;
+        }
+
+        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
+            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
         }
 
         return true;

@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
-@CrossOrigin(origins = "*")
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ProjectEvidenceController {
 

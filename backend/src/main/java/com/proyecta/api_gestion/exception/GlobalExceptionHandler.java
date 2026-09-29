@@ -73,7 +73,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneral(Exception ex) {
         log.error("Error no controlado: ", ex);
-        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        // CWE-209: no exponer el mensaje interno de la excepcion al cliente
+        // (puede contener rutas, SQL o nombres de clase). El detalle queda en el log.
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Error interno del servidor. Contacte al administrador.");
         pd.setTitle("Error interno del servidor");
         pd.setType(URI.create("/errors/internal-error"));
         return pd;

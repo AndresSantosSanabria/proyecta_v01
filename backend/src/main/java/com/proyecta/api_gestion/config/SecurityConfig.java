@@ -40,6 +40,26 @@ public class SecurityConfig {
                 .toList();
     }
 
+    /**
+     * Registra el filtro de evidencia pública ANTES de la cadena de seguridad de Spring
+     * (orden por debajo de -100): rate limiting por IP y validación de firma HMAC en
+     * /api/v1/public/** sin exigir sesión (requisito de negocio anti-enumeración).
+     */
+    @Bean
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<PublicEvidenceSecurityFilter>
+            publicEvidenceSecurityFilterRegistration(
+                    com.proyecta.api_gestion.service.PublicEvidenceUrlSigner signer,
+                    @org.springframework.beans.factory.annotation.Value(
+                            "${gob.security.public-evidence.rate-limit-per-minute:120}") int rateLimitPerMinute,
+                    @org.springframework.beans.factory.annotation.Value(
+                            "${gob.security.public-evidence.trust-forwarded-for:false}") boolean trustForwardedFor) {
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(
+                new PublicEvidenceSecurityFilter(signer, rateLimitPerMinute, trustForwardedFor));
+        registration.addUrlPatterns("/api/v1/public/*");
+        registration.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
+        return registration;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,

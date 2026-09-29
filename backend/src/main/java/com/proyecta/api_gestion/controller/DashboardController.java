@@ -24,6 +24,7 @@ public class DashboardController implements IDashboardController {
 
     @Override
     @GetMapping("/kpis")
+    @PreAuthorize("@proyectoSecurity.canViewDashboard(authentication)")
     public ResponseEntity<ApiResponse<DashboardSummaryDTO>> getSummary() {
         DashboardSummaryDTO summary = dashboardService.getSummary();
         return ResponseEntity.ok(ApiResponse.success(summary, "KPIs globales obtenidos con éxito"));
@@ -31,6 +32,7 @@ public class DashboardController implements IDashboardController {
 
     @Override
     @GetMapping("/avance-por-proyecto")
+    @PreAuthorize("@proyectoSecurity.canViewDashboard(authentication)")
     public ResponseEntity<ApiResponse<List<DashboardProjectSummaryDTO>>> getProjectSummary() {
         List<DashboardProjectSummaryDTO> projects = dashboardService.getProjectSummary();
 

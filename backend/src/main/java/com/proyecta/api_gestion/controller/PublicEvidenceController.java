@@ -1,20 +1,30 @@
 package com.proyecta.api_gestion.controller;
 
+import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.IRiesgoService;
 import com.proyecta.api_gestion.service.IRiesgoTratamientoService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Endpoints publicos de evidencia (acceso anonimo por requisito de negocio).
+ * Todas las rutas quedan protegidas por {@code PublicEvidenceSecurityFilter}
+ * (rate limit por IP + firma HMAC ?exp=&sig=) salvo /evidencia/{token}, que usa
+ * un token opaco de 256 bits.
+ */
 @RestController
 @RequestMapping("/api/v1/public")
-@CrossOrigin(origins = "*")
 public class PublicEvidenceController {
+
+    private static final Logger log = LoggerFactory.getLogger(PublicEvidenceController.class);
 
     private final PublicEvidenceAccessService evidenceAccessService;
     private final IStorageProvider storageProvider;
@@ -41,8 +51,10 @@ public class PublicEvidenceController {
 
         Resource resource = storageProvider.loadFileAsResource("evidencias", entregable.getArchivoPdf());
 
+        String safeName = entregable.getArchivoPdf().replaceAll("[^a-zA-Z0-9._-]", "_");
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + entregable.getArchivoPdf() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeName + "\"")
+                .header("X-Content-Type-Options", "nosniff")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
@@ -51,11 +63,18 @@ public class PublicEvidenceController {
     public ResponseEntity<Resource> verEvidenciaCierre(@PathVariable String fileName) {
         try {
             Resource resource = storageProvider.loadFileAsResource("cierre-transferencia", fileName);
+            // CWE-113: nunca ecoar el nombre del archivo sin sanear en la cabecera.
+            String safeName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeName + "\"")
+                    .header("X-Content-Type-Options", "nosniff")
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(resource);
-        } catch (Exception e) {
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.notFound().build();
+        } catch (RuntimeException ex) {
+            // CWE-209: no exponer mensajes internos del storage al cliente anonimo.
+            log.warn("Fallo publico sirviendo cierre-evidencia: {}", ex.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -70,6 +89,7 @@ public class PublicEvidenceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
                         + "; filename=\"solucion-riesgo-" + riesgoId + "-" + solucionId + ".pdf\"")
+                .header("X-Content-Type-Options", "nosniff")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
@@ -85,6 +105,7 @@ public class PublicEvidenceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
                         + "; filename=\"tratamiento-" + riesgoId + "-" + tratamientoId + "-" + adjuntoId + ".pdf\"")
+                .header("X-Content-Type-Options", "nosniff")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }

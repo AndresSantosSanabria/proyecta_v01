@@ -25,7 +25,7 @@ public class KeycloakLogoutService {
             @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri,
             @Value("${gob.security.resource-client-ids}") String clientId,
             @Value("${gob.security.keycloak.client-secret:}") String clientSecret,
-            @Value("${gob.security.logout.post-redirect-uri:http://localhost:5173/}") String postLogoutRedirectUri) {
+            @Value("${gob.security.logout.post-redirect-uri}") String postLogoutRedirectUri) {
         this.issuerUri = issuerUri;
         this.clientId = clientId;
         this.clientSecret = clientSecret;

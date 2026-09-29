@@ -81,7 +81,7 @@ public interface IProjectHierarchyController {
     ResponseEntity<ApiResponse<CambioFechaResponse>> cambiarFecha(
             @PathVariable String id,
             @PathVariable Integer entregableId,
-            @RequestPart("request") @org.springframework.lang.NonNull CambioFechaRequest request,
+            @jakarta.validation.Valid @RequestPart("request") @org.springframework.lang.NonNull CambioFechaRequest request,
             @RequestPart("evidencia") MultipartFile evidencia,
             Authentication authentication);
 
@@ -99,7 +99,7 @@ public interface IProjectHierarchyController {
     ResponseEntity<ApiResponse<com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse>> cambiarDescripcion(
             @PathVariable String id,
             @PathVariable Integer entregableId,
-            @RequestPart("request") @org.springframework.lang.NonNull com.proyecta.api_gestion.dto.proyecto.CambioDescripcionRequest request,
+            @jakarta.validation.Valid @RequestPart("request") @org.springframework.lang.NonNull com.proyecta.api_gestion.dto.proyecto.CambioDescripcionRequest request,
             @RequestPart("evidencia") MultipartFile evidencia,
             Authentication authentication);
 

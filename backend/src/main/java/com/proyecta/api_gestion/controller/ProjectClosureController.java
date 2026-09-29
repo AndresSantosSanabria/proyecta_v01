@@ -19,7 +19,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/proyectos")
-@CrossOrigin(origins = "*")
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ProjectClosureController implements IProjectClosureController {
 

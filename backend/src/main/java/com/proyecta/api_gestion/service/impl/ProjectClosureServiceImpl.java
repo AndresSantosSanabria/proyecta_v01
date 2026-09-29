@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.proyecta.api_gestion.config.PublicUrlProperties;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
@@ -77,6 +78,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final ProjectClosureRecordRepository closureRecordRepository;
     private final TemplateResolver templateResolver;
     private final PublicEvidenceAccessService publicEvidenceAccessService;
+    private final PublicUrlProperties publicUrlProperties;
 
     public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
                                      ActaCierreRepository actaCierreRepository,
@@ -94,7 +96,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      ClosureAnswerRepository closureAnswerRepository,
                                      ProjectClosureRecordRepository closureRecordRepository,
                                      TemplateResolver templateResolver,
-                                     PublicEvidenceAccessService publicEvidenceAccessService) {
+                                     PublicEvidenceAccessService publicEvidenceAccessService,
+                                     PublicUrlProperties publicUrlProperties) {
         this.proyectoRepository = proyectoRepository;
         this.actaCierreRepository = actaCierreRepository;
         this.usuarioProyectoRepository = usuarioProyectoRepository;
@@ -112,6 +115,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.closureRecordRepository = closureRecordRepository;
         this.templateResolver = templateResolver;
         this.publicEvidenceAccessService = publicEvidenceAccessService;
+        this.publicUrlProperties = publicUrlProperties;
     }
 
     @Override
@@ -733,7 +737,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     }
 
     private String buildPublicEvidenceUrl(String token) {
-        return "http://localhost:8082/api/v1/public/evidencia/" + token;
+        String base = publicUrlProperties.getBase();
+        String normalized = (base == null) ? "" : base.replaceAll("/+$", "");
+        return normalized + "/api/v1/public/evidencia/" + token;
     }
 
     private List<ActaCierrePdfGenerator.EntregableActaItem> construirEntregablesActa(Proyecto proyecto, LocalDate corteCalculo) {

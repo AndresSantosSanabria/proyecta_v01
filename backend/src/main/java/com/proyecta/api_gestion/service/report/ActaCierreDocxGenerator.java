@@ -22,6 +22,16 @@ public class ActaCierreDocxGenerator {
 
     private static final String TEMPLATE_RESOURCE = "templates/acta_cierre_template.docx";
 
+    private final com.proyecta.api_gestion.service.PublicEvidenceUrlSigner urlSigner;
+    private final String publicUrlBase;
+
+    public ActaCierreDocxGenerator(com.proyecta.api_gestion.service.PublicEvidenceUrlSigner urlSigner,
+                                   com.proyecta.api_gestion.config.PublicUrlProperties publicUrlProperties) {
+        this.urlSigner = urlSigner;
+        String base = publicUrlProperties.getBase();
+        this.publicUrlBase = (base == null) ? "" : base.replaceAll("/+$", "");
+    }
+
     public byte[] build(ActaCierrePdfGenerator.ActaCierrePdfData data) {
         try (InputStream inputStream = openTemplate();
              XWPFDocument doc = new XWPFDocument(inputStream);
@@ -156,7 +166,7 @@ public class ActaCierreDocxGenerator {
         String[] fechas = safe(data.transferenciaFecha()).split(";");
         String[] evidencias = safe(data.transferenciaUbicacionEvidencia()).split(";");
 
-        String baseUrl = "http://localhost:8082/api/v1/public/cierre-evidencia/";
+        String baseUrl = publicUrlBase + "/api/v1/public/cierre-evidencia/";
 
         for (int i = 0; i < actividades.length; i++) {
             int rowIdx = i + 1;
@@ -169,7 +179,7 @@ public class ActaCierreDocxGenerator {
             setCellTextPreservingStyle(table.getRow(rowIdx).getCell(0), act);
             setCellTextPreservingStyle(table.getRow(rowIdx).getCell(1), fecha);
             if (!evidStoredName.isBlank()) {
-                String publicUrl = baseUrl + evidStoredName;
+                String publicUrl = urlSigner.appendSignature(baseUrl + evidStoredName);
                 setCellHyperlink(table.getRow(rowIdx).getCell(2), publicUrl);
             } else {
                 setCellTextPreservingStyle(table.getRow(rowIdx).getCell(2), "No registrado");

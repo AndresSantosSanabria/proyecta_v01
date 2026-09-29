@@ -17,18 +17,33 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Service
 public class SecurityCatalogCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityCatalogCacheService.class);
+
+    /**
+     * TTL del cache de permisos/asignaciones. Incluso si una escritura no pasa por
+     * {@link #evictAll()} (carga directa en BD, etc.), la entrada caduca como maximo
+     * en un minuto: limita el crecimiento del mapa y acota datos de autorizacion
+     * obsoletos (CWE-404 / datos desactualizados de seguridad).
+     */
+    private static final long CACHE_TTL_MS = 60_000L;
+    /** Barrido de entradas expiradas como maximo cada 10 segundos. */
+    private static final long SWEEP_INTERVAL_MS = 10_000L;
+
+    private record CachedValue<T>(T value, long expiresAt) {}
+
     private final SeguridadRolPermisoRepository rolPermisoRepository;
     private final SeguridadPermisoRepository permisoRepository;
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
 
-    private final Map<String, Set<String>> permissionsByRoleCache = new ConcurrentHashMap<>();
-    private final Map<String, Boolean> projectsByUserCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedValue<Set<String>>> permissionsByRoleCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedValue<Boolean>> projectsByUserCache = new ConcurrentHashMap<>();
+    private final AtomicLong lastSweepMs = new AtomicLong(System.currentTimeMillis());
 
     public SecurityCatalogCacheService(
             SeguridadRolPermisoRepository rolPermisoRepository,
@@ -63,18 +78,24 @@ public class SecurityCatalogCacheService {
         }
 
         String cacheKey = roleCode.trim().toLowerCase(Locale.ROOT);
-        return permissionsByRoleCache.computeIfAbsent(cacheKey, key -> {
-            Set<String> result = rolPermisoRepository.findActiveByRoleCodes(Set.of(key)).stream()
-                    .map(SeguridadRolPermiso::getPermiso)
-                    .filter(permiso -> permiso != null && Boolean.TRUE.equals(permiso.getActivo()))
-                    .map(SeguridadPermiso::getCodigo)
-                    .filter(codigo -> codigo != null && !codigo.isBlank())
-                    .map(codigo -> codigo.trim().toUpperCase(Locale.ROOT))
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
-            log.info("[AuthzDebug] getPermissionsForRole roleCode={}, foundPermissions={}", roleCode, result.size());
-            log.info("[AuthzDebug] getPermissionsForRole roleCode={}, allPermissions={}", roleCode, result);
-            return result.isEmpty() ? Set.of() : result;
-        });
+        long now = System.currentTimeMillis();
+        CachedValue<Set<String>> cached = permissionsByRoleCache.get(cacheKey);
+        if (cached != null && now < cached.expiresAt()) {
+            return cached.value();
+        }
+        sweepExpired(now);
+        Set<String> result = rolPermisoRepository.findActiveByRoleCodes(Set.of(cacheKey)).stream()
+                .map(SeguridadRolPermiso::getPermiso)
+                .filter(permiso -> permiso != null && Boolean.TRUE.equals(permiso.getActivo()))
+                .map(SeguridadPermiso::getCodigo)
+                .filter(codigo -> codigo != null && !codigo.isBlank())
+                .map(codigo -> codigo.trim().toUpperCase(Locale.ROOT))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        log.info("[AuthzDebug] getPermissionsForRole roleCode={}, foundPermissions={}", roleCode, result.size());
+        log.info("[AuthzDebug] getPermissionsForRole roleCode={}, allPermissions={}", roleCode, result);
+        Set<String> settled = result.isEmpty() ? Set.of() : Set.copyOf(result);
+        permissionsByRoleCache.put(cacheKey, new CachedValue<>(settled, now + CACHE_TTL_MS));
+        return settled;
     }
 
     public boolean isAssignedToProject(String username, String proyectoId) {
@@ -83,9 +104,26 @@ public class SecurityCatalogCacheService {
         }
 
         String cacheKey = (username.trim().toLowerCase(Locale.ROOT) + "::" + proyectoId.trim().toUpperCase(Locale.ROOT));
-        return projectsByUserCache.computeIfAbsent(cacheKey, key ->
-                usuarioProyectoRepository.existsByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndActivoTrue(
-                        username.trim(), proyectoId.trim()));
+        long now = System.currentTimeMillis();
+        CachedValue<Boolean> cached = projectsByUserCache.get(cacheKey);
+        if (cached != null && now < cached.expiresAt()) {
+            return cached.value();
+        }
+        sweepExpired(now);
+        boolean assigned = usuarioProyectoRepository.existsByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndActivoTrue(
+                username.trim(), proyectoId.trim());
+        projectsByUserCache.put(cacheKey, new CachedValue<>(assigned, now + CACHE_TTL_MS));
+        return assigned;
+    }
+
+    /** Elimina entradas vencidas; se ejecuta como maximo una vez por SWEEP_INTERVAL_MS. */
+    private void sweepExpired(long now) {
+        long last = lastSweepMs.get();
+        if (now - last < SWEEP_INTERVAL_MS || !lastSweepMs.compareAndSet(last, now)) {
+            return;
+        }
+        permissionsByRoleCache.entrySet().removeIf(entry -> now >= entry.getValue().expiresAt());
+        projectsByUserCache.entrySet().removeIf(entry -> now >= entry.getValue().expiresAt());
     }
 
     public List<String> getProjectsForUser(String username) {

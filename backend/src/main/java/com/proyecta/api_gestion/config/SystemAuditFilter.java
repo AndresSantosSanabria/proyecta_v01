@@ -228,7 +228,9 @@ private void registrar(HttpServletRequest request,
             entry.setRequestBody(truncar(requestBody, 4000));
             entry.setEntidadTipo(entidadInfo[0]);
             entry.setEntidadId(entidadInfo[1]);
-            entry.setRespuestaBody(truncar(respuestaBody, 4000));
+            // CWE-532: las respuestas tambien pueden contener datos sensibles
+            // (tokens, claves); se redactan antes de persistir en la auditoria.
+            entry.setRespuestaBody(truncar(sanitizar(respuestaBody), 4000));
             entry.setDuracionMs(duracion);
             entry.setEliminado(false);
 
@@ -283,9 +285,20 @@ private String buildDetalle(HttpServletRequest request, int codigoEstado) {
         if (value == null) return null;
         String result = value;
         for (String field : SENSITIVE_FIELDS) {
+            String quoted = Pattern.quote(field);
+            // Query string: field=value&...
             result = result.replaceAll(
-                    "(?i)" + Pattern.quote(field) + "=[^&]*",
+                    "(?i)" + quoted + "=[^&]*",
                     field + "=***REDACTED***");
+            // JSON con clave entre comillas: "field":"valor"
+            result = result.replaceAll(
+                    "(?i)(\"" + quoted + "\"\\s*:\\s*\")[^\"]*(\")",
+                    "$1***REDACTED***$2");
+            // JSON/sin comillas: field: "valor" (con limite de palabra para no
+            // matchear subcadenas tipo refreshToken al buscar "token").
+            result = result.replaceAll(
+                    "(?i)(?<![A-Za-z0-9_])" + quoted + "(\\s*:\\s*\")[^\"]*(\")",
+                    "$1***REDACTED***$2");
         }
         return result.length() > 4000 ? result.substring(0, 4000) + "...[truncado]" : result;
     }

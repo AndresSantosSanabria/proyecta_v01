@@ -88,7 +88,11 @@ public class FileStorageServiceImpl implements IStorageProvider {
                 throw new BadRequestException("Ruta de destino fuera del directorio permitido.");
             }
 
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            // CWE-404: cerrar el stream del multipart (try-with-resources); si
+            // Files.copy falla a mitad, el file descriptor queda liberado.
+            try (java.io.InputStream in = file.getInputStream()) {
+                Files.copy(in, targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            }
             return targetFileName;
         } catch (IOException ex) {
             throw new InternalErrorException("Error al almacenar el archivo: " + targetFileName, ex);
@@ -147,6 +151,11 @@ public class FileStorageServiceImpl implements IStorageProvider {
         try {
             Path baseLocation = resolveBaseStorageLocation();
             Path filePath = resolveSubDirectory(baseLocation, subDirectory).resolve(fileName).normalize();
+            // CWE-22: sin esta validacion, "../../algo" convierte fileExists en un
+            // oraculo de existencia de archivos fuera del directorio permitido.
+            if (!filePath.startsWith(baseLocation)) {
+                return false;
+            }
             return Files.exists(filePath);
         } catch (Exception e) {
             return false;
