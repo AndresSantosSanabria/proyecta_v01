@@ -61,6 +61,13 @@ const extractApiDetail = (error) => {
   return 'Error desconocido. Revisa la consola del navegador para más detalles.';
 };
 
+const httpBadgeTone = (codigoEstado) => {
+  if (codigoEstado < 300) return 'ok';
+  if (codigoEstado < 400) return 'redir';
+  if (codigoEstado < 500) return 'client';
+  return 'server';
+};
+
 const AuditLogsPanel = () => {
   const [entries, setEntries] = useState([]);
   const [stats, setStats] = useState({ total: 0, exitosos: 0, errores: 0, porAccion: {}, porCodigoEstado: {} });
@@ -75,6 +82,7 @@ const AuditLogsPanel = () => {
   const [estadoFilter, setEstadoFilter] = useState('ALL');
   const [metodoFilter, setMetodoFilter] = useState('ALL');
   const [usuarioFilter, setUsuarioFilter] = useState('');
+  const [debouncedUsuario, setDebouncedUsuario] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -86,9 +94,9 @@ const AuditLogsPanel = () => {
       setLoading(true);
       setError('');
       const params = {
-        accion: accion !== 'ALL' ? accion : undefined,
-        estado: estado !== 'ALL' ? estado : undefined,
-        metodoHttp: metodo !== 'ALL' ? metodo : undefined,
+        accion: accion === 'ALL' ? undefined : accion,
+        estado: estado === 'ALL' ? undefined : estado,
+        metodoHttp: metodo === 'ALL' ? undefined : metodo,
         usuarioId: usuario?.trim() || undefined,
         search: searchTerm?.trim() || undefined,
         page: targetPage,
@@ -111,8 +119,14 @@ const AuditLogsPanel = () => {
   const loadStats = useCallback(async () => {
     try {
       const result = await auditService.getStats();
-      const data = result?.data?.data || result?.data || result || {};
-      setStats(data || {});
+      const payload = result?.data?.data || result?.data || result || {};
+      setStats({
+        total: payload.totalRegistros ?? payload.total ?? 0,
+        exitosos: payload.totalExitosos ?? payload.exitosos ?? 0,
+        errores: payload.totalErrores ?? payload.errores ?? 0,
+        porAccion: payload.porAccion || {},
+        porCodigoEstado: payload.porCodigoEstado || {},
+      });
     } catch {
       // stats son secundarias; no bloqueamos el panel
     }
@@ -121,12 +135,12 @@ const AuditLogsPanel = () => {
   const refresh = useCallback(async () => {
     pageRef.current = 0;
     setPage(0);
-    await loadData(0, accionFilter, estadoFilter, metodoFilter, usuarioFilter, debouncedSearch);
+    await loadData(0, accionFilter, estadoFilter, metodoFilter, debouncedUsuario, debouncedSearch);
     await loadStats();
-  }, [loadData, loadStats, accionFilter, estadoFilter, metodoFilter, usuarioFilter, debouncedSearch]);
+  }, [loadData, loadStats, accionFilter, estadoFilter, metodoFilter, debouncedUsuario, debouncedSearch]);
 
   useEffect(() => {
-    refresh();
+    loadStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -136,15 +150,20 @@ const AuditLogsPanel = () => {
   }, [search]);
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedUsuario(usuarioFilter), 350);
+    return () => clearTimeout(timer);
+  }, [usuarioFilter]);
+
+  useEffect(() => {
     pageRef.current = 0;
     setPage(0);
-    loadData(0, accionFilter, estadoFilter, metodoFilter, usuarioFilter, debouncedSearch);
-  }, [accionFilter, estadoFilter, metodoFilter, debouncedSearch, loadData]);
+    loadData(0, accionFilter, estadoFilter, metodoFilter, debouncedUsuario, debouncedSearch);
+  }, [accionFilter, estadoFilter, metodoFilter, debouncedUsuario, debouncedSearch, loadData]);
 
   const handlePageChange = (nextPage) => {
     pageRef.current = nextPage;
     setPage(nextPage);
-    loadData(nextPage, accionFilter, estadoFilter, metodoFilter, usuarioFilter, debouncedSearch);
+    loadData(nextPage, accionFilter, estadoFilter, metodoFilter, debouncedUsuario, debouncedSearch);
   };
 
   const handleView = async (log) => {
@@ -211,8 +230,8 @@ const AuditLogsPanel = () => {
             />
           </div>
           <div className="audit-filter-field">
-            <label>Acción</label>
-            <select value={accionFilter} onChange={(e) => setAccionFilter(e.target.value)}>
+            <label htmlFor="audit-filter-accion">Acción</label>
+            <select id="audit-filter-accion" value={accionFilter} onChange={(e) => setAccionFilter(e.target.value)}>
               <option value="ALL">Todas</option>
               {Object.entries(accionMeta).map(([key, meta]) => (
                 <option key={key} value={key}>{meta.label}</option>
@@ -220,8 +239,8 @@ const AuditLogsPanel = () => {
             </select>
           </div>
           <div className="audit-filter-field">
-            <label>Estado</label>
-            <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value)}>
+            <label htmlFor="audit-filter-estado">Estado</label>
+            <select id="audit-filter-estado" value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value)}>
               <option value="ALL">Todos</option>
               {Object.entries(estadoMeta).map(([key, meta]) => (
                 <option key={key} value={key}>{meta.label}</option>
@@ -229,8 +248,8 @@ const AuditLogsPanel = () => {
             </select>
           </div>
           <div className="audit-filter-field">
-            <label>Método</label>
-            <select value={metodoFilter} onChange={(e) => setMetodoFilter(e.target.value)}>
+            <label htmlFor="audit-filter-metodo">Método</label>
+            <select id="audit-filter-metodo" value={metodoFilter} onChange={(e) => setMetodoFilter(e.target.value)}>
               <option value="ALL">Todos</option>
               {Object.entries(httpMethodMeta).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
@@ -256,17 +275,19 @@ const AuditLogsPanel = () => {
         )}
 
         <div className="table-shell audit-table-shell">
-          {loading ? (
+          {loading && (
             <div className="audit-loading">
               <LoaderCircle className="spinning" size={22} />
               <span>Cargando registros...</span>
             </div>
-          ) : entries.length === 0 ? (
+          )}
+          {!loading && entries.length === 0 && (
             <div className="audit-empty">
               <SearchX size={32} />
               <span>No se encontraron registros de auditoría.</span>
             </div>
-          ) : (
+          )}
+          {!loading && entries.length > 0 && (
             <table className="data-table audit-table">
               <thead>
                 <tr>
@@ -308,13 +329,13 @@ const AuditLogsPanel = () => {
                         </span>
                       </td>
                       <td>
-                        {entry.codigoEstado != null ? (
+                        {entry.codigoEstado == null ? '-' : (
                           <span
-                            className={`audit-http-badge ${entry.codigoEstado < 300 ? 'ok' : entry.codigoEstado < 400 ? 'redir' : entry.codigoEstado < 500 ? 'client' : 'server'}`}
+                            className={`audit-http-badge ${httpBadgeTone(entry.codigoEstado)}`}
                           >
                             {entry.codigoEstado}
                           </span>
-                        ) : '-'}
+                        )}
                       </td>
                       <td>
                         <span className={`audit-state-badge ${String(entry.estado || '').toLowerCase()}`}>
@@ -322,7 +343,7 @@ const AuditLogsPanel = () => {
                         </span>
                       </td>
                       <td className="audit-duration">
-                        {entry.duracionMs != null ? `${entry.duracionMs} ms` : '-'}
+                        {entry.duracionMs == null ? '-' : `${entry.duracionMs} ms`}
                       </td>
                       <td>
                         <button

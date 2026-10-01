@@ -124,8 +124,9 @@ const AdvanceReportConfigPanel = () => {
         <h4><Clock size={15} /> Periodo y Elegibilidad</h4>
         <div className="arp-grid">
           <div className="arp-field">
-            <label>Frecuencia del periodo</label>
+            <label htmlFor="arp-period-months">Frecuencia del periodo</label>
             <select
+              id="arp-period-months"
               value={settings.period_months}
               onChange={(e) => handleChange('period_months', e.target.value)}
             >
@@ -137,8 +138,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Define el formato del periodo (ej. 2026-Q3).</span>
           </div>
           <div className="arp-field">
-            <label>Dia de vencimiento</label>
+            <label htmlFor="arp-due-day">Dia de vencimiento</label>
             <input
+              id="arp-due-day"
               type="number"
               min="0"
               max="28"
@@ -148,8 +150,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Dia del periodo. 0 = ultimo dia del periodo.</span>
           </div>
           <div className="arp-field">
-            <label>Antiguedad minima del proyecto (meses)</label>
+            <label htmlFor="arp-min-project-age">Antiguedad minima del proyecto (meses)</label>
             <input
+              id="arp-min-project-age"
               type="number"
               min="0"
               max="60"
@@ -169,7 +172,7 @@ const AdvanceReportConfigPanel = () => {
                   checked={estadosSeleccionados.includes(estado)}
                   onChange={() => toggleEstado(estado)}
                 />
-                {estado.replace(/_/g, ' ')}
+                {estado.replaceAll(/_/g, ' ')}
               </label>
             ))}
           </div>
@@ -181,8 +184,9 @@ const AdvanceReportConfigPanel = () => {
         <h4><Clock size={15} /> Fechas y Ventanas</h4>
         <div className="arp-grid">
           <div className="arp-field">
-            <label>Fecha limite del informe</label>
+            <label htmlFor="arp-due-date">Fecha limite del informe</label>
             <input
+              id="arp-due-date"
               type="date"
               value={settings.due_date}
               onChange={(e) => handleChange('due_date', e.target.value)}
@@ -190,8 +194,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Fecha tope para cargar el informe de avance.</span>
           </div>
           <div className="arp-field">
-            <label>Ventana previa (dias)</label>
+            <label htmlFor="arp-pre-due-window-days">Ventana previa (dias)</label>
             <input
+              id="arp-pre-due-window-days"
               type="number"
               min="1"
               max="60"
@@ -201,8 +206,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Dias antes de la fecha limite para iniciar notificaciones.</span>
           </div>
           <div className="arp-field">
-            <label>Intervalo previo (dias)</label>
+            <label htmlFor="arp-pre-due-interval-days">Intervalo previo (dias)</label>
             <input
+              id="arp-pre-due-interval-days"
               type="number"
               min="1"
               max="30"
@@ -212,8 +218,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Cada cuantos dias se notifica antes de vencer.</span>
           </div>
           <div className="arp-field">
-            <label>Intervalo post-vencimiento (dias)</label>
+            <label htmlFor="arp-post-due-interval-days">Intervalo post-vencimiento (dias)</label>
             <input
+              id="arp-post-due-interval-days"
               type="number"
               min="1"
               max="30"
@@ -228,8 +235,9 @@ const AdvanceReportConfigPanel = () => {
       <div className="arp-section">
         <h4><Bell size={15} /> Fechas Especificas (Override)</h4>
         <div className="arp-field arp-field--full">
-          <label>Fechas de disparo manual</label>
+          <label htmlFor="arp-specific-override-dates">Fechas de disparo manual</label>
           <input
+            id="arp-specific-override-dates"
             type="text"
             value={settings.specific_override_dates}
             onChange={(e) => handleChange('specific_override_dates', e.target.value)}
@@ -243,8 +251,9 @@ const AdvanceReportConfigPanel = () => {
         <h4><Settings size={15} /> Archivos y Modal</h4>
         <div className="arp-grid">
           <div className="arp-field">
-            <label>Modal de login habilitado</label>
+            <label htmlFor="arp-enabled">Modal de login habilitado</label>
             <select
+              id="arp-enabled"
               value={settings.enabled}
               onChange={(e) => handleChange('enabled', e.target.value)}
             >
@@ -254,8 +263,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Muestra el modal de informes pendientes al iniciar sesion.</span>
           </div>
           <div className="arp-field">
-            <label>Extensiones permitidas</label>
+            <label htmlFor="arp-allowed-extensions">Extensiones permitidas</label>
             <input
+              id="arp-allowed-extensions"
               type="text"
               value={settings.allowed_extensions}
               onChange={(e) => handleChange('allowed_extensions', e.target.value)}
@@ -264,8 +274,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Separadas por coma.</span>
           </div>
           <div className="arp-field">
-            <label>Tamano maximo (MB)</label>
+            <label htmlFor="arp-max-size-mb">Tamano maximo (MB)</label>
             <input
+              id="arp-max-size-mb"
               type="number"
               min="1"
               max="100"
@@ -275,8 +286,9 @@ const AdvanceReportConfigPanel = () => {
             <span className="arp-hint">Limite en megabytes por archivo.</span>
           </div>
           <div className="arp-field">
-            <label>Delay del modal de login (ms)</label>
+            <label htmlFor="arp-login-modal-delay-ms">Delay del modal de login (ms)</label>
             <input
+              id="arp-login-modal-delay-ms"
               type="number"
               min="0"
               max="10000"

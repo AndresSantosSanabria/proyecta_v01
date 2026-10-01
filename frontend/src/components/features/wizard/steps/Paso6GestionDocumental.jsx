@@ -43,7 +43,7 @@ const Paso6GestionDocumental = ({ data, onChange, errors }) => {
     e.preventDefault();
     setDragging(null);
     const f = e.dataTransfer.files[0];
-    if (f && f.type === 'application/pdf') {
+    if (f?.type === 'application/pdf') {
       onChange({ [field]: f });
     }
   };

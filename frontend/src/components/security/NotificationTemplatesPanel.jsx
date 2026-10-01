@@ -518,6 +518,66 @@ const NotificationTemplatesPanel = () => {
     }
   };
 
+  const templatesTableContent = currentRows.length === 0 ? (
+    <tr>
+      <td colSpan={5} className="table-empty-cell">No hay plantillas para mostrar.</td>
+    </tr>
+  ) : currentRows.map(({ event, template, enabled, updatedAt, preference }) => {
+    const category = categoryMeta[event.category] || categoryMeta.DEFAULT;
+    const ChannelIcon = channelMeta.EMAIL.icon;
+    const effectiveEnabled = template?.enabled ?? enabled ?? true;
+    const preferenceEnabled = preference?.enabled ?? true;
+
+    return (
+      <tr key={event.code}>
+        <td>
+          <div className="template-name-cell">
+            <span className={`template-category-badge ${category.className}`}>
+              <category.icon size={15} />
+            </span>
+            <div>
+              <strong>{event.name}</strong>
+              <span>ID: #{event.code}</span>
+              {event.requiresProjectContext ? <small>Requiere contexto de proyecto</small> : <small>Uso administrativo</small>}
+            </div>
+          </div>
+        </td>
+        <td>
+          <span className={`channel-pill ${channelMeta.EMAIL.className}`}>
+            <ChannelIcon size={12} />
+            {channelMeta.EMAIL.label}
+          </span>
+        </td>
+        <td>{formatDateTime(updatedAt)}</td>
+        <td>
+          <div className="status-stack">
+            <button
+              type="button"
+              className="template-toggle"
+              onClick={() => toggleTemplateEnabled(event.code, !effectiveEnabled)}
+              aria-label="Cambiar estado"
+            >
+              {effectiveEnabled ? <ToggleRight size={30} className="toggle-on" /> : <ToggleLeft size={30} className="toggle-off" />}
+              <span className={`status-chip ${effectiveEnabled ? 'active' : 'inactive'}`}>{effectiveEnabled ? 'Activo' : 'Inactivo'}</span>
+            </button>
+            <button
+              type="button"
+              className="preference-link"
+              onClick={() => togglePreference(event.code, !preferenceEnabled)}
+            >
+              {preferenceEnabled ? 'Notificación interna activa' : 'Notificación interna desactivada'}
+            </button>
+          </div>
+        </td>
+        <td>
+          <button type="button" className="icon-button" onClick={() => openEditor({ event, template })} title="Editar plantilla">
+            <Pencil size={14} />
+          </button>
+        </td>
+      </tr>
+    );
+  });
+
   return (
     <section className="security-workspace notifications-workspace">
       <article className="panel panel-main notifications-panel">
@@ -574,18 +634,16 @@ const NotificationTemplatesPanel = () => {
               <strong>{stats.totalSent + stats.inAppSent}</strong>
               <small>{stats.totalSent} email · {stats.inAppSent} in-app</small>
             </article>
-            <article
+            <button
+              type="button"
               className={`templates-stat ${stats.totalFailed + stats.inAppFailed > 0 ? 'danger' : 'light'}`}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer', textAlign: 'left' }}
               onClick={() => setIsFailuresOpen(true)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsFailuresOpen(true); }}
             >
               <span>Notificaciones fallidas</span>
               <strong>{stats.totalFailed + stats.inAppFailed}</strong>
               <small>{stats.totalFailed} email · {stats.inAppFailed} in-app</small>
-            </article>
+            </button>
           </section>
 
           <div className="table-shell templates-table-shell">
@@ -659,65 +717,7 @@ const NotificationTemplatesPanel = () => {
                   <tr>
                     <td colSpan={5} className="table-empty-cell">Cargando plantillas...</td>
                   </tr>
-                ) : currentRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="table-empty-cell">No hay plantillas para mostrar.</td>
-                  </tr>
-                ) : currentRows.map(({ event, template, enabled, updatedAt, preference }) => {
-                  const category = categoryMeta[event.category] || categoryMeta.DEFAULT;
-                  const ChannelIcon = channelMeta.EMAIL.icon;
-                  const effectiveEnabled = template?.enabled ?? enabled ?? true;
-                  const preferenceEnabled = preference?.enabled ?? true;
-
-                  return (
-                    <tr key={event.code}>
-                      <td>
-                        <div className="template-name-cell">
-                          <span className={`template-category-badge ${category.className}`}>
-                            <category.icon size={15} />
-                          </span>
-                          <div>
-                            <strong>{event.name}</strong>
-                            <span>ID: #{event.code}</span>
-                            {event.requiresProjectContext ? <small>Requiere contexto de proyecto</small> : <small>Uso administrativo</small>}
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`channel-pill ${channelMeta.EMAIL.className}`}>
-                          <ChannelIcon size={12} />
-                          {channelMeta.EMAIL.label}
-                        </span>
-                      </td>
-                      <td>{formatDateTime(updatedAt)}</td>
-                      <td>
-                        <div className="status-stack">
-                          <button
-                            type="button"
-                            className="template-toggle"
-                            onClick={() => toggleTemplateEnabled(event.code, !effectiveEnabled)}
-                            aria-label="Cambiar estado"
-                          >
-                            {effectiveEnabled ? <ToggleRight size={30} className="toggle-on" /> : <ToggleLeft size={30} className="toggle-off" />}
-                            <span className={`status-chip ${effectiveEnabled ? 'active' : 'inactive'}`}>{effectiveEnabled ? 'Activo' : 'Inactivo'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="preference-link"
-                            onClick={() => togglePreference(event.code, !preferenceEnabled)}
-                          >
-                            {preferenceEnabled ? 'Notificación interna activa' : 'Notificación interna desactivada'}
-                          </button>
-                        </div>
-                      </td>
-                      <td>
-                        <button type="button" className="icon-button" onClick={() => openEditor({ event, template })} title="Editar plantilla">
-                          <Pencil size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                ) : templatesTableContent}
               </tbody>
             </table>
 
@@ -754,7 +754,13 @@ const NotificationTemplatesPanel = () => {
 
       {isEditorOpen ? (
         <div className="template-modal-backdrop" role="presentation" onMouseDown={() => setIsEditorOpen(false)}>
-          <article className="template-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+          <dialog
+          className="template-modal"
+          style={{ position: 'static', padding: 0 }}
+          aria-modal="true"
+          open
+          onMouseDown={(event) => event.stopPropagation()}
+        >
             <header className="template-modal__header">
               <div className="template-modal__title">
                 <button type="button" className="template-modal__back" onClick={() => setIsEditorOpen(false)} aria-label="Cerrar">
@@ -898,7 +904,7 @@ const NotificationTemplatesPanel = () => {
                 </div>
               </section>
             </div>
-          </article>
+          </dialog>
         </div>
       ) : null}
 

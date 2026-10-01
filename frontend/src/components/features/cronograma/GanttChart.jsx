@@ -103,7 +103,7 @@ const buildTimeline = (displayCronograma, year, today, zoomWindow) => {
 
   const yearGroups = [];
   months.forEach((month) => {
-    const current = yearGroups[yearGroups.length - 1];
+    const current = yearGroups.at(-1);
     if (current?.year === month.year) {
       current.span += 1;
     } else {
@@ -115,11 +115,7 @@ const buildTimeline = (displayCronograma, year, today, zoomWindow) => {
   const todayPosition = today >= start && today < end
     ? (diffDays(start, today) / totalDays) * 100
     : null;
-  const label = months.length === 1
-    ? `${MONTH_FULL[start.getUTCMonth()]} ${start.getUTCFullYear()}`
-    : start.getUTCFullYear() === end.getUTCFullYear()
-      ? String(start.getUTCFullYear())
-      : `${start.getUTCFullYear()} - ${end.getUTCFullYear() - (end.getUTCMonth() === 0 ? 1 : 0)}`;
+  const label = resolveTimelineLabel(months, start, end);
 
   return {
     start,
@@ -131,6 +127,12 @@ const buildTimeline = (displayCronograma, year, today, zoomWindow) => {
     todayPosition,
     label,
   };
+};
+
+const resolveTimelineLabel = (months, start, end) => {
+  if (months.length === 1) return `${MONTH_FULL[start.getUTCMonth()]} ${start.getUTCFullYear()}`;
+  if (start.getUTCFullYear() === end.getUTCFullYear()) return String(start.getUTCFullYear());
+  return `${start.getUTCFullYear()} - ${end.getUTCFullYear() - (end.getUTCMonth() === 0 ? 1 : 0)}`;
 };
 
 const formatStatus = (task, today) => {
@@ -205,6 +207,10 @@ const buildTaskFrame = (task, timeline) => {
   };
 };
 
+const renderMonthGuides = (months, keyPrefix) => months.map((month, idx) => (
+  <span key={`${keyPrefix}${month.key}-${idx}`} className="gantt-guide" />
+));
+
 const GanttChart = ({ displayCronograma, year }) => {
   const today = new Date();
   const todayLabel = today.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' }).toUpperCase();
@@ -221,14 +227,14 @@ const GanttChart = ({ displayCronograma, year }) => {
   const hasPrev = (() => {
     const allDates = taskDates(displayCronograma);
     if (!allDates.length) return false;
-    const earliest = allDates.reduce((min, d) => (d < min ? d : min), allDates[0]);
+    const earliest = new Date(Math.min(...allDates));
     return zoomWindow.start > earliest;
   })();
 
   const hasNext = (() => {
     const allDates = taskDates(displayCronograma);
     if (!allDates.length) return false;
-    const latest = allDates.reduce((max, d) => (d > max ? d : max), allDates[0]);
+    const latest = new Date(Math.max(...allDates));
     return zoomWindow.end < addUtcMonths(latest, 1);
   })();
 
@@ -357,6 +363,7 @@ const GanttChart = ({ displayCronograma, year }) => {
                     const hitoStatus = formatStatus(hito, today);
                     const entregables = hito.entregables || [];
                     const isExpanded = Boolean(expandedHitos[hito.id]);
+                    const caret = isExpanded ? '-' : '+';
 
                     return (
                       <React.Fragment key={hito.id}>
@@ -370,7 +377,7 @@ const GanttChart = ({ displayCronograma, year }) => {
                               disabled={!entregables.length}
                               title={entregables.length ? 'Ver entregables del hito' : 'Este hito no tiene entregables'}
                             >
-                              <span className="milestone-caret">{entregables.length ? (isExpanded ? '-' : '+') : '.'}</span>
+                              <span className="milestone-caret">{entregables.length ? caret : '.'}</span>
                               <span className="milestone-name">{hito.nombre}</span>
                               {entregables.length > 0 && (
                                 <span className="milestone-count">{entregables.length}</span>
@@ -421,9 +428,7 @@ const GanttChart = ({ displayCronograma, year }) => {
                               <td colSpan={timeline.monthCount}>
                                 <div className="gantt-track" style={{ '--gantt-month-count': timeline.monthCount }}>
                                   <div className="gantt-month-guides" aria-hidden="true">
-                                    {timeline.months.map((month, idx) => (
-                                      <span key={`${entregable.id}-${month.key}-${idx}`} className="gantt-guide" />
-                                    ))}
+                                    {renderMonthGuides(timeline.months, `${entregable.id}-`)}
                                   </div>
                                   {timeline.todayPosition !== null && (
                                     <div className="gantt-today-line" style={{ left: `${timeline.todayPosition}%` }} aria-hidden="true" />

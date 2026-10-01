@@ -12,18 +12,18 @@
 export function escapeHTML(str) {
   if (str == null) return '';
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replaceAll(/&/g, '&amp;')
+    .replaceAll(/</g, '&lt;')
+    .replaceAll(/>/g, '&gt;')
+    .replaceAll(/"/g, '&quot;')
+    .replaceAll(/'/g, '&#39;');
 }
 
 const WORD_SEGMENT_RE = /([\p{L}\p{M}]+)/u;
 const WORD_ONLY_RE = /^[\p{L}\p{M}]+$/u;
 
 function highlightSegment(segment, errors) {
-  if (segment && WORD_ONLY_RE.test(segment) && errors && errors.has(segment.toLowerCase())) {
+  if (segment && WORD_ONLY_RE.test(segment) && errors?.has(segment.toLowerCase())) {
     const safeWord = escapeHTML(segment);
     return `<mark class="spell-error" data-word="${safeWord}">${safeWord}</mark>`;
   }

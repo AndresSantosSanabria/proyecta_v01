@@ -334,6 +334,9 @@ const ProjectOnboardingWizard = ({
     
     loadBackendDraft();
     return () => { active = false; };
+  // Solo se recarga el borrador cuando cambia el proyecto: project/savedState
+  // cambian en cada render y anadirlos provocaria bucles de carga. Es intencional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id]);
 
   const projectSummary = useMemo(() => ({

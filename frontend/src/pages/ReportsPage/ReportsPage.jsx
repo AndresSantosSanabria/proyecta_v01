@@ -87,7 +87,7 @@ const REPORT_BEHAVIORS = {
 const normalizeText = (value) =>
   String(value || '')
     .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
+    .replaceAll(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .trim();
 
@@ -142,6 +142,24 @@ const toPercent = (value) => {
     return '0.00%';
   }
   return `${Number(value).toFixed(2)}%`;
+};
+
+const resolveStatusLabel = (loadingReport, reportError, reportData, isProjectReport) => {
+  if (loadingReport) return 'Actualizando';
+  if (reportError) return 'Con incidencia';
+  if (reportData) return 'Listo';
+  if (isProjectReport) return 'Seleccione un proyecto';
+  return 'Pendiente';
+};
+
+const formatProjectLabel = (selectedProject) => (selectedProject
+  ? `${selectedProject.id} · ${selectedProject.nombre}`
+  : 'Sin proyecto seleccionado');
+
+const resolveKindDetail = (kind) => {
+  if (kind === 'risks') return 'Tratamiento de riesgos';
+  if (kind === 'furag') return 'Respuesta por dependencia';
+  return 'Consulta institucional';
 };
 
 const ReportsPage = () => {
@@ -327,24 +345,24 @@ const ReportsPage = () => {
       if (event.key === 'Escape') {
         setPreviewModal((current) => {
           if (current.url) {
-            window.URL.revokeObjectURL(current.url);
+            globalThis.URL.revokeObjectURL(current.url);
           }
           return { open: false, title: '', url: '' };
         });
       }
     };
 
-    window.addEventListener('keydown', handleEscape);
+    globalThis.addEventListener('keydown', handleEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleEscape);
+      globalThis.removeEventListener('keydown', handleEscape);
     };
   }, [previewModal.open]);
 
   useEffect(() => {
     return () => {
       if (previewModal.url) {
-        window.URL.revokeObjectURL(previewModal.url);
+        globalThis.URL.revokeObjectURL(previewModal.url);
       }
     };
   }, [previewModal.url]);
@@ -368,15 +386,7 @@ const ReportsPage = () => {
     }
 
     const isProjectReport = Boolean(selectedBehavior.requiresProject);
-    const statusLabel = loadingReport
-      ? 'Actualizando'
-      : reportError
-        ? 'Con incidencia'
-        : reportData
-          ? 'Listo'
-          : isProjectReport
-            ? 'Seleccione un proyecto'
-            : 'Pendiente';
+    const statusLabel = resolveStatusLabel(loadingReport, reportError, reportData, isProjectReport);
 
     const filterLabelByKind = {
       project: 'Proyecto seleccionado',
@@ -392,18 +402,10 @@ const ReportsPage = () => {
       statusLabel,
       filterLabel: filterLabelByKind[selectedBehavior.kind] || 'Filtro institucional',
       detailModeLabel: detailMode === 'detallado' ? 'Vista detallada' : 'Vista resumida',
-      projectLabel: isProjectReport
-        ? selectedProject
-          ? `${selectedProject.id} · ${selectedProject.nombre}`
-          : 'Sin proyecto seleccionado'
-        : 'No aplica',
+      projectLabel: isProjectReport ? formatProjectLabel(selectedProject) : 'No aplica',
       detailLabel: isProjectReport
         ? selectedProject?.dependencia || 'Sin dependencia'
-        : selectedBehavior.kind === 'risks'
-          ? 'Tratamiento de riesgos'
-          : selectedBehavior.kind === 'furag'
-            ? 'Respuesta por dependencia'
-            : 'Consulta institucional',
+        : resolveKindDetail(selectedBehavior.kind),
     };
   }, [detailMode, loadingReport, reportData, reportError, selectedBehavior, selectedProject, selectedReport]);
 
@@ -496,21 +498,42 @@ const ReportsPage = () => {
     setSelectedProjectId(projectId);
   };
 
+  const projectResults = filteredProjects.length > 0 ? (
+    filteredProjects.map((project) => {
+      const isActive = project.id === effectiveProjectId;
+      return (
+        <button
+          key={project.id}
+          type="button"
+          className={`reports-page__project-chip ${isActive ? 'is-active' : ''}`}
+          onClick={() => handleProjectChange(project.id)}
+        >
+          <span className="reports-page__project-chip-main">{project.id}</span>
+          <span className="reports-page__project-chip-sub">
+            {project.nombre} · {project.dependencia}
+          </span>
+        </button>
+      );
+    })
+  ) : (
+    <div className="reports-page__project-empty">No hay proyectos que coincidan con la búsqueda.</div>
+  );
+
   const triggerBlobDownload = (blob, fileName) => {
-    const url = window.URL.createObjectURL(blob);
+    const url = globalThis.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    link.remove();
+    globalThis.URL.revokeObjectURL(url);
   };
 
   const closePreviewModal = () => {
     setPreviewModal((current) => {
       if (current.url) {
-        window.URL.revokeObjectURL(current.url);
+        globalThis.URL.revokeObjectURL(current.url);
       }
       return { open: false, title: '', url: '' };
     });
@@ -530,7 +553,7 @@ const ReportsPage = () => {
       }
       setPreviewModal((current) => {
         if (current.url) {
-          window.URL.revokeObjectURL(current.url);
+          globalThis.URL.revokeObjectURL(current.url);
         }
         return {
           open: true,
@@ -665,7 +688,7 @@ const ReportsPage = () => {
 
           <div className="reports-page__config-grid">
             <div className="reports-page__field">
-              <label>Seleccionar Proyecto Principal</label>
+              <label htmlFor="reports-project-search">Seleccionar Proyecto Principal</label>
               {selectedBehavior?.requiresProject ? (
                 <>
                   <div className="reports-page__project-select">
@@ -678,6 +701,7 @@ const ReportsPage = () => {
                   <div className="reports-page__project-search">
                     <Search size={16} />
                     <input
+                      id="reports-project-search"
                       type="text"
                       placeholder="Buscar proyecto..."
                       value={projectQuery}
@@ -687,26 +711,7 @@ const ReportsPage = () => {
                   <div className="reports-page__project-results">
                     {loadingProjects ? (
                       <div className="reports-page__project-empty">Cargando proyectos...</div>
-                    ) : filteredProjects.length > 0 ? (
-                      filteredProjects.map((project) => {
-                        const isActive = project.id === effectiveProjectId;
-                        return (
-                          <button
-                            key={project.id}
-                            type="button"
-                            className={`reports-page__project-chip ${isActive ? 'is-active' : ''}`}
-                            onClick={() => handleProjectChange(project.id)}
-                          >
-                            <span className="reports-page__project-chip-main">{project.id}</span>
-                            <span className="reports-page__project-chip-sub">
-                              {project.nombre} · {project.dependencia}
-                            </span>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="reports-page__project-empty">No hay proyectos que coincidan con la búsqueda.</div>
-                    )}
+                    ) : projectResults}
                   </div>
                 </>
               ) : (

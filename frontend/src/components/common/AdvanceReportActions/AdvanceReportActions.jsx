@@ -69,7 +69,8 @@ const AdvanceReportActions = ({ projectId }) => {
       advanceReportService.getVersions(projectId, status.periodo)
         .then((list) => {
           if (cancelled) return;
-          setVersions(Array.isArray(list) ? list : (Array.isArray(list?.data) ? list.data : []));
+          const innerData = Array.isArray(list?.data) ? list.data : [];
+          setVersions(Array.isArray(list) ? list : innerData);
         })
         .catch(() => {})
         .finally(() => {
@@ -166,14 +167,14 @@ const AdvanceReportActions = ({ projectId }) => {
         periodo: status?.periodo,
         version: version.numeroVersion,
       });
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = version.fileName || `informe-v${version.numeroVersion}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      setTimeout(() => globalThis.URL.revokeObjectURL(url), 10000);
     } catch {
       emitToast({ title: 'Error al descargar', message: 'No fue posible descargar la version.', tone: 'error' });
     }
@@ -183,13 +184,13 @@ const AdvanceReportActions = ({ projectId }) => {
     if (!projectId || !status?.fileName) return;
     try {
       const blob = await advanceReportService.downloadReport(projectId, { periodo: status.periodo });
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       if (status.fileName.toLowerCase().endsWith('.pdf')) {
         // CWE-79: abrir en nueva pestaña solo blobs %PDF validados + sin opener.
         const safeUrl = await createSafePdfObjectUrl(blob);
         if (safeUrl) {
           window.open(safeUrl, '_blank', 'noopener,noreferrer');
-          setTimeout(() => window.URL.revokeObjectURL(safeUrl), 10000);
+          setTimeout(() => globalThis.URL.revokeObjectURL(safeUrl), 10000);
         } else {
           const link = document.createElement('a');
           link.href = url;
@@ -206,7 +207,7 @@ const AdvanceReportActions = ({ projectId }) => {
         link.click();
         link.remove();
       }
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      setTimeout(() => globalThis.URL.revokeObjectURL(url), 10000);
     } catch {
       emitToast({ title: 'Error al descargar', message: 'No fue posible descargar el archivo.', tone: 'error' });
     }
@@ -394,25 +395,7 @@ const AdvanceReportActions = ({ projectId }) => {
 
             {isGestor && isUploaded && !isVerified && (
               <>
-                {!showReturnForm ? (
-                  <>
-                    <button
-                      className="ara-action-btn ara-action-btn--verify"
-                      onClick={handleVerify}
-                      disabled={verifying}
-                    >
-                      {verifying ? <LoaderCircle size={13} className="ara-spin" /> : <CheckCircle2 size={13} />}
-                      Verificar
-                    </button>
-                    <button
-                      className="ara-action-btn ara-action-btn--return"
-                      onClick={() => setShowReturnForm(true)}
-                    >
-                      <RotateCcw size={13} />
-                      Devolver
-                    </button>
-                  </>
-                ) : (
+                {showReturnForm ? (
                   <div className="ara-return-form">
                     <textarea
                       placeholder="Observaciones para el director..."
@@ -437,6 +420,24 @@ const AdvanceReportActions = ({ projectId }) => {
                       </button>
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <button
+                      className="ara-action-btn ara-action-btn--verify"
+                      onClick={handleVerify}
+                      disabled={verifying}
+                    >
+                      {verifying ? <LoaderCircle size={13} className="ara-spin" /> : <CheckCircle2 size={13} />}
+                      Verificar
+                    </button>
+                    <button
+                      className="ara-action-btn ara-action-btn--return"
+                      onClick={() => setShowReturnForm(true)}
+                    >
+                      <RotateCcw size={13} />
+                      Devolver
+                    </button>
+                  </>
                 )}
               </>
             )}

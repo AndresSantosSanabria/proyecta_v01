@@ -45,7 +45,7 @@ function tokenize(text) {
 }
 
 function stripAccents(str) {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return str.normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '');
 }
 
 const ACCENT_MAP = { 'a':'á','e':'é','i':'í','o':'ó','u':'ú','n':'ñ' };
@@ -185,7 +185,6 @@ export default function useSpellChecker({ enabled = true } = {}) {
       const suggestions = spell.suggest(lower);
       if (suggestions.length > 0) {
         errSet.add(lower);
-        return;
       }
     });
     setErrors(errSet);

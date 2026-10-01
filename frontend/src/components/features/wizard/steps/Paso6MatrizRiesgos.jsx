@@ -89,9 +89,10 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
 
         <div className="riesgo-card-body">
           <div className="riesgo-field">
-            <label className="form-label">Descripción del riesgo *</label>
+            <label className="form-label" htmlFor={`riesgo_${idx}_descripcion`}>Descripción del riesgo *</label>
             <textarea
-              className={`form-input form-textarea ${errors[`riesgo_${idx}_descripcion`] ? 'input-error' : ''}`}
+              id={`riesgo_${idx}_descripcion`}
+              className={'form-input form-textarea ' + (errors[`riesgo_${idx}_descripcion`] ? 'input-error' : '')}
               value={riesgo.descripcion}
               onChange={(e) => handleChange(idx, 'descripcion', e.target.value)}
               rows={3}
@@ -104,9 +105,10 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
 
           <div className="riesgo-field-row">
             <div className="riesgo-field">
-              <label className="form-label">Probabilidad *</label>
+              <label className="form-label" htmlFor={`riesgo_${idx}_probabilidad`}>Probabilidad *</label>
               <select
-                className={`form-input ${errors[`riesgo_${idx}_probabilidad`] ? 'input-error' : ''}`}
+                id={`riesgo_${idx}_probabilidad`}
+                className={'form-input ' + (errors[`riesgo_${idx}_probabilidad`] ? 'input-error' : '')}
                 value={riesgo.probabilidad}
                 onChange={(e) => handleChange(idx, 'probabilidad', e.target.value)}
               >
@@ -120,9 +122,10 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
             </div>
 
             <div className="riesgo-field">
-              <label className="form-label">Impacto *</label>
+              <label className="form-label" htmlFor={`riesgo_${idx}_impacto`}>Impacto *</label>
               <select
-                className={`form-input ${errors[`riesgo_${idx}_impacto`] ? 'input-error' : ''}`}
+                id={`riesgo_${idx}_impacto`}
+                className={'form-input ' + (errors[`riesgo_${idx}_impacto`] ? 'input-error' : '')}
                 value={riesgo.impacto}
                 onChange={(e) => handleChange(idx, 'impacto', e.target.value)}
               >
@@ -138,8 +141,9 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
 
           <div className="riesgo-field-row">
             <div className="riesgo-field">
-              <label className="form-label">Calificación (P + I)</label>
+              <label className="form-label" htmlFor={`riesgo_${idx}_calificacion`}>Calificación (P + I)</label>
               <input
+                id={`riesgo_${idx}_calificacion`}
                 type="text"
                 className="form-input form-input-readonly"
                 value={calcScore(riesgo.probabilidad, riesgo.impacto) || '—'}
@@ -147,13 +151,14 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
               />
             </div>
             <div className="riesgo-field">
-              <label className="form-label">Nivel de riesgo</label>
+              <label className="form-label" htmlFor={`riesgo_${idx}_nivel`}>Nivel de riesgo</label>
               {(() => {
                 const score = calcScore(riesgo.probabilidad, riesgo.impacto);
                 const level = calcLevel(score);
                 const colors = LEVEL_COLORS[level] || LEVEL_COLORS.BAJO;
                 return (
                   <input
+                    id={`riesgo_${idx}_nivel`}
                     type="text"
                     className="form-input form-input-readonly"
                     value={level}
@@ -166,8 +171,9 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
           </div>
 
           <div className="riesgo-field">
-            <label className="form-label">Responsable</label>
+            <label className="form-label" htmlFor={`riesgo_${idx}_responsable`}>Responsable</label>
             <input
+              id={`riesgo_${idx}_responsable`}
               type="text"
               className="form-input"
               value={riesgo.entidadResponsable}

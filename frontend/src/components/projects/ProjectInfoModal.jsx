@@ -5,6 +5,8 @@ import projectService from '../../services/projectService';
 import configCatalogService from '../../services/configCatalogService';
 import { AutocompleteSelect } from '../common/AutocompleteSelect';
 import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
+import { emitToast } from '../../utils/feedback';
+import { extractApiDetail } from '../../utils/apiErrors';
 import './ProjectInfoModal.css';
 
 const Section = ({ title, icon: Icon, children, defaultOpen = true, onEdit, editing }) => {
@@ -39,8 +41,9 @@ const Field = ({ label, value }) => (
 
 const detectPdfFromBlob = async (blob) => {
   if (!blob) return false;
-  if (blob.type === 'application/pdf') return true;
   try {
+    // CWE-79: no se confia en blob.type (lo declara el servidor/cliente);
+    // se exige siempre la firma real %PDF-.
     const buf = await blob.slice(0, 5).arrayBuffer();
     const header = new Uint8Array(buf);
     return header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46;
@@ -92,9 +95,36 @@ const DocumentViewer = ({ blob, nombre, onClose }) => {
 
   if (!blob) return null;
 
+  let viewerContent;
+  if (!isPdf && objectUrl) {
+    viewerContent = (
+      <div className="pim-viewer-fallback-block">
+        <FileText size={48} strokeWidth={1} />
+        <p className="pim-viewer-fallback-title">Este tipo de archivo no se puede previsualizar</p>
+        <p className="pim-viewer-fallback-hint">{nombre}</p>
+        <a href={objectUrl} download={nombre} className="pim-viewer-fallback-download">
+          <Download size={14} /> Descargar archivo
+        </a>
+      </div>
+    );
+  } else if (objectUrl) {
+    viewerContent = (
+      <object data={objectUrl} type="application/pdf" className="pim-viewer-iframe">
+        <p className="pim-viewer-fallback">No se pudo previsualizar. <a href={objectUrl} target="_blank" rel="noopener noreferrer">Abrir en nueva pestana</a></p>
+      </object>
+    );
+  } else {
+    viewerContent = (
+      <div className="pim-viewer-loading">
+        <LoaderCircle size={24} className="animate-spin" />
+        <span>Cargando documento...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="pim-viewer-overlay" role="presentation" onClick={onClose}>
-      <div className="pim-viewer-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div className="pim-viewer-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
         <header className="pim-viewer-header">
           <div className="pim-viewer-title">
             <FileText size={16} />
@@ -105,25 +135,7 @@ const DocumentViewer = ({ blob, nombre, onClose }) => {
           </button>
         </header>
         <div className="pim-viewer-body">
-          {!isPdf && objectUrl ? (
-            <div className="pim-viewer-fallback-block">
-              <FileText size={48} strokeWidth={1} />
-              <p className="pim-viewer-fallback-title">Este tipo de archivo no se puede previsualizar</p>
-              <p className="pim-viewer-fallback-hint">{nombre}</p>
-              <a href={objectUrl} download={nombre} className="pim-viewer-fallback-download">
-                <Download size={14} /> Descargar archivo
-              </a>
-            </div>
-          ) : objectUrl ? (
-            <object data={objectUrl} type="application/pdf" className="pim-viewer-iframe">
-              <p className="pim-viewer-fallback">No se pudo previsualizar. <a href={objectUrl} target="_blank" rel="noreferrer">Abrir en nueva pestana</a></p>
-            </object>
-          ) : (
-            <div className="pim-viewer-loading">
-              <LoaderCircle size={24} className="animate-spin" />
-              <span>Cargando documento...</span>
-            </div>
-          )}
+          {viewerContent}
         </div>
       </div>
     </div>
@@ -165,14 +177,14 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
   const handleDownloadVersion = async (numeroVersion) => {
     try {
       const blob = await documentService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `${tipoDocumento}_v${numeroVersion}.pdf`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      link.remove();
+      globalThis.URL.revokeObjectURL(url);
     } catch {
       console.error('Error descargando version');
     }
@@ -202,9 +214,55 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
     setViewerError('');
   };
 
+  let historyContent;
+  if (loading) {
+    historyContent = <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando historial...</p>;
+  } else if (error) {
+    historyContent = <p className="pim-empty pim-version-error">{error}</p>;
+  } else if (versiones.length === 0) {
+    historyContent = <p className="pim-empty">No hay versiones registradas.</p>;
+  } else {
+    historyContent = versiones.map((v) => (
+      <div key={v.id} className={`pim-version-item ${v.actual ? 'pim-version-item--actual' : ''}`}>
+        <div className="pim-version-info">
+          <div className="pim-version-header-row">
+            <span className="pim-version-number">v{v.numeroVersion}</span>
+            {v.actual && <span className="pim-version-badge">Actual</span>}
+            <span className="pim-version-date">{v.subidoEn}</span>
+          </div>
+          <span className="pim-version-filename">{v.nombreArchivo}</span>
+          {v.observacion && (
+            <span className="pim-version-observation">"{v.observacion}"</span>
+          )}
+          <span className="pim-version-meta">
+            {v.subidoPor}{v.subidoRol ? ` · ${v.subidoRol}` : ''} · {v.tamanoFormateado}
+          </span>
+        </div>
+        <div className="pim-version-actions">
+          <button
+            type="button"
+            className="pim-version-btn"
+            onClick={() => handleViewVersion(v.numeroVersion, v.nombreArchivo)}
+            title="Ver documento"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            type="button"
+            className="pim-version-btn"
+            onClick={() => handleDownloadVersion(v.numeroVersion)}
+            title="Descargar version"
+          >
+            <Download size={14} />
+          </button>
+        </div>
+      </div>
+    ));
+  }
+
   return (
     <div className="pim-viewer-overlay" role="presentation" onClick={onClose}>
-      <div className="pim-viewer-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div className="pim-viewer-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
         <header className="pim-viewer-header">
           <div className="pim-viewer-title">
             <History size={16} />
@@ -215,55 +273,12 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
           </button>
         </header>
         <div className="pim-version-list">
-          {loading ? (
-            <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando historial...</p>
-          ) : error ? (
-            <p className="pim-empty pim-version-error">{error}</p>
-          ) : versiones.length === 0 ? (
-            <p className="pim-empty">No hay versiones registradas.</p>
-          ) : (
-            versiones.map((v) => (
-              <div key={v.id} className={`pim-version-item ${v.actual ? 'pim-version-item--actual' : ''}`}>
-                <div className="pim-version-info">
-                  <div className="pim-version-header-row">
-                    <span className="pim-version-number">v{v.numeroVersion}</span>
-                    {v.actual && <span className="pim-version-badge">Actual</span>}
-                    <span className="pim-version-date">{v.subidoEn}</span>
-                  </div>
-                  <span className="pim-version-filename">{v.nombreArchivo}</span>
-                  {v.observacion && (
-                    <span className="pim-version-observation">"{v.observacion}"</span>
-                  )}
-                  <span className="pim-version-meta">
-                    {v.subidoPor}{v.subidoRol ? ` · ${v.subidoRol}` : ''} · {v.tamanoFormateado}
-                  </span>
-                </div>
-                <div className="pim-version-actions">
-                  <button
-                    type="button"
-                    className="pim-version-btn"
-                    onClick={() => handleViewVersion(v.numeroVersion, v.nombreArchivo)}
-                    title="Ver documento"
-                  >
-                    <Eye size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="pim-version-btn"
-                    onClick={() => handleDownloadVersion(v.numeroVersion)}
-                    title="Descargar version"
-                  >
-                    <Download size={14} />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+          {historyContent}
         </div>
       </div>
       {viewerError && !viewerBlob && (
         <div className="pim-viewer-overlay" role="presentation" onClick={handleCloseViewer}>
-          <div className="pim-viewer-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="pim-viewer-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
             <header className="pim-viewer-header">
               <div className="pim-viewer-title">
                 <FileText size={16} />
@@ -324,14 +339,14 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
     try {
       setDownloading(true);
       const blob = await documentService.descargarDocumento(proyectoId, tipoDocumento);
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', nombre || `${tipoDocumento.toLowerCase()}.pdf`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      link.remove();
+      globalThis.URL.revokeObjectURL(url);
     } catch {
       console.error('Error descargando documento');
     } finally {
@@ -469,7 +484,7 @@ const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded, exists 
       setShowObservacion(true);
       return;
     }
-    if (exists && (!observacion || !observacion.trim())) {
+    if (exists && !observacion?.trim()) {
       setError('La observación es obligatoria al reemplazar un documento.');
       return;
     }
@@ -596,8 +611,14 @@ const DEFAULT_FURAG_ORDER = [
 const normalizeFurag = (payload) => {
   const data = payload?.data?.data ?? payload?.data ?? payload ?? {};
   const source = data.respuestas || data;
+  let detalle = [];
+  if (Array.isArray(data.detalle)) {
+    detalle = data.detalle;
+  } else if (Array.isArray(source.detalle)) {
+    detalle = source.detalle;
+  }
   return {
-    detalle: Array.isArray(data.detalle) ? data.detalle : Array.isArray(source.detalle) ? source.detalle : [],
+    detalle,
     infraestructuraDatos: source.infraestructuraDatos ?? null,
     interoperabilidad: source.interoperabilidad ?? null,
     digitalizacionAutomatizacion: source.digitalizacionAutomatizacion ?? null,
@@ -623,8 +644,8 @@ const normalizeFuragKey = (value) =>
     .trim()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '');
+    .replaceAll(/[\u0300-\u036f]/g, '')
+    .replaceAll(/[^a-z0-9]/g, '');
 
 const resolveFuragAnswer = (furagMap, pregunta) => {
   if (!furagMap || !pregunta) return null;
@@ -635,15 +656,15 @@ const resolveFuragAnswer = (furagMap, pregunta) => {
     pregunta.codigo,
     pregunta.nombre,
     pregunta.pregunta,
-    pregunta.key && pregunta.key.replace(/^furag[_-]?/i, ''),
+    pregunta.key?.replace(/^furag[_-]?/i, ''),
   ].filter(Boolean);
 
-  const normalizedCandidates = candidates.map(normalizeFuragKey);
+  const normalizedCandidates = new Set(candidates.map(normalizeFuragKey));
   const entries = Object.entries(furagMap);
 
   for (const [entryKey, entryValue] of entries) {
     const normalizedEntryKey = normalizeFuragKey(entryKey);
-    if (normalizedCandidates.includes(normalizedEntryKey)) {
+    if (normalizedCandidates.has(normalizedEntryKey)) {
       return entryValue;
     }
   }
@@ -659,6 +680,22 @@ const resolveFuragAnswer = (furagMap, pregunta) => {
 
   return null;
 };
+
+const cloneFase = (f) => ({
+  ...f,
+  hitos: (f.hitos || []).map((h) => ({
+    ...h,
+    entregables: (h.entregables || []).map((e) => ({ ...e })),
+  })),
+});
+
+const EntregableRow = ({ ent, onChange }) => (
+  <div className="pim-edit-row pim-edit-row-nested">
+    <input type="text" placeholder="Nombre entregable" value={ent.nombre || ''} onChange={(e) => onChange('nombre', e.target.value)} />
+    <input type="text" inputMode="numeric" placeholder="%" value={ent.ponderacion || ''} onChange={(e) => onChange('ponderacion', e.target.value)} style={{ width: '60px' }} />
+    <input type="date" value={ent.fechaLimite || ''} onChange={(e) => onChange('fechaLimite', e.target.value)} />
+  </div>
+);
 
 const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const [existingDocs, setExistingDocs] = useState({});
@@ -862,11 +899,15 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       setEditingDatos(false);
       onDocumentUploaded?.();
     } catch (err) {
-      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
-      alert(detail);
+      const detail = extractApiDetail(err, 'Error al guardar.');
+      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
     } finally {
       setSavingDatos(false);
     }
+  };
+
+  const removeEquipoMember = (index) => {
+    setEquipoDraft((prev) => prev.filter((_, j) => j !== index));
   };
 
   const openPatrocinadorEdit = () => {
@@ -887,21 +928,25 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       setEditingPatrocinador(false);
       onDocumentUploaded?.();
     } catch (err) {
-      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
-      alert(detail);
+      const detail = extractApiDetail(err, 'Error al guardar.');
+      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
     } finally {
       setSavingPatrocinador(false);
     }
   };
 
+  const updateEntregable = (fi, hi, ei, field, value) => {
+    const next = [...fasesDraft];
+    const h = [...(next[fi].hitos || [])];
+    const ents = [...(h[hi].entregables || [])];
+    ents[ei] = { ...ents[ei], [field]: value };
+    h[hi] = { ...h[hi], entregables: ents };
+    next[fi] = { ...next[fi], hitos: h };
+    setFasesDraft(next);
+  };
+
   const openFasesEdit = () => {
-    setFasesDraft(fases.map((f) => ({
-      ...f,
-      hitos: (f.hitos || []).map((h) => ({
-        ...h,
-        entregables: (h.entregables || []).map((e) => ({ ...e })),
-      })),
-    })));
+    setFasesDraft(fases.map(cloneFase));
     setEditingFases(true);
   };
 
@@ -912,8 +957,8 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       setEditingFases(false);
       onDocumentUploaded?.();
     } catch (err) {
-      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
-      alert(detail);
+      const detail = extractApiDetail(err, 'Error al guardar.');
+      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
     } finally {
       setSavingFases(false);
     }
@@ -935,8 +980,8 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       setEditingPeti(false);
       onDocumentUploaded?.();
     } catch (err) {
-      const detail = err?.response?.data?.detail || err?.message || 'Error al guardar.';
-      alert(detail);
+      const detail = extractApiDetail(err, 'Error al guardar.');
+      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
     } finally {
       setSavingPeti(false);
     }
@@ -944,7 +989,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
 
   return (
     <div className="pim-overlay" role="presentation" onClick={onClose}>
-      <div className="pim-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div className="pim-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
         <header className="pim-header">
           <div>
             <span className="pim-kicker">Información del proyecto</span>
@@ -962,8 +1007,9 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
               <div className="pim-edit-form">
                 <div className="pim-grid">
                   <div className="pim-edit-field">
-                    <label>Dependencia</label>
+                    <label htmlFor="pim-datos-dependencia">Dependencia</label>
                     <AutocompleteSelect
+                      id="pim-datos-dependencia"
                       value={datosDraft.dependencia || ''}
                       onChange={(val) => setDatosDraft((p) => ({ ...p, dependencia: val }))}
                       options={dependencias.map((d) => ({ value: d, label: d }))}
@@ -973,17 +1019,17 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                     />
                   </div>
                   <div className="pim-edit-field">
-                    <label>Fecha de inicio</label>
-                    <input type="date" value={datosDraft.fechaInicio} onChange={(e) => setDatosDraft((p) => ({ ...p, fechaInicio: e.target.value }))} />
+                    <label htmlFor="pim-datos-fecha-inicio">Fecha de inicio</label>
+                    <input id="pim-datos-fecha-inicio" type="date" value={datosDraft.fechaInicio} onChange={(e) => setDatosDraft((p) => ({ ...p, fechaInicio: e.target.value }))} />
                   </div>
                   <div className="pim-edit-field">
-                    <label>Presupuesto estimado</label>
-                    <input type="text" inputMode="numeric" value={datosDraft.presupuestoEstimado} onChange={(e) => setDatosDraft((p) => ({ ...p, presupuestoEstimado: e.target.value.replace(/[^0-9]/g, '') }))} />
+                    <label htmlFor="pim-datos-presupuesto">Presupuesto estimado</label>
+                    <input id="pim-datos-presupuesto" type="text" inputMode="numeric" value={datosDraft.presupuestoEstimado} onChange={(e) => setDatosDraft((p) => ({ ...p, presupuestoEstimado: e.target.value.replaceAll(/\D/g, '') }))} />
                   </div>
                 </div>
                 <div className="pim-edit-field pim-edit-field-wide">
-                  <label>Alcance</label>
-                  <textarea rows={4} value={datosDraft.alcanceDetallado} onChange={(e) => setDatosDraft((p) => ({ ...p, alcanceDetallado: e.target.value }))} />
+                  <label htmlFor="pim-datos-alcance">Alcance</label>
+                  <textarea id="pim-datos-alcance" rows={4} value={datosDraft.alcanceDetallado} onChange={(e) => setDatosDraft((p) => ({ ...p, alcanceDetallado: e.target.value }))} />
                 </div>
                 <div className="pim-edit-actions">
                   <button type="button" className="pim-btn-cancel" onClick={() => setEditingDatos(false)} disabled={savingDatos}>Cancelar</button>
@@ -998,7 +1044,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                 <div className="pim-grid">
                   <Field label="Dependencia" value={project.dependencia} />
                   <Field label="Fecha de inicio" value={project.fechaInicio} />
-                  <Field label="Presupuesto estimado" value={project.presupuestoEstimado != null ? `$${Number(project.presupuestoEstimado).toLocaleString('es-CO')}` : null} />
+                  <Field label="Presupuesto estimado" value={project.presupuestoEstimado == null ? null : `$${Number(project.presupuestoEstimado).toLocaleString('es-CO')}`} />
                   <Field label="Estado" value={project.estado} />
                 </div>
                 <div className="pim-field pim-field-wide">
@@ -1023,12 +1069,12 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                 <h4 className="pim-edit-subtitle">Patrocinador</h4>
                 <div className="pim-grid">
                   <div className="pim-edit-field">
-                    <label>Nombre</label>
-                    <input type="text" value={patrocinadorDraft.nombre || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, nombre: e.target.value }))} />
+                    <label htmlFor="pim-patrocinador-nombre">Nombre</label>
+                    <input id="pim-patrocinador-nombre" type="text" value={patrocinadorDraft.nombre || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, nombre: e.target.value }))} />
                   </div>
                   <div className="pim-edit-field">
-                    <label>Cargo</label>
-                    <input type="text" value={patrocinadorDraft.cargo || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, cargo: e.target.value }))} />
+                    <label htmlFor="pim-patrocinador-cargo">Cargo</label>
+                    <input id="pim-patrocinador-cargo" type="text" value={patrocinadorDraft.cargo || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, cargo: e.target.value }))} />
                   </div>
                 </div>
                 <h4 className="pim-edit-subtitle">Equipo de trabajo</h4>
@@ -1036,7 +1082,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                   <div key={i} className="pim-edit-row">
                     <input type="text" placeholder="Nombre" value={m.nombre || ''} onChange={(e) => { const next = [...equipoDraft]; next[i] = { ...next[i], nombre: e.target.value }; setEquipoDraft(next); }} />
                     <input type="text" placeholder="Cargo" value={m.cargo || ''} onChange={(e) => { const next = [...equipoDraft]; next[i] = { ...next[i], cargo: e.target.value }; setEquipoDraft(next); }} />
-                    <button type="button" className="pim-edit-remove" onClick={() => setEquipoDraft((prev) => prev.filter((_, j) => j !== i))}>x</button>
+                    <button type="button" className="pim-edit-remove" onClick={() => removeEquipoMember(i)}>x</button>
                   </div>
                 ))}
                 <button type="button" className="pim-edit-add" onClick={() => setEquipoDraft((prev) => [...prev, { nombre: '', cargo: '', rol: '' }])}>+ Agregar miembro</button>
@@ -1107,11 +1153,11 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                           <input type="text" inputMode="numeric" placeholder="%" value={hito.ponderacion || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; h[hi] = { ...h[hi], ponderacion: e.target.value }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} style={{ width: '60px' }} />
                         </div>
                         {(hito.entregables || []).map((ent, ei) => (
-                          <div key={ei} className="pim-edit-row pim-edit-row-nested">
-                            <input type="text" placeholder="Nombre entregable" value={ent.nombre || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; const ents = [...(h[hi].entregables || [])]; ents[ei] = { ...ents[ei], nombre: e.target.value }; h[hi] = { ...h[hi], entregables: ents }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} />
-                            <input type="text" inputMode="numeric" placeholder="%" value={ent.ponderacion || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; const ents = [...(h[hi].entregables || [])]; ents[ei] = { ...ents[ei], ponderacion: e.target.value }; h[hi] = { ...h[hi], entregables: ents }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} style={{ width: '60px' }} />
-                            <input type="date" value={ent.fechaLimite || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; const ents = [...(h[hi].entregables || [])]; ents[ei] = { ...ents[ei], fechaLimite: e.target.value }; h[hi] = { ...h[hi], entregables: ents }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} />
-                          </div>
+                          <EntregableRow
+                            key={ei}
+                            ent={ent}
+                            onChange={(field, value) => updateEntregable(fi, hi, ei, field, value)}
+                          />
                         ))}
                       </div>
                     ))}
@@ -1158,8 +1204,8 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
               <div className="pim-edit-form">
                 <div className="pim-grid">
                   <div className="pim-edit-field">
-                    <label>Proyecto en PETI</label>
-                    <select value={petiDraft.peti ? 'si' : 'no'} onChange={(e) => setPetiDraft((p) => ({ ...p, peti: e.target.value === 'si' }))}>
+                    <label htmlFor="pim-peti-proyecto">Proyecto en PETI</label>
+                    <select id="pim-peti-proyecto" value={petiDraft.peti ? 'si' : 'no'} onChange={(e) => setPetiDraft((p) => ({ ...p, peti: e.target.value === 'si' }))}>
                       <option value="si">Si</option>
                       <option value="no">No</option>
                     </select>
@@ -1167,8 +1213,9 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                   {petiDraft.peti && (
                     <>
                       <div className="pim-edit-field">
-                        <label>Vigencia</label>
+                        <label htmlFor="pim-peti-vigencia">Vigencia</label>
                         <AutocompleteSelect
+                          id="pim-peti-vigencia"
                           value={petiDraft.vigenciaPeti || ''}
                           onChange={(val) => setPetiDraft((p) => ({ ...p, vigenciaPeti: val }))}
                           options={vigenciasPeti.map((v) => ({ value: v, label: v }))}
@@ -1178,8 +1225,9 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                         />
                       </div>
                       <div className="pim-edit-field">
-                        <label>Estrategia</label>
+                        <label htmlFor="pim-peti-estrategia">Estrategia</label>
                         <AutocompleteSelect
+                          id="pim-peti-estrategia"
                           value={petiDraft.estrategiaPeti || ''}
                           onChange={(val) => setPetiDraft((p) => ({ ...p, estrategiaPeti: val }))}
                           options={estrategiasPeti}
@@ -1273,7 +1321,7 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
 
       {showFuragEdit && (
         <div className="pim-furag-modal-overlay" role="presentation" onClick={() => setShowFuragEdit(false)}>
-          <div className="pim-furag-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="pim-furag-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
             <header className="pim-furag-modal-header">
               <div className="pim-furag-modal-title">
                 <Target size={16} />

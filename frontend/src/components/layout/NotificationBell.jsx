@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BellRing, CheckCheck, Clock3, LoaderCircle, X, FolderKanban, Filter, AlertTriangle, FileCheck, Send, RotateCcw, Mail, Eye, Upload, ClipboardList } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
 import securityService from '../../services/securityService';
-import { formatDateTime } from '../../utils/locale';
+import { APP_LOCALE, APP_TIME_ZONE } from '../../utils/locale';
 import './NotificationBell.css';
 
 const compactTime = (value) => {
@@ -21,18 +21,26 @@ const compactTime = (value) => {
     date.getFullYear() === yesterday.getFullYear()
     && date.getMonth() === yesterday.getMonth()
     && date.getDate() === yesterday.getDate();
-  const time = formatDateTime(value, { hour: '2-digit', minute: '2-digit', hour12: false });
+  const timeOnly = { timeZone: APP_TIME_ZONE, hour: '2-digit', minute: '2-digit', hour12: false };
+  const time = new Intl.DateTimeFormat(APP_LOCALE, timeOnly).format(date);
   if (sameDay) return `Hoy ${time}`;
   if (isYesterday) return `Ayer ${time}`;
-  return formatDateTime(value, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+  return new Intl.DateTimeFormat(APP_LOCALE, {
+    timeZone: APP_TIME_ZONE,
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
 };
 
 const extractProjectId = (item) => {
-  const fromTitle = String(item?.title || '').match(/PROY-[A-Z]+-\d+/i);
+  const fromTitle = /PROY-[A-Z]+-\d+/i.exec(String(item?.title || ''));
   if (fromTitle) return fromTitle[0].toUpperCase();
-  const fromMessage = String(item?.message || '').match(/PROY-[A-Z]+-\d+/i);
+  const fromMessage = /PROY-[A-Z]+-\d+/i.exec(String(item?.message || ''));
   if (fromMessage) return fromMessage[0].toUpperCase();
-  const legacy = String(item?.title || '').match(/IS-PROY-[A-Z]+-\d+/i);
+  const legacy = /IS-PROY-[A-Z]+-\d+/i.exec(String(item?.title || ''));
   if (legacy) return legacy[0].toUpperCase();
   return null;
 };
@@ -40,14 +48,14 @@ const extractProjectId = (item) => {
 const extractProjectName = (item) => {
   const explicit = item?.projectName || item?.projectNombre || item?.proyectoNombre || item?.project_name || item?.proyecto_nombre;
   if (explicit) return explicit;
-  const fromTitle = String(item?.title || '').match(/proyecto:\s*([^"(]+?)(?:\s*\(|$)/i);
+  const fromTitle = /proyecto:\s*([^"(]+?)(?:\s*\(|$)/i.exec(String(item?.title || ''));
   if (fromTitle) return fromTitle[1].trim();
   return null;
 };
 
 const sentenceCase = (value) => {
   if (!value) return '';
-  const text = String(value).replace(/\s+/g, ' ').trim();
+  const text = String(value).replaceAll(/\s+/g, ' ').trim();
   const looksUpper = text === text.toUpperCase() && /[ÁÉÍÓÚÑA-Z]{4,}/.test(text);
   if (!looksUpper) return text;
   const lower = text.toLowerCase();
@@ -57,30 +65,30 @@ const sentenceCase = (value) => {
 const stripHtml = (value) => {
   if (!value) return '';
   let text = String(value);
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, ' ');
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, ' ');
-  text = text.replace(/<br\s*\/?>/gi, '\n');
-  text = text.replace(/<\/p>/gi, '\n');
-  text = text.replace(/<[^>]+>/g, ' ');
+  text = text.replaceAll(/<style[\s\S]*?<\/style>/gi, ' ');
+  text = text.replaceAll(/<script[\s\S]*?<\/script>/gi, ' ');
+  text = text.replaceAll(/<br\s*\/?>/gi, '\n');
+  text = text.replaceAll(/<\/p>/gi, '\n');
+  text = text.replaceAll(/<[^>]+>/g, ' ');
   text = text
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
+    .replaceAll(/&nbsp;/gi, ' ')
+    .replaceAll(/&amp;/gi, '&')
+    .replaceAll(/&lt;/gi, '<')
+    .replaceAll(/&gt;/gi, '>')
+    .replaceAll(/&quot;/gi, '"')
+    .replaceAll(/&#39;/gi, "'");
   return text;
 };
 
 const stripUrls = (value) =>
   String(value || '')
-    .replace(/https?:\/\/\S+/gi, '')
-    .replace(/\bwww\.\S+/gi, '');
+    .replaceAll(/https?:\/\/\S+/gi, '')
+    .replaceAll(/\bwww\.\S+/gi, '');
 
 const cleanTitle = (title) => {
   const noLegacy = String(title || '')
-    .replace(/\s+en\s+IS-PROY-[A-Z]+-\d+/gi, '')
-    .replace(/\s+en\s+PROY-[A-Z]+-\d+/gi, '')
+    .replaceAll(/\s+en\s+IS-PROY-[A-Z]+-\d+/gi, '')
+    .replaceAll(/\s+en\s+PROY-[A-Z]+-\d+/gi, '')
     .trim();
   return sentenceCase(noLegacy);
 };
@@ -88,9 +96,19 @@ const cleanTitle = (title) => {
 const cleanMessage = (message) => {
   const plain = stripHtml(message);
   const withoutUrls = stripUrls(plain);
-  const collapsed = withoutUrls.replace(/\s+/g, ' ').trim();
+  const collapsed = withoutUrls.replaceAll(/\s+/g, ' ').trim();
   if (collapsed.length <= 220) return collapsed;
   return `${collapsed.slice(0, 217).trimEnd()}…`;
+};
+
+const resolveApprovalMeta = (code) => {
+  if (code.includes('CLOSE') || code.includes('CIERRE')) {
+    return { label: code.includes('REJECT') ? 'Rechazado' : 'Aprobación', tone: code.includes('REJECT') ? 'error' : 'success', icon: FileCheck };
+  }
+  if (code.includes('BENEFIT') || code.includes('IMPACT')) {
+    return { label: code.includes('REJECT') ? 'Observado' : 'Revisión', tone: code.includes('REJECT') ? 'warning' : 'info', icon: FileCheck };
+  }
+  return null;
 };
 
 const getEventMeta = (item) => {
@@ -118,12 +136,8 @@ const getEventMeta = (item) => {
   if (code.includes('DEADLINE') || code.includes('VENCIMIENTO') || code === 'ENTREGABLE_DEADLINE_WARNING') {
     return { label: 'Por vencer', tone: 'warning', icon: Clock3 };
   }
-  if (code.includes('CLOSE') || code.includes('CIERRE')) {
-    return { label: code.includes('REJECT') ? 'Rechazado' : 'Aprobación', tone: code.includes('REJECT') ? 'error' : 'success', icon: FileCheck };
-  }
-  if (code.includes('BENEFIT') || code.includes('IMPACT')) {
-    return { label: code.includes('REJECT') ? 'Observado' : 'Revisión', tone: code.includes('REJECT') ? 'warning' : 'info', icon: FileCheck };
-  }
+  const approvalMeta = resolveApprovalMeta(code);
+  if (approvalMeta) return approvalMeta;
   if (code.includes('MAIL') || code.includes('EMAIL')) {
     return { label: 'Correo', tone: 'neutral', icon: Mail };
   }
@@ -183,7 +197,7 @@ const NotificationBell = () => {
     else if (readFilter === 'read') params.leido = true;
     if (typeFilter !== 'ALL') {
       const group = filterGroups.find((g) => g.label === typeFilter);
-      if (group && group.codes.length === 1) {
+      if (group?.codes.length === 1) {
         params.eventCode = group.codes[0];
       }
     }
@@ -201,7 +215,8 @@ const NotificationBell = () => {
       const countPayload = countResponse?.data?.data ?? countResponse?.data ?? countResponse ?? 0;
       const listPayload = listResponse?.data?.data ?? listResponse?.data ?? listResponse ?? {};
       setCount(Number(countPayload || 0));
-      setItems(Array.isArray(listPayload?.content) ? listPayload.content : Array.isArray(listPayload) ? listPayload : []);
+      const fallbackItems = Array.isArray(listPayload) ? listPayload : [];
+      setItems(Array.isArray(listPayload?.content) ? listPayload.content : fallbackItems);
     } catch {
       setCount(0);
       setItems([]);
@@ -217,15 +232,15 @@ const NotificationBell = () => {
       if (active) setLoading(false);
     };
     void refresh();
-    const interval = window.setInterval(() => void load(), 30000);
+    const interval = globalThis.setInterval(() => void load(), 30000);
     const handleRefresh = () => {
       void load();
     };
-    window.addEventListener(NOTIFICATION_REFRESH_EVENT, handleRefresh);
+    globalThis.addEventListener(NOTIFICATION_REFRESH_EVENT, handleRefresh);
     return () => {
       active = false;
-      window.clearInterval(interval);
-      window.removeEventListener(NOTIFICATION_REFRESH_EVENT, handleRefresh);
+      globalThis.clearInterval(interval);
+      globalThis.removeEventListener(NOTIFICATION_REFRESH_EVENT, handleRefresh);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backendLoading, typeFilter, readFilter]);
@@ -244,9 +259,22 @@ const NotificationBell = () => {
     ? filteredItems.filter((item) => !item.readStatus)
     : filteredItems;
 
+  /**
+   * CWE-601: targetUrl viene del backend y puede contener rutas externas
+   * (https://..., //host, javascript:). Solo se navega a rutas internas
+   * relativas a la aplicacion.
+   */
+  const isInternalPath = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw.startsWith('/')) return false;
+    if (raw.startsWith('//') || raw.startsWith('/\\')) return false;
+    if (raw.includes('\\') || raw.includes(':')) return false;
+    return true;
+  };
+
   const handleNotificationClick = async (item) => {
     const url = item.targetUrl;
-    if (url) {
+    if (url && isInternalPath(url)) {
       setOpen(false);
       navigate(url);
     }
@@ -267,6 +295,54 @@ const NotificationBell = () => {
       // keep panel open
     }
   };
+
+  const emptyState = (
+    <div className="notification-bell__state">
+      <CheckCheck size={16} />
+      <span>{readFilter === 'unread' ? 'No hay notificaciones pendientes.' : 'No hay notificaciones para este filtro.'}</span>
+    </div>
+  );
+
+  const itemsState = displayItems.length === 0
+    ? emptyState
+    : displayItems.map((item) => {
+      const projectId = extractProjectId(item);
+      const projectName = extractProjectName(item);
+      const { label, tone, icon: EventIcon } = getEventMeta(item);
+      const unread = !item.readStatus;
+      return (
+        <button
+          key={item.id}
+          type="button"
+          className={`notification-bell__item ${unread ? 'is-unread' : ''}`}
+          onClick={() => handleNotificationClick(item)}
+        >
+          <div className="notification-bell__item-main">
+            <div className={`notification-bell__item-icon ${tone}`}>
+              <EventIcon size={14} />
+            </div>
+            <div className="notification-bell__item-content">
+              <div className="notification-bell__item-header">
+                <span className="notification-bell__item-title">{cleanTitle(item.title)}</span>
+                <span className="notification-bell__item-date">{compactTime(item.createdAt)}</span>
+              </div>
+              <div className="notification-bell__item-meta">
+                <span className={`notification-bell__item-event ${tone}`}>{label}</span>
+                {(projectName || projectId) && (
+                  <span className="notification-bell__item-project">
+                    <FolderKanban size={11} />
+                    {projectName || projectId}
+                    {projectName && projectId ? ` · ${projectId}` : ''}
+                  </span>
+                )}
+              </div>
+              <p className="notification-bell__item-message">{cleanMessage(item.message)}</p>
+            </div>
+            {unread && <span className="notification-bell__item-dot" aria-hidden="true" />}
+          </div>
+        </button>
+      );
+    });
 
   return (
     <div className="notification-bell">
@@ -355,51 +431,7 @@ const NotificationBell = () => {
                 <LoaderCircle size={16} className="animate-spin" />
                 <span>Cargando...</span>
               </div>
-            ) : displayItems.length === 0 ? (
-              <div className="notification-bell__state">
-                <CheckCheck size={16} />
-                <span>{readFilter === 'unread' ? 'No hay notificaciones pendientes.' : 'No hay notificaciones para este filtro.'}</span>
-              </div>
-            ) : (
-              displayItems.map((item) => {
-                const projectId = extractProjectId(item);
-                const projectName = extractProjectName(item);
-                const { label, tone, icon: EventIcon } = getEventMeta(item);
-                const unread = !item.readStatus;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`notification-bell__item ${unread ? 'is-unread' : ''}`}
-                    onClick={() => handleNotificationClick(item)}
-                  >
-                    <div className="notification-bell__item-main">
-                      <div className={`notification-bell__item-icon ${tone}`}>
-                        <EventIcon size={14} />
-                      </div>
-                      <div className="notification-bell__item-content">
-                        <div className="notification-bell__item-header">
-                          <span className="notification-bell__item-title">{cleanTitle(item.title)}</span>
-                          <span className="notification-bell__item-date">{compactTime(item.createdAt)}</span>
-                        </div>
-                        <div className="notification-bell__item-meta">
-                          <span className={`notification-bell__item-event ${tone}`}>{label}</span>
-                          {(projectName || projectId) && (
-                            <span className="notification-bell__item-project">
-                              <FolderKanban size={11} />
-                              {projectName || projectId}
-                              {projectName && projectId ? ` · ${projectId}` : ''}
-                            </span>
-                          )}
-                        </div>
-                        <p className="notification-bell__item-message">{cleanMessage(item.message)}</p>
-                      </div>
-                      {unread && <span className="notification-bell__item-dot" aria-hidden="true" />}
-                    </div>
-                  </button>
-                );
-              })
-            )}
+            ) : itemsState}
           </div>
         </div>
       )}

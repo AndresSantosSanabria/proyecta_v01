@@ -93,6 +93,9 @@ const ListaParametricaPanel = () => {
     }
   };
 
+  // Ejecucion solo al montar: loadAll se recrea en cada render y anadirla al
+  // array provocaria un bucle de peticiones. Es intencional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadAll(); }, []);
 
   if (loading) {

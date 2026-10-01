@@ -99,8 +99,8 @@ const EvidenceUpload = ({ proyectoId, entregableId, mode = 'cargar', onClose, on
   };
 
   return (
-    <div className="evidence-upload-overlay" onClick={onClose}>
-      <div className="evidence-upload-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="evidence-upload-overlay" role="presentation" onClick={onClose}>
+      <div className="evidence-upload-modal" role="presentation" onClick={(e) => e.stopPropagation()}>
         <div className="evidence-upload-header">
           <h3>{title}</h3>
           <h3>Subir Evidencia — Entregable #{entregableId}</h3>
@@ -114,7 +114,15 @@ const EvidenceUpload = ({ proyectoId, entregableId, mode = 'cargar', onClose, on
             <>
               <div
                 className="evidence-dropzone"
+                role="button"
+                tabIndex={0}
                 onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
               >
                 <input
                   type="file"

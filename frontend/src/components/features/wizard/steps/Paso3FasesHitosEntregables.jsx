@@ -4,7 +4,7 @@ import RetroactiveFileUploadModal from '../../../common/RetroactiveFileUploadMod
 import SpellCheckerInput from '../../../common/SpellCheckerInput';
 import HierarchySidebar from '../../../common/HierarchySidebar';
 
-const sumPonderacion = (items) => items.reduce((s, i) => s + (parseFloat(i.ponderacion) || 0), 0);
+const sumPonderacion = (items) => items.reduce((s, i) => s + (Number.parseFloat(i.ponderacion) || 0), 0);
 const hasPersistentId = (item) => Boolean(item?.id || item?.faseId || item?.hitoId || item?.entregableId);
 
 const getRemainingWeight = (items) => {
@@ -259,22 +259,24 @@ const Paso3FasesHitosEntregables = ({
             </div>
             <div className="form-grid">
               <div className="form-group">
-                <label className="form-label">Nombre de la Fase *</label>
+                <label className="form-label" htmlFor={`p3-fase-nombre-${fIndex}`}>Nombre de la Fase *</label>
                 <input
-                  className={`form-input form-input-muted form-input-code ${errors[`fase_${fIndex}_nombre`] ? 'input-error' : ''}`}
+                  id={`p3-fase-nombre-${fIndex}`}
+                  className={`form-input form-input-muted form-input-code ${errors['fase_' + fIndex + '_nombre'] ? 'input-error' : ''}`}
                   value={fase.nombre || ''}
                   readOnly
                   aria-readonly="true"
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Ponderacion (%) *</label>
+                <label className="form-label" htmlFor={`p3-fase-ponderacion-${fIndex}`}>Ponderacion (%) *</label>
                 <input
+                  id={`p3-fase-ponderacion-${fIndex}`}
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
-                  className={`form-input ${errors[`fase_${fIndex}_ponderacion`] ? 'input-error' : ''}`}
+                  className={`form-input ${errors['fase_' + fIndex + '_ponderacion'] ? 'input-error' : ''}`}
                   value={fase.ponderacion}
                   onChange={(e) => updateFase(fIndex, 'ponderacion', e.target.value)}
                   placeholder="Ej: 50"
@@ -282,8 +284,9 @@ const Paso3FasesHitosEntregables = ({
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Descripcion</label>
+              <label className="form-label" htmlFor={`p3-fase-desc-${fIndex}`}>Descripcion</label>
               <SpellCheckerInput
+                id={`p3-fase-desc-${fIndex}`}
                 className={`form-input ${faseDescriptionLocked ? 'form-input-muted' : ''}`}
                 value={fase.descripcion || ''}
                 onChange={faseDescriptionLocked ? undefined : (e) => updateFase(fIndex, 'descripcion', e.target.value)}
@@ -314,22 +317,24 @@ const Paso3FasesHitosEntregables = ({
                   </div>
                   <div className="form-grid">
                     <div className="form-group">
-                      <label className="form-label">Nombre del Hito *</label>
+                      <label className="form-label" htmlFor={`p3-hito-nombre-${fIndex}-${hIndex}`}>Nombre del Hito *</label>
                       <input
-                        className={`form-input form-input-muted form-input-code ${errors[`hito_${fIndex}_${hIndex}_nombre`] ? 'input-error' : ''}`}
+                        id={`p3-hito-nombre-${fIndex}-${hIndex}`}
+                        className={`form-input form-input-muted form-input-code ${errors['hito_' + fIndex + '_' + hIndex + '_nombre'] ? 'input-error' : ''}`}
                         value={hito.nombre || ''}
                         readOnly
                         aria-readonly="true"
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Ponderacion (%) *</label>
+                      <label className="form-label" htmlFor={`p3-hito-ponderacion-${fIndex}-${hIndex}`}>Ponderacion (%) *</label>
                       <input
+                        id={`p3-hito-ponderacion-${fIndex}-${hIndex}`}
                         type="number"
                         min="0"
                         max="100"
                         step="0.01"
-                        className={`form-input ${errors[`hito_${fIndex}_${hIndex}_ponderacion`] ? 'input-error' : ''}`}
+                        className={`form-input ${errors['hito_' + fIndex + '_' + hIndex + '_ponderacion'] ? 'input-error' : ''}`}
                         value={hito.ponderacion}
                         onChange={(e) => updateHito(fIndex, hIndex, 'ponderacion', e.target.value)}
                         placeholder="Ej: 100"
@@ -337,8 +342,9 @@ const Paso3FasesHitosEntregables = ({
                     </div>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Descripcion</label>
+                    <label className="form-label" htmlFor={`p3-hito-desc-${fIndex}-${hIndex}`}>Descripcion</label>
                     <SpellCheckerInput
+                      id={`p3-hito-desc-${fIndex}-${hIndex}`}
                       className={`form-input ${hitoDescriptionLocked ? 'form-input-muted' : ''}`}
                       value={hito.descripcion || ''}
                       onChange={hitoDescriptionLocked ? undefined : (e) => updateHito(fIndex, hIndex, 'descripcion', e.target.value)}
@@ -366,32 +372,35 @@ const Paso3FasesHitosEntregables = ({
                         </div>
                         <div className="form-grid">
                           <div className="form-group">
-                            <label className="form-label">Nombre *</label>
+                            <label className="form-label" htmlFor={`p3-ent-nombre-${fIndex}-${hIndex}-${eIndex}`}>Nombre *</label>
                             <input
-                              className={`form-input form-input-muted form-input-code ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_nombre`] ? 'input-error' : ''}`}
+                              id={`p3-ent-nombre-${fIndex}-${hIndex}-${eIndex}`}
+                              className={`form-input form-input-muted form-input-code ${errors['ent_' + fIndex + '_' + hIndex + '_' + eIndex + '_nombre'] ? 'input-error' : ''}`}
                               value={ent.nombre || ''}
                               readOnly
                               aria-readonly="true"
                             />
                           </div>
                           <div className="form-group">
-                            <label className="form-label">Ponderacion (%) *</label>
+                            <label className="form-label" htmlFor={`p3-ent-ponderacion-${fIndex}-${hIndex}-${eIndex}`}>Ponderacion (%) *</label>
                             <input
+                              id={`p3-ent-ponderacion-${fIndex}-${hIndex}-${eIndex}`}
                               type="number"
                               min="0"
                               max="100"
                               step="0.01"
-                              className={`form-input ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_ponderacion`] ? 'input-error' : ''}`}
+                              className={`form-input ${errors['ent_' + fIndex + '_' + hIndex + '_' + eIndex + '_ponderacion'] ? 'input-error' : ''}`}
                               value={ent.ponderacion}
                               onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'ponderacion', e.target.value)}
                               placeholder="Ej: 100"
                             />
                           </div>
                           <div className="form-group">
-                            <label className="form-label">Fecha inicio *</label>
+                            <label className="form-label" htmlFor={`p3-ent-fechainicio-${fIndex}-${hIndex}-${eIndex}`}>Fecha inicio *</label>
                             <input
+                              id={`p3-ent-fechainicio-${fIndex}-${hIndex}-${eIndex}`}
                               type="date"
-                              className={`form-input ${dateLocked ? 'form-input-muted' : ''} ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaInicio`] ? 'input-error' : ''}`}
+                              className={`form-input ${dateLocked ? 'form-input-muted' : ''} ${errors['ent_' + fIndex + '_' + hIndex + '_' + eIndex + '_fechaInicio'] ? 'input-error' : ''}`}
                               value={ent.fechaInicio || ''}
                               onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'fechaInicio', e.target.value)}
                               disabled={dateLocked}
@@ -402,10 +411,11 @@ const Paso3FasesHitosEntregables = ({
                             )}
                           </div>
                           <div className="form-group">
-                            <label className="form-label">Fecha límite *</label>
+                            <label className="form-label" htmlFor={`p3-ent-fechalimite-${fIndex}-${hIndex}-${eIndex}`}>Fecha límite *</label>
                             <input
+                              id={`p3-ent-fechalimite-${fIndex}-${hIndex}-${eIndex}`}
                               type="date"
-                              className={`form-input ${dateLocked ? 'form-input-muted' : ''} ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_fechaLimite`] ? 'input-error' : ''}`}
+                              className={`form-input ${dateLocked ? 'form-input-muted' : ''} ${errors['ent_' + fIndex + '_' + hIndex + '_' + eIndex + '_fechaLimite'] ? 'input-error' : ''}`}
                               value={ent.fechaLimite || ''}
                               onChange={(e) => updateEntregable(fIndex, hIndex, eIndex, 'fechaLimite', e.target.value)}
                               disabled={dateLocked}
@@ -419,15 +429,15 @@ const Paso3FasesHitosEntregables = ({
                           </div>
                           {!dateLocked && isRetroactiveDate(ent.fechaLimite) && (
                             <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                              <label className="form-label">
-                                Archivo de soporte (PDF) *
-                                <span className="retroactive-badge">Obligatorio (entregable retroactivo)</span>
+                              <label className="form-label" htmlFor={`p3-ent-archivo-${fIndex}-${hIndex}-${eIndex}`}>
+                                Archivo de soporte (PDF) *<span className="retroactive-badge">Obligatorio (entregable retroactivo)</span>
                               </label>
                               {getPendingFileName(fIndex, hIndex, eIndex) ? (
                                 <div className="retroactive-file-attached">
                                   <FileText size={15} />
                                   <span>{getPendingFileName(fIndex, hIndex, eIndex)}</span>
                                   <button
+                                    id={`p3-ent-archivo-${fIndex}-${hIndex}-${eIndex}`}
                                     type="button"
                                     className="retroactive-change-btn"
                                     onClick={() => handleOpenUploadModal(fIndex, hIndex, eIndex)}
@@ -437,8 +447,9 @@ const Paso3FasesHitosEntregables = ({
                                 </div>
                               ) : (
                                 <button
+                                  id={`p3-ent-archivo-${fIndex}-${hIndex}-${eIndex}`}
                                   type="button"
-                                  className={`retroactive-upload-btn ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_archivo`] ? 'input-error' : ''}`}
+                                  className={`retroactive-upload-btn ${errors['ent_' + fIndex + '_' + hIndex + '_' + eIndex + '_archivo'] ? 'input-error' : ''}`}
                                   onClick={() => handleOpenUploadModal(fIndex, hIndex, eIndex)}
                                 >
                                   <Upload size={15} />
@@ -451,8 +462,9 @@ const Paso3FasesHitosEntregables = ({
                             </div>
                           )}
                           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                            <label className="form-label">Descripcion</label>
+                            <label className="form-label" htmlFor={`p3-ent-desc-${fIndex}-${hIndex}-${eIndex}`}>Descripcion</label>
                             <SpellCheckerInput
+                              id={`p3-ent-desc-${fIndex}-${hIndex}-${eIndex}`}
                               className={`form-input ${entregableDescriptionLocked ? 'form-input-muted' : ''}`}
                               value={ent.descripcion || ''}
                               onChange={entregableDescriptionLocked ? undefined : (e) => updateEntregable(fIndex, hIndex, eIndex, 'descripcion', e.target.value)}

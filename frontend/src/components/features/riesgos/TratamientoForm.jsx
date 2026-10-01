@@ -87,10 +87,11 @@ const TratamientoForm = ({ proyectoId, riesgoId, onSuccess, onCancel }) => {
         </div>
       )}
 
-      <label className="field-label">
-        Comentario / Acción de mitigación <span className="required">*</span>
+      <label className="field-label" htmlFor="tratamiento-comentario">
+        Comentario / Acci�n de mitigaci�n <span className="required">*</span>
       </label>
       <textarea
+        id="tratamiento-comentario"
         className="risk-textarea"
         rows={3}
         placeholder="Describe la acción de mitigación realizada..."

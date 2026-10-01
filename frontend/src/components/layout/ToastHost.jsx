@@ -27,13 +27,13 @@ const ToastHost = () => {
 
       setToasts((current) => [...current, toast]);
 
-      window.setTimeout(() => {
+      globalThis.setTimeout(() => {
         setToasts((current) => current.filter((item) => item.id !== id));
       }, detail.duration || DEFAULT_TIMEOUT);
     };
 
-    window.addEventListener(TOAST_EVENT, handleToast);
-    return () => window.removeEventListener(TOAST_EVENT, handleToast);
+    globalThis.addEventListener(TOAST_EVENT, handleToast);
+    return () => globalThis.removeEventListener(TOAST_EVENT, handleToast);
   }, []);
 
   if (toasts.length === 0) return null;
@@ -51,6 +51,7 @@ const ToastHost = () => {
     }}>
       {toasts.map((toast) => {
         const Icon = iconByTone[toast.tone] || Info;
+        const toneColor = toast.tone === 'error' ? '#ef4444' : '#60a5fa';
         return (
           <article
             key={toast.id}
@@ -67,7 +68,7 @@ const ToastHost = () => {
               backdropFilter: 'blur(10px)',
             }}
           >
-            <div style={{ color: toast.tone === 'success' ? '#22c55e' : toast.tone === 'error' ? '#ef4444' : '#60a5fa', marginTop: '2px' }}>
+            <div style={{ color: toast.tone === 'success' ? '#22c55e' : toneColor, marginTop: '2px' }}>
               <Icon size={18} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>

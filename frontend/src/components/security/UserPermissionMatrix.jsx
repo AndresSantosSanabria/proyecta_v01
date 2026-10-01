@@ -60,14 +60,14 @@ const UserPermissionMatrix = ({ onClose }) => {
       const key = normalizedName || normalizedEmail || String(u.id);
 
       const existing = byName.get(key);
-      if (!existing) {
-        byName.set(key, u);
-      } else {
+      if (existing) {
         const existingHasEmail = (existing.correo || '').includes('@');
         const currentHasEmail = (normalizedEmail || '').includes('@');
         if (currentHasEmail && !existingHasEmail) {
           byName.set(key, u);
         }
+      } else {
+        byName.set(key, u);
       }
     }
     return Array.from(byName.values());
@@ -124,7 +124,7 @@ const UserPermissionMatrix = ({ onClose }) => {
         })),
       });
       setNotice('Permisos guardados correctamente.');
-      window.dispatchEvent(new Event('proyecta:authz:refresh'));
+      globalThis.dispatchEvent(new Event('proyecta:authz:refresh'));
     } catch {
       setError('Error al guardar los permisos.');
     } finally {
@@ -132,8 +132,11 @@ const UserPermissionMatrix = ({ onClose }) => {
     }
   };
 
+  // Ejecucion solo al montar: loadUsers se recrea en cada render y anadirla
+  // al array provocaria un bucle de peticiones. Es intencional.
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -299,6 +302,8 @@ const UserPermissionMatrix = ({ onClose }) => {
                         const someChecked = permisos.some((p) => p.concedido);
                         const isExpanded = expandedCategories.has(categoria);
                         const isSidebarCategory = categoria === SIDEBAR_CATEGORY;
+                        const toggleAllTone = someChecked ? 'partial' : '';
+                        const toggleAllLabel = someChecked ? 'Algunos' : 'Ninguno';
 
                         return (
                           <Fragment key={categoria}>
@@ -317,19 +322,30 @@ const UserPermissionMatrix = ({ onClose }) => {
                                   </span>
                                   <button
                                     type="button"
-                                    className={`upm-toggle-all ${allChecked ? 'active' : someChecked ? 'partial' : ''}`}
+                                    className={`upm-toggle-all ${allChecked ? 'active' : toggleAllTone}`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleToggleCategory(categoria, !allChecked);
                                     }}
                                   >
-                                    {allChecked ? 'Todos' : someChecked ? 'Algunos' : 'Ninguno'}
+                                    {allChecked ? 'Todos' : toggleAllLabel}
                                   </button>
                                 </div>
                               </td>
                             </tr>
                             {isExpanded &&
-                              permisos.map((p) => (
+                              permisos.map((p) => {
+                                const sourceCell = p.concedido ? (
+                                  <span className="upm-source-role">Rol</span>
+                                ) : (
+                                  <span className="upm-source-none">-</span>
+                                );
+                                const sidebarCell = SIDEBAR_ITEM_LABELS[p.codigo] ? (
+                                  <span className="upm-sidebar-tag">{SIDEBAR_ITEM_LABELS[p.codigo]}</span>
+                                ) : (
+                                  <span className="upm-sidebar-none">--</span>
+                                );
+                                return (
                                 <tr
                                   key={p.permisoId}
                                   className={`upm-permission-row ${p.source ? 'overridden' : ''} ${isSidebarCategory ? 'sidebar-perm' : ''}`}
@@ -353,15 +369,11 @@ const UserPermissionMatrix = ({ onClose }) => {
                                   <td className="upm-td-source">
                                     {p.source ? (
                                       <span className="upm-source-override">Personalizado</span>
-                                    ) : p.concedido ? (
-                                      <span className="upm-source-role">Rol</span>
-                                    ) : (
-                                      <span className="upm-source-none">-</span>
-                                    )}
+                                    ) : sourceCell}
                                   </td>
                                   <td className="upm-td-sidebar">
                                     {isSidebarCategory ? (
-                                      <label className="upm-toggle-switch">
+                                      <label className="upm-toggle-switch" aria-label={`Visibilidad en sidebar de ${p.nombre}`}>
                                         <input
                                           type="checkbox"
                                           checked={p.sidebar}
@@ -369,11 +381,7 @@ const UserPermissionMatrix = ({ onClose }) => {
                                         />
                                         <span className="upm-toggle-slider" />
                                       </label>
-                                    ) : SIDEBAR_ITEM_LABELS[p.codigo] ? (
-                                      <span className="upm-sidebar-tag">{SIDEBAR_ITEM_LABELS[p.codigo]}</span>
-                                    ) : (
-                                      <span className="upm-sidebar-none">--</span>
-                                    )}
+                                    ) : sidebarCell}
                                   </td>
                                   <td className="upm-td-accion">
                                     {isSidebarCategory ? (
@@ -387,7 +395,8 @@ const UserPermissionMatrix = ({ onClose }) => {
                                     )}
                                   </td>
                                 </tr>
-                              ))}
+                                );
+                              })}
                           </Fragment>
                         );
                       })}

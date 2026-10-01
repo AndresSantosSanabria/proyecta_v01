@@ -68,8 +68,8 @@ export default function ModificarDescripcionModal({ entregable, proyectoId, onCl
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="mdm-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="mdm-modal" role="presentation" onClick={(e) => e.stopPropagation()}>
         <div className="mdm-header">
           <h3><FileEdit size={16} /> Modificar Descripción de Entregable</h3>
           <button className="mdm-close" onClick={onClose}><X size={18} /></button>
@@ -82,8 +82,9 @@ export default function ModificarDescripcionModal({ entregable, proyectoId, onCl
           </div>
 
           <div className="mdm-field">
-            <label>Nueva Descripción</label>
+            <label htmlFor="mdm-nueva-descripcion">Nueva Descripción</label>
             <SpellCheckerTextarea
+              id="mdm-nueva-descripcion"
               rows={3}
               value={nuevaDescripcion}
               onChange={(e) => setNuevaDescripcion(e.target.value)}
@@ -95,8 +96,9 @@ export default function ModificarDescripcionModal({ entregable, proyectoId, onCl
           </div>
 
           <div className="mdm-field">
-            <label>Justificación del Cambio</label>
+            <label htmlFor="mdm-justificacion">Justificación del Cambio</label>
             <SpellCheckerTextarea
+              id="mdm-justificacion"
               rows={3}
               value={justificacion}
               onChange={(e) => setJustificacion(e.target.value)}
@@ -105,7 +107,7 @@ export default function ModificarDescripcionModal({ entregable, proyectoId, onCl
           </div>
 
           <div className="mdm-field">
-            <label>PDF de Soporte (Obligatorio)</label>
+            <label htmlFor="mdm-pdf">PDF de Soporte (Obligatorio)</label>
             <div className="mdm-file-input">
               <input
                 type="file"

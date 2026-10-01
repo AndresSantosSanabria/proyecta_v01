@@ -119,6 +119,9 @@ const ClosureTemplatePanel = () => {
     }
   };
 
+  // Ejecucion solo al montar: las funciones load* se recrean en cada render y
+  // anadirlas al array provocaria un bucle de peticiones. Es intencional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadTemplate(); loadQuestions(); }, []);
 
   const addBlock = (type) => {
@@ -137,9 +140,9 @@ const ClosureTemplatePanel = () => {
 
   const moveBlock = (idx, dir) => {
     setBlocks((prev) => {
-      const arr = [...prev];
       const ni = idx + dir;
-      if (ni < 0 || ni >= arr.length) return arr;
+      if (ni < 0 || ni >= prev.length) return [...prev];
+      const arr = [...prev];
       [arr[idx], arr[ni]] = [arr[ni], arr[idx]];
       return arr;
     });
@@ -363,7 +366,7 @@ const ClosureTemplatePanel = () => {
                         checked={block.activo !== false}
                         onChange={(e) => updateBlock(idx, { activo: e.target.checked })}
                       />
-                      <span>{block.activo !== false ? 'Activa' : 'Inactiva'}</span>
+                      <span>{block.activo === false ? 'Inactiva' : 'Activa'}</span>
                     </label>
                     <button type="button" className="ctp-btn-icon ctp-btn-danger" onClick={() => removeBlock(idx)}>
                       <Trash2 size={13} />
@@ -394,12 +397,13 @@ const ClosureTemplatePanel = () => {
                             checked={block.activo !== false}
                             onChange={(e) => updateBlock(idx, { activo: e.target.checked })}
                           />
-                          <span>{block.activo !== false ? 'Activo' : 'Inactivo'}</span>
+                          <span>{block.activo === false ? 'Inactivo' : 'Activo'}</span>
                         </label>
                       </div>
                       <div className="ctp-field-question">
-                        <label className="ctp-question-label">Pregunta del Banco (variable dinamica)</label>
+                        <label className="ctp-question-label" htmlFor={`ctp-question-${block.id}`}>Pregunta del Banco (variable dinamica)</label>
                         <AutocompleteSelect
+                          id={`ctp-question-${block.id}`}
                           className="ctp-question-select"
                           value={block.questionId || ''}
                           onChange={(val) => {
@@ -437,7 +441,7 @@ const ClosureTemplatePanel = () => {
                     <div className="ctp-component-body ctp-table-editor">
                       <div className="ctp-chip">
                         <Table2 size={12} /> TABLA DINAMICA
-                        <span className="ctp-chip-linked" style={{ marginLeft: '8px' }}>{block.activo !== false ? 'ACTIVA' : 'INACTIVA'}</span>
+                        <span className="ctp-chip-linked" style={{ marginLeft: '8px' }}>{block.activo === false ? 'INACTIVA' : 'ACTIVA'}</span>
                       </div>
                       <div className="ctp-table-columns">
                         {(block.columnas || []).map((col, ci) => (
@@ -458,7 +462,7 @@ const ClosureTemplatePanel = () => {
                                   }));
                                 }}
                               />
-                              <span>{col.activo !== false ? 'Activa' : 'Inactiva'}</span>
+                              <span>{col.activo === false ? 'Inactiva' : 'Activa'}</span>
                             </label>
                             <button type="button" className="ctp-col-remove" onClick={() => removeColumn(idx, ci)}><Trash2 size={11} /></button>
                           </div>
@@ -478,7 +482,7 @@ const ClosureTemplatePanel = () => {
                           checked={block.activo !== false}
                           onChange={(e) => updateBlock(idx, { activo: e.target.checked })}
                         />
-                        <span>{block.activo !== false ? 'Activo' : 'Inactivo'}</span>
+                        <span>{block.activo === false ? 'Inactivo' : 'Activo'}</span>
                       </label>
                     </div>
                   )}
@@ -522,8 +526,8 @@ const ClosureTemplatePanel = () => {
       </div>
 
       {previewOpen && (
-        <div className="ctp-preview-overlay" onClick={() => setPreviewOpen(false)}>
-          <div className="ctp-preview-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ctp-preview-overlay" role="presentation" onClick={() => setPreviewOpen(false)}>
+          <div className="ctp-preview-modal" role="presentation" onClick={(e) => e.stopPropagation()}>
             <div className="ctp-preview-header">
               <h3>Vista Previa del Documento</h3>
               <button type="button" className="ctp-preview-close" onClick={() => setPreviewOpen(false)}>&times;</button>

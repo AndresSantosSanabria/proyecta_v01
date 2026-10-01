@@ -50,6 +50,9 @@ const ClosureQuestionsPanel = () => {
     }
   };
 
+  // Ejecucion solo al montar: loadQuestions se recrea en cada render y anadirlo
+  // al array provocaria un bucle de peticiones. Es intencional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadQuestions(); }, []);
 
   const handleToggle = async (id) => {

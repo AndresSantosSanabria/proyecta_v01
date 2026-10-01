@@ -64,7 +64,7 @@ const NotificationFailuresModal = ({ isOpen, onClose }) => {
         page,
         size: pageSize,
         recipient: recipient || undefined,
-        channel: channel !== 'ALL' ? channel : undefined,
+        channel: channel === 'ALL' ? undefined : channel,
       };
       const result = await securityService.getFailedNotifications(params);
       const data = result?.data?.data || result?.data || result || {};
@@ -165,6 +165,91 @@ const NotificationFailuresModal = ({ isOpen, onClose }) => {
   const totalElements = activeTab === 'audit' ? auditTotalElements : dispatchTotalElements;
   const currentPage = activeTab === 'audit' ? auditPage : dispatchPage;
 
+  const auditContent = auditEntries.length === 0 ? (
+    <div className="failures-empty">
+      <AlertTriangle size={32} />
+      <span>No se encontraron notificaciones fallidas.</span>
+    </div>
+  ) : (
+    <div className="failures-table-wrap">
+      <table className="data-table failures-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Evento</th>
+            <th>Destinatario</th>
+            <th>Canal</th>
+            <th>Razón del fallo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {auditEntries.map((entry) => {
+            const ch = channelMeta[entry.channel] || { label: entry.channel, className: '' };
+            return (
+              <tr key={entry.id}>
+                <td className="failures-date">{formatDateTime(entry.createdAt)}</td>
+                <td>
+                  <span className="failures-event-code">{entry.eventCode}</span>
+                </td>
+                <td className="failures-recipient">{entry.recipient}</td>
+                <td>
+                  <span className={`failures-channel ${ch.className}`}>{ch.label}</span>
+                </td>
+                <td className="failures-reason" title={entry.failureReason}>
+                  {entry.failureReason || '-'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const dispatchContent = dispatchEntries.length === 0 ? (
+    <div className="failures-empty">
+      <AlertTriangle size={32} />
+      <span>No se encontraron notificaciones fallidas.</span>
+    </div>
+  ) : (
+    <div className="failures-table-wrap">
+      <table className="data-table failures-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Asunto</th>
+            <th>Destinatario</th>
+            <th>Estado</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dispatchEntries.map((entry) => (
+            <tr key={entry.id}>
+              <td className="failures-date">{formatDateTime(entry.createdAt)}</td>
+              <td className="failures-subject">{entry.subject}</td>
+              <td className="failures-recipient">{entry.recipient}</td>
+              <td>
+                <span className="failures-status-badge">{entry.status}</span>
+              </td>
+              <td className="failures-reason" title={entry.detail}>
+                {entry.detail || '-'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const tabContent = activeTab === 'audit' ? auditContent : dispatchContent;
+  const bodyContent = loading ? (
+    <div className="failures-loading">
+      <LoaderCircle size={24} className="animate-spin" />
+      <span>Cargando registros...</span>
+    </div>
+  ) : tabContent;
+
   return (
     <div className="failures-overlay" role="presentation" onMouseDown={onClose}>
       <article
@@ -195,16 +280,14 @@ const NotificationFailuresModal = ({ isOpen, onClose }) => {
             className={`failures-tab ${activeTab === 'audit' ? 'active' : ''}`}
             onClick={() => setActiveTab('audit')}
           >
-            Auditoría
-            <span className="failures-tab__count">{auditTotalElements}</span>
+            Auditoría<span className="failures-tab__count">{auditTotalElements}</span>
           </button>
           <button
             type="button"
             className={`failures-tab ${activeTab === 'dispatch' ? 'active' : ''}`}
             onClick={() => setActiveTab('dispatch')}
           >
-            Dispatch detallado
-            <span className="failures-tab__count">{dispatchTotalElements}</span>
+            Dispatch detallado<span className="failures-tab__count">{dispatchTotalElements}</span>
           </button>
         </div>
 
@@ -240,87 +323,7 @@ const NotificationFailuresModal = ({ isOpen, onClose }) => {
         <div className="failures-modal__body">
           {error && <div className="feedback-banner error">{error}</div>}
 
-          {loading ? (
-            <div className="failures-loading">
-              <LoaderCircle size={24} className="animate-spin" />
-              <span>Cargando registros...</span>
-            </div>
-          ) : activeTab === 'audit' ? (
-            auditEntries.length === 0 ? (
-              <div className="failures-empty">
-                <AlertTriangle size={32} />
-                <span>No se encontraron notificaciones fallidas.</span>
-              </div>
-            ) : (
-              <div className="failures-table-wrap">
-                <table className="data-table failures-table">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Evento</th>
-                      <th>Destinatario</th>
-                      <th>Canal</th>
-                      <th>Razón del fallo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditEntries.map((entry) => {
-                      const ch = channelMeta[entry.channel] || { label: entry.channel, className: '' };
-                      return (
-                        <tr key={entry.id}>
-                          <td className="failures-date">{formatDateTime(entry.createdAt)}</td>
-                          <td>
-                            <span className="failures-event-code">{entry.eventCode}</span>
-                          </td>
-                          <td className="failures-recipient">{entry.recipient}</td>
-                          <td>
-                            <span className={`failures-channel ${ch.className}`}>{ch.label}</span>
-                          </td>
-                          <td className="failures-reason" title={entry.failureReason}>
-                            {entry.failureReason || '-'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          ) : dispatchEntries.length === 0 ? (
-            <div className="failures-empty">
-              <AlertTriangle size={32} />
-              <span>No se encontraron notificaciones fallidas.</span>
-            </div>
-          ) : (
-            <div className="failures-table-wrap">
-              <table className="data-table failures-table">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Asunto</th>
-                    <th>Destinatario</th>
-                    <th>Estado</th>
-                    <th>Detalle</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dispatchEntries.map((entry) => (
-                    <tr key={entry.id}>
-                      <td className="failures-date">{formatDateTime(entry.createdAt)}</td>
-                      <td className="failures-subject">{entry.subject}</td>
-                      <td className="failures-recipient">{entry.recipient}</td>
-                      <td>
-                        <span className="failures-status-badge">{entry.status}</span>
-                      </td>
-                      <td className="failures-reason" title={entry.detail}>
-                        {entry.detail || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {bodyContent}
         </div>
 
         {totalPages > 1 && (

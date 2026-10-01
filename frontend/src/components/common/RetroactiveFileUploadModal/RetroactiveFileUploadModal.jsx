@@ -68,8 +68,8 @@ const RetroactiveFileUploadModal = ({ open, entregableNombre, onConfirm, onClose
   };
 
   return (
-    <div className="retroactive-upload-overlay" onClick={onClose}>
-      <div className="retroactive-upload-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="retroactive-upload-overlay" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="retroactive-upload-modal" role="dialog" aria-modal="true" tabIndex={0}>
         <div className="retroactive-upload-header">
           <div>
             <h3>Cargar soporte - {entregableNombre || 'Entregable'}</h3>
@@ -83,7 +83,15 @@ const RetroactiveFileUploadModal = ({ open, entregableNombre, onConfirm, onClose
         <div className="retroactive-upload-body">
           <div
             className="retroactive-dropzone"
+            role="button"
+            tabIndex={0}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >

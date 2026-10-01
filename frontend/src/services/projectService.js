@@ -46,7 +46,7 @@ const projectService = {
       const content = Array.isArray(payload?.content) ? payload.content : [];
       allProjects.push(...content);
 
-      hasNext = Boolean(payload && payload.last === false);
+      hasNext = Boolean(payload?.last === false);
       page += 1;
     }
 

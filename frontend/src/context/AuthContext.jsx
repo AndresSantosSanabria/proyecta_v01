@@ -31,11 +31,11 @@ const canonicalRoleKeys = new Set([
 const normalizeRoleKey = (role) => String(role || '')
   .trim()
   .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
+  .replaceAll(/[\u0300-\u036f]/g, '')
   .toUpperCase()
   .replace(/^ROLE[\s_-]+/, '')
-  .replace(/[^A-Z0-9]+/g, '_')
-  .replace(/^_+|_+$/g, '');
+  .replaceAll(/[^A-Z0-9]+/g, '_')
+  .replaceAll(/^_+|_+$/g, '');
 
 const normalizeAliasMap = (aliases = {}) => Object.entries(aliases || {}).reduce((normalized, [source, target]) => {
   const sourceKey = normalizeRoleKey(source);
@@ -235,6 +235,45 @@ const extractAssignedProjects = (authzUser) => {
   return Array.isArray(rawProjects) ? rawProjects : [];
 };
 
+const reportLogoutAfterValidation = (logoutError) => {
+  console.error('No se pudo cerrar la sesion tras la validacion local:', logoutError);
+};
+
+const recoverBackendIdentityError = async (profileError, ops) => {
+  const isForbidden = profileError?.response?.status === 403;
+
+  if (isForbidden) {
+    await ops.syncBackendUserFromToken();
+
+    try {
+      const refreshedIdentity = await ops.readBackendIdentity();
+      ops.applyBackendIdentity(refreshedIdentity.backendUser, refreshedIdentity.authzUser);
+      return true;
+    } catch (retryError) {
+      console.warn('No fue posible sincronizar el usuario autenticado tras el reintento:', retryError);
+    }
+  }
+
+  if (ops.isMounted()) {
+    ops.setBackendProfile(null);
+    ops.setBackendRoles([]);
+    ops.setPermissions([]);
+    ops.setAssignedProjects([]);
+    ops.setRoleAliases(defaultRoleAliases);
+    ops.setTransversal(false);
+    ops.setIsAdminLocal(false);
+  }
+
+  console.warn('No fue posible obtener el perfil validado por backend:', profileError);
+
+  if (ops.isMounted() && isForbidden) {
+    ops.setError(new Error('El usuario autenticado no existe o está inactivo en el backend.'));
+    startLogoutRedirect().catch(reportLogoutAfterValidation);
+  }
+
+  return false;
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [backendProfile, setBackendProfile] = useState(null);
@@ -307,7 +346,7 @@ export function AuthProvider({ children }) {
       }
 
       if (mounted) setBackendLoading(true);
-      let activeRoleAliases = defaultRoleAliases;
+      let activeRoleAliases;
 
       try {
         activeRoleAliases = await readRoleAliases();
@@ -320,42 +359,27 @@ export function AuthProvider({ children }) {
         applyBackendIdentity(initialIdentity.backendUser, initialIdentity.authzUser);
 
         if (shouldSyncBackendUser(initialIdentity.backendUser, tokenProfile, activeRoleAliases)) {
-          await syncBackendUserFromToken(currentUser, activeRoleAliases);
+          await syncBackendUserFromToken();
           const refreshedIdentity = await readBackendIdentity();
           applyBackendIdentity(refreshedIdentity.backendUser, refreshedIdentity.authzUser);
         }
       } catch (profileError) {
-        const isForbidden = profileError?.response?.status === 403;
-
-        if (isForbidden) {
-          await syncBackendUserFromToken(currentUser, activeRoleAliases);
-
-          try {
-            const refreshedIdentity = await readBackendIdentity();
-            applyBackendIdentity(refreshedIdentity.backendUser, refreshedIdentity.authzUser);
-            return;
-          } catch (retryError) {
-            console.warn('No fue posible sincronizar el usuario autenticado tras el reintento:', retryError);
-          }
-        }
-
-        if (mounted) {
-          setBackendProfile(null);
-          setBackendRoles([]);
-          setPermissions([]);
-          setAssignedProjects([]);
-          setRoleAliases(defaultRoleAliases);
-          setTransversal(false);
-          setIsAdminLocal(false);
-        }
-
-        console.warn('No fue posible obtener el perfil validado por backend:', profileError);
-
-        if (mounted && isForbidden) {
-          setError(new Error('El usuario autenticado no existe o está inactivo en el backend.'));
-          startLogoutRedirect().catch((logoutError) => {
-            console.error('No se pudo cerrar la sesion tras la validacion local:', logoutError);
-          });
+        const recovered = await recoverBackendIdentityError(profileError, {
+          isMounted: () => mounted,
+          readBackendIdentity,
+          syncBackendUserFromToken,
+          applyBackendIdentity,
+          setBackendProfile,
+          setBackendRoles,
+          setPermissions,
+          setAssignedProjects,
+          setRoleAliases,
+          setTransversal,
+          setIsAdminLocal,
+          setError,
+        });
+        if (recovered) {
+          return;
         }
       } finally {
         if (mounted) {
@@ -410,13 +434,15 @@ export function AuthProvider({ children }) {
     };
 
     const handleSilentRenewError = (renewError) => {
-      console.error('Error renovando token:', renewError);
+      // CWE-534/CWE-209: no registrar el objeto de error completo (puede traer
+      // la peticion con su header Authorization); basta el mensaje.
+      console.error('Error renovando token:', renewError?.message || renewError);
       setError(renewError);
     };
 
     const handleAccessTokenExpired = () => {
       startLoginRedirect().catch((redirectError) => {
-        console.error('No se pudo redirigir al login tras expirar el token:', redirectError);
+        console.error('No se pudo redirigir al login tras expirar el token:', redirectError?.message || redirectError);
       });
     };
 
@@ -450,7 +476,7 @@ export function AuthProvider({ children }) {
     () => resolvedBackendRoles[0] || businessTokenRoles[0] || resolvedTokenRoles[0] || '',
     [resolvedBackendRoles, businessTokenRoles, resolvedTokenRoles]
   );
-  const isAuthenticated = Boolean(user && user.access_token && !user.expired);
+  const isAuthenticated = Boolean(user?.access_token && !user.expired);
   const can = (permissionCode) => permissions.includes(permissionCode);
   const isVisualizador = useMemo(() => {
     if (isAdminLocal || transversal) return false;
@@ -469,7 +495,7 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const value = {
+  const value = useMemo(() => ({
     isAuthenticated,
     loading,
     backendLoading,
@@ -486,7 +512,6 @@ export function AuthProvider({ children }) {
     roleAliases,
     transversal,
     isAdminLocal,
-    accessToken: user?.access_token ?? null,
     login: () => startLoginRedirect(),
     logout: () => startLogoutRedirect(),
     hasRole: (role) => {
@@ -497,7 +522,26 @@ export function AuthProvider({ children }) {
     isVisualizador,
     isProjectAssigned,
     getUser: () => auth.getUser(),
-  };
+  }), [
+    isAuthenticated,
+    loading,
+    backendLoading,
+    error,
+    user,
+    backendProfile,
+    roles,
+    resolvedTokenRoles,
+    businessTokenRoles,
+    primaryRole,
+    permissions,
+    assignedProjects,
+    roleAliases,
+    transversal,
+    isAdminLocal,
+    can,
+    isVisualizador,
+    isProjectAssigned,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

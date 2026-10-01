@@ -29,6 +29,7 @@ import projectService from '../../../services/projectService';
 import { usePermission } from '../../../hooks/usePermission';
 import { useAuthContext } from '../../../context/AuthContext';
 import { formatDate } from '../../../utils/locale';
+import { downloadBlob } from '../../../utils/download';
 
 import ModificarFechaModal from './ModificarFechaModal';
 import HistorialCambiosFecha from './HistorialCambiosFecha';
@@ -36,7 +37,7 @@ import ModificarDescripcionModal from './ModificarDescripcionModal';
 
 const toNumber = (value) => {
   if (value == null) return 0;
-  const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+  const parsed = typeof value === 'string' ? Number.parseFloat(value) : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
@@ -397,6 +398,7 @@ const TreeTableRow = ({
               const diferenciaEnt = toNumber(ent.diferencia ?? (programadoEnt - ejecutadoEnt));
               const eficaciaEnt = toDisplayPercent(ent.eficacia ?? (programadoEnt === 0 ? 1 : ejecutadoEnt / programadoEnt));
               const diasAtraso = getDiasAtraso(ent);
+              const diasAtrasoSigno = diasAtraso >= 0 ? '+' : '';
               const semaforo = semaforoDias(diasAtraso, tieneDocumento);
               const statusClass = statusClassByState(estadoRevision, semaforo);
               const statusLabel = statusLabelByState(estadoRevision, ent.estado || (tieneDocumento ? 'EN_PROCESO' : 'PENDIENTE'));
@@ -453,11 +455,19 @@ const TreeTableRow = ({
                     )}
                   </td>
                   <td>{fechaEntrega || '--'}</td>
-                  <td>{diasAtraso == null ? '--' : `${diasAtraso >= 0 ? '+' : ''}${diasAtraso}d`}</td>
+                  <td>{diasAtraso == null ? '--' : `${diasAtrasoSigno}${diasAtraso}d`}</td>
                   <td>{eficaciaEnt.toFixed(1)}%</td>
                   <td>{eficienciaEnt.toFixed(1)}%</td>
                   <td className="action-col">
-                    <div className="action-icon-group" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="action-icon-group"
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+                      }}
+                    >
                       {!tieneDocumento && canUploadEvidence && (
                         <button
                           type="button"
@@ -639,7 +649,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   React.useEffect(() => {
     return () => {
       if (previewEvidence.objectUrl) {
-        window.URL.revokeObjectURL(previewEvidence.objectUrl);
+        globalThis.URL.revokeObjectURL(previewEvidence.objectUrl);
       }
     };
   }, [previewEvidence.objectUrl]);
@@ -798,7 +808,9 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
           const entregable = entregables[eIndex];
           const entregableId = getEntregableId(entregable);
 
-          if (!entregableId) {
+          if (entregableId) {
+            await projectService.updateEntregable(proyectoId, entregableId, buildEntregablePayload(entregable));
+          } else {
             const result = await projectService.createEntregable(proyectoId, faseId, hitoId, buildEntregablePayload(entregable, true));
             const newId = result?.id || result?.data?.id || result?.entregableId;
             const pendingFile = pendingFiles[`${fIndex}-${hIndex}-${eIndex}`];
@@ -809,8 +821,6 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
                 console.error('Error uploading file for new entregable:', fileErr);
               }
             }
-          } else {
-            await projectService.updateEntregable(proyectoId, entregableId, buildEntregablePayload(entregable));
           }
         }
       }
@@ -893,7 +903,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
     setPreviewEvidence((current) => {
       if (current.objectUrl) {
-        window.URL.revokeObjectURL(current.objectUrl);
+        globalThis.URL.revokeObjectURL(current.objectUrl);
       }
       return {
         open: true,
@@ -907,7 +917,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
     try {
       const blob = await getEvidenceBlob(version.descargaUrl);
-      const objectUrl = window.URL.createObjectURL(blob);
+      const objectUrl = globalThis.URL.createObjectURL(blob);
       setPreviewEvidence((current) => ({
         ...current,
         loading: false,
@@ -1101,14 +1111,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
     try {
       const blob = await getEvidenceBlob(url);
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.setAttribute('download', file || 'evidencia.pdf');
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
+      downloadBlob(blob, file || 'evidencia.pdf');
     } catch {
       setPreviewError('No fue posible descargar la evidencia. El archivo no es un PDF válido o no está disponible.');
     }
@@ -1117,7 +1120,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   const closePreviewEvidence = () => {
     setPreviewEvidence((current) => {
       if (current.objectUrl) {
-        window.URL.revokeObjectURL(current.objectUrl);
+        globalThis.URL.revokeObjectURL(current.objectUrl);
       }
       return { open: false, loading: false, error: '', name: '', url: '', objectUrl: '' };
     });
@@ -1130,7 +1133,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
     setPreviewEvidence((current) => {
       if (current.objectUrl) {
-        window.URL.revokeObjectURL(current.objectUrl);
+        globalThis.URL.revokeObjectURL(current.objectUrl);
       }
       return {
         open: true,
@@ -1144,7 +1147,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
     try {
       const blob = await getEvidenceBlob(url);
-      const objectUrl = window.URL.createObjectURL(blob);
+      const objectUrl = globalThis.URL.createObjectURL(blob);
       setPreviewEvidence((current) => ({
         ...current,
         loading: false,
@@ -1166,11 +1169,11 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     };
 
     document.body.classList.add('modal-open');
-    window.addEventListener('keydown', handleKeyDown);
+    globalThis.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.body.classList.remove('modal-open');
-      window.removeEventListener('keydown', handleKeyDown);
+      globalThis.removeEventListener('keydown', handleKeyDown);
     };
   }, [previewEvidence.open]);
 
@@ -1207,6 +1210,16 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       ?? excelSummary?.eficiencia
       ?? (entregablesConformes === 0 ? 0 : entregablesATiempo / entregablesConformes),
   );
+  const evidenceDownloadFallback = previewEvidence.url ? (
+    <button
+      type="button"
+      className="evidence-preview-download"
+      onClick={() => handleDownloadEvidencia({ evidenciaUrl: previewEvidence.url, evidenciaPdf: previewEvidence.name })}
+    >
+      <Download size={14} />
+      Descargar PDF
+    </button>
+  ) : null;
 
   return (
     <div className="detailed-table-container">
@@ -1313,8 +1326,17 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {hierarchyModal.open && (
-        <div className="review-modal-overlay" role="presentation" onClick={handleCloseHierarchyModal}>
-          <form className="review-modal hierarchy-modal hierarchy-structure-modal" onSubmit={handleSaveHierarchy} onClick={(event) => event.stopPropagation()}>
+        <div className="review-modal-overlay" onClick={handleCloseHierarchyModal}>
+          <form
+            className="review-modal hierarchy-modal hierarchy-structure-modal"
+            role="button"
+            tabIndex={0}
+            onSubmit={handleSaveHierarchy}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+            }}
+          >
             <div className="review-modal-header">
               <div>
                 <span className="review-modal-kicker hierarchy">Jerarquía del proyecto</span>
@@ -1376,8 +1398,16 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {historyModal.open && (
-        <div className="review-modal-overlay" role="presentation" onClick={handleCloseHistory}>
-          <div className="review-modal history-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="review-modal-overlay" onClick={handleCloseHistory}>
+          <div
+            className="review-modal history-modal"
+            role="button"
+            tabIndex={0}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+            }}
+          >
             <div className="review-modal-header">
               <div>
                 <span className="review-modal-kicker history">Historico documental</span>
@@ -1456,8 +1486,17 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {revertModal.open && (
-        <div className="review-modal-overlay" role="presentation" onClick={handleCloseRevertModal}>
-          <form className="review-modal revert-modal" onSubmit={handleConfirmRevert} onClick={(event) => event.stopPropagation()}>
+        <div className="review-modal-overlay" onClick={handleCloseRevertModal}>
+          <form
+            className="review-modal revert-modal"
+            role="button"
+            tabIndex={0}
+            onSubmit={handleConfirmRevert}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+            }}
+          >
             <div className="review-modal-header">
               <div>
                 <span className="review-modal-kicker history">Reversión documental</span>
@@ -1507,8 +1546,17 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {approvalModal.open && (
-        <div className="review-modal-overlay" role="presentation" onClick={handleCloseApprovalModal}>
-          <form className="review-modal approval-modal" onSubmit={handleConfirmApproveEvidence} onClick={(event) => event.stopPropagation()}>
+        <div className="review-modal-overlay" onClick={handleCloseApprovalModal}>
+          <form
+            className="review-modal approval-modal"
+            role="button"
+            tabIndex={0}
+            onSubmit={handleConfirmApproveEvidence}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+            }}
+          >
             <div className="review-modal-header">
               <div>
                 <span className="review-modal-kicker approval">Verificación del cargue de evidencias</span>
@@ -1550,8 +1598,17 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {reviewModal.open && (
-        <div className="review-modal-overlay" role="presentation" onClick={handleCloseReviewModal}>
-          <form className="review-modal" onSubmit={handleRejectEvidence} onClick={(event) => event.stopPropagation()}>
+        <div className="review-modal-overlay" onClick={handleCloseReviewModal}>
+          <form
+            className="review-modal"
+            role="button"
+            tabIndex={0}
+            onSubmit={handleRejectEvidence}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+            }}
+          >
             <div className="review-modal-header">
               <div>
                 <span className="review-modal-kicker">Observación del gestor</span>
@@ -1605,8 +1662,24 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {previewEvidence.open && (
-        <div className="evidence-preview-overlay" onClick={closePreviewEvidence}>
-          <div className="evidence-preview-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="evidence-preview-overlay"
+          role="button"
+          tabIndex={0}
+          onClick={closePreviewEvidence}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') closePreviewEvidence();
+          }}
+        >
+          <div
+            className="evidence-preview-modal"
+            role="button"
+            tabIndex={0}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+            }}
+          >
             <div className="evidence-preview-header">
               <div>
                 <span className="evidence-preview-kicker">Evidencia PDF</span>
@@ -1666,16 +1739,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
                   <Download size={14} />
                   Descargar PDF
                 </a>
-              ) : previewEvidence.url ? (
-                <button
-                  type="button"
-                  className="evidence-preview-download"
-                  onClick={() => handleDownloadEvidencia({ evidenciaUrl: previewEvidence.url, evidenciaPdf: previewEvidence.name })}
-                >
-                  <Download size={14} />
-                  Descargar PDF
-                </button>
-              ) : null}
+              ) : evidenceDownloadFallback}
             </div>
           </div>
         </div>

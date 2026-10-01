@@ -88,7 +88,7 @@ export const useSpellCheck = () => {
 
   const checkText = useCallback((text) => {
     return new Promise((resolve) => {
-      if (!text || !text.trim()) {
+      if (!text?.trim()) {
         resolve([]);
         return;
       }

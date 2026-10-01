@@ -121,11 +121,11 @@ const NewProjectPage = () => {
   useEffect(() => {
     if (!submitSuccess) return undefined;
 
-    const timer = window.setTimeout(() => {
+    const timer = globalThis.setTimeout(() => {
       navigate('/projects');
     }, 1200);
 
-    return () => window.clearTimeout(timer);
+    return () => globalThis.clearTimeout(timer);
   }, [navigate, submitSuccess]);
 
   const updateField = (field, value) => {
@@ -229,14 +229,24 @@ const NewProjectPage = () => {
   return (
     <div
       className="new-project-overlay"
+      tabIndex={0}
       onClick={(event) => {
         if (event.target === event.currentTarget) navigate(-1);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          if (event.target === event.currentTarget) navigate(-1);
+        }
       }}
     >
       <div
         className="new-project-modal"
+        tabIndex={0}
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-project-title"
@@ -322,8 +332,9 @@ const NewProjectPage = () => {
 
               <div className="form-grid">
                 <div className="form-group">
-                  <label className="form-label">Código del Proyecto</label>
+                  <label className="form-label" htmlFor="new-project-codigo">Código del Proyecto</label>
                   <input
+                    id="new-project-codigo"
                     className={`form-input form-input-muted ${errors.codigoProyecto ? 'input-error' : ''}`}
                     value={codeLoading && !formData.codigoProyecto ? 'Generando código...' : (formData.codigoProyecto || 'Se generará al guardar')}
                     readOnly
@@ -338,8 +349,9 @@ const NewProjectPage = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Nombre del Proyecto *</label>
+                  <label className="form-label" htmlFor="new-project-nombre">Nombre del Proyecto *</label>
                   <SpellCheckInput
+                    id="new-project-nombre"
                     className={`form-input ${errors.nombre ? 'input-error' : ''}`}
                     value={formData.nombre}
                     onChange={(event) => updateField('nombre', event.target.value)}
@@ -349,16 +361,20 @@ const NewProjectPage = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Director de Proyecto Asignado *</label>
+                  <label className="form-label" htmlFor="new-project-director">Director de Proyecto Asignado *</label>
                   <AutocompleteSelect
+                    id="new-project-director"
                     className={errors.directorUsuarioId ? 'input-error' : ''}
                     value={formData.directorUsuarioId}
                     onChange={(val) => handleDirectorChange(val)}
                     disabled={directorsLoading || directorOptions.length === 0}
-                    options={directorOptions.map((d) => ({
-                      value: getDirectorId(d),
-                      label: `${getDirectorName(d)}${getDirectorRole(d) ? ` - ${getDirectorRole(d)}` : ''}`,
-                    }))}
+                    options={directorOptions.map((d) => {
+                      const role = getDirectorRole(d);
+                      return {
+                        value: getDirectorId(d),
+                        label: role ? `${getDirectorName(d)} - ${role}` : getDirectorName(d),
+                      };
+                    })}
                     placeholder={directorsLoading ? 'Cargando directores...' : 'Seleccione un usuario director'}
                     allLabel=""
                     allValue=""
@@ -372,8 +388,9 @@ const NewProjectPage = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Correo del Director</label>
+                  <label className="form-label" htmlFor="new-project-correo">Correo del Director</label>
                   <input
+                    id="new-project-correo"
                     className="form-input form-input-muted"
                     value={selectedDirector ? getDirectorEmail(selectedDirector) : formData.correoDirector}
                     readOnly
@@ -384,9 +401,10 @@ const NewProjectPage = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Objetivo General *</label>
+                <label className="form-label" htmlFor="new-project-objetivo">Objetivo General *</label>
                 <SpellCheckInput
                   as="textarea"
+                  id="new-project-objetivo"
                   className={`form-input form-textarea ${errors.objetivoGeneral ? 'input-error' : ''}`}
                   value={formData.objetivoGeneral}
                   onChange={(event) => updateField('objetivoGeneral', event.target.value)}

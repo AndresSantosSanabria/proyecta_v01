@@ -49,18 +49,18 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
       <h3 className="step-title">Plan Estratégico de Tecnologías de la Información (PETI)</h3>
 
       <div className="form-group">
-        <label className="form-label">
+        <label className="form-label" htmlFor="p4-peti-si">
           ¿El proyecto pertenece al portafolio del Plan Estratégico de Tecnologías de la Información (PETI)? *
         </label>
         <div className="radio-group">
           <label className="radio-label">
             <input
+              id="p4-peti-si"
               type="radio"
               name="peti"
               checked={data.peti === true}
               onChange={() => onChange({ peti: true })}
-            />
-            Sí
+            />Sí
           </label>
           <label className="radio-label">
             <input
@@ -68,8 +68,7 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
               name="peti"
               checked={data.peti === false}
               onChange={() => onChange({ peti: false, vigenciaPeti: '', estrategiaPeti: null })}
-            />
-            No
+            />No
           </label>
         </div>
       </div>
@@ -77,8 +76,9 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
       {data.peti === true && (
         <div className="form-grid">
           <div className="form-group">
-            <label className="form-label">Vigencia PETI *</label>
+            <label className="form-label" htmlFor="p4-vigencia-peti">Vigencia PETI *</label>
             <AutocompleteSelect
+              id="p4-vigencia-peti"
               value={data.vigenciaPeti || ''}
               onChange={(val) => onChange({ vigenciaPeti: val })}
               disabled={loadingCatalog}
@@ -93,8 +93,9 @@ const Paso4PetiComunicaciones = ({ data, onChange, errors, catalog, loadingCatal
           </div>
 
           <div className="form-group">
-            <label className="form-label">Estrategia PETI *</label>
+            <label className="form-label" htmlFor="p4-estrategia-peti">Estrategia PETI *</label>
             <AutocompleteSelect
+              id="p4-estrategia-peti"
               value={data.estrategiaPeti || ''}
               onChange={(val) => onChange({ estrategiaPeti: val })}
               disabled={loadingCatalog}

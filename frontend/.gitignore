@@ -10,10 +10,9 @@ dist-ssr/
 
 # Variables de Entorno (IMPORTANTE: Nunca subir estos archivos)
 .env
-.env.production
-.env.development
-.env.local
-.env.*.local
+.env.*
+!.env.template
+!.env.example
 
 # Logs
 logs

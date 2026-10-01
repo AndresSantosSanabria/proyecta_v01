@@ -2,6 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSpellCheck } from '../../../hooks/useSpellCheck';
 import './SpellCheckInput.css';
 
+const collectMisspelledWords = (misspelled) => new Set(misspelled.map((entry) => entry.word));
+
+const retainKnownWords = (previous, currentWords) => {
+  if (previous.size === 0) return previous;
+  const next = new Set();
+  previous.forEach((word) => {
+    if (currentWords.has(word)) next.add(word);
+  });
+  return next;
+};
+
 export const SpellCheckInput = ({ 
   value, 
   onChange, 
@@ -28,13 +39,7 @@ export const SpellCheckInput = ({
         const misspelled = await checkText(value);
         if (!mountedRef.current) return;
         setErrors(misspelled);
-        setDismissedWords((prev) => {
-          if (prev.size === 0) return prev;
-          const currentWords = new Set(misspelled.map((e) => e.word));
-          const next = new Set();
-          prev.forEach((w) => { if (currentWords.has(w)) next.add(w); });
-          return next;
-        });
+        setDismissedWords((prev) => retainKnownWords(prev, collectMisspelledWords(misspelled)));
         if (onErrorChange) {
           onErrorChange(misspelled.length > 0);
         }
@@ -59,7 +64,7 @@ export const SpellCheckInput = ({
 
   const handleReplace = useCallback((originalWord, suggestedWord) => {
     if (!onChange) return;
-    const newValue = value.replace(new RegExp(`\\b${originalWord}\\b`, 'i'), suggestedWord);
+    const newValue = value.replace(new RegExp(String.raw`\b${originalWord}\b`, 'i'), suggestedWord);
     onChange({ target: { value: newValue } });
   }, [value, onChange]);
 

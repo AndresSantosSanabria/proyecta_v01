@@ -9,12 +9,34 @@ import documentService from '../../services/documentService';
 import riskService from '../../services/riskService';
 import advanceReportService from '../../services/advanceReportService';
 import { formatDate } from '../../utils/locale';
+import { createSafePdfObjectUrl } from '../../utils/safePdfPreview';
+import { downloadBlob } from '../../utils/download';
 import './EvidenciaDetailModal.css';
 
+const MSJ_PREVIEW_INSEGURO = 'El archivo no tiene una firma PDF valida, por lo que no se puede previsualizar. Utilice la opcion Descargar.';
+
+/**
+ * CWE-201: solo se piden evidencias a este mismo origen. Una URL absoluta de otro
+ * host se descarta para que apiClient no envie el Bearer token hacia fuera.
+ */
 const normalizeEvidencePath = (url) => {
   if (!url) return '';
-  return String(url).trim()
-    .replace(/^https?:\/\/[^/]+\/api\/v1/i, '')
+  const raw = String(url).trim();
+
+  if (/^https?:\/\//i.test(raw)) {
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      return '';
+    }
+    if (typeof globalThis.window !== 'undefined' && parsed.origin !== globalThis.location.origin) {
+      return '';
+    }
+    return `${parsed.pathname}${parsed.search}`.replace(/^\/api\/v1/i, '').replace(/^\//, '');
+  }
+
+  return raw
     .replace(/^\/api\/v1/i, '')
     .replace(/^\//, '');
 };
@@ -40,9 +62,34 @@ const estadoColors = {
 };
 
 const normalizeEstado = (estado) => {
-  const key = String(estado || '').toUpperCase().replace(/\s+/g, '_');
+  const key = String(estado || '').toUpperCase().replaceAll(/\s+/g, '_');
   return estadoColors[key] || { bg: 'var(--bg-muted)', color: 'var(--text-muted)', label: estado || 'Sin estado' };
 };
+
+const pickArrayPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const CATEGORIAS_CON_ARCHIVO = new Set([
+  'DOCUMENTO_PROYECTO',
+  'DOCUMENTO_PROYECTO_AVANZADO',
+  'DOCUMENTO_DINAMICO',
+  'ACTA_CIERRE',
+  'INFORME_AVANCE',
+]);
+
+const resolveTieneArchivo = (categoria, evidenciaUrl, archivoPdf) => {
+  if (categoria === 'MATRIZ_RIESGOS') return false;
+  if (CATEGORIAS_CON_ARCHIVO.has(categoria)) return true;
+  return Boolean(evidenciaUrl || archivoPdf);
+};
+
+const isCambioConSoporte = (ev) => (
+  (ev?.categoria === 'CAMBIO_FECHA' || ev?.categoria === 'CAMBIO_DESCRIPCION')
+  && Boolean(ev?.cambioId)
+);
 
 const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
   const [versions, setVersions] = useState([]);
@@ -64,10 +111,10 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
     if (!open) return;
     const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
     document.body.classList.add('modal-open');
-    window.addEventListener('keydown', handleKeyDown);
+    globalThis.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.classList.remove('modal-open');
-      window.removeEventListener('keydown', handleKeyDown);
+      globalThis.removeEventListener('keydown', handleKeyDown);
     };
   }, [open, onClose]);
 
@@ -93,7 +140,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
       } else if (evidencia.categoria === 'INFORME_AVANCE' && evidencia.evidenciaUrl) {
         const periodo = new URLSearchParams(String(evidencia.evidenciaUrl).split('?')[1] || '').get('periodo');
         const payload = await advanceReportService.getVersions(proyectoId, periodo);
-        const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
+        const list = pickArrayPayload(payload);
         setVersions(list.map((v) => ({
           id: v.numeroVersion,
           numeroVersion: v.numeroVersion,
@@ -123,7 +170,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
   }, [open, evidencia, fetchVersions]);
 
   useEffect(() => {
-    if (!open || !evidencia || evidencia.categoria !== 'MATRIZ_RIESGOS' || !evidencia.riesgoId) {
+    if (!open || evidencia?.categoria !== 'MATRIZ_RIESGOS' || !evidencia.riesgoId) {
       setRiskSolutions([]);
       setRiskSolutionsError('');
       return;
@@ -159,7 +206,11 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
         setViewerBlob(null);
         const blob = await documentService.descargarDocumento(proyectoId, evidencia.tipoDocumento);
         if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-        const objectUrl = URL.createObjectURL(blob);
+        const objectUrl = await createSafePdfObjectUrl(blob);
+        if (!objectUrl) {
+          setViewerError(MSJ_PREVIEW_INSEGURO);
+          return;
+        }
         objectUrlRef.current = objectUrl;
         setViewerBlob(objectUrl);
         setViewerNombre(evidencia.nombreArchivo || evidencia.nombre || 'documento.pdf');
@@ -178,7 +229,11 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
         setViewerBlob(null);
         const blob = await documentService.descargarDocumento(proyectoId, evidencia.tipoDocumento);
         if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-        const objectUrl = URL.createObjectURL(blob);
+        const objectUrl = await createSafePdfObjectUrl(blob);
+        if (!objectUrl) {
+          setViewerError(MSJ_PREVIEW_INSEGURO);
+          return;
+        }
         objectUrlRef.current = objectUrl;
         setViewerBlob(objectUrl);
         setViewerNombre(evidencia.nombreArchivo || evidencia.nombre || 'documento.pdf');
@@ -207,7 +262,11 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
         const path = `/proyectos/${proyectoId}/entregables/${subPath}/${evidencia.cambioId}/descargar`;
         const response = await apiClient.get(path, { responseType: 'blob' });
         if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-        const objectUrl = URL.createObjectURL(response.data);
+        const objectUrl = await createSafePdfObjectUrl(response.data);
+        if (!objectUrl) {
+          setViewerError(MSJ_PREVIEW_INSEGURO);
+          return;
+        }
         objectUrlRef.current = objectUrl;
         setViewerBlob(objectUrl);
         setViewerNombre(evidencia.nombreArchivo || `soporte-cambio-${evidencia.cambioId}.pdf`);
@@ -246,7 +305,11 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
       setViewerBlob(null);
       const blob = await getEvidenceBlob(url);
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-      const objectUrl = URL.createObjectURL(blob);
+      const objectUrl = await createSafePdfObjectUrl(blob);
+      if (!objectUrl) {
+        setViewerError(MSJ_PREVIEW_INSEGURO);
+        return;
+      }
       objectUrlRef.current = objectUrl;
       setViewerBlob(objectUrl);
       setViewerNombre(evidencia.nombreArchivo || evidencia.nombre || 'evidencia.pdf');
@@ -262,14 +325,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
     if (evidencia?.categoria === 'DOCUMENTO_PROYECTO' && evidencia.tipoDocumento) {
       try {
         const blob = await documentService.descargarDocumento(proyectoId, evidencia.tipoDocumento);
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.setAttribute('download', evidencia.nombreArchivo || 'documento.pdf');
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
+        downloadBlob(blob, evidencia.nombreArchivo || 'documento.pdf');
       } catch (err) { console.error('Error downloading:', err); }
       return;
     }
@@ -277,31 +333,17 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
     if (evidencia?.categoria === 'DOCUMENTO_PROYECTO_AVANZADO' && evidencia.tipoDocumento) {
       try {
         const blob = await documentService.descargarDocumento(proyectoId, evidencia.tipoDocumento);
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.setAttribute('download', evidencia.nombreArchivo || 'documento.pdf');
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
+        downloadBlob(blob, evidencia.nombreArchivo || 'documento.pdf');
       } catch (err) { console.error('Error downloading:', err); }
       return;
     }
 
-    if ((evidencia?.categoria === 'CAMBIO_FECHA' || evidencia?.categoria === 'CAMBIO_DESCRIPCION') && evidencia.cambioId) {
+    if (isCambioConSoporte(evidencia)) {
       try {
         const subPath = evidencia.categoria === 'CAMBIO_DESCRIPCION' ? 'cambios-descripcion' : 'cambios-fecha';
         const path = `/proyectos/${proyectoId}/entregables/${subPath}/${evidencia.cambioId}/descargar`;
         const response = await apiClient.get(path, { responseType: 'blob' });
-        const blobUrl = URL.createObjectURL(response.data);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.setAttribute('download', evidencia.nombreArchivo || `soporte-cambio-${evidencia.cambioId}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
+        downloadBlob(response.data, evidencia.nombreArchivo || `soporte-cambio-${evidencia.cambioId}.pdf`);
       } catch (err) { console.error('Error downloading:', err); }
       return;
     }
@@ -311,14 +353,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
 
     try {
       const blob = await getEvidenceBlob(url);
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.setAttribute('download', evidencia.nombreArchivo || evidencia.nombre || 'archivo.pdf');
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
+      downloadBlob(blob, evidencia.nombreArchivo || evidencia.nombre || 'archivo.pdf');
     } catch (err) { console.error('Error downloading:', err); }
   };
 
@@ -332,14 +367,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
       } else {
         return;
       }
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.setAttribute('download', version.nombreArchivo || `version-${version.numeroVersion}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
+      downloadBlob(blob, version.nombreArchivo || `version-${version.numeroVersion}.pdf`);
     } catch (err) { console.error('Error downloading version:', err); }
   };
 
@@ -359,7 +387,11 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
         return;
       }
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-      const objectUrl = URL.createObjectURL(blob);
+      const objectUrl = await createSafePdfObjectUrl(blob);
+      if (!objectUrl) {
+        setViewerError(MSJ_PREVIEW_INSEGURO);
+        return;
+      }
       objectUrlRef.current = objectUrl;
       setViewerBlob(objectUrl);
       setViewerNombre(version.nombreArchivo || `Version ${version.numeroVersion}`);
@@ -388,27 +420,15 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
   const entregableNombre = data.entregableNombre || '';
   const hitoNombre = data.hitoNombre || '';
   const faseNombre = data.faseNombre || '';
-  const tieneArchivo = data.categoria === 'MATRIZ_RIESGOS'
-    ? false
-    : data.categoria === 'DOCUMENTO_PROYECTO'
-    ? true
-    : data.categoria === 'DOCUMENTO_PROYECTO_AVANZADO'
-    ? true
-    : data.categoria === 'DOCUMENTO_DINAMICO'
-    ? true
-    : data.categoria === 'ACTA_CIERRE'
-    ? true
-    : data.categoria === 'INFORME_AVANCE'
-    ? true
-    : Boolean(data.evidenciaUrl || data.archivoPdf);
+  const tieneArchivo = resolveTieneArchivo(data.categoria, data.evidenciaUrl, data.archivoPdf);
   const isDateChange = data.categoria === 'CAMBIO_FECHA';
   const periodoInforme = data.categoria === 'INFORME_AVANCE'
     ? new URLSearchParams(String(data.evidenciaUrl || '').split('?')[1] || '').get('periodo')
     : null;
 
   return (
-    <div className="edm-overlay" role="presentation" onClick={onClose}>
-      <div className="edm-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <div className="edm-overlay" onClick={onClose}>
+      <div className="edm-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
         <header className="edm-header">
           <div className="edm-header-content">
             <span className="edm-kicker">
@@ -609,7 +629,11 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
                                 setViewerBlob(null);
                                 const blob = await getEvidenceBlob(sol.urlDescarga);
                                 if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-                                const objectUrl = URL.createObjectURL(blob);
+                                const objectUrl = await createSafePdfObjectUrl(blob);
+                                if (!objectUrl) {
+                                  setViewerError(MSJ_PREVIEW_INSEGURO);
+                                  return;
+                                }
                                 objectUrlRef.current = objectUrl;
                                 setViewerBlob(objectUrl);
                                 setViewerNombre(sol.nombreOriginal || `solucion-${idx + 1}.pdf`);
@@ -698,8 +722,8 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
       </div>
 
       {(viewerError || viewerBlob) && (
-        <div className="edm-viewer-overlay" role="presentation" onClick={handleCloseViewer}>
-          <div className="edm-viewer-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <div className="edm-viewer-overlay" onClick={handleCloseViewer}>
+          <div className="edm-viewer-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
             <header className="edm-viewer-header">
               <div className="edm-viewer-title">
                 {viewerError ? <AlertCircle size={16} /> : <FileText size={16} />}
@@ -714,7 +738,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
                 <div className="edm-viewer-fallback"><FileText size={48} strokeWidth={1} /><p>{viewerError}</p></div>
               ) : (
                 <object data={viewerBlob} type="application/pdf" className="edm-viewer-iframe">
-                  <p className="edm-viewer-fallback-text">No se pudo previsualizar. <a href={viewerBlob} target="_blank" rel="noreferrer">Abrir en nueva pestana</a></p>
+                  <p className="edm-viewer-fallback-text">No se pudo previsualizar. <a href={viewerBlob} target="_blank" rel="noopener noreferrer">Abrir en nueva pestana</a></p>
                 </object>
               )}
             </div>

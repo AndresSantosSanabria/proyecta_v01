@@ -54,8 +54,8 @@ const EvidenciasProyectoPage = () => {
         projectService.getById(codigoProyecto),
       ]);
 
-      const evidenciasData = evidenciasResponse.status === 'fulfilled'
-        ? (Array.isArray(evidenciasResponse.value) ? evidenciasResponse.value : [])
+      const evidenciasData = evidenciasResponse.status === 'fulfilled' && Array.isArray(evidenciasResponse.value)
+        ? evidenciasResponse.value
         : [];
       const projectData = projectResponse.status === 'fulfilled'
         ? (projectResponse.value?.data?.data ?? projectResponse.value?.data ?? null)
@@ -143,6 +143,7 @@ const EvidenciasProyectoPage = () => {
           valB = (b.nombre || '').toLowerCase();
           break;
         case 'fechaRegistro':
+        default:
           valA = a.fechaRegistro || '';
           valB = b.fechaRegistro || '';
           break;
@@ -154,9 +155,6 @@ const EvidenciasProyectoPage = () => {
           valA = (a.usuario || '').toLowerCase();
           valB = (b.usuario || '').toLowerCase();
           break;
-        default:
-          valA = a.fechaRegistro || '';
-          valB = b.fechaRegistro || '';
       }
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
@@ -330,7 +328,7 @@ const EvidenciasProyectoPage = () => {
                               {item.nombreArchivo && item.nombre !== item.nombreArchivo && <span className="evp-td-subtitle">{item.nombreArchivo}</span>}
                               {item.categoria === 'MATRIZ_RIESGOS' && item.solucionesCount > 0 && (
                                 <span className="evp-td-subtitle" style={{ color: 'var(--danger)' }}>
-                                  {item.solucionesCount} solucion{item.solucionesCount !== 1 ? 'es' : ''}
+                                  {item.solucionesCount} solucion{item.solucionesCount === 1 ? '' : 'es'}
                                 </span>
                               )}
                               {item.entregableNombre && <span className="evp-td-subtitle">{item.entregableNombre}</span>}

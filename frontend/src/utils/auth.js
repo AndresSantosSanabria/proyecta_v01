@@ -29,7 +29,7 @@ export const auth = new UserManager({
   // CWE-922: los tokens OIDC se guardan en sessionStorage (no localStorage)
   // para que se borren al cerrar el navegador y la ventana de ataque de XSS
   // no persista tras la sesión.
-  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
+  userStore: new WebStorageStateStore({ store: globalThis.sessionStorage }),
   metadata,
 });
 
@@ -69,7 +69,7 @@ export async function startLoginRedirect(returnUrl) {
 
   loginRedirectPromise = (async () => {
     await clearOidcStaleState();
-    let next = stripBasePath(returnUrl || window.location.pathname || '/');
+    let next = stripBasePath(returnUrl || globalThis.location.pathname || '/');
     if (next === '/callback' || next.startsWith('/callback?')) {
       next = '/';
     }
@@ -141,7 +141,7 @@ export async function startLogoutRedirect() {
 
     // Bajo subruta, origin + '/' llevaría a la raíz del dominio (otra app);
     // se usa el prefijo de despliegue para volver al inicio de Proyecta.
-    const postLogoutRedirectUri = `${window.location.origin}${BASE_PATH}`;
+    const postLogoutRedirectUri = `${globalThis.location.origin}${BASE_PATH}`;
 
     notifyLogout({
       message: 'Se cerro la sesion local y se redirigira al login de Keycloak.',
@@ -154,7 +154,7 @@ export async function startLogoutRedirect() {
       });
     } catch (error) {
       console.warn('No se pudo cerrar la sesion global en Keycloak, forzando retorno al login:', error);
-      window.location.assign(postLogoutRedirectUri);
+      globalThis.location.assign(postLogoutRedirectUri);
       return null;
     }
   })();
@@ -177,9 +177,9 @@ export function decodeJwtPayload(token) {
       return {};
     }
 
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const normalized = payload.replaceAll(/-/g, '+').replaceAll(/_/g, '/');
     const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-    const json = window.atob(padded);
+    const json = globalThis.atob(padded);
     return JSON.parse(json);
   } catch (error) {
     console.error('Error decodificando JWT de Keycloak:', error);

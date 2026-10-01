@@ -49,7 +49,7 @@ const updateAuthHeader = (config, token) => {
   }
 
   config.headers = {
-    ...(config.headers || {}),
+    ...config.headers,
     Authorization: `Bearer ${token}`,
   };
 
@@ -83,19 +83,19 @@ apiClient.interceptors.response.use(
       if (!originalRequest?.suppressAuthToast) {
         notifyAuth403();
       }
-      return Promise.reject(error);
+      throw error;
     }
 
     if (status !== 401 || !originalRequest) {
-      return Promise.reject(error);
+      throw error;
     }
 
     if (originalRequest._retry || !isRefreshable401(originalRequest)) {
       notifyAuth401();
       startLoginRedirect().catch((redirectError) => {
-        console.error('No se pudo redirigir al login tras un 401:', redirectError);
+        console.error('No se pudo redirigir al login tras un 401:', redirectError?.message || redirectError);
       });
-      return Promise.reject(error);
+      throw error;
     }
 
     originalRequest._retry = true;
@@ -104,14 +104,15 @@ apiClient.interceptors.response.use(
       const renewedToken = await refreshSession();
       return apiClient.request(updateAuthHeader(originalRequest, renewedToken));
     } catch (refreshError) {
-      console.warn('No fue posible renovar el token tras un 401, redirigiendo al login:', refreshError);
+      // CWE-534: no registrar el objeto error completo (incluye la peticion con su header Authorization).
+      console.warn('No fue posible renovar el token tras un 401, redirigiendo al login:', refreshError?.message || refreshError);
       notifyAuth401({
         message: 'Tu sesión expiró y no fue posible renovarla. Inicia sesión nuevamente.',
       });
       startLoginRedirect().catch((redirectError) => {
-        console.error('No se pudo redirigir al login después de fallar el refresh:', redirectError);
+        console.error('No se pudo redirigir al login después de fallar el refresh:', redirectError?.message || redirectError);
       });
-      return Promise.reject(error);
+      throw error;
     }
   }
 );

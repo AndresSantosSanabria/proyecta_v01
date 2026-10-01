@@ -1,8 +1,8 @@
 const normalizePermissionCode = (value) => String(value || '')
   .trim()
   .toUpperCase()
-  .replace(/\s+/g, '_')
-  .replace(/^_+|_+$/g, '');
+  .replaceAll(/\s+/g, '_')
+  .replaceAll(/^_+|_+$/g, '');
 
 const PROJECT_PERMISSION_PREFIXES = [
   'PROYECTO:',

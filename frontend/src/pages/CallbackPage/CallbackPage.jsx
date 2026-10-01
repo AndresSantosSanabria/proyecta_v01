@@ -32,17 +32,32 @@ const CallbackPage = () => {
 
     const clearTimer = () => {
       if (timeoutId) {
-        window.clearTimeout(timeoutId);
+        globalThis.clearTimeout(timeoutId);
         timeoutId = null;
       }
     };
 
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(globalThis.location.search);
     const hasOidcResponse =
       params.has('code') ||
       params.has('id_token') ||
       params.has('error') ||
       params.has('error_description');
+
+    /**
+     * CWE-598: el authorization code/state no deben permanecer en la barra de
+     * direcciones (historial, Referer, capturas). Se ejecuta SIEMPRE despues de
+     * que oidc-client-ts ya proceso la respuesta, nunca antes.
+     */
+    const purgeOidcParams = () => {
+      try {
+        if (globalThis.location.search) {
+          globalThis.history.replaceState(null, '', globalThis.location.pathname);
+        }
+      } catch {
+        // noop: si history no esta disponible, la navegacion posterior lo limpia.
+      }
+    };
 
     // Sin respuesta OIDC en la URL (refresh o acceso directo a /callback):
     // no llamar signinRedirectCallback (puede colgarse sin code/state).
@@ -54,10 +69,11 @@ const CallbackPage = () => {
       return undefined;
     }
 
-    let timeoutId = window.setTimeout(() => {
+    let timeoutId = globalThis.setTimeout(() => {
       console.warn('[CallbackPage] signinRedirectCallback excedio el timeout');
       clearTimer();
-      setError('La autenticación tardó demasiado. Regresando al inicio...');
+      purgeOidcParams();
+      setError('La autenticaci��n tard�� demasiado. Regresando al inicio...');
       clearOidcStaleState().finally(() => go('/'));
     }, CALLBACK_TIMEOUT_MS);
 
@@ -65,12 +81,14 @@ const CallbackPage = () => {
       .signinRedirectCallback()
       .then((user) => {
         clearTimer();
+        purgeOidcParams();
         go(user?.state);
       })
       .catch((err) => {
         console.error('Error procesando callback de OIDC:', err);
         clearTimer();
-        setError('Falló la autenticación. Regresando al inicio...');
+        purgeOidcParams();
+        setError('Fall�� la autenticaci��n. Regresando al inicio...');
         clearOidcStaleState().finally(() => go('/'));
       });
 

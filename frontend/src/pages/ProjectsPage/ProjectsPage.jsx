@@ -9,6 +9,7 @@ import projectService from '../../services/projectService';
 import reportService from '../../services/reportService';
 import { usePermission } from '../../hooks/usePermission';
 import { useAuthContext } from '../../context/AuthContext';
+import { emitToast } from '../../utils/feedback';
 import './ProjectsPage.css';
 
 const DEFAULT_FILTERS = {
@@ -21,7 +22,7 @@ const DEFAULT_FILTERS = {
 const normalizeText = (value) =>
   String(value ?? '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replaceAll(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
 
@@ -156,14 +157,14 @@ const ProjectsPage = () => {
   const triggerBlobDownload = (blob, fileName) => {
     if (!(blob instanceof Blob)) return;
 
-    const url = window.URL.createObjectURL(blob);
+    const url = globalThis.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
-    window.URL.revokeObjectURL(url);
+    globalThis.URL.revokeObjectURL(url);
   };
 
   const handleExportExcel = async (statuses) => {
@@ -171,15 +172,15 @@ const ProjectsPage = () => {
       setExporting(true);
       const blob = await reportService.downloadPortafolioExcel({
         query: filters.query?.trim() || undefined,
-        dependency: filters.dependency !== 'all' ? filters.dependency : undefined,
+        dependency: filters.dependency === 'all' ? undefined : filters.dependency,
         status: statuses || undefined,
-        peti: filters.peti !== 'all' ? filters.peti : undefined,
+        peti: filters.peti === 'all' ? undefined : filters.peti,
       });
       triggerBlobDownload(blob, 'Consolidado Seguimiento Proyectos PETI.xlsx');
       setShowExportModal(false);
     } catch (err) {
       console.error('Error exporting projects Excel:', err);
-      window.alert('No fue posible descargar el Excel de proyectos.');
+      emitToast({ title: 'Exportacion fallida', message: 'No fue posible descargar el Excel de proyectos.', tone: 'error' });
     } finally {
       setExporting(false);
     }

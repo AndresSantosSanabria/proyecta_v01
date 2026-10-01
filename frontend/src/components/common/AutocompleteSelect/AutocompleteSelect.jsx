@@ -34,7 +34,7 @@ export default function AutocompleteSelect({
   }, []);
 
   const openDropdown = useCallback(() => {
-    window.dispatchEvent(new CustomEvent(OPEN_EVENT));
+    globalThis.dispatchEvent(new CustomEvent(OPEN_EVENT));
     setOpen(true);
   }, []);
 
@@ -49,8 +49,8 @@ export default function AutocompleteSelect({
         setQuery('');
       }
     };
-    window.addEventListener(OPEN_EVENT, handleOtherOpen);
-    return () => window.removeEventListener(OPEN_EVENT, handleOtherOpen);
+    globalThis.addEventListener(OPEN_EVENT, handleOtherOpen);
+    return () => globalThis.removeEventListener(OPEN_EVENT, handleOtherOpen);
   }, []);
 
   const sortedOptions = useMemo(() => {
@@ -71,9 +71,9 @@ export default function AutocompleteSelect({
 
   const filtered = useMemo(() => {
     if (!query.trim()) return sortedOptions;
-    const q = query.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const q = query.toLowerCase().normalize('NFD').replaceAll(/[̀-ͯ]/g, '');
     return sortedOptions.filter((opt) => {
-      const label = getOptionLabel(opt).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const label = getOptionLabel(opt).toLowerCase().normalize('NFD').replaceAll(/[̀-ͯ]/g, '');
       return label.includes(q);
     });
   }, [sortedOptions, query, getOptionLabel]);
@@ -133,8 +133,8 @@ export default function AutocompleteSelect({
   useEffect(() => {
     const handleClickOutside = (e) => {
       const target = e.target;
-      const inContainer = containerRef.current && containerRef.current.contains(target);
-      const inDropdown = target.closest && target.closest('.acs-dropdown');
+      const inContainer = containerRef.current?.contains(target);
+      const inDropdown = target.closest?.('.acs-dropdown');
       if (!inContainer && !inDropdown) {
         setOpen(false);
         setQuery('');
@@ -176,14 +176,14 @@ export default function AutocompleteSelect({
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       const items = listRef.current?.querySelectorAll('[role="option"]');
-      if (items && items[index + 1]) items[index + 1].focus();
+      if (items?.[index + 1]) items[index + 1].focus();
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (index === 0 && showSearch && inputRef.current) {
         inputRef.current.focus();
       } else {
         const items = listRef.current?.querySelectorAll('[role="option"]');
-        if (items && items[index - 1]) items[index - 1].focus();
+        if (items?.[index - 1]) items[index - 1].focus();
       }
     }
   };
@@ -240,7 +240,7 @@ export default function AutocompleteSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className={`acs-value ${!selectedLabel ? 'acs-placeholder' : ''}`}>
+        <span className={`acs-value ${selectedLabel ? '' : 'acs-placeholder'}`}>
           {selectedLabel || placeholder}
         </span>
         <span className={`acs-arrow ${open ? 'acs-arrow-up' : ''}`}>&#9662;</span>
@@ -266,6 +266,7 @@ export default function AutocompleteSelect({
             {hasAllOption && (
               <div
                 role="option"
+                aria-selected={value === allValue}
                 tabIndex={0}
                 className={`acs-option ${value === allValue ? 'acs-selected' : ''}`}
                 onMouseDown={(e) => {
@@ -296,6 +297,7 @@ export default function AutocompleteSelect({
               return (
                 <div
                   key={getOptionKey(opt, i)}
+                  role="option"
                   {...props}
                   onKeyDown={(e) => handleListKeyDown(e, opt, i)}
                 >
