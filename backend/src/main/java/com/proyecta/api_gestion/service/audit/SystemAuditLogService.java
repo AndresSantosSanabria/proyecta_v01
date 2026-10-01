@@ -26,6 +26,8 @@ import java.util.UUID;
 public class SystemAuditLogService {
 
     private static final Logger log = LoggerFactory.getLogger(SystemAuditLogService.class);
+    private static final String CAMPO_FECHA_CREACION = "fechaCreacion";
+    private static final String MSG_REGISTRO_AUDITORIA_NO_ENCONTRADO = "Registro de auditoria no encontrado: ";
 
     private final SystemAuditLogRepository repository;
 
@@ -82,9 +84,10 @@ public class SystemAuditLogService {
                 predicates.add(cb.equal(root.get("estado"), estado));
             }
             if (usuarioId != null && !usuarioId.isBlank()) {
-                predicates.add(cb.equal(
-                        cb.lower(root.get("usuarioId")),
-                        cb.lower(cb.literal(usuarioId))));
+                String usuarioPattern = "%" + usuarioId.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("usuarioId")), usuarioPattern),
+                        cb.like(cb.lower(root.get("usuarioNombre")), usuarioPattern)));
             }
             if (modulo != null && !modulo.isBlank()) {
                 predicates.add(cb.like(
@@ -102,18 +105,22 @@ public class SystemAuditLogService {
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("detalle")), pattern),
                         cb.like(cb.lower(root.get("modulo")), pattern),
+                        cb.like(cb.lower(root.get("recurso")), pattern),
+                        cb.like(cb.lower(root.get("usuarioNombre")), pattern),
+                        cb.like(cb.lower(root.get("usuarioId")), pattern),
+                        cb.like(cb.lower(root.get("accion")), pattern),
                         cb.like(
                                 cb.lower(root.get("codigoEstado").as(String.class)),
                                 pattern)));
             }
             if (desde != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("fechaCreacion"), desde));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(CAMPO_FECHA_CREACION), desde));
             }
             if (hasta != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("fechaCreacion"), hasta));
+                predicates.add(cb.lessThanOrEqualTo(root.get(CAMPO_FECHA_CREACION), hasta));
             }
 
-            query.orderBy(cb.desc(root.get("fechaCreacion")));
+            query.orderBy(cb.desc(root.get(CAMPO_FECHA_CREACION)));
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
@@ -121,7 +128,7 @@ public class SystemAuditLogService {
     @Transactional(readOnly = true)
     public SystemAuditLogDTO obtenerDetalle(UUID id) {
         SystemAuditLog entry = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Registro de auditoria no encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_REGISTRO_AUDITORIA_NO_ENCONTRADO + id));
         return toDTO(entry);
     }
 
@@ -149,7 +156,7 @@ public class SystemAuditLogService {
     @Transactional
     public void softDelete(UUID id) {
         SystemAuditLog entry = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Registro de auditoria no encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_REGISTRO_AUDITORIA_NO_ENCONTRADO + id));
         entry.setEliminado(true);
         entry.setFechaEliminacion(LocalDateTime.now());
         repository.save(entry);
@@ -158,7 +165,7 @@ public class SystemAuditLogService {
     @Transactional
     public void restaurar(UUID id) {
         SystemAuditLog entry = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Registro de auditoria no encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_REGISTRO_AUDITORIA_NO_ENCONTRADO + id));
         entry.setEliminado(false);
         entry.setFechaEliminacion(null);
         repository.save(entry);

@@ -1,7 +1,6 @@
 package com.proyecta.api_gestion.repository;
 
 import com.proyecta.api_gestion.model.beneficioimpacto.ProyectoBeneficioImpacto;
-import com.proyecta.api_gestion.model.enums.EstadoBeneficioImpacto;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

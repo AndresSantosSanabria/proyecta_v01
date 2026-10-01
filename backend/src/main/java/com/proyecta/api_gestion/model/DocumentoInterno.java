@@ -46,6 +46,7 @@ public class DocumentoInterno {
     private LocalDateTime creadoEn;
 
     public DocumentoInterno() {
+        // Constructor vacío intencional: requerido por JPA para instanciar la entidad.
     }
 
     @PrePersist

@@ -38,6 +38,7 @@ public class RiesgoTratamientoAdjunto {
     private RiesgoTratamiento tratamiento;
 
     public RiesgoTratamientoAdjunto() {
+        // Constructor vacío intencional: requerido por JPA para instanciar la entidad.
     }
 
     @PrePersist

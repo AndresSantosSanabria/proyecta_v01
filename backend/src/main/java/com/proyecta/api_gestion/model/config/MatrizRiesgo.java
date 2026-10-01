@@ -23,7 +23,9 @@ public class MatrizRiesgo {
     @Column(name = "color", nullable = false, length = 20)
     private String color;
 
-    public MatrizRiesgo() {}
+    public MatrizRiesgo() {
+        // Constructor por defecto requerido por JPA, sin lógica que ejecutar.
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

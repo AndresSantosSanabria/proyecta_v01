@@ -23,7 +23,16 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
-        logger.debug("Autenticación requerida para: {} {}", request.getMethod(), request.getRequestURI());
+        if (authException instanceof org.springframework.security.authentication.AuthenticationServiceException) {
+            Throwable root = authException;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            logger.warn("Token no validado: el proveedor de identidad no respondio ({}). {} {} -> 401",
+                    root.getMessage(), request.getMethod(), request.getRequestURI());
+        } else {
+            logger.debug("Autenticación requerida para: {} {}", request.getMethod(), request.getRequestURI());
+        }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

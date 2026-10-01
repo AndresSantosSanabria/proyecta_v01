@@ -38,6 +38,7 @@ public class RiesgoSolucionAdjunto {
     private Riesgo riesgo;
 
     public RiesgoSolucionAdjunto() {
+        // Constructor vacío intencional: lo requiere JPA para instanciar la entidad.
     }
 
     @PrePersist

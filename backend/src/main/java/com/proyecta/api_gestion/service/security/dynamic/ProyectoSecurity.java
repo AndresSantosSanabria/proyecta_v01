@@ -4,7 +4,6 @@ import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.model.Proyecto;
 
 import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.ProyectoBeneficioImpactoRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
@@ -12,6 +11,7 @@ import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -23,12 +23,18 @@ import java.util.Set;
 public class ProyectoSecurity {
     private static final Logger logger = LoggerFactory.getLogger(ProyectoSecurity.class);
 
-    private static final Set<String> EVIDENCE_REVIEW_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
-    private static final Set<String> DOCUMENT_HISTORY_ROLE_CODES = Set.of("gestor_proyectos");
-    private static final Set<String> PROJECT_STRUCTURE_MANAGER_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
-    private static final Set<String> PROJECT_STRUCTURE_EDITOR_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos", "director_proyecto");
-    private static final Set<String> CHANGE_DEADLINE_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
-    private static final Set<String> DIRECTOR_NOTIFICATION_ROLE_CODES = Set.of("gestor_tic", "gestor_proyectos");
+    private static final String GESTOR_TIC = "gestor_tic";
+    private static final String GESTOR_PROYECTOS = "gestor_proyectos";
+    private static final String DIRECTOR_PROYECTO = "director_proyecto";
+    private static final String PERMISO_PROYECTO_VER = "PROYECTO:VER";
+    private static final String MSG_PROYECTO_NO_EXISTE = "El proyecto solicitado no existe.";
+
+    private static final Set<String> EVIDENCE_REVIEW_ROLE_CODES = Set.of(GESTOR_TIC, GESTOR_PROYECTOS);
+    private static final Set<String> DOCUMENT_HISTORY_ROLE_CODES = Set.of(GESTOR_PROYECTOS);
+    private static final Set<String> PROJECT_STRUCTURE_MANAGER_ROLE_CODES = Set.of(GESTOR_TIC, GESTOR_PROYECTOS);
+    private static final Set<String> PROJECT_STRUCTURE_EDITOR_ROLE_CODES = Set.of(GESTOR_TIC, GESTOR_PROYECTOS, DIRECTOR_PROYECTO);
+    private static final Set<String> CHANGE_DEADLINE_ROLE_CODES = Set.of(GESTOR_TIC, GESTOR_PROYECTOS);
+    private static final Set<String> DIRECTOR_NOTIFICATION_ROLE_CODES = Set.of(GESTOR_TIC, GESTOR_PROYECTOS);
     private static final Set<String> DIRECTOR_BLOCKED_PERMISSIONS = Set.of(
             "PROYECTO:CREAR",
             "PROYECTO:CERRAR",
@@ -59,7 +65,6 @@ public class ProyectoSecurity {
     private final SeguridadUsuarioRepository seguridadUsuarioRepository;
     private final SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository;
     private final ProyectoRepository proyectoRepository;
-    private final ProyectoBeneficioImpactoRepository beneficioImpactoRepository;
 
     public ProyectoSecurity(
             KeycloakIdentityExtractor identityExtractor,
@@ -68,8 +73,7 @@ public class ProyectoSecurity {
             PermisoUsuarioService permisoUsuarioService,
             SeguridadUsuarioRepository seguridadUsuarioRepository,
             SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository,
-            ProyectoRepository proyectoRepository,
-            ProyectoBeneficioImpactoRepository beneficioImpactoRepository) {
+            ProyectoRepository proyectoRepository) {
         this.identityExtractor = identityExtractor;
         this.catalogCacheService = catalogCacheService;
         this.localUserAuthorizationService = localUserAuthorizationService;
@@ -77,7 +81,6 @@ public class ProyectoSecurity {
         this.seguridadUsuarioRepository = seguridadUsuarioRepository;
         this.seguridadUsuarioProyectoRepository = seguridadUsuarioProyectoRepository;
         this.proyectoRepository = proyectoRepository;
-        this.beneficioImpactoRepository = beneficioImpactoRepository;
     }
 
     public boolean canAccess(String permissionCode, String proyectoId, Authentication authentication) {
@@ -96,7 +99,13 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        logger.info("canAccess: user='{}', perm='{}', project='{}', roles={}", username, normalizedPermission, proyectoId, roleCodes);
+        if (logger.isDebugEnabled()) {
+            logger.debug("canAccess: user='{}', perm='{}', project='{}', roles={}",
+                    com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(username),
+                    normalizedPermission,
+                    com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(proyectoId),
+                    roleCodes);
+        }
         if (isDirectorOnly(roleCodes) && DIRECTOR_BLOCKED_PERMISSIONS.contains(normalizedPermission)) {
             throw new ForbiddenException("El Director de Proyecto solo puede cargar, reemplazar y subsanar evidencias de sus proyectos asignados.");
         }
@@ -184,13 +193,13 @@ public class ProyectoSecurity {
     public boolean canAccessQuietly(String permissionCode, String proyectoId, Authentication authentication) {
         try {
             return canAccess(permissionCode, proyectoId, authentication);
-        } catch (ForbiddenException ex) {
+        } catch (ForbiddenException _) {
             logger.debug("canAccessQuietly: denegado user project perm reason={}",
-                    proyectoId, permissionCode, ex.getMessage());
+                    proyectoId);
             return false;
-        } catch (RuntimeException ex) {
+        } catch (RuntimeException _) {
             logger.warn("canAccessQuietly: error evaluando acceso user project perm: {}",
-                    proyectoId, permissionCode, ex.getMessage());
+                    proyectoId);
             return false;
         }
     }
@@ -214,7 +223,7 @@ public class ProyectoSecurity {
         Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
-                .anyMatch("PROYECTO:VER"::equals);
+                .anyMatch(PERMISO_PROYECTO_VER::equals);
 
         if (!hasPermission) {
             throw new ForbiddenException("El usuario no posee el permiso funcional requerido: PROYECTO:VER");
@@ -259,7 +268,7 @@ public class ProyectoSecurity {
         Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
-                .anyMatch("PROYECTO:VER"::equals);
+                .anyMatch(PERMISO_PROYECTO_VER::equals);
 
         if (!hasPermission) {
             throw new ForbiddenException("El usuario no posee el permiso funcional requerido: PROYECTO:VER");
@@ -381,7 +390,7 @@ public class ProyectoSecurity {
             throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
         }
 
-        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
+        resolveEffectiveRoleCodes(authentication);
         Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
@@ -419,7 +428,7 @@ public class ProyectoSecurity {
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
         if (isTransversal(roleCodes)) {
             Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
-                    .orElseThrow(() -> new ForbiddenException("El proyecto solicitado no existe."));
+                    .orElseThrow(() -> new ForbiddenException(MSG_PROYECTO_NO_EXISTE));
             if (!proyecto.requiereCompletitudDirector()) {
                 throw new ForbiddenException("El proyecto no esta pendiente de completar.");
             }
@@ -431,7 +440,7 @@ public class ProyectoSecurity {
         }
 
         Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
-                .orElseThrow(() -> new ForbiddenException("El proyecto solicitado no existe."));
+                .orElseThrow(() -> new ForbiddenException(MSG_PROYECTO_NO_EXISTE));
         if (!proyecto.requiereCompletitudDirector()) {
             throw new ForbiddenException("El proyecto no esta pendiente de completar.");
         }
@@ -494,7 +503,7 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        boolean director = roleCodes.stream().anyMatch("director_proyecto"::equalsIgnoreCase);
+        boolean director = roleCodes.stream().anyMatch(DIRECTOR_PROYECTO::equalsIgnoreCase);
         if (!director) {
             throw new ForbiddenException("Solo el Director de Proyecto puede cargar el informe de avance.");
         }
@@ -605,7 +614,7 @@ public class ProyectoSecurity {
         boolean hasPermission = effectivePermissions.stream()
                 .map(this::normalize)
                 .anyMatch(normalizedPermission::equals);
-        boolean isAssignedDirector = roleCodes.contains("director_proyecto") && !isTransversal(roleCodes);
+        boolean isAssignedDirector = roleCodes.contains(DIRECTOR_PROYECTO) && !isTransversal(roleCodes);
 
         if (!hasPermission && !isAssignedDirector) {
             throw new ForbiddenException("El usuario no posee el permiso funcional requerido: " + normalizedPermission);
@@ -672,7 +681,7 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        if (!roleCodes.contains("director_proyecto")) {
+        if (!roleCodes.contains(DIRECTOR_PROYECTO)) {
             throw new ForbiddenException("Solo el Director de Proyecto puede marcar observaciones como subsanadas.");
         }
 
@@ -706,7 +715,7 @@ public class ProyectoSecurity {
         Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
         boolean canViewProjects = effectivePermissions.stream()
                 .map(this::normalize)
-                .anyMatch("PROYECTO:VER"::equals);
+                .anyMatch(PERMISO_PROYECTO_VER::equals);
         if (canViewProjects) {
             return true;
         }
@@ -722,7 +731,7 @@ public class ProyectoSecurity {
         try {
             SeguridadUsuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
             return LocalUserAuthorizationService.esAdministrador(usuario);
-        } catch (RuntimeException ex) {
+        } catch (RuntimeException _) {
             return false;
         }
     }
@@ -733,7 +742,7 @@ public class ProyectoSecurity {
         }
 
         return authentication.getAuthorities().stream()
-                .map(authority -> authority.getAuthority())
+                .map(GrantedAuthority::getAuthority)
                 .filter(value -> value != null && value.startsWith("ROLE_"))
                 .map(SecurityRoleCatalog::normalize)
                 .filter(value -> value != null && !value.isBlank())
@@ -754,7 +763,7 @@ public class ProyectoSecurity {
                     }
                 }
             }
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             logger.debug("No se pudo resolver rol desde SeguridadUsuario para resolveEffectiveRoleCodes");
         }
 
@@ -767,7 +776,7 @@ public class ProyectoSecurity {
     }
 
     private boolean isDirectorOnly(Collection<String> roleCodes) {
-        return roleCodes.contains("director_proyecto")
+        return roleCodes.contains(DIRECTOR_PROYECTO)
                 && roleCodes.stream().noneMatch(PROJECT_STRUCTURE_MANAGER_ROLE_CODES::contains)
                 && !roleCodes.contains("admin");
     }
@@ -821,7 +830,7 @@ public class ProyectoSecurity {
 
     private static final Set<String> COMPLETION_ALLOWED_PERMISSIONS = Set.of(
             "DOCUMENTO:CARGAR",
-            "PROYECTO:VER"
+            PERMISO_PROYECTO_VER
     );
 
     private void assertOperationalProjectReady(String proyectoId, Authentication authentication) {
@@ -844,7 +853,7 @@ public class ProyectoSecurity {
         }
 
         Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
-                .orElseThrow(() -> new ForbiddenException("El proyecto solicitado no existe."));
+                .orElseThrow(() -> new ForbiddenException(MSG_PROYECTO_NO_EXISTE));
         if (proyecto.requiereCompletitudDirector()) {
             String normalized = normalize(permissionCode);
             if (normalized != null && COMPLETION_ALLOWED_PERMISSIONS.contains(normalized)) {

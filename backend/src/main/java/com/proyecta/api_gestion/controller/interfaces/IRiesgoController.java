@@ -79,6 +79,12 @@ public interface IRiesgoController {
             @Parameter(description = "ID del riesgo") @PathVariable Integer riesgoId);
 
     @Operation(summary = "EP-RIESG-06 · Listar soluciones cargadas para un riesgo")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Lista de soluciones obtenida correctamente"
+        )
+    })
     @StandardApiResponses
     @GetMapping("/{proyectoId}/riesgos/{riesgoId}/soluciones")
     ResponseEntity<ApiResponse<java.util.List<RiesgoSolucionAdjuntoDTO>>> listarSoluciones(
@@ -94,6 +100,12 @@ public interface IRiesgoController {
             @Parameter(description = "Archivos PDF de solución") @RequestPart("archivos") MultipartFile[] archivos);
 
     @Operation(summary = "EP-RIESG-08 · Descargar un PDF de solución")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Archivo descargado exitosamente"
+        )
+    })
     @StandardApiResponses
     @GetMapping("/{proyectoId}/riesgos/{riesgoId}/soluciones/{solucionId}/descargar")
     ResponseEntity<Resource> descargarSolucion(

@@ -26,7 +26,7 @@ public class DataInitializer {
                 dataSeederService.seedAllData();
                 logger.info("✓ Datos semilla cargados exitosamente");
             } catch (Exception e) {
-                logger.warn("⚠ Error al cargar datos semilla (continuando sin datos): " + e.getMessage());
+                logger.warn("⚠ Error al cargar datos semilla (continuando sin datos): {}", e.getMessage());
                 // No lanzar excepción para permitir que la app continúe sin BD
             }
         };

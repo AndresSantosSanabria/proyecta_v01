@@ -27,7 +27,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 public final class EstadoTodosProyectosPdfGenerator {
 
@@ -41,11 +40,11 @@ public final class EstadoTodosProyectosPdfGenerator {
     private static final float CONTENT_WIDTH = PAGE_WIDTH - LEFT - RIGHT;
     private static final float HEADER_Y = PAGE_HEIGHT - TOP;
     private static final float TITLE_Y = 730f;
-    private static final float BODY_START_Y = 640f;
 
     private static final Color COLOR_TEXT = new Color(22, 24, 28);
     private static final Color COLOR_MUTED = new Color(94, 104, 117);
     private static final Color COLOR_BORDER = new Color(197, 207, 219);
+    private static final String NO_DISPONIBLE = "No disponible";
     public byte[] build(List<ProyectoReporteResumenDTO> proyectos, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -83,7 +82,7 @@ public final class EstadoTodosProyectosPdfGenerator {
                             true
                     );
                 }
-            } catch (IOException ignored) {
+            } catch (IOException _) {
                 // fallback below
             }
         }
@@ -340,7 +339,7 @@ public final class EstadoTodosProyectosPdfGenerator {
         }
 
         private List<String> wrap(String text, PDFont font, float size, float width) throws IOException {
-            String value = text == null || text.isBlank() ? "No disponible" : text;
+            String value = text == null || text.isBlank() ? NO_DISPONIBLE : text;
             String[] words = normalize(value).split("\\s+");
             List<String> result = new ArrayList<>();
             StringBuilder line = new StringBuilder();
@@ -365,7 +364,7 @@ public final class EstadoTodosProyectosPdfGenerator {
                 result.add(line.toString());
             }
             if (result.isEmpty()) {
-                result.add("No disponible");
+                result.add(NO_DISPONIBLE);
             }
             return result;
         }
@@ -385,7 +384,7 @@ public final class EstadoTodosProyectosPdfGenerator {
         }
 
         private String safe(String value) {
-            return value == null || value.isBlank() ? "No disponible" : value.trim();
+            return value == null || value.isBlank() ? NO_DISPONIBLE : value.trim();
         }
 
         private String formatPercent(BigDecimal value) {

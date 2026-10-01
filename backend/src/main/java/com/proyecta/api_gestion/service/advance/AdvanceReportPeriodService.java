@@ -1,7 +1,6 @@
 package com.proyecta.api_gestion.service.advance;
 
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
@@ -136,14 +135,14 @@ public class AdvanceReportPeriodService {
                 if (!override.isBefore(start) && !override.isAfter(end)) {
                     return override;
                 }
-            } catch (Exception e) {
+            } catch (Exception _) {
                 log.warn("Valor invalido para advance_report_due_date: '{}'", rawOverride);
             }
         }
 
         int dueDay = getDueDay();
         if (dueDay > 0) {
-            LocalDate candidate = LocalDate.of(end.getYear(), end.getMonthValue(), 1).plusDays(dueDay - 1);
+            LocalDate candidate = LocalDate.of(end.getYear(), end.getMonthValue(), 1).plusDays(dueDay - 1L);
             if (!candidate.isAfter(end)) {
                 return candidate;
             }

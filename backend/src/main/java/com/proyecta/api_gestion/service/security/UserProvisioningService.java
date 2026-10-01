@@ -123,7 +123,7 @@ public class UserProvisioningService {
             log.info("[JIT-Upsert] ✅ Usuario CREADO — ID={}, username='{}'",
                     saved.getId(), saved.getUsername());
             return saved;
-        } catch (DataIntegrityViolationException ex) {
+        } catch (DataIntegrityViolationException _) {
             // Condición de carrera: otro hilo ya lo creó entre el SELECT y el INSERT.
             // Recuperamos el registro y retornamos el existente.
             log.warn("[JIT-Upsert] Conflicto de unicidad al crear '{}' — recuperando registro existente.", username);

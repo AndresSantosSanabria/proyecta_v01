@@ -34,6 +34,7 @@ public class RiesgoTratamiento {
     private List<RiesgoTratamientoAdjunto> adjuntos = new ArrayList<>();
 
     public RiesgoTratamiento() {
+        // Constructor vacío intencional: lo requiere JPA para instanciar la entidad.
     }
 
     @PrePersist

@@ -17,6 +17,8 @@ public class DocumentoInternoSchemaEnsurer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentoInternoSchemaEnsurer.class);
 
+    private static final String VARCHAR_255 = "VARCHAR(255)";
+
     private final JdbcTemplate jdbcTemplate;
 
     public DocumentoInternoSchemaEnsurer(JdbcTemplate jdbcTemplate) {
@@ -53,11 +55,11 @@ public class DocumentoInternoSchemaEnsurer implements CommandLineRunner {
 
     private void fixColumnTypes() {
         String[][] columns = {
-            {"nombre", "VARCHAR(255)"},
+            {"nombre", VARCHAR_255},
             {"descripcion", "VARCHAR(1000)"},
             {"codigo", "VARCHAR(30)"},
-            {"nombre_original", "VARCHAR(255)"},
-            {"nombre_almacenado", "VARCHAR(255)"},
+            {"nombre_original", VARCHAR_255},
+            {"nombre_almacenado", VARCHAR_255},
             {"ruta_almacenamiento", "VARCHAR(500)"},
             {"mime_type", "VARCHAR(100)"},
             {"creado_por", "VARCHAR(200)"}

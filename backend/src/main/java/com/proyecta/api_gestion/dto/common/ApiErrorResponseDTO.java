@@ -5,9 +5,15 @@ import java.time.LocalDateTime;
 
 /**
  * DTO para respuestas de error estandarizadas.
- * Se usa como schema en Swagger para los códigos 4xx y 5xx.
+ *
+ * @deprecated La API NO devuelve este formato: los errores 4xx/5xx usan Problem Details
+ * (RFC 9457) — ver {@link ProblemDetailDTO} — salvo el 401, que devuelve
+ * {@link UnauthorizedErrorDTO}. Se conserva por compatibilidad; no usar en documentación.
  */
-@Schema(description = "Respuesta de error de la API")
+@Deprecated(forRemoval = false)
+@Schema(description = "Respuesta de error de la API", example = """
+    {"status":404,"error":"Not Found","message":"Proyecto no encontrado: PROY-CUN-2026-999","path":"/api/v1/proyectos/PROY-CUN-2026-999","timestamp":"2026-07-15T10:30:00"}
+    """)
 public class ApiErrorResponseDTO {
 
     @Schema(description = "Código de estado HTTP", example = "404")

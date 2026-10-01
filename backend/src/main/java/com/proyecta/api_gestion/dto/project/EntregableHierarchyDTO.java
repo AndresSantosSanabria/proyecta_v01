@@ -1,10 +1,26 @@
 package com.proyecta.api_gestion.dto.project;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(example = """
+    {
+      "id": 101,
+      "numero": 1,
+      "nombre": "Documento de alcance aprobado",
+      "ponderacion": 5.00,
+      "conforme": true,
+      "fechaInicio": "2026-07-01",
+      "fechaEntrega": "2026-07-20",
+      "estado": "Conforme",
+      "diasDiferencia": 0,
+      "observacionRevision": null,
+      "tieneHistorialCambiosFecha": false
+    }
+    """)
 public class EntregableHierarchyDTO {
     private Integer id;
     private Short numero;

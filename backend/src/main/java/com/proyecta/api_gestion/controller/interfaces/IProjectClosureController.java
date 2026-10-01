@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -36,29 +35,27 @@ public interface IProjectClosureController {
             **Roles requeridos:** ADMINISTRADOR o GESTOR_TIC.
             """
     )
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "200",
-            description = "Proyecto cerrado exitosamente",
-            content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "400",
-            description = "Validación fallida: hitos incompletos o sin aprobación del gestor"
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "403",
-            description = "Acceso denegado: se requiere rol ADMINISTRADOR o GESTOR_TIC"
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Proyecto no encontrado"
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "422",
-            description = "Datos de entrada inválidos (resumen ejecutivo muy corto)"
-        )
-    })
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Proyecto cerrado exitosamente",
+        content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "400",
+        description = "Validación fallida: hitos incompletos o sin aprobación del gestor"
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "403",
+        description = "Acceso denegado: se requiere rol ADMINISTRADOR o GESTOR_TIC"
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "404",
+        description = "Proyecto no encontrado"
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "422",
+        description = "Datos de entrada inválidos (resumen ejecutivo muy corto)"
+    )
     @StandardApiResponses
     @PostMapping("/{id}/cierre")
     ResponseEntity<CierreProyectoResponse> cerrarProyecto(
@@ -69,16 +66,14 @@ public interface IProjectClosureController {
             summary = "Descargar acta de cierre",
             description = "Descarga el documento Word institucional generado al cerrar el proyecto."
     )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Acta descargada exitosamente"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "No existe acta generada para el proyecto"
-            )
-    })
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Acta descargada exitosamente"
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "404",
+        description = "No existe acta generada para el proyecto"
+    )
     @GetMapping("/{id}/cierre/descargar")
     ResponseEntity<Resource> descargarActaCierre(@PathVariable String id);
 
@@ -89,6 +84,11 @@ public interface IProjectClosureController {
             Marca el proyecto con cierre_solicitado = true y notifica al Gestor asignado.
             **Roles requeridos:** DIRECTOR_PROYECTO.
             """
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Solicitud de cierre registrada",
+        content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
     )
     @StandardApiResponses
     @PostMapping("/{id}/cierre/solicitar")
@@ -104,6 +104,11 @@ public interface IProjectClosureController {
             Marca cierre_estado = APROBADO y notifica al Director.
             """
     )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Solicitud de cierre aprobada",
+        content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
+    )
     @StandardApiResponses
     @PostMapping("/{id}/cierre/aprobar")
     ResponseEntity<CierreProyectoResponse> aprobarCierre(
@@ -118,6 +123,11 @@ public interface IProjectClosureController {
             resetea cierre_solicitado = false y notifica al Director con las observaciones.
             """
     )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Solicitud de cierre rechazada",
+        content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
+    )
     @StandardApiResponses
     @PostMapping("/{id}/cierre/rechazar")
     ResponseEntity<CierreProyectoResponse> rechazarCierre(
@@ -129,6 +139,10 @@ public interface IProjectClosureController {
         summary = "Subir evidencia de transferencia de conocimiento",
         description = "Sube un documento de evidencia para una actividad de transferencia de conocimiento del cierre del proyecto."
     )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Evidencia subida exitosamente"
+    )
     @StandardApiResponses
     @PostMapping(value = "/{id}/cierre/evidencia-transferencia", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<java.util.Map<String, String>> subirEvidenciaTransferencia(
@@ -138,6 +152,10 @@ public interface IProjectClosureController {
     @Operation(
         summary = "Descargar evidencia de transferencia de conocimiento",
         description = "Descarga un archivo de evidencia previamente subido para una actividad de transferencia de conocimiento."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Evidencia descargada exitosamente"
     )
     @StandardApiResponses
     @GetMapping("/{id}/cierre/evidencia-transferencia/{fileName}")
@@ -154,25 +172,23 @@ public interface IProjectClosureController {
             **Roles requeridos:** ADMINISTRADOR o GESTOR_DE_PROYECTOS.
             """
     )
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "200",
-            description = "Proyecto cerrado extraordinariamente",
-            content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "400",
-            description = "El proyecto ya se encuentra cerrado o finalizado"
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "403",
-            description = "Acceso denegado: se requiere rol ADMINISTRADOR o GESTOR_DE_PROYECTOS"
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Proyecto no encontrado"
-        )
-    })
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "Proyecto cerrado extraordinariamente",
+        content = @Content(schema = @Schema(implementation = CierreProyectoResponse.class))
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "400",
+        description = "El proyecto ya se encuentra cerrado o finalizado"
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "403",
+        description = "Acceso denegado: se requiere rol ADMINISTRADOR o GESTOR_DE_PROYECTOS"
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "404",
+        description = "Proyecto no encontrado"
+    )
     @StandardApiResponses
     @PostMapping("/{id}/cierre/extraordinario")
     ResponseEntity<CierreProyectoResponse> cierreExtraordinario(

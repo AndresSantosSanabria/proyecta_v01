@@ -1,7 +1,6 @@
 package com.proyecta.api_gestion.service.scheduler;
 
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;

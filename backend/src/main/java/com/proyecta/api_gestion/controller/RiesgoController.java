@@ -10,6 +10,11 @@ import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoSolucionAdjuntoDTO;
 import com.proyecta.api_gestion.service.IRiesgoService;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,27 +43,44 @@ public class RiesgoController implements IRiesgoController {
         return ResponseEntity.ok(ApiResponse.success(riesgos, "Matriz de riesgos recuperada con exito"));
     }
 
+    @Operation(
+        summary = "Obtener la matriz global de riesgos",
+        description = "Retorna la configuracion de probabilidad e impacto de la matriz de riesgos utilizada en todos los proyectos."
+    )
     @GetMapping("/riesgos/matriz")
     @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
     public ResponseEntity<ApiResponse<java.util.List<MatrizRiesgoDTO>>> listarMatrizRiesgos() {
         return ResponseEntity.ok(ApiResponse.success(riesgoService.getRiskMatrix(), "Matriz de riesgos configurada con exito"));
     }
 
+    @Operation(
+        summary = "Descargar la matriz de riesgos en Excel",
+        description = "Genera y descarga el archivo Excel con la matriz de riesgos del proyecto."
+    )
     @GetMapping("/{proyectoId}/riesgos/descargar-excel")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
-    public ResponseEntity<Resource> descargarMatrizExcel(@PathVariable String proyectoId) {
+    public ResponseEntity<Resource> descargarMatrizExcel(
+            @Parameter(description = "ID del proyecto", required = true) @PathVariable String proyectoId) {
         Resource resource = riesgoService.descargarMatrizExcel(proyectoId);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Matriz de Riesgos " + proyectoId + ".xlsx\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition(
+                                "attachment", "Matriz de Riesgos " + proyectoId + ".xlsx"))
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(resource);
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Riesgo agregado exitosamente",
+        content = @Content(schema = @Schema(implementation = RiesgoCreatedResponseDTO.class))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/{proyectoId}/riesgos")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<RiesgoCreatedResponseDTO>> crearRiesgo(
-            @PathVariable String proyectoId,
+            @Parameter(description = "ID del proyecto", required = true) @PathVariable String proyectoId,
             @Valid @RequestBody RiesgoRequestDTO requestDto,
             org.springframework.security.core.Authentication authentication) {
         RiesgoCreatedResponseDTO response = riesgoService.createRisk(proyectoId, requestDto, authentication);
@@ -78,11 +100,17 @@ public class RiesgoController implements IRiesgoController {
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "204",
+        description = "Riesgo eliminado correctamente",
+        content = @Content
+    )
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{proyectoId}/riesgos/{riesgoId}")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<Void> eliminarRiesgo(
-            @PathVariable String proyectoId,
-            @PathVariable Integer riesgoId) {
+            @Parameter(description = "ID del proyecto", required = true) @PathVariable String proyectoId,
+            @Parameter(description = "ID del riesgo", required = true) @PathVariable Integer riesgoId) {
         riesgoService.deleteRisk(proyectoId, riesgoId);
         return ResponseEntity.noContent().build();
     }
@@ -97,12 +125,18 @@ public class RiesgoController implements IRiesgoController {
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Soluciones cargadas con exito",
+        content = @Content(array = @ArraySchema(schema = @Schema(implementation = RiesgoSolucionAdjuntoDTO.class)))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping(value = "/{proyectoId}/riesgos/{riesgoId}/soluciones", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<java.util.List<RiesgoSolucionAdjuntoDTO>>> agregarSoluciones(
-            @PathVariable String proyectoId,
-            @PathVariable Integer riesgoId,
-            @RequestPart("archivos") MultipartFile[] archivos) {
+            @Parameter(description = "ID del proyecto", required = true) @PathVariable String proyectoId,
+            @Parameter(description = "ID del riesgo", required = true) @PathVariable Integer riesgoId,
+            @Parameter(description = "Archivos PDF de solucion") @RequestPart("archivos") MultipartFile[] archivos) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(riesgoService.agregarSoluciones(proyectoId, riesgoId, archivos), "Soluciones cargadas con exito"));
     }

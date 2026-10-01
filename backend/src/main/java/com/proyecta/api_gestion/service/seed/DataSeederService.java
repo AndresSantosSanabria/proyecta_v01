@@ -1,5 +1,7 @@
 package com.proyecta.api_gestion.service.seed;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class DataSeederService {
     
+    private static final Logger logger = LoggerFactory.getLogger(DataSeederService.class);
+
     private final UsuarioSeeder usuarioSeeder;
     private final PatrocinadorSeeder patrocinadorSeeder;
     private final SystemParameterSeeder systemParameterSeeder;
@@ -35,11 +39,20 @@ public class DataSeederService {
      * El orden es importante: dependencias primero, luego entidades relacionadas.
      */
     public void seedAllData() {
-        // Orden: Entidades independientes primero, luego las dependientes
-        usuarioSeeder.seedUsuarios();
-        securityCatalogSeeder.seedSecurityCatalog();
-        patrocinadorSeeder.seedPatrocinadores();
-        systemParameterSeeder.seedSystemParameters();
-        reporteConfigSeeder.seedReporteConfigs();
+        // Orden: Entidades independientes primero, luego las dependientes.
+        // Cada seeder se ejecuta de forma independiente: un fallo no aborta los demas.
+        ejecutarPaso("usuarios", usuarioSeeder::seedUsuarios);
+        ejecutarPaso("catalogo seguridad", securityCatalogSeeder::seedSecurityCatalog);
+        ejecutarPaso("patrocinadores", patrocinadorSeeder::seedPatrocinadores);
+        ejecutarPaso("parametros sistema", systemParameterSeeder::seedSystemParameters);
+        ejecutarPaso("configs reportes", reporteConfigSeeder::seedReporteConfigs);
+    }
+
+    private void ejecutarPaso(String nombre, Runnable paso) {
+        try {
+            paso.run();
+        } catch (Exception ex) {
+            logger.warn("⚠ Seeder '{}' falto (continuando con los demas): {}", nombre, ex.getMessage());
+        }
     }
 }

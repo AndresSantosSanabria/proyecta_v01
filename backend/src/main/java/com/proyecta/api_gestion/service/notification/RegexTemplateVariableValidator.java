@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 @Service
 public class RegexTemplateVariableValidator implements TemplateVariableValidator {
 
-    private static final Pattern TOKEN_PATTERN = Pattern.compile("\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}");
+    private static final Pattern TOKEN_PATTERN = Pattern.compile("\\{\\{\\s*(\\w+)\\s*\\}\\}");
     private final NotificationTemplateRulesProvider rulesProvider;
 
     public RegexTemplateVariableValidator(NotificationTemplateRulesProvider rulesProvider) {

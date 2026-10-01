@@ -1,7 +1,6 @@
 package com.proyecta.api_gestion.repository;
 
 import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
 import com.proyecta.api_gestion.dto.report.ProyectoReporteResumenDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import org.springframework.data.domain.Page;

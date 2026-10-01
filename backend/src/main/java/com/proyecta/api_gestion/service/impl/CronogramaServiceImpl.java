@@ -40,6 +40,8 @@ import java.util.Locale;
 @Service
 public class CronogramaServiceImpl implements CronogramaService {
 
+    private static final String PROYECTO_NO_ENCONTRADO = "Proyecto no encontrado: ";
+
     private final ProyectoRepository proyectoRepository;
     private final FaseRepository faseRepository;
     private final HitoRepository hitoRepository;
@@ -69,7 +71,7 @@ public class CronogramaServiceImpl implements CronogramaService {
     public CronogramaResponseDTO obtenerCronograma(String projectId) {
         final String normalizedProjectId = normalizeProjectId(projectId);
         Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
+                .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
 
         List<Fase> fases = faseRepository.findByProyectoId(normalizedProjectId).stream()
                 .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
@@ -164,7 +166,7 @@ public class CronogramaServiceImpl implements CronogramaService {
     public CronogramaUploadResponseDTO cargarCronograma(String projectId, MultipartFile file) {
         final String normalizedProjectId = normalizeProjectId(projectId);
         Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
+                .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
 
         if (EstadoProyecto.CERRADO.equals(proyecto.getEstado()) || EstadoProyecto.CERRADO_FORZOSO.equals(proyecto.getEstado())) {
             throw new ForbiddenException("No se puede subir el cronograma a un proyecto cerrado.");
@@ -213,7 +215,7 @@ public class CronogramaServiceImpl implements CronogramaService {
     public Resource descargarCronograma(String projectId) {
         final String normalizedProjectId = normalizeProjectId(projectId);
         Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + normalizedProjectId));
+                .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
 
         if (proyecto.getCronogramaPdf() == null) {
             throw new ResourceNotFoundException("No se ha cargado un cronograma para este proyecto.");

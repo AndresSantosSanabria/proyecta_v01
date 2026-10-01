@@ -12,6 +12,8 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 
 import javax.imageio.ImageIO;
@@ -25,10 +27,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 public final class RiesgosVerificacionPdfGenerator {
+
+    private static final Logger log = LoggerFactory.getLogger(RiesgosVerificacionPdfGenerator.class);
 
     private static final PDRectangle PAGE_SIZE = PDRectangle.A4;
     private static final float PAGE_WIDTH = PAGE_SIZE.getWidth();
@@ -81,7 +84,10 @@ public final class RiesgosVerificacionPdfGenerator {
                             true
                     );
                 }
-            } catch (IOException ignored) {
+            } catch (IOException ex) {
+                // CWE-390: si falla la carga de fuentes se usa la fuente base (fallback
+                // previsto), pero el fallo queda registrado para diagnostico.
+                log.debug("No se pudieron cargar las fuentes personalizadas del reporte: {}", ex.toString());
             }
         }
 
@@ -111,6 +117,8 @@ public final class RiesgosVerificacionPdfGenerator {
     }
 
     private static final class PdfCanvas {
+        private static final float HEADER_HEIGHT = 52f;
+
         private final PDDocument document;
         private final FontPack fonts;
         private final PDImageXObject headerLogo;
@@ -223,7 +231,7 @@ public final class RiesgosVerificacionPdfGenerator {
 
         private void renderTableHeading() throws IOException {
             drawTableHeader(cursorY);
-            cursorY -= headerHeight();
+            cursorY -= HEADER_HEIGHT;
         }
 
         private void drawEmptyState(String message) throws IOException {
@@ -286,10 +294,6 @@ public final class RiesgosVerificacionPdfGenerator {
                 drawCenteredWrapped(wrappedHeaders.get(i), fonts.bold(), sizes[i], x, topY - 10f, colWidth, 10.5f, COLOR_MUTED);
                 x += colWidth;
             }
-        }
-
-        private float headerHeight() {
-            return 52f;
         }
 
         private float rowHeight(RiskRow row) throws IOException {
@@ -398,19 +402,19 @@ public final class RiesgosVerificacionPdfGenerator {
                 }
                 StringBuilder current = new StringBuilder();
                 for (String word : line.split("\\s+")) {
-                    String trial = current.length() == 0 ? word : current + " " + word;
+                    String trial = current.isEmpty() ? word : current + " " + word;
                     if (stringWidth(font, size, trial) <= maxWidth) {
                         current.setLength(0);
                         current.append(trial);
                     } else {
-                        if (current.length() > 0) {
+                        if (!current.isEmpty()) {
                             result.add(current.toString());
                         }
                         current.setLength(0);
                         current.append(word);
                     }
                 }
-                if (current.length() > 0) {
+                if (!current.isEmpty()) {
                     result.add(current.toString());
                 }
             }

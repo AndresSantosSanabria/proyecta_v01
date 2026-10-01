@@ -27,7 +27,9 @@ import com.proyecta.api_gestion.service.notification.NotificationSenderPort;
 import com.proyecta.api_gestion.service.notification.NotificationTemplateRenderer;
 import com.proyecta.api_gestion.service.notification.NotificationTemplateService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
-import jakarta.mail.internet.MimeMessage;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,9 +62,20 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/admin/notificaciones")
+@Tag(name = "Administración - Notificaciones", description = "Endpoints de administración de plantillas, reglas, agrupación y envío de notificaciones")
 @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
 public class NotificationAdminController {
     private static final Logger log = LoggerFactory.getLogger(NotificationAdminController.class);
+
+    private static final String KEY_RECIPIENT = "recipient";
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_SUCCESS = "success";
+    private static final String KEY_ERROR_MESSAGE = "errorMessage";
+    private static final String KEY_CREATED_AT = "createdAt";
+    private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_SENT = "SENT";
+    private static final String CHANNEL_EMAIL = "EMAIL";
+    private static final String CHANNEL_IN_APP = "IN_APP";
 
     private final NotificationEventCatalogRepository eventCatalogRepository;
     private final NotificationTemplateService templateService;
@@ -112,6 +125,7 @@ public class NotificationAdminController {
         this.templateRepository = templateRepository;
     }
 
+    @Operation(summary = "Listar el catálogo de eventos de notificación")
     @GetMapping("/eventos")
     public ResponseEntity<ApiResponse<List<NotificationEventCatalogDTO>>> listEvents() {
         var data = eventCatalogRepository.findAll().stream().map(event ->
@@ -120,6 +134,7 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(data, "Eventos de notificacion listados correctamente"));
     }
 
+    @Operation(summary = "Listar las plantillas de notificación configuradas")
     @GetMapping("/plantillas")
     public ResponseEntity<ApiResponse<List<NotificationTemplateDTO>>> listTemplates() {
 
@@ -136,6 +151,10 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(data, "Plantillas listadas correctamente"));
     }
 
+    @Operation(
+        summary = "Crear o actualizar una plantilla de notificación",
+        description = "Realiza un upsert de la plantilla asociada al código de evento indicado (habilitación, severidad, alcance, asunto, cuerpo y roles destino)."
+    )
     @PutMapping("/plantillas")
     public ResponseEntity<ApiResponse<NotificationTemplateDTO>> saveTemplate(@Valid @RequestBody NotificationTemplateUpdateRequest request,
                                                                              Authentication authentication) {
@@ -153,12 +172,17 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(toDto(saved, event), "Plantilla guardada correctamente"));
     }
 
+    @Operation(summary = "Listar las preferencias de notificación de los usuarios")
     @GetMapping("/preferencias")
     public ResponseEntity<ApiResponse<List<NotificationPreferenceDTO>>> listPreferences() {
         var data = preferenceService.listAll().stream().map(this::toPreferenceDto).toList();
         return ResponseEntity.ok(ApiResponse.success(data, "Preferencias listadas correctamente"));
     }
 
+    @Operation(
+        summary = "Crear o actualizar una preferencia de notificación",
+        description = "Guarda la preferencia de un usuario para un evento, con alcance global o por proyecto y activación de correo."
+    )
     @PutMapping("/preferencias")
     public ResponseEntity<ApiResponse<NotificationPreferenceDTO>> savePreference(@Valid @RequestBody NotificationPreferenceUpdateRequest request) {
         NotificationPreference saved = preferenceService.upsert(
@@ -171,6 +195,10 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(toPreferenceDto(saved), "Preferencia guardada correctamente"));
     }
 
+    @Operation(
+        summary = "Previsualizar una plantilla de notificación",
+        description = "Renderiza el asunto y el cuerpo de la plantilla con las variables proporcionadas, sin enviar ninguna notificación."
+    )
     @PostMapping("/plantillas/preview")
     public ResponseEntity<ApiResponse<NotificationTemplatePreviewResponse>> preview(@RequestBody NotificationTemplatePreviewRequest request) {
         var subject = renderer.apply(request.subjectTemplate(), request.variables());
@@ -178,6 +206,10 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(new NotificationTemplatePreviewResponse(subject, body, request.htmlEnabled()), "Preview generado correctamente"));
     }
 
+    @Operation(
+        summary = "Enviar un correo de prueba de notificación",
+        description = "Renderiza la plantilla y envía un correo de prueba al usuario autenticado. Retorna el estado del envío (incluido el error si el usuario no tiene correo configurado)."
+    )
     @PostMapping("/plantillas/test-send")
     public ResponseEntity<ApiResponse<Map<String, Object>>> testSend(@Valid @RequestBody NotificationTestSendRequest request,
                                                                      Authentication authentication) {
@@ -186,10 +218,10 @@ public class NotificationAdminController {
             var userOpt = usuarioRepository.findByUsernameIgnoreCase(username);
             if (userOpt.isEmpty() || userOpt.get().getCorreo() == null || userOpt.get().getCorreo().isBlank()) {
                 Map<String, Object> payload = new LinkedHashMap<>();
-                payload.put("recipient", username);
-                payload.put("status", "FAILED");
-                payload.put("success", false);
-                payload.put("errorMessage", "No se encontró correo electrónico para el usuario");
+                payload.put(KEY_RECIPIENT, username);
+                payload.put(KEY_STATUS, STATUS_FAILED);
+                payload.put(KEY_SUCCESS, false);
+                payload.put(KEY_ERROR_MESSAGE, "No se encontró correo electrónico para el usuario");
                 return ResponseEntity.badRequest().body(ApiResponse.success(payload, "USER_NO_EMAIL"));
             }
 
@@ -199,32 +231,35 @@ public class NotificationAdminController {
             var message = new com.proyecta.api_gestion.service.notification.NotificationMessage(subject, body, Boolean.TRUE.equals(request.htmlEnabled()));
 
             var result = notificationSender.send(recipientEmail, message);
-            log.info("Test notification email sent to {} (user: {})", recipientEmail, username);
+            String safeRecipientEmail = com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(recipientEmail);
+            String safeUsername = com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(username);
+            log.info("Test notification email sent to {} (user: {})", safeRecipientEmail, safeUsername);
 
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("recipient", recipientEmail);
-            payload.put("status", result.status().name());
-            payload.put("success", result.success());
-            payload.put("errorMessage", result.errorMessage());
+            payload.put(KEY_RECIPIENT, recipientEmail);
+            payload.put(KEY_STATUS, result.status().name());
+            payload.put(KEY_SUCCESS, result.success());
+            payload.put(KEY_ERROR_MESSAGE, result.errorMessage());
             return ResponseEntity.ok(ApiResponse.success(payload, "Correo de prueba procesado"));
         } catch (Exception e) {
             log.error("Failed to send test email: {}", e.getMessage(), e);
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("status", "FAILED");
-            payload.put("success", false);
-            payload.put("errorMessage", e.getMessage());
+            payload.put(KEY_STATUS, STATUS_FAILED);
+            payload.put(KEY_SUCCESS, false);
+            payload.put(KEY_ERROR_MESSAGE, e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.success(payload, "EMAIL_SEND_FAILED"));
         }
     }
 
+    @Operation(summary = "Obtener estadísticas del sistema de notificaciones")
     @GetMapping("/estadisticas")
     public ResponseEntity<ApiResponse<Map<String, Object>>> estadisticas() {
         Map<String, Object> result = new LinkedHashMap<>();
 
-        long totalSent = auditRepository.countByChannelAndStatus("EMAIL", "SENT");
-        long totalFailed = auditRepository.countByChannelAndStatus("EMAIL", "FAILED");
-        long totalInApp = auditRepository.countByChannelAndStatus("IN_APP", "SENT");
-        long totalInAppFailed = auditRepository.countByChannelAndStatus("IN_APP", "FAILED");
+        long totalSent = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_SENT);
+        long totalFailed = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
+        long totalInApp = auditRepository.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_SENT);
+        long totalInAppFailed = auditRepository.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_FAILED);
 
         long activeTemplates = templateRepository.countByEnabledTrue();
         long totalEvents = eventCatalogRepository.count();
@@ -253,6 +288,10 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(result, "Estadisticas de notificaciones"));
     }
 
+    @Operation(
+        summary = "Obtener diagnóstico de la configuración de correo",
+        description = "Expone el estado de la configuración SMTP (con datos sensibles enmascarados), las últimas trazas de envío, plantillas y usuarios con notificaciones activas."
+    )
     @GetMapping("/diagnostico")
     public ResponseEntity<ApiResponse<Map<String, Object>>> diagnostico() {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -278,23 +317,23 @@ public class NotificationAdminController {
                 PageRequest.of(
                         0,
                         10,
-                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, KEY_CREATED_AT)
                 )
         ).getContent();
 
         List<Map<String, Object>> logEntries = recentLogs.stream().map(logEntry -> {
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("recipient", logEntry.getRecipient());
+            entry.put(KEY_RECIPIENT, logEntry.getRecipient());
             entry.put("subject", logEntry.getSubject());
-            entry.put("status", logEntry.getStatus());
+            entry.put(KEY_STATUS, logEntry.getStatus());
             entry.put("detail", logEntry.getDetail());
-            entry.put("createdAt", logEntry.getCreatedAt() != null ? logEntry.getCreatedAt().toString() : null);
+            entry.put(KEY_CREATED_AT, logEntry.getCreatedAt() != null ? logEntry.getCreatedAt().toString() : null);
             return entry;
         }).toList();
         result.put("recentDispatchLogs", logEntries);
 
-        long totalSent = auditRepository.countByChannelAndStatus("EMAIL", "SENT");
-        long totalFailed = auditRepository.countByChannelAndStatus("EMAIL", "FAILED");
+        long totalSent = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_SENT);
+        long totalFailed = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
         result.put("emailStats", Map.of("sent", totalSent, "failed", totalFailed));
 
         List<NotificationTemplate> templates = templateRepository.findAll();
@@ -321,21 +360,25 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(result, "Diagnostico del sistema de correo"));
     }
 
+    @Operation(
+        summary = "Listar notificaciones fallidas",
+        description = "Retorna de forma paginada las notificaciones con estado FAILED, filtrables por canal, código de evento, destinatario y rango de fechas (ISO-8601)."
+    )
     @GetMapping("/fallidas")
     public ResponseEntity<ApiResponse<Map<String, Object>>> listFailedNotifications(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String channel,
-            @RequestParam(required = false) String eventCode,
-            @RequestParam(required = false) String recipient,
-            @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
+            @Parameter(description = "Número de página (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamaño de página") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Filtra por canal (EMAIL, IN_APP)") @RequestParam(required = false) String channel,
+            @Parameter(description = "Filtra por código del evento") @RequestParam(required = false) String eventCode,
+            @Parameter(description = "Filtra por destinatario") @RequestParam(required = false) String recipient,
+            @Parameter(description = "Fecha inicio del rango (ISO-8601)") @RequestParam(required = false) String from,
+            @Parameter(description = "Fecha fin del rango (ISO-8601)") @RequestParam(required = false) String to) {
 
         LocalDateTime fromDate = parseDateTime(from);
         LocalDateTime toDate = parseDateTime(to);
-        String status = "FAILED";
+        String status = STATUS_FAILED;
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, KEY_CREATED_AT));
         Page<NotificationAudit> auditPage = auditRepository.findFailedWithFilters(
                 status, channel, eventCode, recipient, fromDate, toDate, pageable);
 
@@ -345,8 +388,8 @@ public class NotificationAdminController {
                         a.getChannel(), a.getStatus(), a.getFailureReason(), a.getCreatedAt()))
                 .toList();
 
-        long totalFailedEmail = auditRepository.countByChannelAndStatus("EMAIL", "FAILED");
-        long totalFailedInApp = auditRepository.countByChannelAndStatus("IN_APP", "FAILED");
+        long totalFailedEmail = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
+        long totalFailedInApp = auditRepository.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_FAILED);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("entries", entries);
@@ -359,19 +402,23 @@ public class NotificationAdminController {
         return ResponseEntity.ok(ApiResponse.success(result, "Notificaciones fallidas listadas correctamente"));
     }
 
+    @Operation(
+        summary = "Listar trazas de despacho fallidas de correo",
+        description = "Retorna de forma paginada el detalle de los envíos de correo fallidos, filtrable por destinatario y rango de fechas (ISO-8601)."
+    )
     @GetMapping("/fallidas/detalle-dispatch")
     public ResponseEntity<ApiResponse<Map<String, Object>>> listFailedDispatchLogs(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String recipient,
-            @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
+            @Parameter(description = "Número de página (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamaño de página") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Filtra por destinatario") @RequestParam(required = false) String recipient,
+            @Parameter(description = "Fecha inicio del rango (ISO-8601)") @RequestParam(required = false) String from,
+            @Parameter(description = "Fecha fin del rango (ISO-8601)") @RequestParam(required = false) String to) {
 
         Instant fromDate = parseInstant(from);
         Instant toDate = parseInstant(to);
-        String status = "FAILED";
+        String status = STATUS_FAILED;
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, KEY_CREATED_AT));
         Page<NotificationMailDispatchLog> logPage = mailDispatchLogRepository.findFailedWithFilters(
                 status, recipient, fromDate, toDate, pageable);
 
@@ -394,7 +441,7 @@ public class NotificationAdminController {
         if (value == null || value.isBlank()) return null;
         try {
             return LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException _) {
             return null;
         }
     }
@@ -403,7 +450,7 @@ public class NotificationAdminController {
         if (value == null || value.isBlank()) return null;
         try {
             return Instant.parse(value);
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException _) {
             return null;
         }
     }

@@ -1,8 +1,23 @@
 package com.proyecta.api_gestion.dto.proyecto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
 
+@Schema(example = """
+    {
+      "faseActual": 1,
+      "fasesCompletadas": {"1": true, "2": false, "3": false, "4": false, "5": false, "6": false, "7": false},
+      "datosFase1": {"dependencia": "Secretaría de Transformación Digital", "fechaInicio": "2026-03-02", "presupuestoEstimado": "1250000000", "alcance": "Actualización de equipos de red en 8 sedes", "objetivosEspecificos": ["Actualizar switches core"]},
+      "datosFase2": {"patrocinador": {"nombre": "Carlos Ramírez", "cargo": "Director de TIC", "procesoSigc": null, "procedimientoSigc": null}, "equipoTrabajo": [], "stakeholders": []},
+      "datosFase3": {"fases": []},
+      "datosFase4": {"peti": false, "vigenciaPeti": null, "estrategiaPeti": null, "tienePlanComunicaciones": false},
+      "datosFase5": {"furag": null},
+      "datosFase6": {"riesgos": []},
+      "datosFase7": {"documentos": {}},
+      "ultimoGuardado": "2026-07-15T10:30:00"
+    }
+    """)
 public record CompletitudBorradorDTO(
         Integer faseActual,
         Map<Integer, Boolean> fasesCompletadas,

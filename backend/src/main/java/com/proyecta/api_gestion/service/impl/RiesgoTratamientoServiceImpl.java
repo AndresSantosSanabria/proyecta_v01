@@ -20,8 +20,6 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +35,6 @@ import java.util.UUID;
 @Service
 public class RiesgoTratamientoServiceImpl implements IRiesgoTratamientoService {
 
-    private static final Logger log = LoggerFactory.getLogger(RiesgoTratamientoServiceImpl.class);
     private static final int MAX_ARCHIVOS_POR_TRATAMIENTO = 10;
 
     private final RiesgoTratamientoRepository tratamientoRepository;
@@ -209,7 +206,7 @@ public class RiesgoTratamientoServiceImpl implements IRiesgoTratamientoService {
             if (!firma.startsWith("%PDF-")) {
                 throw new BadRequestException("El archivo cargado no es un PDF válido.");
             }
-        } catch (IOException ex) {
+        } catch (IOException _) {
             throw new BadRequestException("No fue posible validar el archivo PDF cargado.");
         }
     }

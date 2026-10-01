@@ -29,9 +29,7 @@ public class NotificationActorResolver {
         addIfPresent(identifiers, normalize(fallbackActorUsername));
         expandWithLocalUser(identifiers, fallbackActorUsername);
 
-        Authentication authentication = SecurityContextHolder.getContext() != null
-                ? SecurityContextHolder.getContext().getAuthentication()
-                : null;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null) {
             String contextUsername = identityExtractor.resolveUsername(authentication);
             addIfPresent(identifiers, normalize(contextUsername));

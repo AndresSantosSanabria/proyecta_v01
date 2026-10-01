@@ -3,7 +3,6 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.avance.FaseAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.HitoAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
-import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Fase;
 import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
@@ -26,7 +25,6 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
     private final ProyectoRepository proyectoRepository;
     private final FaseRepository faseRepository;
     private final HitoRepository hitoRepository;
-    private final EntregableRepository entregableRepository;
     private final ProjectProgressMetricsService metricsService;
     private final ProjectDelayNotificationService projectDelayNotificationService;
 
@@ -39,7 +37,6 @@ public class AvanceCalculatorServiceImpl implements IProgressCalculator {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
-        this.entregableRepository = entregableRepository;
         this.metricsService = metricsService;
         this.projectDelayNotificationService = projectDelayNotificationService;
     }

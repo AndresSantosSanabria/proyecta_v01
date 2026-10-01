@@ -13,6 +13,8 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 
 import javax.imageio.ImageIO;
@@ -26,10 +28,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 public final class ProyectosConRetrasosPdfGenerator {
+
+    private static final Logger log = LoggerFactory.getLogger(ProyectosConRetrasosPdfGenerator.class);
 
     private static final PDRectangle PAGE_SIZE = PDRectangle.A4;
     private static final float PAGE_WIDTH = PAGE_SIZE.getWidth();
@@ -45,11 +48,12 @@ public final class ProyectosConRetrasosPdfGenerator {
     private static final float FOOTER_Y = 0f;
     private static final float FOOTER_W = 470f;
     private static final float FOOTER_H = 60f;
-    private static final float FOOTER_TOP_LIMIT = 92f;
 
     private static final Color COLOR_TEXT = new Color(18, 18, 18);
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_BORDER = new Color(152, 152, 152);
+
+    private static final String FECHA_PLACEHOLDER = "[DD/MM/AAAA]";
 
     public byte[] build(List<ProyectoReporteResumenDTO> proyectos, List<EntregablePendienteDTO> entregables, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
@@ -82,7 +86,10 @@ public final class ProyectosConRetrasosPdfGenerator {
                             true
                     );
                 }
-            } catch (IOException ignored) {
+            } catch (IOException ex) {
+                // CWE-390: si falla la carga de fuentes se usa la fuente base (fallback
+                // previsto), pero el fallo queda registrado para diagnostico.
+                log.debug("No se pudieron cargar las fuentes personalizadas del reporte: {}", ex.toString());
             }
         }
 
@@ -94,7 +101,7 @@ public final class ProyectosConRetrasosPdfGenerator {
     }
 
     private static String formatDate(LocalDate date) {
-        return date == null ? "[DD/MM/AAAA]" : date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        return date == null ? FECHA_PLACEHOLDER : date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 
     private static String formatPercent(java.math.BigDecimal value) {
@@ -108,17 +115,6 @@ public final class ProyectosConRetrasosPdfGenerator {
 
     private static String safe(String value) {
         return value == null ? "" : value;
-    }
-
-    private static String normalize(String value) {
-        String source = value == null ? "" : value;
-        String normalized = java.text.Normalizer.normalize(source, java.text.Normalizer.Form.NFD)
-                .replaceAll("\\p{M}+", "");
-        return normalized.toLowerCase(Locale.ROOT).trim();
-    }
-
-    private static boolean sameText(String left, String right) {
-        return normalize(left).equals(normalize(right));
     }
 
     private record FontPack(PDFont regular, PDFont bold, boolean unicode) {
@@ -170,9 +166,9 @@ public final class ProyectosConRetrasosPdfGenerator {
         private List<DeliverableRow> buildDeliverableRows(List<EntregablePendienteDTO> entregables) {
             if (entregables == null || entregables.isEmpty()) {
                 return List.of(
-                        new DeliverableRow("1", "", "[DD/MM/AAAA]"),
-                        new DeliverableRow("2", "", "[DD/MM/AAAA]"),
-                        new DeliverableRow("3", "", "[DD/MM/AAAA]")
+                        new DeliverableRow("1", "", FECHA_PLACEHOLDER),
+                        new DeliverableRow("2", "", FECHA_PLACEHOLDER),
+                        new DeliverableRow("3", "", FECHA_PLACEHOLDER)
                 );
             }
             List<DeliverableRow> rows = new ArrayList<>();
@@ -181,7 +177,7 @@ public final class ProyectosConRetrasosPdfGenerator {
                 rows.add(new DeliverableRow(
                         String.valueOf(index++),
                         safe(entregable.nombre()),
-                        entregable.fechaEntrega() != null ? formatDate(entregable.fechaEntrega()) : "[DD/MM/AAAA]"
+                        entregable.fechaEntrega() != null ? formatDate(entregable.fechaEntrega()) : FECHA_PLACEHOLDER
                 ));
             }
             return rows;
@@ -420,23 +416,28 @@ public final class ProyectosConRetrasosPdfGenerator {
                 }
                 StringBuilder current = new StringBuilder();
                 for (String word : line.split("\\s+")) {
-                    String trial = current.length() == 0 ? word : current + " " + word;
-                    if (stringWidth(font, size, trial) <= maxWidth) {
-                        current.setLength(0);
-                        current.append(trial);
-                    } else {
-                        if (current.length() > 0) {
-                            result.add(current.toString());
-                        }
-                        current.setLength(0);
-                        current.append(word);
-                    }
+                    appendWord(current, word, result, font, size, maxWidth);
                 }
-                if (current.length() > 0) {
+                if (!current.isEmpty()) {
                     result.add(current.toString());
                 }
             }
             return result.isEmpty() ? List.of("") : result;
+        }
+
+        private void appendWord(StringBuilder current, String word, List<String> result,
+                                PDFont font, float size, float maxWidth) throws IOException {
+            String trial = current.isEmpty() ? word : current + " " + word;
+            if (stringWidth(font, size, trial) <= maxWidth) {
+                current.setLength(0);
+                current.append(trial);
+            } else {
+                if (!current.isEmpty()) {
+                    result.add(current.toString());
+                }
+                current.setLength(0);
+                current.append(word);
+            }
         }
 
         private float stringWidth(PDFont font, float size, String text) throws IOException {

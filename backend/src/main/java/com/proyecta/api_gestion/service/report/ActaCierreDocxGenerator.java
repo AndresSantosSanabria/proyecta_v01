@@ -2,7 +2,6 @@ package com.proyecta.api_gestion.service.report;
 
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFHyperlinkRun;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
@@ -21,6 +20,7 @@ import java.util.Objects;
 public class ActaCierreDocxGenerator {
 
     private static final String TEMPLATE_RESOURCE = "templates/acta_cierre_template.docx";
+    private static final String NO_REGISTRADO = "No registrado";
 
     private final com.proyecta.api_gestion.service.PublicEvidenceUrlSigner urlSigner;
     private final String publicUrlBase;
@@ -101,12 +101,12 @@ public class ActaCierreDocxGenerator {
             if (objetivo == null || objetivo.isBlank()) {
                 continue;
             }
-            if (sb.length() > 0) {
+            if (!sb.isEmpty()) {
                 sb.append(System.lineSeparator());
             }
             sb.append(i + 1).append(". ").append(objetivo.trim());
         }
-        setCellTextPreservingStyle(objectives.getRow(1).getCell(0), sb.length() == 0 ? "No registrado" : sb.toString());
+        setCellTextPreservingStyle(objectives.getRow(1).getCell(0), sb.isEmpty() ? NO_REGISTRADO : sb.toString());
 
         // Table 3: Row 0 = blue header "RESUMEN EJECUTIVO:", Row 1 = white content row
         XWPFTable summary = bodyTable(doc, 3);
@@ -182,7 +182,7 @@ public class ActaCierreDocxGenerator {
                 String publicUrl = urlSigner.appendSignature(baseUrl + evidStoredName);
                 setCellHyperlink(table.getRow(rowIdx).getCell(2), publicUrl);
             } else {
-                setCellTextPreservingStyle(table.getRow(rowIdx).getCell(2), "No registrado");
+                setCellTextPreservingStyle(table.getRow(rowIdx).getCell(2), NO_REGISTRADO);
             }
         }
 
@@ -250,7 +250,7 @@ public class ActaCierreDocxGenerator {
             XWPFRun run = paragraph.createRun();
             if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
             if (style.fontSize != null) run.setFontSize(style.fontSize);
-            run.setText("No registrado");
+            run.setText(NO_REGISTRADO);
             return;
         }
 
@@ -293,7 +293,7 @@ public class ActaCierreDocxGenerator {
 
             ctr.addNewT().setStringValue("Click aquí");
 
-        } catch (Exception ex) {
+        } catch (Exception _) {
             // Fallback: plain text if hyperlink creation fails
             XWPFRun run = paragraph.createRun();
             if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
@@ -369,15 +369,6 @@ public class ActaCierreDocxGenerator {
         return config;
     }
 
-    private String sponsorLine(String nombre, String cargo) {
-        String n = safe(nombre);
-        String c = safe(cargo);
-        if ("No registrado".equals(n) && "No registrado".equals(c)) {
-            return "No registrado";
-        }
-        return n + (c.equals("No registrado") ? "" : " - " + c);
-    }
-
     private void replaceText(XWPFDocument doc, String placeholder, String replacement) {
         for (XWPFParagraph paragraph : doc.getParagraphs()) {
             replaceText(paragraph, placeholder, replacement);
@@ -415,16 +406,7 @@ public class ActaCierreDocxGenerator {
         run.setText(fullText.replace(placeholder, replacement));
     }
 
-    private String directorLine(String nombre, String cargo) {
-        String n = safe(nombre);
-        String c = safe(cargo);
-        if ("No registrado".equals(n) && "No registrado".equals(c)) {
-            return "No registrado";
-        }
-        return n + (c.equals("No registrado") ? "" : " - " + c);
-    }
-
     private String safe(String value) {
-        return value == null || value.isBlank() ? "No registrado" : value.trim();
+        return value == null || value.isBlank() ? NO_REGISTRADO : value.trim();
     }
 }

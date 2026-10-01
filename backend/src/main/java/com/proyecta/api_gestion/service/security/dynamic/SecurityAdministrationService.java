@@ -26,7 +26,6 @@ import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepo
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
-import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
@@ -39,13 +38,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -60,6 +58,12 @@ import org.springframework.data.domain.Sort;
 public class SecurityAdministrationService {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityAdministrationService.class);
+    private static final String ROLE_ADMIN = "admin";
+    private static final String ROLE_GESTOR_TIC = "gestor_tic";
+    private static final String ROLE_DIRECTOR_PROYECTO = "director_proyecto";
+    private static final String ROLE_AUDITOR = "auditor";
+    private static final String ROLE_CONSULTA = "consulta";
+    private static final String ROLE_GESTOR = "gestor";
     private final SeguridadUsuarioRepository usuarioRepository;
     private final SeguridadRolRepository rolRepository;
     private final SeguridadPermisoRepository permisoRepository;
@@ -67,11 +71,9 @@ public class SecurityAdministrationService {
     private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
     private final SeguridadUsuarioPermisoRepository usuarioPermisoRepository;
     private final ProyectoRepository proyectoRepository;
-    private final SystemParameterService systemParameterService;
     private final ListaParametricaConfigRepository listaParametricaRepository;
     private final SecurityCatalogCacheService catalogCacheService;
     private final KeycloakIdentityExtractor identityExtractor;
-    private final LocalUserAuthorizationService localUserAuthorizationService;
     private final NotificationEventPublisherPort notificationPublisher;
     private final UserProvisioningService userProvisioningService;
 
@@ -97,11 +99,9 @@ public class SecurityAdministrationService {
         this.usuarioProyectoRepository = usuarioProyectoRepository;
         this.usuarioPermisoRepository = usuarioPermisoRepository;
         this.proyectoRepository = proyectoRepository;
-        this.systemParameterService = systemParameterService;
         this.listaParametricaRepository = listaParametricaRepository;
         this.catalogCacheService = catalogCacheService;
         this.identityExtractor = identityExtractor;
-        this.localUserAuthorizationService = localUserAuthorizationService;
         this.notificationPublisher = notificationPublisher;
         this.userProvisioningService = userProvisioningService;
     }
@@ -217,9 +217,10 @@ public class SecurityAdministrationService {
                     SeguridadUsuario nuevo = new SeguridadUsuario();
                     nuevo.setUsername(username);
                     String correo = normalizeText(request.correo());
+                    String subKeycloakInicial = correo != null ? correo : username;
                     nuevo.setKeycloakSub(normalizeText(request.keycloakSub()) != null
                             ? normalizeText(request.keycloakSub())
-                            : correo != null ? correo : username);
+                            : subKeycloakInicial);
                     nuevo.setNombre(normalizeText(request.nombre()) != null ? normalizeText(request.nombre()) : username);
                     nuevo.setCorreo(correo != null ? correo : username);
                     nuevo.setDependencia(normalizeText(request.dependencia()));
@@ -300,7 +301,6 @@ public class SecurityAdministrationService {
         boolean activo = request.activo() == null || request.activo();
 
         SeguridadRol rol = rolRepository.findByCodigoIgnoreCase(codigo).orElseGet(SeguridadRol::new);
-        boolean isNew = rol.getId() == null;
         if (rol.getId() != null && SecurityRoleCatalog.isProtected(rol.getCodigo()) && !activo) {
             throw new ForbiddenException("No se puede desactivar un rol base del sistema.");
         }
@@ -529,7 +529,7 @@ public class SecurityAdministrationService {
         Set<String> permissions = new LinkedHashSet<>();
 
         if (isAdminFromJwt) {
-            roleCodes.add("admin");
+            roleCodes.add(ROLE_ADMIN);
             permissions.addAll(catalogCacheService.getPermissionsForAllRoles());
         } else {
             String dbRoleCode = usuario.getRolCodigo();
@@ -556,9 +556,11 @@ public class SecurityAdministrationService {
         List<String> projects = catalogCacheService.getProjectsForUser(username);
         administradorLocal = administradorLocal || LocalUserAuthorizationService.esAdministrador(usuario);
 
-        log.info("[AuthzDebug] user={}, roles={}, permissionsCount={}, projectsCount={}",
-                username, roleCodes, permissions.size(), projects.size());
-        log.info("[AuthzDebug] user={}, allPermissions={}", username, permissions);
+        if (log.isDebugEnabled()) {
+            log.debug("[AuthzDebug] user={}, roles={}, permissionsCount={}, projectsCount={}",
+                    com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(username),
+                    roleCodes, permissions.size(), projects.size());
+        }
 
         return new SeguridadAutorizacionMeDTO(
                 username,
@@ -620,11 +622,13 @@ public class SecurityAdministrationService {
     }
 
     private String normalizeRole(String value) {
-        return normalizeText(value) != null ? normalizeText(value).toLowerCase(Locale.ROOT) : null;
+        String normalized = normalizeText(value);
+        return normalized != null ? normalized.toLowerCase(Locale.ROOT) : null;
     }
 
     private String normalizePermission(String value) {
-        return normalizeText(value) != null ? normalizeText(value).toUpperCase(Locale.ROOT) : null;
+        String normalized = normalizeText(value);
+        return normalized != null ? normalized.toUpperCase(Locale.ROOT) : null;
     }
 
     private boolean isDirectorCargo(String cargo) {
@@ -644,7 +648,7 @@ public class SecurityAdministrationService {
             return false;
         }
 
-        return "director_proyecto".equals(normalized)
+        return ROLE_DIRECTOR_PROYECTO.equals(normalized)
                 || "lider_tecnico".equals(normalized)
                 || "director_tecnico".equals(normalized);
     }
@@ -692,50 +696,6 @@ public class SecurityAdministrationService {
         }
     }
 
-    private Optional<SeguridadRol> resolveRoleForSecurityUser(
-            SeguridadUsuario usuario,
-            Authentication authentication,
-            boolean preferTokenRoles) {
-        List<String> candidateRoles = new ArrayList<>();
-
-        if (preferTokenRoles && authentication != null) {
-            candidateRoles.addAll(authentication.getAuthorities().stream()
-                    .map(authority -> authority.getAuthority())
-                    .filter(value -> value != null && value.startsWith("ROLE_"))
-                    .map(SecurityRoleCatalog::normalize)
-                    .filter(value -> value != null && !value.isBlank())
-                    .distinct()
-                    .toList());
-        }
-
-        if (usuario != null) {
-            candidateRoles.addAll(resolveRoleCodesFromText(
-                    usuario.getRolCodigo(),
-                    usuario.getRolNombre(),
-                    usuario.getUsername(),
-                    usuario.getCorreo(),
-                    usuario.getNombre(),
-                    usuario.getDependencia()));
-        }
-
-        if (authentication != null) {
-            candidateRoles.addAll(authentication.getAuthorities().stream()
-                    .map(authority -> authority.getAuthority())
-                    .filter(value -> value != null && value.startsWith("ROLE_"))
-                    .map(SecurityRoleCatalog::normalize)
-                    .filter(value -> value != null && !value.isBlank())
-                    .distinct()
-                    .toList());
-        }
-
-        String preferredCode = pickPreferredSecurityRoleCode(candidateRoles);
-        if (preferredCode == null) {
-            return Optional.empty();
-        }
-
-        return rolRepository.findByCodigoIgnoreCase(preferredCode);
-    }
-
     private List<String> resolveRoleCodesFromText(String... values) {
         List<String> codes = new ArrayList<>();
         if (values == null) {
@@ -759,23 +719,23 @@ public class SecurityAdministrationService {
         }
 
         String lower = normalized.toLowerCase(Locale.ROOT);
-        if (lower.contains("admin") || lower.contains("administrador")) {
-            return "admin";
+        if (lower.contains(ROLE_ADMIN) || lower.contains("administrador")) {
+            return ROLE_ADMIN;
         }
-        if (lower.contains("gestor_tic") || lower.contains("gestor tic") || lower.contains("gestor_proyectos_ti")) {
-            return "gestor_tic";
+        if (lower.contains(ROLE_GESTOR_TIC) || lower.contains("gestor tic") || lower.contains("gestor_proyectos_ti")) {
+            return ROLE_GESTOR_TIC;
         }
         if (lower.contains("director_pro")
-                || lower.contains("director_proyecto")
+                || lower.contains(ROLE_DIRECTOR_PROYECTO)
                 || lower.contains("director proyecto")
                 || lower.contains("proyecta.director_proyecto")) {
-            return "director_proyecto";
+            return ROLE_DIRECTOR_PROYECTO;
         }
-        if (lower.contains("auditor")) {
-            return "auditor";
+        if (lower.contains(ROLE_AUDITOR)) {
+            return ROLE_AUDITOR;
         }
-        if (lower.contains("consulta") || lower.contains("analista")) {
-            return "consulta";
+        if (lower.contains(ROLE_CONSULTA) || lower.contains("analista")) {
+            return ROLE_CONSULTA;
         }
 
         return null;
@@ -786,7 +746,7 @@ public class SecurityAdministrationService {
             return null;
         }
 
-        List<String> priority = List.of("admin", "gestor_tic", "director_proyecto", "auditor", "consulta");
+        List<String> priority = List.of(ROLE_ADMIN, ROLE_GESTOR_TIC, ROLE_DIRECTOR_PROYECTO, ROLE_AUDITOR, ROLE_CONSULTA);
         for (String preferred : priority) {
             if (candidateRoles.stream().anyMatch(preferred::equalsIgnoreCase)) {
                 return preferred;
@@ -803,23 +763,23 @@ public class SecurityAdministrationService {
     private String resolveInitialRoleForNewUser(SeguridadUsuario usuario, Authentication authentication) {
         if (authentication != null) {
             boolean isGestor = authentication.getAuthorities().stream()
-                    .map(authority -> authority.getAuthority())
+                    .map(GrantedAuthority::getAuthority)
                     .filter(value -> value != null && value.startsWith("ROLE_"))
                     .map(value -> value.substring(5).toLowerCase(Locale.ROOT))
-                    .anyMatch(role -> role.equals("gestor_tic")
-                            || role.equals("gestor")
+                    .anyMatch(role -> role.equals(ROLE_GESTOR_TIC)
+                            || role.equals(ROLE_GESTOR)
                             || role.equals("gestor_proyectos")
-                            || role.contains("gestor"));
+                            || role.contains(ROLE_GESTOR));
 
             if (isGestor) {
-                return "gestor_tic";
+                return ROLE_GESTOR_TIC;
             }
         }
 
         if (usuario != null) {
             String rolCodigo = normalizeText(usuario.getRolCodigo());
-            if (rolCodigo != null && rolCodigo.toLowerCase(Locale.ROOT).contains("gestor")) {
-                return "gestor_tic";
+            if (rolCodigo != null && rolCodigo.toLowerCase(Locale.ROOT).contains(ROLE_GESTOR)) {
+                return ROLE_GESTOR_TIC;
             }
         }
 

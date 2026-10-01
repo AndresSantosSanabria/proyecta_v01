@@ -6,7 +6,6 @@ import com.proyecta.api_gestion.dto.report.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,36 +19,39 @@ import java.util.List;
 public interface IReporteController {
 
     @Operation(summary = "Obtener configuracion de reportes", description = "Lista los reportes disponibles para el menu lateral.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Configuracion de reportes obtenida")
     @StandardApiResponses
     @GetMapping("/configuracion")
     ResponseEntity<ApiResponse<List<ReporteConfigDTO>>> getConfiguracion();
 
     @Operation(summary = "Obtener vista previa de reporte", description = "Calcula metricas clave para la visualizacion previa de un reporte de proyecto.")
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vista previa generada"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Proyecto no encontrado", content = @Content)
-    })
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vista previa generada")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Proyecto no encontrado", content = @Content)
     @StandardApiResponses
     @GetMapping("/vista-previa/{proyectoId}")
     ResponseEntity<ApiResponse<ReporteVistaPreviaDTO>> getVistaPrevia(
             @Parameter(description = "ID del proyecto", example = "PROY-001") @PathVariable String proyectoId);
 
     @Operation(summary = "Obtener estado de todos los proyectos", description = "Lista resumida de todos los proyectos con su avance.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Listado de proyectos obtenido")
     @StandardApiResponses
     @GetMapping("/todos-los-proyectos")
     ResponseEntity<ApiResponse<List<ProyectoReporteResumenDTO>>> getTodosLosProyectos();
 
     @Operation(summary = "Obtener proyectos con retrasos", description = "Lista de proyectos que tienen entregables atrasados.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Listado de proyectos con retrasos obtenido")
     @StandardApiResponses
     @GetMapping("/proyectos-con-retrasos")
     ResponseEntity<ApiResponse<List<ProyectoReporteResumenDTO>>> getProyectosConRetrasos();
 
     @Operation(summary = "Obtener reporte FURAG", description = "Preguntas y respuestas FURAG asociadas al proyecto.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reporte FURAG obtenido")
     @StandardApiResponses
     @GetMapping("/furag/{proyectoId}")
     ResponseEntity<ApiResponse<FuragReporteDTO>> getFurag(@PathVariable String proyectoId);
 
     @Operation(summary = "Obtener verificacion de tratamiento a riesgos", description = "Consolidado institucional de proyectos con cierre y su verificacion de tratamiento.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verificacion de tratamiento obtenida")
     @StandardApiResponses
     @GetMapping("/riesgos")
     ResponseEntity<ApiResponse<List<RiesgoVerificacionReporteDTO>>> getRiesgos();

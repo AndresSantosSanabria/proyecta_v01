@@ -12,7 +12,6 @@ import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -39,6 +38,9 @@ import java.util.regex.Pattern;
 public class SystemAuditFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(SystemAuditFilter.class);
+
+    private static final String USUARIO_SISTEMA = "SYSTEM";
+    private static final String PREFIJO_ERROR_ITEM = "\n  - ";
 
     private static final Set<String> SENSITIVE_FIELDS = Set.of(
             "password", "contrasena", "token", "secret",
@@ -73,11 +75,15 @@ public class SystemAuditFilter extends OncePerRequestFilter {
     private final SystemAuditLogService auditLogService;
     private final KeycloakIdentityExtractor identityExtractor;
     private final ObjectMapper objectMapper;
+    private final boolean trustForwardedFor;
 
     public SystemAuditFilter(SystemAuditLogService auditLogService,
                              KeycloakIdentityExtractor identityExtractor,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             @org.springframework.beans.factory.annotation.Value("${gob.security.trust-forwarded-for:false}")
+                             boolean trustForwardedFor) {
         this.auditLogService = auditLogService;
+        this.trustForwardedFor = trustForwardedFor;
         this.identityExtractor = identityExtractor;
         this.objectMapper = objectMapper;
     }
@@ -181,7 +187,7 @@ private String captureRequestBody(HttpServletRequest request) {
         try {
             UUID.fromString(value);
             return true;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return false;
         }
     }
@@ -304,19 +310,19 @@ private String buildDetalle(HttpServletRequest request, int codigoEstado) {
     }
 
     private String resolveUsername(Authentication authentication) {
-        if (authentication == null) return "SYSTEM";
+        if (authentication == null) return USUARIO_SISTEMA;
         String username = identityExtractor.resolveUsername(authentication);
-        return username != null ? username : "SYSTEM";
+        return username != null ? username : USUARIO_SISTEMA;
     }
 
     private String resolveDisplayName(Authentication authentication) {
-        if (authentication == null) return "SYSTEM";
+        if (authentication == null) return USUARIO_SISTEMA;
         String name = identityExtractor.resolveDisplayName(authentication);
         return name != null ? name : resolveUsername(authentication);
     }
 
     private String resolveUserRole(Authentication authentication) {
-        if (authentication == null) return "SYSTEM";
+        if (authentication == null) return USUARIO_SISTEMA;
         if (authentication.getAuthorities() == null) return "unknown";
         for (var auth : authentication.getAuthorities()) {
             String authority = auth.getAuthority();
@@ -325,7 +331,7 @@ private String buildDetalle(HttpServletRequest request, int codigoEstado) {
             }
         }
         String username = identityExtractor.resolveUsername(authentication);
-        return username != null ? "authenticated" : "SYSTEM";
+        return username != null ? "authenticated" : USUARIO_SISTEMA;
     }
 
 private String extractDetailedError(Exception ex) {
@@ -390,7 +396,7 @@ private String extractDetailedError(Exception ex) {
             if (errors != null && errors.isObject()) {
                 sb.append("\n\nCampos con error:");
                 errors.fields().forEachRemaining(field -> {
-                    sb.append("\n  - ").append(field.getKey()).append(": ");
+                    sb.append(PREFIJO_ERROR_ITEM).append(field.getKey()).append(": ");
                     if (field.getValue().isArray()) {
                         field.getValue().forEach(v -> sb.append(v.asText()).append(" "));
                     } else {
@@ -403,13 +409,13 @@ private String extractDetailedError(Exception ex) {
                     if (err.isObject()) {
                         String field = err.has("field") ? err.get("field").asText() : "";
                         String message = err.has("message") ? err.get("message").asText() : err.asText();
-                        sb.append("\n  - ").append(field).append(": ").append(message);
+                        sb.append(PREFIJO_ERROR_ITEM).append(field).append(": ").append(message);
                     } else {
-                        sb.append("\n  - ").append(err.asText());
+                        sb.append(PREFIJO_ERROR_ITEM).append(err.asText());
                     }
                 });
             }
-        } catch (Exception e) {
+        } catch (Exception _) {
             sb.append("\nRespuesta: ").append(responseBody);
         }
 
@@ -434,15 +440,23 @@ private String extractDetailedError(Exception ex) {
     }
 
     private String resolveIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
+        // CWE-290/CWE-117: X-Forwarded-For y X-Real-IP los escribe cualquier cliente,
+        // por eso solo se confia en ellos si gob.security.trust-forwarded-for=true
+        // (despliegue detras de un proxy que reescribe/esas cabeceras). Ademas se
+        // eliminan saltos de linea para que una IP falsificada no inyecte registro.
+        String ip = request.getRemoteAddr();
+        if (trustForwardedFor) {
+            String xff = request.getHeader("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                ip = xff.split(",")[0].trim();
+            } else {
+                String realIp = request.getHeader("X-Real-IP");
+                if (realIp != null && !realIp.isBlank()) {
+                    ip = realIp.trim();
+                }
+            }
         }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return truncar(ip.replace("\r", "").replace("\n", ""), 64);
     }
 
     private String truncar(String value, int maxLength) {
@@ -451,6 +465,13 @@ private String extractDetailedError(Exception ex) {
     }
 
     private static class CachedBodyRequestWrapper extends HttpServletRequestWrapper {
+
+        /**
+         * CWE-400: el body solo se cachea si no supera este tope (10 MB). Si lo
+         * supera no se cachea y se delega el stream original al controlador,
+         * de modo que un payload enorme no agote la memoria del proceso.
+         */
+        private static final int MAX_BODY_CACHE_BYTES = 10 * 1024 * 1024;
 
         private byte[] cachedBody;
         private final boolean multipart;
@@ -464,19 +485,24 @@ private String extractDetailedError(Exception ex) {
                 // no romper la resolucion de @RequestPart en los controllers.
                 this.cachedBody = new byte[0];
             } else {
-                // Leer y cachear el body
+                // Leer y cachear el body (con tope de memoria)
                 java.io.InputStream inputStream = request.getInputStream();
-                this.cachedBody = inputStream.readAllBytes();
+                byte[] leido = inputStream.readNBytes(MAX_BODY_CACHE_BYTES + 1);
+                this.cachedBody = leido.length > MAX_BODY_CACHE_BYTES ? null : leido;
             }
         }
 
         byte[] getCachedBody() {
-            return cachedBody;
+            return cachedBody == null ? new byte[0] : cachedBody;
+        }
+
+        boolean isBodyCached() {
+            return cachedBody != null;
         }
 
         @Override
         public ServletInputStream getInputStream() throws IOException {
-            if (multipart) {
+            if (multipart || cachedBody == null) {
                 return super.getInputStream();
             }
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(cachedBody);

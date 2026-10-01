@@ -8,10 +8,11 @@ import com.proyecta.api_gestion.dto.document.DocumentoPreWizardDevolverDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoVersionHistorialResponseDTO;
-import com.proyecta.api_gestion.repository.DocumentoDinamicoRepository;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
-import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -28,15 +29,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class DocumentoController implements IDocumentoController {
 
     private final IDocumentoService documentoService;
-    private final DocumentoDinamicoRepository documentoDinamicoRepository;
-    private final IStorageProvider storageProvider;
 
-    public DocumentoController(IDocumentoService documentoService,
-                               DocumentoDinamicoRepository documentoDinamicoRepository,
-                               IStorageProvider storageProvider) {
+    public DocumentoController(IDocumentoService documentoService) {
         this.documentoService = documentoService;
-        this.documentoDinamicoRepository = documentoDinamicoRepository;
-        this.storageProvider = storageProvider;
     }
 
     @Override
@@ -48,13 +43,19 @@ public class DocumentoController implements IDocumentoController {
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Documento cargado exitosamente",
+        content = @Content(schema = @Schema(implementation = DocumentoUploadResultDTO.class))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping(value = "/{proyectoId}/documentos/{tipoDocumento}", consumes = {"multipart/form-data"})
     @PreAuthorize("@proyectoSecurity.canAccessOperational('DOCUMENTO:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumento(
-            @PathVariable String proyectoId,
-            @PathVariable String tipoDocumento,
-            @RequestPart("archivo") MultipartFile archivo,
-            @RequestPart(value = "observacion", required = false) String observacion,
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "Tipo de documento (VIABILIZACION, ACTA_CONSTITUCION, CRONOGRAMA, PLAN_COMUNICACIONES)") @PathVariable String tipoDocumento,
+            @Parameter(description = "Archivo a subir") @RequestPart("archivo") MultipartFile archivo,
+            @Parameter(description = "Observacion del cambio (obligatoria al reemplazar)") @RequestPart(value = "observacion", required = false) String observacion,
             Authentication authentication) {
 
         DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo, observacion, authentication);
@@ -76,7 +77,8 @@ public class DocumentoController implements IDocumentoController {
         return ResponseEntity.ok()
                 .contentType(isPdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        (isPdf ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition(
+                                isPdf ? "inline" : "attachment", filename))
                 .body(resource);
     }
 
@@ -105,7 +107,8 @@ public class DocumentoController implements IDocumentoController {
         return ResponseEntity.ok()
                 .contentType(isPdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        (isPdf ? "inline" : "attachment") + "; filename=\"" + filename + "\"")
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition(
+                                isPdf ? "inline" : "attachment", filename))
                 .body(resource);
     }
 

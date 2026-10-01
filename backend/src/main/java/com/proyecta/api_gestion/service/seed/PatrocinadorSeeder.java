@@ -48,7 +48,7 @@ public class PatrocinadorSeeder {
 
     private void crearPatrocinadorSiNoExiste(String nombre, String cargo, String dependencia,
                                              String entidad, String procesoSigc, String procedimiento) {
-        if (patrocinadorRepository.findByNombre(nombre).isEmpty()) {
+        if (patrocinadorRepository.findFirstByNombreOrderByIdAsc(nombre).isEmpty()) {
             Patrocinador p = new Patrocinador();
             p.setNombre(nombre);
             p.setCargo(cargo);

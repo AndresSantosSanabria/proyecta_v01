@@ -19,6 +19,55 @@ public class SecurityCatalogSeeder {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityCatalogSeeder.class);
 
+    private static final String PERM_ANALITICA_VER = "ANALITICA:VER";
+    private static final String PERM_AVANCE_APROBAR = "AVANCE:APROBAR";
+    private static final String PERM_AVANCE_EDITAR = "AVANCE:EDITAR";
+    private static final String PERM_AVANCE_VER = "AVANCE:VER";
+    private static final String PERM_BENEFICIO_IMPACTO_APROBAR = "BENEFICIO_IMPACTO:APROBAR";
+    private static final String PERM_BENEFICIO_IMPACTO_EDITAR = "BENEFICIO_IMPACTO:EDITAR";
+    private static final String PERM_BENEFICIO_IMPACTO_VER = "BENEFICIO_IMPACTO:VER";
+    private static final String PERM_CIERRE_APROBAR = "CIERRE:APROBAR";
+    private static final String PERM_CIERRE_SOLICITAR = "CIERRE:SOLICITAR";
+    private static final String PERM_CONFIGURACION_VER = "CONFIGURACION:VER";
+    private static final String PERM_CRONOGRAMA_CARGAR = "CRONOGRAMA:CARGAR";
+    private static final String PERM_CRONOGRAMA_EDITAR = "CRONOGRAMA:EDITAR";
+    private static final String PERM_CRONOGRAMA_ELIMINAR = "CRONOGRAMA:ELIMINAR";
+    private static final String PERM_CRONOGRAMA_VER = "CRONOGRAMA:VER";
+    private static final String PERM_DASHBOARD_VER = "DASHBOARD:VER";
+    private static final String PERM_DOCUMENTO_CARGAR = "DOCUMENTO:CARGAR";
+    private static final String PERM_DOCUMENTO_EDITAR = "DOCUMENTO:EDITAR";
+    private static final String PERM_DOCUMENTO_ELIMINAR = "DOCUMENTO:ELIMINAR";
+    private static final String PERM_DOCUMENTO_HISTORIAL = "DOCUMENTO:HISTORIAL";
+    private static final String PERM_DOCUMENTO_REVERTIR = "DOCUMENTO:REVERTIR";
+    private static final String PERM_DOCUMENTO_VER = "DOCUMENTO:VER";
+    private static final String PERM_DOCUMENTO_INTERNO_CARGAR = "DOCUMENTO_INTERNO:CARGAR";
+    private static final String PERM_DOCUMENTO_INTERNO_VER = "DOCUMENTO_INTERNO:VER";
+    private static final String PERM_ENTREGABLE_APROBAR = "ENTREGABLE:APROBAR";
+    private static final String PERM_ENTREGABLE_CAMBIAR_FECHA = "ENTREGABLE:CAMBIAR_FECHA";
+    private static final String PERM_ENTREGABLE_CREAR = "ENTREGABLE:CREAR";
+    private static final String PERM_ENTREGABLE_EDITAR = "ENTREGABLE:EDITAR";
+    private static final String PERM_ENTREGABLE_VER = "ENTREGABLE:VER";
+    private static final String PERM_EVIDENCIA_CARGAR = "EVIDENCIA:CARGAR";
+    private static final String PERM_EVIDENCIA_EDITAR = "EVIDENCIA:EDITAR";
+    private static final String PERM_EVIDENCIA_ELIMINAR = "EVIDENCIA:ELIMINAR";
+    private static final String PERM_EVIDENCIA_VER = "EVIDENCIA:VER";
+    private static final String PERM_PROYECTO_CERRAR = "PROYECTO:CERRAR";
+    private static final String PERM_PROYECTO_CREAR = "PROYECTO:CREAR";
+    private static final String PERM_PROYECTO_EDITAR = "PROYECTO:EDITAR";
+    private static final String PERM_PROYECTO_VER = "PROYECTO:VER";
+    private static final String PERM_REPORTE_DESCARGAR_ACTUAL = "REPORTE:DESCARGAR_ACTUAL";
+    private static final String PERM_REPORTE_VER = "REPORTE:VER";
+    private static final String PERM_SIDEBAR_ANALITICAS = "SIDEBAR:ANALITICAS";
+    private static final String PERM_SIDEBAR_DASHBOARD = "SIDEBAR:DASHBOARD";
+    private static final String PERM_SIDEBAR_DOCUMENTACION_INTERNA = "SIDEBAR:DOCUMENTACION_INTERNA";
+    private static final String PERM_SIDEBAR_PROYECTOS = "SIDEBAR:PROYECTOS";
+    private static final String PERM_SIDEBAR_REPORTES = "SIDEBAR:REPORTES";
+    private static final String PERM_SIDEBAR_SEGURIDAD = "SIDEBAR:SEGURIDAD";
+    private static final String PERM_SISTEMA_CONFIGURAR = "SISTEMA:CONFIGURAR";
+    private static final String PERM_SISTEMA_CREAR = "SISTEMA:CREAR";
+    private static final String PERM_SISTEMA_EDITAR = "SISTEMA:EDITAR";
+    private static final String PERM_SISTEMA_VER = "SISTEMA:VER";
+
     private static final List<RoleSeed> ROLES = List.of(
             new RoleSeed("admin", "Administrador", "Control total de la plataforma", true),
             new RoleSeed("gestor_tic", "Gestor TIC", "Administracion tecnica y transversal", true),
@@ -30,119 +79,119 @@ public class SecurityCatalogSeeder {
     );
 
     private static final List<PermissionSeed> PERMISSIONS = List.of(
-            new PermissionSeed("DASHBOARD:VER", "Ver dashboard", "Permite consultar la portada y resumen principal del sistema"),
-            new PermissionSeed("PROYECTO:VER", "Ver proyecto", "Permite consultar el detalle de proyectos"),
-            new PermissionSeed("PROYECTO:CREAR", "Crear proyecto", "Permite crear proyectos nuevos"),
-            new PermissionSeed("PROYECTO:EDITAR", "Editar proyecto", "Permite editar proyectos existentes"),
-            new PermissionSeed("PROYECTO:CERRAR", "Cerrar proyecto", "Permite cerrar proyectos"),
-            new PermissionSeed("REPORTE:VER", "Ver reportes", "Permite acceder al modulo de reportes"),
-            new PermissionSeed("REPORTE:DESCARGAR_ACTUAL", "Descargar reporte actual del proyecto", "Permite descargar el reporte Excel actualizado de cada proyecto"),
-            new PermissionSeed("ANALITICA:VER", "Ver analiticas", "Permite acceder al modulo de analiticas"),
-            new PermissionSeed("CONFIGURACION:VER", "Ver configuracion", "Permite mostrar la pantalla de administracion y seguridad"),
-            new PermissionSeed("ENTREGABLE:VER", "Ver entregable", "Permite consultar el detalle de entregables"),
-            new PermissionSeed("ENTREGABLE:CREAR", "Crear entregable", "Permite registrar entregables nuevos"),
-            new PermissionSeed("ENTREGABLE:EDITAR", "Editar entregable", "Permite modificar entregables existentes"),
-            new PermissionSeed("ENTREGABLE:APROBAR", "Aprobar entregable", "Permite marcar entregables como conformes"),
-            new PermissionSeed("ENTREGABLE:CAMBIAR_FECHA", "Cambiar fecha limite", "Permite modificar la fecha limite de un entregable existente con justificacion y soporte"),
-            new PermissionSeed("AVANCE:VER", "Ver avance", "Permite consultar el avance consolidado del proyecto"),
-            new PermissionSeed("AVANCE:EDITAR", "Editar avance", "Permite registrar y actualizar avances del proyecto"),
-            new PermissionSeed("AVANCE:APROBAR", "Aprobar avance", "Permite validar avances enviados por el Director de Proyecto"),
-            new PermissionSeed("EVIDENCIA:VER", "Ver evidencia", "Permite consultar evidencias registradas"),
-            new PermissionSeed("EVIDENCIA:CARGAR", "Cargar evidencia", "Permite subir evidencias PDF"),
-            new PermissionSeed("EVIDENCIA:EDITAR", "Editar evidencia", "Permite actualizar evidencias existentes"),
-            new PermissionSeed("EVIDENCIA:ELIMINAR", "Eliminar evidencia", "Permite eliminar evidencias registradas"),
-            new PermissionSeed("DOCUMENTO:VER", "Ver documento", "Permite consultar documentos registrados"),
-            new PermissionSeed("DOCUMENTO:CARGAR", "Cargar documento", "Permite subir documentos de soporte"),
-            new PermissionSeed("DOCUMENTO:EDITAR", "Editar documento", "Permite actualizar documentos existentes"),
-            new PermissionSeed("DOCUMENTO:ELIMINAR", "Eliminar documento", "Permite eliminar documentos registrados"),
-            new PermissionSeed("DOCUMENTO:HISTORIAL", "Ver historico documental", "Permite consultar versiones anteriores de evidencias"),
-            new PermissionSeed("DOCUMENTO:REVERTIR", "Revertir documento", "Permite restaurar una version anterior de una evidencia"),
-            new PermissionSeed("CRONOGRAMA:VER", "Ver cronograma", "Permite consultar cronogramas registrados"),
-            new PermissionSeed("CRONOGRAMA:CARGAR", "Cargar cronograma", "Permite subir el PDF del cronograma"),
-            new PermissionSeed("CRONOGRAMA:EDITAR", "Editar cronograma", "Permite actualizar cronogramas existentes"),
-            new PermissionSeed("CRONOGRAMA:ELIMINAR", "Eliminar cronograma", "Permite eliminar cronogramas registrados"),
-            new PermissionSeed("BENEFICIO_IMPACTO:VER", "Ver beneficio e impacto", "Permite consultar la informacion de beneficio e impacto del proyecto"),
-            new PermissionSeed("BENEFICIO_IMPACTO:EDITAR", "Editar beneficio e impacto", "Permite diligenciar la informacion de beneficio e impacto del proyecto"),
-            new PermissionSeed("BENEFICIO_IMPACTO:APROBAR", "Revisar beneficio e impacto", "Permite aprobar u observar la informacion de beneficio e impacto del proyecto"),
-            new PermissionSeed("CIERRE:SOLICITAR", "Solicitar cierre", "Permite enviar la solicitud de cierre del proyecto"),
-            new PermissionSeed("CIERRE:APROBAR", "Aprobar cierre", "Permite validar y aprobar el cierre del proyecto"),
-            new PermissionSeed("SISTEMA:VER", "Ver sistema", "Permite consultar la configuracion general del sistema"),
-            new PermissionSeed("SISTEMA:CREAR", "Crear configuracion del sistema", "Permite registrar configuraciones de sistema"),
-            new PermissionSeed("SISTEMA:EDITAR", "Editar sistema", "Permite actualizar la configuracion general del sistema"),
-            new PermissionSeed("SISTEMA:CONFIGURAR", "Configurar sistema", "Permite administrar usuarios, roles y permisos"),
-            new PermissionSeed("SIDEBAR:DASHBOARD", "Mostrar Dashboard en menu", "Controla la visibilidad del modulo Dashboard en el sidebar"),
-            new PermissionSeed("SIDEBAR:PROYECTOS", "Mostrar Proyectos en menu", "Controla la visibilidad del modulo Proyectos en el sidebar"),
-            new PermissionSeed("SIDEBAR:REPORTES", "Mostrar Reportes en menu", "Controla la visibilidad del modulo Reportes en el sidebar"),
-            new PermissionSeed("SIDEBAR:ANALITICAS", "Mostrar Analiticas en menu", "Controla la visibilidad del modulo Analiticas en el sidebar"),
-            new PermissionSeed("SIDEBAR:SEGURIDAD", "Mostrar Configuracion Seguridad en menu", "Controla la visibilidad del modulo Configuracion y Seguridad en el sidebar"),
+            new PermissionSeed(PERM_DASHBOARD_VER, "Ver dashboard", "Permite consultar la portada y resumen principal del sistema"),
+            new PermissionSeed(PERM_PROYECTO_VER, "Ver proyecto", "Permite consultar el detalle de proyectos"),
+            new PermissionSeed(PERM_PROYECTO_CREAR, "Crear proyecto", "Permite crear proyectos nuevos"),
+            new PermissionSeed(PERM_PROYECTO_EDITAR, "Editar proyecto", "Permite editar proyectos existentes"),
+            new PermissionSeed(PERM_PROYECTO_CERRAR, "Cerrar proyecto", "Permite cerrar proyectos"),
+            new PermissionSeed(PERM_REPORTE_VER, "Ver reportes", "Permite acceder al modulo de reportes"),
+            new PermissionSeed(PERM_REPORTE_DESCARGAR_ACTUAL, "Descargar reporte actual del proyecto", "Permite descargar el reporte Excel actualizado de cada proyecto"),
+            new PermissionSeed(PERM_ANALITICA_VER, "Ver analiticas", "Permite acceder al modulo de analiticas"),
+            new PermissionSeed(PERM_CONFIGURACION_VER, "Ver configuracion", "Permite mostrar la pantalla de administracion y seguridad"),
+            new PermissionSeed(PERM_ENTREGABLE_VER, "Ver entregable", "Permite consultar el detalle de entregables"),
+            new PermissionSeed(PERM_ENTREGABLE_CREAR, "Crear entregable", "Permite registrar entregables nuevos"),
+            new PermissionSeed(PERM_ENTREGABLE_EDITAR, "Editar entregable", "Permite modificar entregables existentes"),
+            new PermissionSeed(PERM_ENTREGABLE_APROBAR, "Aprobar entregable", "Permite marcar entregables como conformes"),
+            new PermissionSeed(PERM_ENTREGABLE_CAMBIAR_FECHA, "Cambiar fecha limite", "Permite modificar la fecha limite de un entregable existente con justificacion y soporte"),
+            new PermissionSeed(PERM_AVANCE_VER, "Ver avance", "Permite consultar el avance consolidado del proyecto"),
+            new PermissionSeed(PERM_AVANCE_EDITAR, "Editar avance", "Permite registrar y actualizar avances del proyecto"),
+            new PermissionSeed(PERM_AVANCE_APROBAR, "Aprobar avance", "Permite validar avances enviados por el Director de Proyecto"),
+            new PermissionSeed(PERM_EVIDENCIA_VER, "Ver evidencia", "Permite consultar evidencias registradas"),
+            new PermissionSeed(PERM_EVIDENCIA_CARGAR, "Cargar evidencia", "Permite subir evidencias PDF"),
+            new PermissionSeed(PERM_EVIDENCIA_EDITAR, "Editar evidencia", "Permite actualizar evidencias existentes"),
+            new PermissionSeed(PERM_EVIDENCIA_ELIMINAR, "Eliminar evidencia", "Permite eliminar evidencias registradas"),
+            new PermissionSeed(PERM_DOCUMENTO_VER, "Ver documento", "Permite consultar documentos registrados"),
+            new PermissionSeed(PERM_DOCUMENTO_CARGAR, "Cargar documento", "Permite subir documentos de soporte"),
+            new PermissionSeed(PERM_DOCUMENTO_EDITAR, "Editar documento", "Permite actualizar documentos existentes"),
+            new PermissionSeed(PERM_DOCUMENTO_ELIMINAR, "Eliminar documento", "Permite eliminar documentos registrados"),
+            new PermissionSeed(PERM_DOCUMENTO_HISTORIAL, "Ver historico documental", "Permite consultar versiones anteriores de evidencias"),
+            new PermissionSeed(PERM_DOCUMENTO_REVERTIR, "Revertir documento", "Permite restaurar una version anterior de una evidencia"),
+            new PermissionSeed(PERM_CRONOGRAMA_VER, "Ver cronograma", "Permite consultar cronogramas registrados"),
+            new PermissionSeed(PERM_CRONOGRAMA_CARGAR, "Cargar cronograma", "Permite subir el PDF del cronograma"),
+            new PermissionSeed(PERM_CRONOGRAMA_EDITAR, "Editar cronograma", "Permite actualizar cronogramas existentes"),
+            new PermissionSeed(PERM_CRONOGRAMA_ELIMINAR, "Eliminar cronograma", "Permite eliminar cronogramas registrados"),
+            new PermissionSeed(PERM_BENEFICIO_IMPACTO_VER, "Ver beneficio e impacto", "Permite consultar la informacion de beneficio e impacto del proyecto"),
+            new PermissionSeed(PERM_BENEFICIO_IMPACTO_EDITAR, "Editar beneficio e impacto", "Permite diligenciar la informacion de beneficio e impacto del proyecto"),
+            new PermissionSeed(PERM_BENEFICIO_IMPACTO_APROBAR, "Revisar beneficio e impacto", "Permite aprobar u observar la informacion de beneficio e impacto del proyecto"),
+            new PermissionSeed(PERM_CIERRE_SOLICITAR, "Solicitar cierre", "Permite enviar la solicitud de cierre del proyecto"),
+            new PermissionSeed(PERM_CIERRE_APROBAR, "Aprobar cierre", "Permite validar y aprobar el cierre del proyecto"),
+            new PermissionSeed(PERM_SISTEMA_VER, "Ver sistema", "Permite consultar la configuracion general del sistema"),
+            new PermissionSeed(PERM_SISTEMA_CREAR, "Crear configuracion del sistema", "Permite registrar configuraciones de sistema"),
+            new PermissionSeed(PERM_SISTEMA_EDITAR, "Editar sistema", "Permite actualizar la configuracion general del sistema"),
+            new PermissionSeed(PERM_SISTEMA_CONFIGURAR, "Configurar sistema", "Permite administrar usuarios, roles y permisos"),
+            new PermissionSeed(PERM_SIDEBAR_DASHBOARD, "Mostrar Dashboard en menu", "Controla la visibilidad del modulo Dashboard en el sidebar"),
+            new PermissionSeed(PERM_SIDEBAR_PROYECTOS, "Mostrar Proyectos en menu", "Controla la visibilidad del modulo Proyectos en el sidebar"),
+            new PermissionSeed(PERM_SIDEBAR_REPORTES, "Mostrar Reportes en menu", "Controla la visibilidad del modulo Reportes en el sidebar"),
+            new PermissionSeed(PERM_SIDEBAR_ANALITICAS, "Mostrar Analiticas en menu", "Controla la visibilidad del modulo Analiticas en el sidebar"),
+            new PermissionSeed(PERM_SIDEBAR_SEGURIDAD, "Mostrar Configuracion Seguridad en menu", "Controla la visibilidad del modulo Configuracion y Seguridad en el sidebar"),
             new PermissionSeed("AUDITORIA:VER", "Ver auditoria", "Permite consultar el registro de auditoria de acciones y logs del sistema"),
-            new PermissionSeed("DOCUMENTO_INTERNO:VER", "Ver documentacion interna", "Permite consultar la documentacion interna del sistema"),
-            new PermissionSeed("DOCUMENTO_INTERNO:CARGAR", "Cargar documentacion interna", "Permite subir archivos de documentacion interna"),
-            new PermissionSeed("SIDEBAR:DOCUMENTACION_INTERNA", "Mostrar Documentacion Interna en menu", "Controla la visibilidad del modulo de documentacion interna en el sidebar")
+            new PermissionSeed(PERM_DOCUMENTO_INTERNO_VER, "Ver documentacion interna", "Permite consultar la documentacion interna del sistema"),
+            new PermissionSeed(PERM_DOCUMENTO_INTERNO_CARGAR, "Cargar documentacion interna", "Permite subir archivos de documentacion interna"),
+            new PermissionSeed(PERM_SIDEBAR_DOCUMENTACION_INTERNA, "Mostrar Documentacion Interna en menu", "Controla la visibilidad del modulo de documentacion interna en el sidebar")
     );
 
     private static final Map<String, List<String>> ROLE_PERMISSIONS = Map.of(
             "admin", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER", "CONFIGURACION:VER",
-                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
-                    "AVANCE:VER", "AVANCE:EDITAR", "AVANCE:APROBAR",
-                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
-                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR", "DOCUMENTO:HISTORIAL", "DOCUMENTO:REVERTIR",
-                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
-                    "BENEFICIO_IMPACTO:VER", "BENEFICIO_IMPACTO:EDITAR", "BENEFICIO_IMPACTO:APROBAR",
-                    "CIERRE:SOLICITAR", "CIERRE:APROBAR",
-                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD",
+                    PERM_DASHBOARD_VER, PERM_PROYECTO_VER, PERM_PROYECTO_CREAR, PERM_PROYECTO_EDITAR, PERM_PROYECTO_CERRAR,
+                    PERM_REPORTE_VER, PERM_REPORTE_DESCARGAR_ACTUAL, PERM_ANALITICA_VER, PERM_CONFIGURACION_VER,
+                    PERM_ENTREGABLE_VER, PERM_ENTREGABLE_CREAR, PERM_ENTREGABLE_EDITAR, PERM_ENTREGABLE_APROBAR, PERM_ENTREGABLE_CAMBIAR_FECHA,
+                    PERM_AVANCE_VER, PERM_AVANCE_EDITAR, PERM_AVANCE_APROBAR,
+                    PERM_EVIDENCIA_VER, PERM_EVIDENCIA_CARGAR, PERM_EVIDENCIA_EDITAR, PERM_EVIDENCIA_ELIMINAR,
+                    PERM_DOCUMENTO_VER, PERM_DOCUMENTO_CARGAR, PERM_DOCUMENTO_EDITAR, PERM_DOCUMENTO_ELIMINAR, PERM_DOCUMENTO_HISTORIAL, PERM_DOCUMENTO_REVERTIR,
+                    PERM_CRONOGRAMA_VER, PERM_CRONOGRAMA_CARGAR, PERM_CRONOGRAMA_EDITAR, PERM_CRONOGRAMA_ELIMINAR,
+                    PERM_BENEFICIO_IMPACTO_VER, PERM_BENEFICIO_IMPACTO_EDITAR, PERM_BENEFICIO_IMPACTO_APROBAR,
+                    PERM_CIERRE_SOLICITAR, PERM_CIERRE_APROBAR,
+                    PERM_SISTEMA_VER, PERM_SISTEMA_CREAR, PERM_SISTEMA_EDITAR, PERM_SISTEMA_CONFIGURAR,
+                    PERM_SIDEBAR_DASHBOARD, PERM_SIDEBAR_PROYECTOS, PERM_SIDEBAR_REPORTES, PERM_SIDEBAR_ANALITICAS, PERM_SIDEBAR_SEGURIDAD,
                     "AUDITORIA:VER",
-                    "DOCUMENTO_INTERNO:VER", "DOCUMENTO_INTERNO:CARGAR", "SIDEBAR:DOCUMENTACION_INTERNA"),
+                    PERM_DOCUMENTO_INTERNO_VER, PERM_DOCUMENTO_INTERNO_CARGAR, PERM_SIDEBAR_DOCUMENTACION_INTERNA),
             "gestor_tic", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER", "CONFIGURACION:VER",
-                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
-                    "AVANCE:VER", "AVANCE:EDITAR", "AVANCE:APROBAR",
-                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
-                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
-                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
-                    "BENEFICIO_IMPACTO:VER", "BENEFICIO_IMPACTO:APROBAR",
-                    "CIERRE:APROBAR",
-                    "SISTEMA:VER", "SISTEMA:CREAR", "SISTEMA:EDITAR", "SISTEMA:CONFIGURAR",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD",
-                    "DOCUMENTO_INTERNO:VER", "DOCUMENTO_INTERNO:CARGAR", "SIDEBAR:DOCUMENTACION_INTERNA"),
+                    PERM_DASHBOARD_VER, PERM_PROYECTO_VER, PERM_PROYECTO_CREAR, PERM_PROYECTO_EDITAR, PERM_PROYECTO_CERRAR,
+                    PERM_REPORTE_VER, PERM_REPORTE_DESCARGAR_ACTUAL, PERM_ANALITICA_VER, PERM_CONFIGURACION_VER,
+                    PERM_ENTREGABLE_VER, PERM_ENTREGABLE_CREAR, PERM_ENTREGABLE_EDITAR, PERM_ENTREGABLE_APROBAR, PERM_ENTREGABLE_CAMBIAR_FECHA,
+                    PERM_AVANCE_VER, PERM_AVANCE_EDITAR, PERM_AVANCE_APROBAR,
+                    PERM_EVIDENCIA_VER, PERM_EVIDENCIA_CARGAR, PERM_EVIDENCIA_EDITAR, PERM_EVIDENCIA_ELIMINAR,
+                    PERM_DOCUMENTO_VER, PERM_DOCUMENTO_CARGAR, PERM_DOCUMENTO_EDITAR, PERM_DOCUMENTO_ELIMINAR,
+                    PERM_CRONOGRAMA_VER, PERM_CRONOGRAMA_CARGAR, PERM_CRONOGRAMA_EDITAR, PERM_CRONOGRAMA_ELIMINAR,
+                    PERM_BENEFICIO_IMPACTO_VER, PERM_BENEFICIO_IMPACTO_APROBAR,
+                    PERM_CIERRE_APROBAR,
+                    PERM_SISTEMA_VER, PERM_SISTEMA_CREAR, PERM_SISTEMA_EDITAR, PERM_SISTEMA_CONFIGURAR,
+                    PERM_SIDEBAR_DASHBOARD, PERM_SIDEBAR_PROYECTOS, PERM_SIDEBAR_REPORTES, PERM_SIDEBAR_ANALITICAS, PERM_SIDEBAR_SEGURIDAD,
+                    PERM_DOCUMENTO_INTERNO_VER, PERM_DOCUMENTO_INTERNO_CARGAR, PERM_SIDEBAR_DOCUMENTACION_INTERNA),
             "gestor_proyectos", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:CREAR", "PROYECTO:EDITAR", "PROYECTO:CERRAR",
-                    "REPORTE:VER", "REPORTE:DESCARGAR_ACTUAL", "ANALITICA:VER", "CONFIGURACION:VER",
-                    "ENTREGABLE:VER", "ENTREGABLE:CREAR", "ENTREGABLE:EDITAR", "ENTREGABLE:APROBAR", "ENTREGABLE:CAMBIAR_FECHA",
-                    "AVANCE:VER", "AVANCE:EDITAR",
-                    "EVIDENCIA:VER", "EVIDENCIA:CARGAR", "EVIDENCIA:EDITAR", "EVIDENCIA:ELIMINAR",
-                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR", "DOCUMENTO:HISTORIAL", "DOCUMENTO:REVERTIR",
-                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR", "CRONOGRAMA:EDITAR", "CRONOGRAMA:ELIMINAR",
-                    "BENEFICIO_IMPACTO:VER", "BENEFICIO_IMPACTO:APROBAR",
-                    "CIERRE:SOLICITAR", "CIERRE:APROBAR",
-                    "SISTEMA:VER", "SISTEMA:CONFIGURAR",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS", "SIDEBAR:SEGURIDAD",
-                    "DOCUMENTO_INTERNO:VER", "DOCUMENTO_INTERNO:CARGAR", "SIDEBAR:DOCUMENTACION_INTERNA"),
+                    PERM_DASHBOARD_VER, PERM_PROYECTO_VER, PERM_PROYECTO_CREAR, PERM_PROYECTO_EDITAR, PERM_PROYECTO_CERRAR,
+                    PERM_REPORTE_VER, PERM_REPORTE_DESCARGAR_ACTUAL, PERM_ANALITICA_VER, PERM_CONFIGURACION_VER,
+                    PERM_ENTREGABLE_VER, PERM_ENTREGABLE_CREAR, PERM_ENTREGABLE_EDITAR, PERM_ENTREGABLE_APROBAR, PERM_ENTREGABLE_CAMBIAR_FECHA,
+                    PERM_AVANCE_VER, PERM_AVANCE_EDITAR,
+                    PERM_EVIDENCIA_VER, PERM_EVIDENCIA_CARGAR, PERM_EVIDENCIA_EDITAR, PERM_EVIDENCIA_ELIMINAR,
+                    PERM_DOCUMENTO_VER, PERM_DOCUMENTO_CARGAR, PERM_DOCUMENTO_EDITAR, PERM_DOCUMENTO_ELIMINAR, PERM_DOCUMENTO_HISTORIAL, PERM_DOCUMENTO_REVERTIR,
+                    PERM_CRONOGRAMA_VER, PERM_CRONOGRAMA_CARGAR, PERM_CRONOGRAMA_EDITAR, PERM_CRONOGRAMA_ELIMINAR,
+                    PERM_BENEFICIO_IMPACTO_VER, PERM_BENEFICIO_IMPACTO_APROBAR,
+                    PERM_CIERRE_SOLICITAR, PERM_CIERRE_APROBAR,
+                    PERM_SISTEMA_VER, PERM_SISTEMA_CONFIGURAR,
+                    PERM_SIDEBAR_DASHBOARD, PERM_SIDEBAR_PROYECTOS, PERM_SIDEBAR_REPORTES, PERM_SIDEBAR_ANALITICAS, PERM_SIDEBAR_SEGURIDAD,
+                    PERM_DOCUMENTO_INTERNO_VER, PERM_DOCUMENTO_INTERNO_CARGAR, PERM_SIDEBAR_DOCUMENTACION_INTERNA),
             "director_proyecto", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER", "PROYECTO:EDITAR",
-                    "ENTREGABLE:VER", "EVIDENCIA:VER", "EVIDENCIA:CARGAR",
-                    "BENEFICIO_IMPACTO:VER", "BENEFICIO_IMPACTO:EDITAR",
-                    "DOCUMENTO:VER", "DOCUMENTO:CARGAR", "DOCUMENTO:EDITAR", "DOCUMENTO:ELIMINAR",
-                    "AVANCE:VER", "AVANCE:EDITAR",
-                    "CRONOGRAMA:VER", "CRONOGRAMA:CARGAR",
-                    "CIERRE:SOLICITAR",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS"),
+                    PERM_DASHBOARD_VER, PERM_PROYECTO_VER, PERM_PROYECTO_EDITAR,
+                    PERM_ENTREGABLE_VER, PERM_EVIDENCIA_VER, PERM_EVIDENCIA_CARGAR,
+                    PERM_BENEFICIO_IMPACTO_VER, PERM_BENEFICIO_IMPACTO_EDITAR,
+                    PERM_DOCUMENTO_VER, PERM_DOCUMENTO_CARGAR, PERM_DOCUMENTO_EDITAR, PERM_DOCUMENTO_ELIMINAR,
+                    PERM_AVANCE_VER, PERM_AVANCE_EDITAR,
+                    PERM_CRONOGRAMA_VER, PERM_CRONOGRAMA_CARGAR,
+                    PERM_CIERRE_SOLICITAR,
+                    PERM_SIDEBAR_DASHBOARD, PERM_SIDEBAR_PROYECTOS),
             "auditor", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER", "REPORTE:VER", "ANALITICA:VER",
-                    "ENTREGABLE:VER", "EVIDENCIA:VER", "BENEFICIO_IMPACTO:VER",
-                    "DOCUMENTO:VER", "CRONOGRAMA:VER", "SISTEMA:VER",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS"),
+                    PERM_DASHBOARD_VER, PERM_PROYECTO_VER, PERM_REPORTE_VER, PERM_ANALITICA_VER,
+                    PERM_ENTREGABLE_VER, PERM_EVIDENCIA_VER, PERM_BENEFICIO_IMPACTO_VER,
+                    PERM_DOCUMENTO_VER, PERM_CRONOGRAMA_VER, PERM_SISTEMA_VER,
+                    PERM_SIDEBAR_DASHBOARD, PERM_SIDEBAR_PROYECTOS, PERM_SIDEBAR_REPORTES, PERM_SIDEBAR_ANALITICAS),
             "consulta", List.of(
-                    "DASHBOARD:VER", "PROYECTO:VER", "REPORTE:VER", "ANALITICA:VER",
-                    "ENTREGABLE:VER", "EVIDENCIA:VER", "BENEFICIO_IMPACTO:VER",
-                    "DOCUMENTO:VER", "CRONOGRAMA:VER",
-                    "SIDEBAR:DASHBOARD", "SIDEBAR:PROYECTOS", "SIDEBAR:REPORTES", "SIDEBAR:ANALITICAS"),
+                    PERM_DASHBOARD_VER, PERM_PROYECTO_VER, PERM_REPORTE_VER, PERM_ANALITICA_VER,
+                    PERM_ENTREGABLE_VER, PERM_EVIDENCIA_VER, PERM_BENEFICIO_IMPACTO_VER,
+                    PERM_DOCUMENTO_VER, PERM_CRONOGRAMA_VER,
+                    PERM_SIDEBAR_DASHBOARD, PERM_SIDEBAR_PROYECTOS, PERM_SIDEBAR_REPORTES, PERM_SIDEBAR_ANALITICAS),
             "visualizador", List.of(
-                    "SIDEBAR:PROYECTOS", "PROYECTO:VER")
+                    PERM_SIDEBAR_PROYECTOS, PERM_PROYECTO_VER)
     );
 
     private final SeguridadRolRepository rolRepository;

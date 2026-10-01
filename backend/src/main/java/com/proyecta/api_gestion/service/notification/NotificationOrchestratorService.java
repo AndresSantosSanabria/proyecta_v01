@@ -28,45 +28,50 @@ public class NotificationOrchestratorService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationOrchestratorService.class);
 
+    private static final String ROUTE_CLOSURE = "/closure";
+    private static final String ROUTE_PROGRESS = "/progress";
+    private static final String ROUTE_RISKS = "/risks";
+    private static final String CHANNEL_EMAIL = "EMAIL";
+
     private static final Map<String, String> EVENT_ROUTE_MAP = Map.ofEntries(
-            Map.entry("CLOSURE_REQUESTED", "/closure"),
-            Map.entry("CLOSURE_APPROVED", "/closure"),
-            Map.entry("CLOSURE_REJECTED", "/closure"),
-            Map.entry("PROJECT_CLOSED", "/closure"),
-            Map.entry("DELIVERABLE_EVIDENCE_UPLOADED", "/progress"),
-            Map.entry("DELIVERABLE_APPROVED", "/progress"),
-            Map.entry("DELIVERABLE_REJECTED", "/progress"),
-            Map.entry("OBSERVATION_SUBSANATED", "/progress"),
+            Map.entry("CLOSURE_REQUESTED", ROUTE_CLOSURE),
+            Map.entry("CLOSURE_APPROVED", ROUTE_CLOSURE),
+            Map.entry("CLOSURE_REJECTED", ROUTE_CLOSURE),
+            Map.entry("PROJECT_CLOSED", ROUTE_CLOSURE),
+            Map.entry("DELIVERABLE_EVIDENCE_UPLOADED", ROUTE_PROGRESS),
+            Map.entry("DELIVERABLE_APPROVED", ROUTE_PROGRESS),
+            Map.entry("DELIVERABLE_REJECTED", ROUTE_PROGRESS),
+            Map.entry("OBSERVATION_SUBSANATED", ROUTE_PROGRESS),
             Map.entry("PROJECT_DELAYED", "/schedule"),
-            Map.entry("PROJECT_INITIAL_REGISTERED", "/progress"),
-            Map.entry("PROJECT_INITIAL_COMPLETED", "/progress"),
-            Map.entry("PROJECT_UPDATED", "/progress"),
-            Map.entry("PROJECT_DOCUMENT_UPLOADED", "/progress"),
-            Map.entry("PROJECT_DOCUMENT_DELETED", "/progress"),
-            Map.entry("PROJECT_BENEFIT_IMPACT_REQUIRED", "/progress"),
-            Map.entry("PROJECT_BENEFIT_IMPACT_SUBMITTED", "/progress"),
-            Map.entry("PROJECT_BENEFIT_IMPACT_RESUBMITTED", "/progress"),
-            Map.entry("PROJECT_BENEFIT_IMPACT_REVIEWED", "/progress"),
-            Map.entry("RISK_CREATED", "/risks"),
-            Map.entry("RISK_UPDATED", "/risks"),
-            Map.entry("RISK_TREATED", "/risks"),
-            Map.entry("RISK_DELETED", "/risks"),
+            Map.entry("PROJECT_INITIAL_REGISTERED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_INITIAL_COMPLETED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_UPDATED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_DOCUMENT_UPLOADED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_DOCUMENT_DELETED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_BENEFIT_IMPACT_REQUIRED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_BENEFIT_IMPACT_SUBMITTED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_BENEFIT_IMPACT_RESUBMITTED", ROUTE_PROGRESS),
+            Map.entry("PROJECT_BENEFIT_IMPACT_REVIEWED", ROUTE_PROGRESS),
+            Map.entry("RISK_CREATED", ROUTE_RISKS),
+            Map.entry("RISK_UPDATED", ROUTE_RISKS),
+            Map.entry("RISK_TREATED", ROUTE_RISKS),
+            Map.entry("RISK_DELETED", ROUTE_RISKS),
             Map.entry("EVIDENCE_VERSION_REVERTED", "/evidences"),
-            Map.entry("ADVANCE_REPORT_UPLOADED", "/progress"),
-            Map.entry("ADVANCE_REPORT_VERIFIED", "/progress"),
-            Map.entry("ADVANCE_REPORT_RETURNED", "/progress"),
+            Map.entry("ADVANCE_REPORT_UPLOADED", ROUTE_PROGRESS),
+            Map.entry("ADVANCE_REPORT_VERIFIED", ROUTE_PROGRESS),
+            Map.entry("ADVANCE_REPORT_RETURNED", ROUTE_PROGRESS),
             Map.entry("ENTREGABLE_FECHA_CAMBIADA", "/schedule"),
-            Map.entry("ENTREGABLE_DEADLINE_WARNING", "/progress"),
-            Map.entry("ENTREGABLE_OVERDUE_REMINDER", "/progress"),
-            Map.entry("PROJECT_DIRECTOR_ALERT", "/progress"),
+            Map.entry("ENTREGABLE_DEADLINE_WARNING", ROUTE_PROGRESS),
+            Map.entry("ENTREGABLE_OVERDUE_REMINDER", ROUTE_PROGRESS),
+            Map.entry("PROJECT_DIRECTOR_ALERT", ROUTE_PROGRESS),
             Map.entry("SECURITY_ROLE_UPDATED", "/admin/configuracion"),
             Map.entry("SECURITY_USER_UPDATED", "/admin/configuracion"),
-            Map.entry("PROJECT_ASSIGNMENT_CREATED", "/progress"),
-            Map.entry("VIABILIDAD_UPLOADED", "/progress"),
-            Map.entry("VIABILIDAD_APPROVED", "/progress"),
-            Map.entry("VIABILIDAD_RETURNED", "/progress"),
-            Map.entry("ACTA_CONSTITUCION_REMINDER", "/progress"),
-            Map.entry("ADVANCE_REPORT_DUE_NOTIFICATION", "/progress")
+            Map.entry("PROJECT_ASSIGNMENT_CREATED", ROUTE_PROGRESS),
+            Map.entry("VIABILIDAD_UPLOADED", ROUTE_PROGRESS),
+            Map.entry("VIABILIDAD_APPROVED", ROUTE_PROGRESS),
+            Map.entry("VIABILIDAD_RETURNED", ROUTE_PROGRESS),
+            Map.entry("ACTA_CONSTITUCION_REMINDER", ROUTE_PROGRESS),
+            Map.entry("ADVANCE_REPORT_DUE_NOTIFICATION", ROUTE_PROGRESS)
     );
 
     private final NotificationRecipientResolverPort recipientResolver;
@@ -157,29 +162,27 @@ public class NotificationOrchestratorService {
             Set<String> finalRecipients = new HashSet<>();
 
             for (String recipient : contextualRecipients) {
-                if (recipient == null || recipient.isBlank()) {
-                    continue;
+                if (recipient != null && !recipient.isBlank()) {
+                    if (actorResolver.isActor(recipient, actorIdentifiers)) {
+                        log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", recipient);
+                    } else {
+                        finalRecipients.add(recipient);
+                    }
                 }
-                if (actorResolver.isActor(recipient, actorIdentifiers)) {
-                    log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", recipient);
-                    continue;
-                }
-                finalRecipients.add(recipient);
             }
 
             List<SeguridadUsuario> globalRecipients = usuarioRepository.findByRecibirNotificacionesGlobalesTrue();
             for (SeguridadUsuario user : globalRecipients) {
-                if (user == null) {
-                    continue;
+                if (user != null) {
+                    if (actorResolver.isActor(user.getUsername(), actorIdentifiers)
+                            || actorResolver.isActor(user.getCorreo(), actorIdentifiers)
+                            || actorResolver.isActor(user.getNombre(), actorIdentifiers)) {
+                        log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", user.getUsername());
+                    } else {
+                        finalRecipients.add(user.getUsername());
+                        log.info("[Notification] Añadido Admin: {} (Regla 3 - Flag Global)", user.getUsername());
+                    }
                 }
-                if (actorResolver.isActor(user.getUsername(), actorIdentifiers)
-                        || actorResolver.isActor(user.getCorreo(), actorIdentifiers)
-                        || actorResolver.isActor(user.getNombre(), actorIdentifiers)) {
-                    log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", user.getUsername());
-                    continue;
-                }
-                finalRecipients.add(user.getUsername());
-                log.info("[Notification] Añadido Admin: {} (Regla 3 - Flag Global)", user.getUsername());
             }
 
             log.debug("[Notification] Dispatching event {} to {} final recipients", context.eventType(), finalRecipients.size());
@@ -221,14 +224,14 @@ public class NotificationOrchestratorService {
                     var result = sender.send(emailAddress, threadedMessage);
                     if (result.success()) {
                         log.debug("[Notification] Email sent to {}", emailAddress);
-                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "EMAIL", result.status().name(), null));
+                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, result.status().name(), null));
                     } else {
-                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "EMAIL", result.status().name(), result.errorMessage()));
+                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, result.status().name(), result.errorMessage()));
                     }
                 } catch (Exception ex) {
                     log.warn("[Notification] Email send failed for recipient {} - {}", recipient, ex.getMessage());
                     mailDispatchTracker.failed(recipient, message.subject(), ex.getMessage());
-                    auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "EMAIL", "FAILED", ex.getMessage()));
+                    auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, "FAILED", ex.getMessage()));
                 }
             }
         } finally {

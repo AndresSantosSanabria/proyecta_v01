@@ -1,270 +1,333 @@
-# Arquitectura Técnica — Módulo: Seguimiento del Ciclo de Vida Documental
+# Arquitectura Técnica — Proyecta (api-gestion)
 
-| Campo              | Valor                                          |
-| ------------------ | ---------------------------------------------- |
-| **Proyecto**       | api-gestion (Proyecta)                         |
-| **Módulo**         | Seguimiento del Ciclo de Vida Documental       |
-| **Versión**        | 1.0.0                                          |
-| **Fecha**          | 2026-07-29                                     |
-| **Autor**          | _[Nombre del autor]_                           |
-| **Revisor**        | _[Nombre del revisor]_                         |
-| **Estado**         | Borrador / En revisión / Aprobado              |
-| **Clasificación**  | Interna                                        |
+| Campo             | Valor                                  |
+| ----------------- | -------------------------------------- |
+| **Proyecto**      | api-gestion (Proyecta)                 |
+| **Versión**       | 1.1.0                                  |
+| **Fecha**         | 2026-09-29                             |
+| **Autor**         | _[Nombre del autor]_                   |
+| **Revisor**       | _[Nombre del revisor]_                 |
+| **Estado**        | Borrador                               |
+| **Clasificación** | Interna                                |
+
+> **Nota de diagnóstico (v1.0.0).** La versión 1.0.0 era una **plantilla genérica** de ejemplo: describía un módulo ficticio de "Seguimiento del Ciclo de Vida Documental" (`DocumentLifecycleController`, estados `BORRADOR → … → ARCHIVADO`, endpoints `/documents/**`, rol `app_access`) que **no existe** en el código fuente. La versión 1.1.0 lo sustituye por la arquitectura verificable del sistema real, conservando el formato institucional.
 
 ---
 
 ## 1. Objetivo
 
-Describir la arquitectura técnica del módulo **Seguimiento del Ciclo de Vida Documental**, incluyendo componentes, flujo de datos, consideraciones de seguridad y decisiones de diseño relevantes para la trazabilidad completa de documentos según estándares ITIL.
+Describir la arquitectura técnica del backend **api-gestion**, la API REST del sistema Proyecta: componentes, modelo de dominio persistido, flujos de datos, seguridad, decisiones de diseño, requisitos no funcionales e infraestructura, conforme al código de `src/main/java/com/proyecta/api_gestion/` y a la superficie API inventariada en [api-endpoints.md](api-endpoints.md).
 
 ---
 
 ## 2. Alcance
 
-| En dentro del alcance                                   | Fuera del alcance                          |
-| ------------------------------------------------------- | ------------------------------------------ |
-| Gestión de estados del documento (creación → archivo)   | Generación de contenido de documentos      |
-| Registro de auditoría y trazabilidad                    | Almacenamiento binario de archivos grandes  |
-| Notificaciones de cambios de estado                     | Workflow de aprobación humana              |
-| Consulta del historial completo                         | Integración con sistemas externos (futuro)  |
+| Dentro del alcance                                            | Fuera del alcance                                       |
+| ------------------------------------------------------------- | ------------------------------------------------------- |
+| API REST `/api/v1/**`: 172 endpoints en 29 módulos            | Código fuente del frontend React (repositorio separado) |
+| Seguridad OAuth2 Resource Server (JWT/Keycloak) y permisos     | Administración del servidor Keycloak y del realm        |
+| Persistencia PostgreSQL con Flyway (V1/V2) y JPA/Hibernate     | Despliegue, redes y respaldos de la base de datos (DBA) |
+| Notificaciones in-app y correo electrónico (SMTP)             | Pipeline de CI/CD y contenedores (no existen en el repo)|
+| Almacenamiento y descarga de archivos (evidencias/documentos)  | Reglas de negocio específicas de cada módulo funcional  |
+| Auditoría de peticiones y documentación OpenAPI               | Experiencia de usuario y diseño del frontend            |
 
 ---
 
 ## 3. Vista de Componentes
 
-### 3.1 Diagrama de Componentes (Plantilla Mermaid)
+### 3.1 Diagrama de Componentes
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend (React + OIDC/PKCE)"]
-        UI[Interfaz de Seguimiento]
+    subgraph FE["Frontend React (SPA) — http://localhost:5173"]
+        UI["Interfaz Proyecta<br/>OIDC + PKCE (oidc-client-ts)"]
     end
 
-    subgraph API["API Gateway / Spring Boot"]
-        CTRL[DocumentLifecycleController]
-        SVC[DocumentLifecycleService]
-        AUDIT[AuditService]
-        NOTIFY[NotificationService]
+    subgraph API["API api-gestion — Spring Boot 4.0.5 / Java 25 — puerto 8082"]
+        FILT["Cadena de filtros<br/>SecurityHeadersFilter · PublicEvidenceSecurityFilter<br/>BearerTokenAuthenticationFilter (JWT) · UserProvisioningFilter<br/>SystemAuditFilter"]
+        CTRL["29 controladores REST<br/>/api/v1/** — 172 endpoints"]
+        SVC["Capa de servicios<br/>proyectos · riesgos · documentos · notificaciones<br/>reportes · cierre · almacenamiento"]
+        JPA["Spring Data JPA / Hibernate"]
     end
 
-    subgraph Data["Capa de Persistencia"]
-        JPA[Spring Data JPA / Hibernate]
-        DB[(PostgreSQL)]
-    end
+    DB[("PostgreSQL<br/>esquema proyecta_db<br/>Flyway V1/V2")]
+    FS["Almacenamiento de archivos<br/>uploads/ (FileStorageServiceImpl)"]
+    KC["Keycloak<br/>OAuth2 / OIDC — issuer configurable"]
+    SMTP["Servidor SMTP<br/>correo.cundinamarca.gov.co"]
 
-    subgraph External["Servicios Externos"]
-        KC[Keycloak - OAuth2/OIDC]
-        SMTP[Servidor de Correo]
-    end
-
-    UI -->|HTTP REST + JWT| CTRL
+    UI -->|"HTTP + Authorization: Bearer JWT"| FILT
+    FILT --> CTRL
     CTRL --> SVC
-    SVC --> AUDIT
-    SVC --> NOTIFY
     SVC --> JPA
     JPA --> DB
-    SVC --> KC
-    NOTIFY --> SMTP
+    SVC --> FS
+    SVC -.->|"envío asíncrono"| SMTP
+    API -.->|"validación de token (JWKS/issuer)"| KC
 ```
 
 ### 3.2 Descripción de Componentes
 
-| Componente                         | Responsabilidad                                                   | Tecnología                   |
-| ---------------------------------- | ----------------------------------------------------------------- | ---------------------------- |
-| `DocumentLifecycleController`      | Expone endpoints REST, validación de entrada, control de errores  | Spring MVC                   |
-| `DocumentLifecycleService`         | Lógica de negocio: transiciones de estado, reglas del ciclo       | Spring Boot                  |
-| `AuditService`                     | Registra cada cambio de estado con timestamp, usuario y metadatos | Spring Data JPA              |
-| `NotificationService`              | Envía notificaciones al cambiar de estado                         | Spring Mail / SMTP           |
-| `Spring Data JPA / Hibernate`      | Acceso a datos, mapeo objeto-relacional                           | Hibernate 6.x                |
-| `PostgreSQL`                       | Persistencia de estados, historial y metadatos del documento      | PostgreSQL 16+               |
-| `Keycloak`                         | Autenticación y autorización (OAuth2 Resource Server)             | Keycloak 24+                 |
+| Componente                   | Responsabilidad                                                                      | Referencia en código                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Cadena de filtros            | Cabeceras HTTP, rate limit/firma en rutas públicas, JWT, aprovisionamiento JIT y auditoría | `config/SecurityConfig.java`, `SecurityHeadersFilter`, `PublicEvidenceSecurityFilter`, `UserProvisioningFilter`, `SystemAuditFilter` |
+| Controladores REST           | Exposición de endpoints, validación de entrada y `@PreAuthorize`                      | `controller/` (29 clases) e interfaces en `controller/interfaces/` (12)                     |
+| Capa de servicios            | Lógica de negocio, permisos por proyecto, reportes y notificaciones                  | `service/impl/`, `service/notification/`, `service/report/`                                 |
+| Seguridad y autorización     | Conversión de roles desde el JWT y verificación de permisos                           | `service/security/dynamic/`, `service/security/LocalUserAuthorizationService`              |
+| Manejo global de errores     | ProblemDetails RFC 9457 (400/403/404/413/422/500) y 401 propio                        | `exception/GlobalExceptionHandler.java`, `config/JwtAuthenticationEntryPoint.java`          |
+| Persistencia                 | Mapeo objeto-relacional y acceso a datos                                              | Spring Data JPA + Hibernate (`PostgreSQLDialect`, `ddl-auto=validate`)                      |
+| Migraciones de esquema       | Esquema base y datos semilla                                                          | `db/migration/V1__creacion_esquema_base.sql`, `V2__datos_semilla_parametros.sql`            |
+| Almacenamiento de archivos   | Guardado/descarga con validación de ruta y nombre                                     | `service/impl/FileStorageServiceImpl.java`                                                  |
+| Notificaciones               | Orquestación de eventos, plantillas, in-app y correo                                  | `service/notification/`                                                                     |
+| Documentación OpenAPI        | Definición global, esquemas de error y respuestas por operación                       | `config/openapi/OpenApiConfig.java`, `ErrorResponseOperationCustomizer.java`                |
 
 ---
 
 ## 4. Modelo de Dominio
 
-### 4.1 Diagrama de Entidades (ER)
+### 4.1 Diagrama de Entidades (relaciones principales del esquema V1)
 
 ```mermaid
 erDiagram
-    DOCUMENT ||--o{ DOCUMENT_STATUS : "tiene estados"
-    DOCUMENT ||--o{ AUDIT_LOG : "genera auditoría"
-    DOCUMENT {
-        UUID id PK
-        string code
-        string title
-        string document_type
-        string current_status
-        uuid created_by
-        timestamp created_at
-        timestamp updated_at
+    proyecto ||--o{ fase : "tiene"
+    fase ||--o{ hito : "agrupa"
+    hito ||--o{ entregable : "contiene"
+    proyecto ||--o{ riesgos : "registra"
+    proyecto ||--o{ documento_proyecto_version : "versiona"
+    entregable ||--o{ documento_version : "versiona"
+    entregable ||--o{ documento_observacion : "observa"
+    usuarios ||--o{ usuario_proyecto : "asigna"
+    usuarios ||--o{ notification_in_app : "recibe"
+    proyecto {
+        varchar proyecto_id PK
+        varchar nombre
+        varchar estado
+        numeric avance_total
+        date fecha_cierre
     }
-    DOCUMENT_STATUS {
-        UUID id PK
-        UUID document_id FK
-        string status
-        string previous_status
-        uuid changed_by
-        timestamp changed_at
-        text reason
+    fase {
+        serial fase_id PK
+        varchar nombre
+        numeric ponderacion
+        varchar proyecto_id FK
     }
-    AUDIT_LOG {
-        UUID id PK
-        UUID document_id FK
-        string action
-        string entity
-        string old_value
-        string new_value
-        uuid performed_by
-        timestamp performed_at
-        jsonb metadata
+    hito {
+        serial hito_id PK
+        varchar estado_revision
+        integer fase_id FK
+    }
+    entregable {
+        serial entregable_id PK
+        varchar nombre
+        date fecha_limite
+        integer hito_id FK
+    }
+    riesgos {
+        serial riesgo_id PK
+        varchar probabilidad
+        varchar impacto
+        varchar proyecto_id FK
+    }
+    documento_proyecto_version {
+        bigserial id PK
+        varchar tipo_documento
+        integer numero_version
+        varchar proyecto_id FK
+    }
+    notification_in_app {
+        bigserial id PK
+        varchar event_code
+        boolean read_status
+        bigint recipient_user_id FK
     }
 ```
 
-### 4.2 Enumeración de Estados del Ciclo de Vida
+### 4.2 Tablas por dominio (migraciones V1/V2)
 
-```
-BORRADOR → EN_REVISION → APROBADO → PUBLICADO → VIGENTE → OBSOLETO → ARCHIVADO
-                ↓                                           ↓
-            RECHAZADO                                   RETIRADO
-```
+| Dominio                    | Tablas principales                                                                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proyectos y cronograma     | `proyecto`, `fase`, `hito`, `entregable`, `objetivos_especificos`, `proyecto_equipo`, `proyecto_stakeholder`, `patrocinador`, `entregable_cambio_fecha`, `entregable_cambio_descripcion`, `proyecto_beneficio_impacto`, `respuestas_furag` |
+| Riesgos                    | `riesgos`, `riesgo_tratamiento`, `riesgo_solucion_adjunto`, `riesgo_tratamiento_adjunto`, `matriz_riesgo`                                                                                |
+| Documentos y evidencias    | `documento_proyecto_version`, `documento_version`, `documento_observacion`, `documento_auditoria`, `documento`, `documento_dinamico`, `documento_pre_wizard_revision`, `documento_interno`, `public_evidence_access`, `advance_report_uploads` |
+| Notificaciones y auditoría | `notification_in_app`, `notification_log`, `notification_mail_dispatch_log`, `notification_event_catalog`, `notification_template`, `notification_preference`, `notification_audit`, `system_audit_log`, `analitica_portafolio_snapshot`, `auditoria_ponderaciones` |
+| Cierre de proyecto         | `project_closure_template`, `project_closures`, `project_closure_question`, `project_closure_answer`, `actas_cierre`                                                                     |
+| Seguridad y catálogos      | `usuarios`, `usuario_proyecto`, `usuario_permiso`, `roles`, `permisos`, `rol_permiso`, `system_parameters`, `lista_parametrica_config`, `reporte_config`, `estado_proyecto_config`, `estado_entregable_config`, `estado_riesgo_config`, `tipo_documento_config`, `estrategia_peti_config` |
 
-| Estado         | Descripción                                     | Transiciones válidas                |
-| -------------- | ----------------------------------------------- | ----------------------------------- |
-| `BORRADOR`     | Documento en creación, editable                 | EN_REVISION, ELIMINADO              |
-| `EN_REVISION`  | Sometido a revisión                             | APROBADO, RECHAZADO, BORRADOR       |
-| `RECHAZADO`    | Rechazado durante la revisión                   | BORRADOR, ELIMINADO                 |
-| `APROBADO`     | Aprobado para publicación                       | PUBLICADO, BORRADOR                 |
-| `PUBLICADO`    | Visible para usuarios autorizados               | VIGENTE                             |
-| `VIGENTE`      | Documento activo y en uso                       | OBSOLETO, RETIRADO                  |
-| `OBSOLETO`     | Fuera de uso pero conservado por trazabilidad   | ARCHIVADO                           |
-| `RETIRADO`     | Retirado por decisión administrativa            | ARCHIVADO                           |
-| `ARCHIVADO`    | Estado final, solo lectura                      | — (terminal)                        |
-| `ELIMINADO`    | Eliminado lógico (soft delete)                  | — (terminal)                        |
+> **V1** crea el esquema base (con índices, funciones y triggers); **V2** carga los datos semilla: 6 roles (`admin`, `gestor_tic`, `director_proyecto`, `auditor`, `consulta`, `visualizador`), permisos (`PROYECTO:VER`, `ENTREGABLE:EDITAR`, `SISTEMA:CONFIGURAR`, …), catálogos de estados, matriz de riesgo 5×5, parámetros, configuración de reportes, eventos y plantillas de notificación y plantillas/preguntas de cierre.
 
 ---
 
 ## 5. Flujo de Datos
 
-### 5.1 Flujo Principal: Transición de Estado
+### 5.1 Petición autenticada (JWT) y manejo de errores
 
 ```mermaid
 sequenceDiagram
     participant C as Cliente (React)
-    participant API as DocumentLifecycleController
-    participant SVC as DocumentLifecycleService
-    participant AUDIT as AuditService
+    participant F as Filtros de seguridad
+    participant CTL as Controlador
+    participant SVC as Servicio
     participant DB as PostgreSQL
-    participant NOTIFY as NotificationService
 
-    C->>API: PATCH /api/v1/documents/{id}/status
-    Note right of C: { "status": "EN_REVISION", "reason": "..." }
-    API->>API: Validar JWT + Rol app_access
-    API->>SVC: changeStatus(documentId, newStatus, userId)
-    SVC->>SVC: Validar transición permitida
-    SVC->>DB: Guardar nuevo DocumentStatus
-    SVC->>DB: Registrar AuditLog
-    SVC->>NOTIFY: Notificar cambio de estado
-    NOTIFY-->>C: Email de notificación (async)
-    SVC-->>API: Documento actualizado
-    API-->>C: 200 OK + documento con estado actualizado
+    C->>F: GET /api/v1/proyectos/{id} con Authorization: Bearer JWT
+    F->>F: SecurityHeadersFilter (nosniff, X-Frame-Options, Referrer-Policy)
+    F->>F: Validar JWT contra issuer/JWKS de Keycloak
+    alt Token ausente, inválido o vencido
+        F-->>C: 401 {status, error, message, path, timestamp, action}
+    else Token válido
+        F->>F: UserProvisioningFilter (provisiona usuario local JIT)
+        F->>F: SystemAuditFilter (registra la petición)
+        F->>CTL: Continúa la cadena
+        CTL->>CTL: @PreAuthorize canAccess / canAccessGlobal / canAccessOperational
+        alt Sin permiso
+            CTL-->>C: 403 ProblemDetails {type, title, status, detail}
+        else Con permiso
+            CTL->>SVC: Invoca el servicio
+            SVC->>DB: Consulta/escritura vía JPA
+            DB-->>SVC: Resultado
+            SVC-->>CTL: Entidad/DTO
+            CTL-->>C: 200 ApiResponse {success, message, timestamp, data}
+        end
+    end
+    Note over SVC,C: Reglas → 400/422 · recurso inexistente → 404 · archivo > 50MB → 413 · excepción → 500 (detalle solo en log)
 ```
 
-### 5.2 Flujo de Consulta de Historial
+### 5.2 Notificación asíncrona (in-app + correo)
 
 ```mermaid
 sequenceDiagram
-    participant C as Cliente
-    participant API as DocumentLifecycleController
-    participant SVC as DocumentLifecycleService
-    participant DB as PostgreSQL
+    participant SCH as Scheduler (@Scheduled)
+    participant ORC as NotificationOrchestratorService
+    participant BD as PostgreSQL
+    participant EX as notificationExecutor (hilo notif-*)
+    participant SMTP as Servidor SMTP
 
-    C->>API: GET /api/v1/documents/{id}/history
-    API->>API: Validar JWT + Rol
-    API->>SVC: getHistory(documentId)
-    SVC->>DB: SELECT statuses + audit_logs
-    DB-->>SVC: Resultado
-    SVC-->>API: Historial completo
-    API-->>C: 200 OK + timeline de estados
+    Note over SCH: Crons configurables: NOTIFICATIONS_DEADLINE_CRON (0 0 8 * * *)<br/>y NOTIFICATIONS_OVERDUE_CRON (0 0 9 * * *)
+    SCH->>ORC: Detecta eventos (entregables por vencer / vencidos)
+    ORC->>BD: Resuelve destinatarios y preferencias
+    ORC->>BD: Inserta notificación in-app (notification_in_app)
+    ORC->>EX: Encola envío de correo (async)
+    EX->>SMTP: Envío SMTP (spring.mail)
+    alt Envío exitoso
+        EX->>BD: Registra éxito en notification_mail_dispatch_log / notification_audit
+    else Fallo de envío
+        EX->>BD: Registra el motivo de fallo (no bloquea la respuesta)
+    end
 ```
 
 ---
 
 ## 6. Seguridad
 
-### 6.1 Autenticación y Autorización
+### 6.1 Autenticación y autorización
 
-| Aspecto              | Detalle                                                                 |
-| -------------------- | ----------------------------------------------------------------------- |
-| **Mecanismo**        | OAuth2 Resource Server (JWT Bearer)                                     |
-| **Proveedor**        | Keycloak (`gob-cundinamarca-devqa`)                                     |
-| **Issuer**           | `http://172.20.6.59:8080/realms/gob-cundinamarca-devqa`                 |
-| **Client ID**        | `proyecta-web`                                                          |
-| **Rol requerido**    | `app_access`                                                            |
-| **Scope**            | `openid profile email`                                                  |
+| Aspecto          | Detalle                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mecanismo**    | OAuth2 Resource Server (JWT Bearer), sesión Stateless, CSRF deshabilitado                                                                    |
+| **Proveedor**    | Keycloak (realm `gob-cundinamarca-devqa`)                                                                                                    |
+| **Issuer**       | `${KEYCLOAK_ISSUER_URI:https://iamqa.cundinamarca.gov.co/realms/gob-cundinamarca-devqa}` (+ `KEYCLOAK_JWKS_URI`)                               |
+| **Roles/claims** | Resueltos desde `realm_access.roles` y `resource_access.{clientId}.roles` (`GOB_RESOURCE_CLIENT_IDS`, por defecto `proyecta-web`). **No existe el claim `app_access`.** |
+| **Permisos**     | Granularidad por proyecto con `@PreAuthorize`: `canAccess(...)`, `canAccessGlobal(...)`, `canAccessOperational(...)`, `canAccessOwnProjects`, `hasBaseAccess` |
+| **Acceso base**  | `hasBaseAccess` exige usuario local en Proyecta con rol funcional (o administrador); sin él responde `403`                                   |
+| **CORS**         | Orígenes en `GOB_CORS_ORIGINS` (por defecto `http://localhost:5173`), métodos GET/POST/PUT/DELETE/PATCH/OPTIONS                               |
 
-### 6.2 Control de Acceso por Endpoint
+### 6.2 Control de acceso por prefijo de URL
 
-| Endpoint                              | Método   | Rol requerido     | Observación                          |
-| -------------------------------------- | -------- | ----------------- | ------------------------------------ |
-| `GET /documents/{id}`                 | GET      | `app_access`      | Lectura                              |
-| `GET /documents/{id}/history`         | GET      | `app_access`      | Consulta historial                   |
-| `PATCH /documents/{id}/status`        | PATCH    | `app_access`      | Transición de estado                 |
-| `POST /documents`                     | POST     | `app_access`      | Crear documento                      |
-| `DELETE /documents/{id}`              | DELETE   | `app_access`      | Soft delete                          |
+| Prefijo de URL                           | Control de acceso                                                                     |
+| ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| `/api/v1/proyectos/**`                   | `canAccess(...)` / `canAccessOperational('<PERMISO>', #proyectoId, …)`                 |
+| `/api/v1/admin/...`                      | `canAccessGlobal('SISTEMA:CONFIGURAR', ...)`                                           |
+| `/api/v1/configuracion/...`              | `hasBaseAccess` (lectura), `canAccessGlobal('SISTEMA:CONFIGURAR')` (escritura)         |
+| `/api/v1/reportes`, `/api/v1/analytics`  | `canAccessGlobal('PROYECTO:VER', …)` o `canAccessOperational(...)`                    |
+| `/api/v1/public/...`                     | **Anónimo** (`@PublicEndpoint`): firma HMAC o token opaco + rate limit                |
+| Rutas `permitAll`                        | `/api/public/**`, `/api/v1/public/**`, `/actuator/health`, `/actuator/info`, `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-ui.html`, OPTIONS `/**` |
+| Resto (`/api/v1/**` y demás)             | `authenticated()`                                                                      |
 
-### 6.3 Protección de Datos
+### 6.3 Endpoints públicos (4 en `PublicEvidenceController`)
 
-- **Cifrado en reposo**: PostgreSQL con extensiones de cifrado a nivel de volumen (configuración del DBA).
-- **Máscara de datos sensibles**: Campos PII se almacenan cifrados con AES-256 y se enmascaran en respuestas.
-- **Rate limiting**: Máximo 100 requests/minuto por usuario para endpoints de escritura.
+- Base path `/api/v1/public`; anonimato por requisito de negocio (consulta de evidencia sin login), protegido por `PublicEvidenceSecurityFilter` registrado con la mayor precedencia, antes de la cadena de Spring Security.
+- **Firma HMAC** `?exp=&sig=` en todos los recursos salvo `/evidencia/{token}`, que usa **token opaco de 256 bits** (CWE-639 / OWASP A01).
+- **Rate limit por IP**: `429` con cabecera `Retry-After: 60` (`PUBLIC_EVIDENCE_RATE_LIMIT`, por defecto 120 req/min).
+- Firma inválida → `404` genérico `{"message":"Recurso no encontrado"}` (anti-enumeración).
 
-### 6.4 Auditoría de Seguridad
+### 6.4 Protección de cabeceras, logs y subidas
 
-| Evento                           | Nivel   | Destino            |
-| -------------------------------- | ------- | ------------------ |
-| Login exitoso                    | INFO    | AuditLog + syslog  |
-| Login fallido                    | WARN    | AuditLog + syslog  |
-| Transición de estado             | INFO    | AuditLog           |
-| Intento de acceso no autorizado  | WARN    | AuditLog + syslog  |
-- Todos los eventos incluyen: `userId`, `IP`, `User-Agent`, `timestamp`, `resourceId`.
+| Mecanismo               | Efecto                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `SecurityHeadersFilter` | `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, `X-Permitted-Cross-Domain-Policies: none` |
+| `LogSanitizer`          | Evita inyección de líneas falsas en logs (CWE-117) y limita la longitud registrada                                      |
+| `HttpHeaderSanitizer`   | Whitelist de caracteres en `Content-Disposition` (CWE-113 / CWE-64)                                                     |
+| `UploadMimeSanitizer`   | MIME derivado de la extensión con allowlist; si no aplica → `application/octet-stream` (CWE-434 / CWE-79)                |
+| `SystemAuditFilter`     | Registra usuario, rol, recurso, método, estado y duración en `system_audit_log`; redacta campos sensibles                |
+| Errores 500             | Mensaje genérico al cliente; el detalle queda solo en el log (CWE-209)                                                   |
 
 ---
 
 ## 7. Decisiones de Diseño (ADRs)
 
-### ADR-001: Soft Delete en lugar de eliminación física
+### ADR-001: springdoc-openapi apagado por defecto (CWE-200)
 
 - **Estado**: Aprobado
-- **Contexto**: Los documentos deben mantener trazabilidad completa según ITIL.
-- **Decisión**: Usar campo `deleted_at` (timestamp nullable) en lugar de `DELETE` físico.
-- **Consecuencias**: El historial nunca se pierde; las consultas deben filtrar documentos eliminados lógicamente.
+- **Contexto**: Exponer Swagger UI en producción revela la superficie completa de la API a usuarios no autenticados (enumeración de rutas y endpoints olvidados).
+- **Decisión**: `springdoc.api-docs.enabled` y `springdoc.swagger-ui.enabled` son `false` por defecto; se habilitan solo en local con `SPRINGDOC_API_DOCS_ENABLED=true` y `SPRINGDOC_SWAGGER_UI_ENABLED=true`. `ErrorResponseOperationCustomizer` añade a cada operación los códigos de error reales (400/401/403/404/413/422/429/500).
+- **Consecuencias**: la documentación no está disponible en el entorno de despliegue; debe consultarse/regenerarse en desarrollo.
 
-### ADR-002: Auditoría en tabla separada
-
-- **Estado**: Aprobado
-- **Contexto**: Se requiere un registro inmutable de todos los cambios de estado.
-- **Decisión**: Tabla `AUDIT_LOG` independiente con `metadata JSONB` para datos adicionales.
-- **Consejo**: Separar la auditoría de la entidad principal facilita retención de datos y cumplimiento normativo.
-
-### ADR-003: Notificaciones asíncronas
+### ADR-002: Historial Flyway consolidado en V1/V2, con cambios de esquema fuera de Flyway
 
 - **Estado**: Aprobado
-- **Contexto**: Las notificaciones por email no deben bloquear la respuesta al cliente.
-- **Decisión**: Usar `@Async` con `ThreadPoolTaskExecutor` para envío de emails.
-- **Consecuencias**: Se necesita manejo de reintentos y dead-letter queue para emails fallidos.
+- **Contexto**: Las bases existentes ya tenían consolidado el historial de migraciones anteriores; reescribir el pasado causaría `FlywayValidateException: Migration checksum mismatch`.
+- **Decisión**: Solo dos migraciones (`V1` esquema, `V2` semilla) con `spring.flyway.ignore-migration-patterns=*:missing,*:pending`, `ddl-auto=validate` y una `FlywayMigrationStrategy` que ejecuta `repair()` antes de `migrate()` (`FlywayConfig`). Los cambios puntuales se aplican con `CommandLineRunner` idempotentes fuera de Flyway (`DocumentoInternoSchemaEnsurer`, `AdvanceReportSchemaEnsurer`, `CerradoForzosoMigration`).
+- **Consecuencias**: **nunca editar V1/V2 ya aplicados**; el esquema puede divergir entre ambientes si un ensurer falla (su error solo se registra en `WARN`).
+
+### ADR-003: `ApiResponse` para éxito y ProblemDetails (RFC 9457) para errores
+
+- **Estado**: Aprobado
+- **Contexto**: el frontend necesita un envoltorio uniforme de éxito, pero se espera un estándar de errores interoperable.
+- **Decisión**: éxito envuelto en `ApiResponse {success, message, timestamp, data}`; errores 400/403/404/413/422/500 en **Problem Details RFC 9457** `{type, title, status, detail}` (`GlobalExceptionHandler`); el **401** usa formato propio `{status, error, message, path, timestamp, action}` (`JwtAuthenticationEntryPoint`) para guiar la renovación de token.
+- **Consecuencias**: el cliente debe ramificar el manejo del 401 respecto de los demás códigos.
+
+### ADR-004: Notificaciones asíncronas con pools dedicados
+
+- **Estado**: Aprobado
+- **Contexto**: el envío de correos no puede bloquear la respuesta HTTP ni la ejecución de los schedulers.
+- **Decisión**: `NotificationAsyncConfig` define `notificationExecutor` (core 2 / max 6 / cola 50, prefijo `notif-`), `taskExecutor` (core 4 / max 10 / cola 100, prefijo `async-`) y `taskScheduler` (pool 4), con `CallerRunsPolicy` para no perder trabajos; los crons son configurables por variable de entorno.
+- **Consecuencias**: no hay cola persistente de reintentos: los fallos quedan en `notification_mail_dispatch_log` / `notification_audit` y requieren revisión.
+
+### ADR-005: Endpoints públicos con `@PublicEndpoint` + HMAC/token opaco
+
+- **Estado**: Aprobado
+- **Contexto**: la consulta de evidencia debe funcionar sin sesión, pero los identificadores secuenciales permiten enumeración (IDOR).
+- **Decisión**: la exención de autenticación solo se concede con la anotación `@PublicEndpoint` (hoy en un único controlador), combinada con firma HMAC con caducidad, token opaco de 256 bits y rate limit por IP (429 + `Retry-After`).
+- **Consecuencias**: todo endpoint anónimo nuevo debe repetir este patrón; el secreto HMAC vive obligatoriamente en variable de entorno.
+
+### ADR-006: Auditoría de peticiones por filtro, no por AOP
+
+- **Estado**: Aprobado
+- **Contexto**: se requiere trazabilidad de toda petición HTTP, incluidas las que no alcanzan un servicio.
+- **Decisión**: `SystemAuditFilter` intercepta todas las peticiones y persiste en `system_audit_log` (usuario, rol, recurso, método, código de estado, duración), con redacción de secretos.
+- **Consecuencias**: costo de E/S por petición, amortizado con escritura asíncrona.
 
 ---
 
 ## 8. Requisitos No Funcionales
 
-| Requisito            | Meta                                         | Estrategia                         |
-| -------------------- | -------------------------------------------- | ---------------------------------- |
-| **Disponibilidad**   | 99.5% mensual                               | Health checks, restart automático  |
-| **Latencia**         | < 200ms p95 en endpoints de lectura         | Índices PostgreSQL, cache (futuro) |
-| **Escalabilidad**    | 500 usuarios concurrentes                   | Connection pooling, horizontal     |
-| **Retención datos**  | 10 años mínimo (cumplimiento ITIL)          | Particionado de tablas por año     |
-| **Backup**           | Diario + point-in-time recovery             | pg_dump + WAL archiving            |
+> **Implementado** = verificable en el código. **Aspiracional** = meta de diseño sin evidencia de implementación ni medición en este repositorio.
+
+| Requisito              | Meta / estado actual                                                 | Estado         |
+| ---------------------- | -------------------------------------------------------------------- | -------------- |
+| Límite de subida       | 50 MB por archivo y 200 MB por petición (`413` al superarlos)        | Implementado   |
+| Codificación y formato | UTF-8 forzado, fechas ISO 8601, UUID RFC 4122                        | Implementado   |
+| Paginación             | `page` (0-indexed), `size` (default 10), `sort` (default `id,DESC`)  | Implementado   |
+| Apagado ordenado       | `server.shutdown=graceful` con timeout de 30 s                       | Implementado   |
+| Pool de conexiones     | HikariCP: máximo 15, mínimo inactivo 5, keepalive y validación       | Implementado   |
+| Hilos del servidor     | Tomcat: máximo 20 hilos, `accept-count` 100                          | Implementado   |
+| Disponibilidad         | 99.5% mensual                                                        | Aspiracional   |
+| Latencia               | < 200 ms p95 en lecturas                                             | Aspiracional   |
+| Escalabilidad          | 500 usuarios concurrentes                                            | Aspiracional   |
+| Observabilidad         | Health checks y métricas (`/actuator/**`)                            | Aspiracional\* |
+| Retención y respaldo   | Retención de auditoría y respaldos de base de datos                  | Aspiracional   |
+| Pruebas de carga       | Sin suite ni resultados de carga en el repositorio                   | Aspiracional   |
+
+\* `SecurityConfig` permite `/actuator/health` e `/actuator/info`, pero `spring-boot-starter-actuator` **no figura en `pom.xml`**: esas rutas no existen en el binario actual.
 
 ---
 
@@ -272,68 +335,102 @@ sequenceDiagram
 
 ### 9.1 Stack Tecnológico
 
-```
-┌─────────────────────────────────────────────┐
-│  Frontend: React 18 + oidc-client-ts        │
-├─────────────────────────────────────────────┤
-│  API: Spring Boot 4.0.5 / Java 25           │
-├─────────────────────────────────────────────┤
-│  Persistencia: PostgreSQL 16 + Hibernate 6  │
-├─────────────────────────────────────────────┤
-│  Seguridad: Keycloak 24 (OAuth2/OIDC)       │
-├─────────────────────────────────────────────┤
-│  CI/CD: GitHub Actions                      │
-├─────────────────────────────────────────────┤
-│  Contenedores: Docker + Docker Compose      │
-└─────────────────────────────────────────────┘
-```
+| Capa         | Tecnología / versión verificada                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| Lenguaje     | Java 25 (`java.version`, `<release>25`)                                                                |
+| Framework    | Spring Boot **4.0.5** (padre en `pom.xml`) y Spring Framework 7                                        |
+| Seguridad    | `spring-boot-starter-security` + `spring-boot-starter-oauth2-resource-server` (Keycloak)               |
+| Persistencia | `spring-boot-starter-data-jpa` + Hibernate (`PostgreSQLDialect`, `ddl-auto=validate`)                  |
+| Base de datos| PostgreSQL (driver `org.postgresql`); migraciones declaradas compatibles con PostgreSQL 15+            |
+| Migraciones  | Flyway (`spring-boot-starter-flyway` + `flyway-database-postgresql`), esquema `proyecta_db`            |
+| API y docs   | `springdoc-openapi-starter-webmvc-ui` **3.0.3** (Swagger UI deshabilitado por defecto)                 |
+| Correo       | `spring-boot-starter-mail` (SMTP, TLSv1.2/1.3)                                                         |
+| Documentos   | Apache PDFBox 3.0.4, OpenHTMLtoPDF 1.1.37, Apache POI 5.3.0, JFreeChart 1.5.5                         |
+| Runtime      | Puerto `${SERVER_PORT:8082}`; frontend React en `http://localhost:5173`                                |
+| Build        | Maven (`mvnw.cmd`, `maven-compiler-plugin` 3.13.0)                                                     |
 
-### 9.2 Variables de Entorno Requeridas
+> No hay `Dockerfile`, `docker-compose` ni workflows de CI/CD en este repositorio.
 
-| Variable                              | Descripción                         | Ejemplo                                   |
-| ------------------------------------- | ----------------------------------- | ----------------------------------------- |
-| `SPRING_DATASOURCE_URL`              | URL de conexión a PostgreSQL        | `jdbc:postgresql://localhost:5432/proyecta` |
-| `SPRING_DATASOURCE_USERNAME`         | Usuario de base de datos            | `proyecta_user`                           |
-| `SPRING_DATASOURCE_PASSWORD`         | Contraseña de base de datos         | `***`                                     |
-| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI` | Issuer de Keycloak | `http://172.20.6.59:8080/realms/gob-cundinamarca-devqa` |
-| `GOB_SECURITY_CORS_ALLOWED-ORIGINS`  | Orígenes permitidos CORS            | `http://localhost:5173`                    |
+### 9.2 Variables de entorno (definidas en `application.properties`)
+
+| Variable                              | Uso                                    | Valor por defecto                                          |
+| ------------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| `SERVER_PORT`                         | Puerto del backend                     | `8082`                                                     |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_SCHEMA` | Conexión PostgreSQL          | `localhost` / `5432` / `postgres` / `proyecta_db`          |
+| `DB_USER` / `DB_PASSWORD`             | Credenciales de base de datos          | `postgres` / *(sin default)*                               |
+| `DB_POOL_MAX` / `DB_POOL_MIN_IDLE`    | Tamaño del pool Hikari                 | `15` / `5`                                                 |
+| `KEYCLOAK_ISSUER_URI`                 | Issuer JWT validado                    | `https://iamqa.cundinamarca.gov.co/realms/gob-cundinamarca-devqa` |
+| `KEYCLOAK_JWKS_URI`                   | Conjunto de claves públicas            | `.../protocol/openid-connect/certs` del mismo realm        |
+| `GOB_RESOURCE_CLIENT_IDS`             | ClientIds cuyos roles se leen          | `proyecta-web`                                             |
+| `GOB_CORS_ORIGINS`                    | Orígenes CORS permitidos               | `http://localhost:5173`                                     |
+| `GOB_SEED_ADMIN_USERNAME`             | Cuenta admin sembrada en cada arranque | `fasantos`                                                 |
+| `PUBLIC_EVIDENCE_HMAC_SECRET`         | Secreto de firma de rutas públicas     | *(vacío; obligatorio en despliegue)*                        |
+| `PUBLIC_EVIDENCE_EXPIRY_DAYS`         | Caducidad de enlaces públicos          | `30`                                                       |
+| `PUBLIC_EVIDENCE_RATE_LIMIT`          | Req/min por IP en rutas públicas       | `120`                                                      |
+| `MAIL_HOST` / `MAIL_PORT`             | Servidor SMTP                          | `correo.cundinamarca.gov.co` / `25`                         |
+| `MAIL_USERNAME` / `MAIL_PASSWORD`     | Autenticación SMTP                     | *(vacíos)*                                                 |
+| `MAIL_FROM`                           | Remitente visible                      | `notificaciones_proyecta@cundinamarca.gov.co`              |
+| `MAIL_NOTIFICATION_ENABLED`           | Habilita envío real de correos         | `true`                                                     |
+| `NOTIFICATIONS_DEADLINE_CRON`         | Aviso de entregables por vencer        | `0 0 8 * * *`                                              |
+| `NOTIFICATIONS_OVERDUE_CRON`          | Recordatorio de entregables vencidos   | `0 0 9 * * *`                                              |
+| `MAX_FILE_SIZE` / `MAX_REQUEST_SIZE`  | Límites multipart                      | `50MB` / `200MB`                                           |
+| `SPRINGDOC_API_DOCS_ENABLED` / `SPRINGDOC_SWAGGER_UI_ENABLED` | OpenAPI on/off       | `false` / `false`                                          |
+| `APP_FRONTEND_URL_BASE`               | Enlaces del frontend en notificaciones | `http://localhost:5173`                                     |
+| `APP_PUBLIC_URL_BASE`                 | URL pública para enlaces HMAC          | `http://localhost:8082`                                     |
+| `TOMCAT_THREADS_MAX`                  | Hilos del contenedor                   | `20`                                                       |
+| `LOG_LEVEL_APP` / `LOG_LEVEL_SQL`     | Nivel de logging                       | `INFO` / `WARN` (SQL `WARN`, bind `OFF`)                    |
 
 ---
 
 ## 10. Riesgos y Mitigaciones
 
-| Riesgo                                       | Impacto | Probabilidad | Mitigación                                      |
-| -------------------------------------------- | ------- | ------------ | ----------------------------------------------- |
-| Pérdida de datos de auditoría                | Alto    | Bajo         | Backup diario + réplica a segunda instancia     |
-| Fallo de Keycloak (autenticación masiva)     | Alto    | Medio        | Cache de tokens, retry con backoff exponencial  |
-| Degradación del rendimiento por volumen      | Medio   | Medio        | Particionado de tablas, índices optimizados     |
-| Incumplimiento de retención documental       | Alto    | Bajo         | Políticas de retención configuradas en DB       |
+| Riesgo                                                                                   | Impacto | Probabilidad | Mitigación existente / recomendada                                            |
+| ---------------------------------------------------------------------------------------- | ------- | ------------ | ------------------------------------------------------------------------------ |
+| Indisponibilidad del SMTP corporativo (puerto 25, sin autenticación por defecto)          | Alto    | Medio        | `MAIL_NOTIFICATION_ENABLED=false`; fallos registrados en `notification_mail_dispatch_log` |
+| Fuga de secretos en variables de entorno (`MAIL_PASSWORD`, `PUBLIC_EVIDENCE_HMAC_SECRET`) | Alto    | Medio        | Nunca en git (CWE-798); usar gestor de secretos del despliegue                 |
+| Dependencia total de Keycloak (`iamqa.cundinamarca.gov.co`)                               | Alto    | Media        | Emisión/validación de token fuera del control de la API → degradación = 401 masivo |
+| Deriva de esquema por migraciones ignoradas (`*:pending`) y ensurers que fallan en `WARN` | Alto    | Medio        | `ddl-auto=validate` detecta diferencias al arrancar; revisar logs de ensurers  |
+| Documentación OpenAPI apagada en despliegue → endpoints sin actualizar                    | Medio  | Media        | Prueba `OpenApiDocsGenerationTest` y regeneración local con springdoc activo   |
+| Sin observabilidad real (sin `actuator`, métricas ni health checks)                       | Medio  | Alta         | Añadir `spring-boot-starter-actuator` restringido a la red interna             |
+| Sin CI/CD ni contenedores en el repositorio → despliegues manuales                       | Medio  | Alta         | Automatizar build (`mvnw`) y empaquetado del JAR                                |
+| Valores semilla por defecto (`GOB_SEED_ADMIN_USERNAME`) no sobrescritos                   | Medio  | Media        | Sobrescribir por variable de entorno en cada ambiente                           |
+| Concurrencia limitada (20 hilos Tomcat, pool de 15) ante picos                            | Medio  | Baja         | Medir con pruebas de carga antes de fijar metas de escalabilidad                |
 
 ---
 
 ## 11. Glosario
 
-| Término             | Definición                                                              |
-| ------------------- | ----------------------------------------------------------------------- |
-| **Ciclo de Vida**   | Conjunto de estados por los que transcurre un documento                 |
-| **Transición**      | Cambio de un estado a otro dentro del ciclo de vida                     |
-| **Auditoría ITIL**  | Registro inmutable de todos los cambios realizados sobre un elemento    |
-| **Soft Delete**     | Eliminación lógica mediante marca de tiempo, sin borrado físico         |
-| **ADR**             | Architecture Decision Record — registro de decisiones de arquitectura   |
+| Término               | Definición                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| **ApiResponse**       | Envoltorio estándar de respuestas exitosas: `success`, `message`, `timestamp`, `data`            |
+| **Problem Details**   | Formato de error HTTP RFC 9457: `type`, `title`, `status`, `detail`                              |
+| **JWT / Bearer**      | Token firmado por Keycloak enviado en `Authorization: Bearer`                                    |
+| **`@PreAuthorize`**   | Anotación de Spring Security que evalúa permisos por método (`canAccess*`, `hasBaseAccess`)       |
+| **`@PublicEndpoint`** | Anotación que marca un endpoint como anónimo y lo obliga a usar HMAC/rate limit                  |
+| **HMAC**              | Firma con secreto compartido usada en los enlaces públicos (`?exp=&sig=`)                         |
+| **Rate limit**        | Límite de peticiones por IP; responde `429` con `Retry-After`                                     |
+| **Flyway**            | Migraciones versionadas del esquema (`V1`, `V2`)                                                  |
+| **Ensurer**           | `CommandLineRunner` idempotente que aplica cambios de esquema fuera de Flyway                     |
+| **SystemAuditFilter** | Filtro que audita cada petición HTTP en `system_audit_log`                                        |
+| **CWE**               | Common Weakness Enumeration: taxonomía de debilidades usada para justificar decisiones            |
+| **HikariCP**          | Pool de conexiones a base de datos de Spring Boot                                                 |
 
 ---
 
 ## 12. Referencias
 
-- [ITIL 4 Foundation](https://www.axelos.com/certifications/itil-foundation)
-- [Keep a Changelog](https://keepachangelog.com/)
-- [Spring Boot Reference](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/)
-- [OAuth 2.0 Resource Server](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#web.security.oauth2.server)
+- Inventario de superficie API: [docs/api-endpoints.md](api-endpoints.md)
+- Guía del proyecto y arranque local: [README.md](../README.md)
+- Problem Details for HTTP APIs (RFC 9457): <https://www.rfc-editor.org/rfc/rfc9457>
+- Spring Boot Reference Documentation: <https://docs.spring.io/spring-boot/reference/>
+- springdoc-openapi: <https://springdoc.org/>
+- CWE-200 (Exposure of Sensitive Information): <https://cwe.mitre.org/data/definitions/200.html>
 
 ---
 
 ## 13. Historial de Revisiones del Documento
 
-| Versión | Fecha       | Autor            | Cambios realizados               |
-| ------- | ----------- | ---------------- | -------------------------------- |
-| 1.0.0   | 2026-07-29  | _[Autor]_        | Creación inicial del documento   |
+| Versión | Fecha      | Autor           | Cambios realizados                                              |
+| ------- | ---------- | --------------- | ---------------------------------------------------------------- |
+| 1.0.0   | 2026-07-29 | _[Autor]_       | Creación inicial del documento (plantilla genérica de ejemplo)  |
+| 1.1.0   | 2026-09-29 | Equipo Proyecta | Actualización con arquitectura real del sistema                 |

@@ -66,7 +66,7 @@ public class SecurityConfig {
             JwtAuthenticationConverter jwtAuthenticationConverter,
             UserProvisioningFilter userProvisioningFilter,
             SystemAuditFilter systemAuditFilter,
-            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) throws Exception {
+            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -93,7 +93,22 @@ public class SecurityConfig {
             .addFilterAfter(userProvisioningFilter, BearerTokenAuthenticationFilter.class)
             .addFilterAfter(systemAuditFilter, UserProvisioningFilter.class);
 
-        return http.build();
+        org.springframework.security.web.SecurityFilterChain chain = http.build();
+
+        // El AuthenticationEntryPointFailureHandler por defecto RELANZA las
+        // AuthenticationServiceException (p.ej. cuando IAM no responde al validar el
+        // JWKS), lo que escapa hasta Tomcat e imprime un stack de ~80 lineas por
+        // peticion. Se configura para responder 401 con el entry point propio.
+        org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler failureHandler =
+                new org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler(jwtAuthenticationEntryPoint);
+        failureHandler.setRethrowAuthenticationServiceException(false);
+        for (jakarta.servlet.Filter filter : chain.getFilters()) {
+            if (filter instanceof BearerTokenAuthenticationFilter bearerFilter) {
+                bearerFilter.setAuthenticationFailureHandler(failureHandler);
+            }
+        }
+
+        return chain;
     }
 
     @Bean

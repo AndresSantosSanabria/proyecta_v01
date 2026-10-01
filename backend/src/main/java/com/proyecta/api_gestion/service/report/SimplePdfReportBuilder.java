@@ -23,8 +23,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.StringJoiner;
 
 /**
  * Generador PDF institucional con layout por bloques, tablas y tarjetas.
@@ -44,7 +42,6 @@ public final class SimplePdfReportBuilder {
     private static final float BOTTOM = 42f;
     private static final float CONTENT_WIDTH = PAGE_WIDTH - LEFT - RIGHT;
     private static final float HEADER_START_Y = PAGE_HEIGHT - TOP;
-    private static final float BODY_START_Y = 740f;
     private static final float FOOTER_Y = 24f;
 
     private static final PDFont FONT_REGULAR = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
@@ -54,7 +51,6 @@ public final class SimplePdfReportBuilder {
     private static final Color COLOR_TEXT = new Color(28, 35, 43);
     private static final Color COLOR_MUTED = new Color(105, 116, 130);
     private static final Color COLOR_LINE = new Color(223, 229, 237);
-    private static final Color COLOR_HEADER = new Color(245, 247, 250);
     private static final Color COLOR_TITLE = new Color(20, 65, 93);
     private static final Color COLOR_SECTION = new Color(25, 85, 61);
     private static final Color COLOR_TABLE_HEAD = new Color(238, 242, 247);
@@ -228,7 +224,7 @@ public final class SimplePdfReportBuilder {
     private static float parseFloat(String value, float fallback) {
         try {
             return Float.parseFloat(value.trim());
-        } catch (Exception ex) {
+        } catch (Exception _) {
             return fallback;
         }
     }
@@ -811,11 +807,11 @@ public final class SimplePdfReportBuilder {
                     if (word.isBlank()) {
                         continue;
                     }
-                    String trial = current.length() == 0 ? word : current + " " + word;
+                    String trial = current.isEmpty() ? word : current + " " + word;
                     if (stringWidth(font, fontSize, trial) <= maxWidth) {
                         current = new StringBuilder(trial);
                     } else {
-                        if (current.length() > 0) {
+                        if (!current.isEmpty()) {
                             result.add(current.toString());
                         }
                         if (stringWidth(font, fontSize, word) <= maxWidth) {
@@ -826,7 +822,7 @@ public final class SimplePdfReportBuilder {
                         }
                     }
                 }
-                if (current.length() > 0) {
+                if (!current.isEmpty()) {
                     result.add(current.toString());
                 }
                 if (paragraph != paragraphs[paragraphs.length - 1]) {
@@ -841,14 +837,14 @@ public final class SimplePdfReportBuilder {
             StringBuilder current = new StringBuilder();
             for (char c : word.toCharArray()) {
                 String trial = current + String.valueOf(c);
-                if (stringWidth(font, fontSize, trial) <= maxWidth || current.length() == 0) {
+                if (stringWidth(font, fontSize, trial) <= maxWidth || current.isEmpty()) {
                     current.append(c);
                 } else {
                     parts.add(current.toString());
                     current = new StringBuilder().append(c);
                 }
             }
-            if (current.length() > 0) {
+            if (!current.isEmpty()) {
                 parts.add(current.toString());
             }
             return parts;
@@ -918,7 +914,7 @@ public final class SimplePdfReportBuilder {
                     return null;
                 }
                 return LosslessFactory.createFromImage(document, image);
-            } catch (Exception ex) {
+            } catch (Exception _) {
                 return null;
             }
         }

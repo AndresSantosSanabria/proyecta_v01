@@ -25,6 +25,7 @@ import java.util.Map;
 public class ClosureDraftService {
 
     private static final Logger log = LoggerFactory.getLogger(ClosureDraftService.class);
+    private static final String JSON_QUESTION_ID = "questionId";
 
     private final ProyectoRepository proyectoRepository;
     private final ClosureTemplateRepository templateRepository;
@@ -68,12 +69,11 @@ public class ClosureDraftService {
             }
         }
 
-        if (answerMap.isEmpty() || answerMap.values().stream().allMatch(v -> v == null || v.isBlank())) {
-            if (proyecto.getCierreBorradorJson() != null && !proyecto.getCierreBorradorJson().isBlank()) {
-                Map<Long, String> fromBorrador = buildAnswerMapFromBorrador(proyecto.getCierreBorradorJson(), template.getTemplateJson());
-                if (!fromBorrador.isEmpty()) {
-                    answerMap = fromBorrador;
-                }
+        if ((answerMap.isEmpty() || answerMap.values().stream().allMatch(v -> v == null || v.isBlank()))
+                && proyecto.getCierreBorradorJson() != null && !proyecto.getCierreBorradorJson().isBlank()) {
+            Map<Long, String> fromBorrador = buildAnswerMapFromBorrador(proyecto.getCierreBorradorJson(), template.getTemplateJson());
+            if (!fromBorrador.isEmpty()) {
+                answerMap = fromBorrador;
             }
         }
 
@@ -83,11 +83,11 @@ public class ClosureDraftService {
     private Map<Long, String> buildAnswerMapFromClosureRecord(String projectId, String templateJson) {
         Map<Long, String> answerMap = new HashMap<>();
         try {
-            ProjectClosureRecord record = closureRecordRepository.findByProyectoId(projectId).orElse(null);
-            if (record == null || record.getFormData() == null || record.getFormData().isBlank()) {
+            ProjectClosureRecord closureRecord = closureRecordRepository.findByProyectoId(projectId).orElse(null);
+            if (closureRecord == null || closureRecord.getFormData() == null || closureRecord.getFormData().isBlank()) {
                 return answerMap;
             }
-            JsonNode formDataNode = objectMapper.readTree(record.getFormData());
+            JsonNode formDataNode = objectMapper.readTree(closureRecord.getFormData());
             JsonNode fieldsNode = formDataNode.get("fields");
             if (fieldsNode == null || !fieldsNode.isObject()) {
                 return answerMap;
@@ -101,8 +101,8 @@ public class ClosureDraftService {
                 JsonNode campos = seccion.get("campos");
                 if (campos == null || !campos.isArray()) continue;
                 for (JsonNode campo : campos) {
-                    if (!campo.has("questionId") || campo.get("questionId").isNull()) continue;
-                    Long questionId = campo.get("questionId").asLong();
+                    if (!campo.has(JSON_QUESTION_ID) || campo.get(JSON_QUESTION_ID).isNull()) continue;
+                    Long questionId = campo.get(JSON_QUESTION_ID).asLong();
                     String qIdStr = String.valueOf(questionId);
                     if (fieldsNode.has(qIdStr) && !fieldsNode.get(qIdStr).isNull()) {
                         String value = fieldsNode.get(qIdStr).asText("");
@@ -138,22 +138,15 @@ public class ClosureDraftService {
                 JsonNode campos = seccion.get("campos");
                 if (campos == null || !campos.isArray()) continue;
                 for (JsonNode campo : campos) {
-                    if (!campo.has("questionId") || campo.get("questionId").isNull()) continue;
-                    Long questionId = campo.get("questionId").asLong();
+                    if (!campo.has(JSON_QUESTION_ID) || campo.get(JSON_QUESTION_ID).isNull()) continue;
+                    Long questionId = campo.get(JSON_QUESTION_ID).asLong();
                     String fieldId = campo.path("id").asText("");
                     String value = fieldValues.getOrDefault(fieldId, null);
-                    if (value == null || value.isBlank()) {
-                        if (request.formData() != null && !request.formData().isBlank()) {
-                            try {
-                                JsonNode fdNode = objectMapper.readTree(request.formData());
-                                JsonNode fdFields = fdNode.get("fields");
-                                if (fdFields != null && fdFields.isObject()) {
-                                    String qIdStr = String.valueOf(questionId);
-                                    if (fdFields.has(qIdStr) && !fdFields.get(qIdStr).isNull()) {
-                                        value = fdFields.get(qIdStr).asText("");
-                                    }
-                                }
-                            } catch (Exception ignored) {}
+                    if ((value == null || value.isBlank())
+                            && request.formData() != null && !request.formData().isBlank()) {
+                        String formDataValue = readFormFieldValue(request.formData(), questionId);
+                        if (formDataValue != null) {
+                            value = formDataValue;
                         }
                     }
                     if (value != null && !value.isBlank()) {
@@ -188,12 +181,11 @@ public class ClosureDraftService {
             }
         }
 
-        if (answerMap.isEmpty() || answerMap.values().stream().allMatch(v -> v == null || v.isBlank())) {
-            if (proyecto.getCierreBorradorJson() != null && !proyecto.getCierreBorradorJson().isBlank()) {
-                Map<Long, String> fromBorrador = buildAnswerMapFromBorrador(proyecto.getCierreBorradorJson(), template.getTemplateJson());
-                if (!fromBorrador.isEmpty()) {
-                    answerMap = fromBorrador;
-                }
+        if ((answerMap.isEmpty() || answerMap.values().stream().allMatch(v -> v == null || v.isBlank()))
+                && proyecto.getCierreBorradorJson() != null && !proyecto.getCierreBorradorJson().isBlank()) {
+            Map<Long, String> fromBorrador = buildAnswerMapFromBorrador(proyecto.getCierreBorradorJson(), template.getTemplateJson());
+            if (!fromBorrador.isEmpty()) {
+                answerMap = fromBorrador;
             }
         }
 
@@ -211,5 +203,22 @@ public class ClosureDraftService {
                         null,
                         null))
                 .toList();
+    }
+
+    private String readFormFieldValue(String formDataJson, Long questionId) {
+        try {
+            JsonNode fdNode = objectMapper.readTree(formDataJson);
+            JsonNode fdFields = fdNode.get("fields");
+            if (fdFields != null && fdFields.isObject()) {
+                String qIdStr = String.valueOf(questionId);
+                if (fdFields.has(qIdStr) && !fdFields.get(qIdStr).isNull()) {
+                    return fdFields.get(qIdStr).asText("");
+                }
+            }
+        } catch (Exception ex) {
+            // CWE-390: el campo del borrador no era parseable; se omite sin romper la carga.
+            log.debug("No se pudo leer el campo '{}' del borrador de cierre: {}", questionId, ex.toString());
+        }
+        return null;
     }
 }

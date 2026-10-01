@@ -1,8 +1,6 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.proyecta.api_gestion.config.PublicUrlProperties;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
@@ -19,7 +17,6 @@ import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.ActaCierreRepository;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.closure.ProjectClosureRecordRepository;
 import com.proyecta.api_gestion.repository.closure.ClosureAnswerRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
@@ -32,7 +29,6 @@ import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipien
 import com.proyecta.api_gestion.service.report.ActaCierrePdfGenerator;
 import com.proyecta.api_gestion.service.report.ActaCierreDocxGenerator;
 import com.proyecta.api_gestion.service.closure.ClosureTemplateService;
-import com.proyecta.api_gestion.service.closure.TemplateResolver;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
@@ -60,6 +56,11 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private static final String STORAGE_SUBDIR = "actas_cierre";
     private static final DateTimeFormatter UI_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final String MSG_PROYECTO_NO_ENCONTRADO = "Proyecto no encontrado: ";
+    private static final String MSG_PROYECTO_YA_CERRADO = "El proyecto ya se encuentra cerrado o finalizado.";
+    private static final String EXT_DOCX = ".docx";
+    private static final String KEY_PROJECT_NAME = "projectName";
+    private static final String KEY_RECIPIENTS = "recipients";
 
     private final ProyectoRepository proyectoRepository;
     private final ActaCierreRepository actaCierreRepository;
@@ -67,7 +68,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final IProgressCalculator progressCalculator;
     private final ProjectClosureValidator closureValidator;
     private final ProjectProgressMetricsService metricsService;
-    private final ActaCierrePdfGenerator pdfGenerator;
     private final ActaCierreDocxGenerator docxGenerator;
     private final IStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
@@ -75,8 +75,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final KeycloakIdentityExtractor identityExtractor;
     private final ClosureTemplateService templateService;
     private final ClosureAnswerRepository closureAnswerRepository;
-    private final ProjectClosureRecordRepository closureRecordRepository;
-    private final TemplateResolver templateResolver;
     private final PublicEvidenceAccessService publicEvidenceAccessService;
     private final PublicUrlProperties publicUrlProperties;
 
@@ -86,7 +84,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      IProgressCalculator progressCalculator,
                                      ProjectClosureValidator closureValidator,
                                      ProjectProgressMetricsService metricsService,
-                                     ActaCierrePdfGenerator pdfGenerator,
                                      ActaCierreDocxGenerator docxGenerator,
                                      IStorageProvider storageProvider,
                                      ObjectMapper objectMapper,
@@ -94,8 +91,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      KeycloakIdentityExtractor identityExtractor,
                                      ClosureTemplateService templateService,
                                      ClosureAnswerRepository closureAnswerRepository,
-                                     ProjectClosureRecordRepository closureRecordRepository,
-                                     TemplateResolver templateResolver,
                                      PublicEvidenceAccessService publicEvidenceAccessService,
                                      PublicUrlProperties publicUrlProperties) {
         this.proyectoRepository = proyectoRepository;
@@ -104,7 +99,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.progressCalculator = progressCalculator;
         this.closureValidator = closureValidator;
         this.metricsService = metricsService;
-        this.pdfGenerator = pdfGenerator;
         this.docxGenerator = docxGenerator;
         this.storageProvider = storageProvider;
         this.objectMapper = objectMapper;
@@ -112,8 +106,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.identityExtractor = identityExtractor;
         this.templateService = templateService;
         this.closureAnswerRepository = closureAnswerRepository;
-        this.closureRecordRepository = closureRecordRepository;
-        this.templateResolver = templateResolver;
         this.publicEvidenceAccessService = publicEvidenceAccessService;
         this.publicUrlProperties = publicUrlProperties;
     }
@@ -122,10 +114,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Transactional
     public CierreProyectoResponse cerrarProyecto(String projectId, CierreProyectoRequest request) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (proyecto.esEstadoTerminal()) {
-            return CierreProyectoResponse.error("El proyecto ya se encuentra cerrado o finalizado.");
+            return CierreProyectoResponse.error(MSG_PROYECTO_YA_CERRADO);
         }
 
         closureValidator.validarCierre(projectId);
@@ -206,7 +198,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 List.of()
         );
         byte[] docxBytes = docxGenerator.build(actaData);
-        String nombreArchivo = buildActaFileName(projectId, fechaCierre, ".docx");
+        String nombreArchivo = buildActaFileName(projectId, fechaCierre, EXT_DOCX);
         String rutaArchivo = STORAGE_SUBDIR;
         String storedFileName = storageProvider.storeBytes(docxBytes, rutaArchivo, nombreArchivo);
 
@@ -237,9 +229,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                     projectId,
                     "system",
                     java.util.Map.of(
-                            "projectName", proyecto.getNombre(),
+                            KEY_PROJECT_NAME, proyecto.getNombre(),
                             "state", proyecto.getEstadoCodigo(),
-                            "recipients", ProjectNotificationRecipients.resolve(proyecto)
+                            KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
                     )));
         } catch (RuntimeException ex) {
             storageProvider.deleteFile(rutaArchivo, storedFileName);
@@ -259,10 +251,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Transactional
     public CierreProyectoResponse solicitarCierre(String projectId, CierreProyectoRequest request, Authentication authentication) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (proyecto.esEstadoTerminal()) {
-            return CierreProyectoResponse.error("El proyecto ya se encuentra cerrado o finalizado.");
+            return CierreProyectoResponse.error(MSG_PROYECTO_YA_CERRADO);
         }
 
         if (Boolean.TRUE.equals(proyecto.getCierreSolicitado())) {
@@ -299,9 +291,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 projectId,
                 actorUsername,
                 java.util.Map.of(
-                        "projectName", proyecto.getNombre(),
+                        KEY_PROJECT_NAME, proyecto.getNombre(),
                         "requester", actorUsername,
-                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
+                        KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
                 )));
 
         return CierreProyectoResponse.success(
@@ -317,7 +309,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Transactional
     public CierreProyectoResponse aprobarCierre(String projectId, Authentication authentication) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (!proyecto.cierrePendienteRevision()) {
             return CierreProyectoResponse.error("No hay una solicitud de cierre pendiente de revision para este proyecto.");
@@ -334,9 +326,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 projectId,
                 actorUsername,
                 java.util.Map.of(
-                        "projectName", proyecto.getNombre(),
+                        KEY_PROJECT_NAME, proyecto.getNombre(),
                         "approver", actorUsername,
-                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
+                        KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
                 )));
 
         return CierreProyectoResponse.success(
@@ -352,7 +344,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Transactional
     public CierreProyectoResponse rechazarCierre(String projectId, String observaciones, Authentication authentication) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (!proyecto.cierrePendienteRevision()) {
             return CierreProyectoResponse.error("No hay una solicitud de cierre pendiente de revision para este proyecto.");
@@ -374,10 +366,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 projectId,
                 actorUsername,
                 java.util.Map.of(
-                        "projectName", proyecto.getNombre(),
+                        KEY_PROJECT_NAME, proyecto.getNombre(),
                         "rejector", actorUsername,
                         "observaciones", observaciones.trim(),
-                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
+                        KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
                 )));
 
         return CierreProyectoResponse.success(
@@ -393,10 +385,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Transactional
     public CierreProyectoResponse cierreExtraordinario(String projectId, CierreProyectoRequest request, Authentication authentication) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (proyecto.esEstadoTerminal()) {
-            return CierreProyectoResponse.error("El proyecto ya se encuentra cerrado o finalizado.");
+            return CierreProyectoResponse.error(MSG_PROYECTO_YA_CERRADO);
         }
 
         String actorUsername = identityExtractor.resolveUsername(authentication);
@@ -483,13 +475,13 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 List.of()
         );
         byte[] docxBytes = docxGenerator.build(actaData);
-        String nombreArchivo = buildActaFileName(projectId, fechaCierre, ".docx");
+        String nombreArchivo = buildActaFileName(projectId, fechaCierre, EXT_DOCX);
         String rutaArchivo = STORAGE_SUBDIR;
         String storedFileName = storageProvider.storeBytes(docxBytes, rutaArchivo, nombreArchivo);
 
         try {
             actaCierreRepository.findByProyectoId(projectId)
-                    .ifPresent(existing -> actaCierreRepository.delete(existing));
+                    .ifPresent(actaCierreRepository::delete);
 
             ActaCierre acta = new ActaCierre(
                     proyecto,
@@ -524,10 +516,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                     projectId,
                     actorUsername,
                     java.util.Map.of(
-                            "projectName", proyecto.getNombre(),
+                            KEY_PROJECT_NAME, proyecto.getNombre(),
                             "state", proyecto.getEstadoCodigo(),
                             "extraordinaryClosure", "true",
-                            "recipients", ProjectNotificationRecipients.resolve(proyecto)
+                            KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
                     )));
         } catch (RuntimeException ex) {
             log.error("[CierreExtraordinario] Error executing extraordinary closure for project {}: {}", projectId, ex.getMessage(), ex);
@@ -582,7 +574,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
 
     private Resource generarBorradorDocxSiExiste(String projectId) {
         Proyecto proyecto = proyectoRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         CierreProyectoRequest request = buildRequestFromSavedAnswers(projectId);
 
@@ -674,65 +666,12 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             return new org.springframework.core.io.ByteArrayResource(docxBytes) {
                 @Override
                 public String getFilename() {
-                    return "acta_cierre_" + projectId + ".docx";
+                    return "acta_cierre_" + projectId + EXT_DOCX;
                 }
             };
         } catch (Exception ex) {
             log.error("Error generando DOCX borrador: {}", ex.getMessage());
             return null;
-        }
-    }
-
-    private String injectEvidencePublicUrls(String projectId, String formDataJson) {
-        try {
-            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(formDataJson);
-            com.fasterxml.jackson.databind.JsonNode entregables = root.get("entregables");
-            if (entregables == null || !entregables.isArray()) {
-                return formDataJson;
-            }
-
-            Proyecto proyecto = proyectoRepository.findById(projectId).orElse(null);
-            if (proyecto == null) return formDataJson;
-
-            java.util.Map<String, String> evidenciaTokens = new java.util.HashMap<>();
-            collectEntregableTokens(proyecto, evidenciaTokens);
-
-            com.fasterxml.jackson.databind.node.ArrayNode arrayNode = (com.fasterxml.jackson.databind.node.ArrayNode) entregables;
-            for (com.fasterxml.jackson.databind.JsonNode row : arrayNode) {
-                if (row instanceof com.fasterxml.jackson.databind.node.ObjectNode rowNode) {
-                    String nombreEntregable = rowNode.has("nombre_entregable") ? rowNode.get("nombre_entregable").asText("") : "";
-                    String evidenciaActual = rowNode.has("evidencia") ? rowNode.get("evidencia").asText("") : "";
-                    if (!evidenciaActual.startsWith("http")) {
-                        for (var entry : evidenciaTokens.entrySet()) {
-                            if (nombreEntregable.equalsIgnoreCase(entry.getKey())) {
-                                rowNode.put("evidencia", buildPublicEvidenceUrl(entry.getValue()));
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return objectMapper.writeValueAsString(root);
-        } catch (Exception ex) {
-            log.warn("No se pudieron inyectar URLs publicas de evidencia: {}", ex.getMessage());
-            return formDataJson;
-        }
-    }
-
-    private void collectEntregableTokens(Proyecto proyecto, java.util.Map<String, String> map) {
-        if (proyecto.getFases() == null) return;
-        for (var fase : proyecto.getFases()) {
-            if (fase == null || fase.getHitos() == null) continue;
-            for (var hito : fase.getHitos()) {
-                if (hito == null || hito.getEntregables() == null) continue;
-                for (var entregable : hito.getEntregables()) {
-                    if (entregable != null && entregable.getArchivoPdf() != null && !entregable.getArchivoPdf().isBlank()) {
-                        String token = publicEvidenceAccessService.getOrCreateToken(entregable, "system");
-                        map.put(entregable.getNombre(), token);
-                    }
-                }
-            }
         }
     }
 
@@ -835,51 +774,6 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         return null;
     }
 
-    private String mergeProjectValuesIntoFormData(Proyecto proyecto, String formDataJson) {
-        try {
-            JsonNode parsed = (formDataJson == null || formDataJson.isBlank())
-                    ? objectMapper.createObjectNode()
-                    : objectMapper.readTree(formDataJson);
-            ObjectNode root = parsed.isObject() ? (ObjectNode) parsed : objectMapper.createObjectNode();
-            ObjectNode fields = root.has("fields") && root.get("fields").isObject()
-                    ? (ObjectNode) root.get("fields")
-                    : objectMapper.createObjectNode();
-
-            putIfMissing(root, "codigo_proyecto", proyecto.getId());
-            putIfMissing(root, "nombre_proyecto", proyecto.getNombre());
-            putIfMissing(root, "patrocinador", proyecto.getPatrocinador() != null ? proyecto.getPatrocinador().getNombre() : null);
-            putIfMissing(root, "director", proyecto.getDirector());
-            putIfMissing(root, "fecha_inicio", proyecto.getFechaInicio() != null ? proyecto.getFechaInicio().toString() : null);
-            putIfMissing(root, "objetivo_general", proyecto.getObjetivoGeneral());
-
-            copyToFields(fields, "codigo_proyecto", proyecto.getId());
-            copyToFields(fields, "nombre_proyecto", proyecto.getNombre());
-            copyToFields(fields, "patrocinador", proyecto.getPatrocinador() != null ? proyecto.getPatrocinador().getNombre() : null);
-            copyToFields(fields, "director", proyecto.getDirector());
-            copyToFields(fields, "fecha_inicio", proyecto.getFechaInicio() != null ? proyecto.getFechaInicio().toString() : null);
-            copyToFields(fields, "objetivo_general", proyecto.getObjetivoGeneral());
-
-            root.set("fields", fields);
-            return objectMapper.writeValueAsString(root);
-        } catch (Exception ex) {
-            return formDataJson;
-        }
-    }
-
-    private void putIfMissing(ObjectNode root, String key, String value) {
-        if (value == null || value.isBlank() || root.hasNonNull(key)) {
-            return;
-        }
-        root.put(key, value);
-    }
-
-    private void copyToFields(ObjectNode fields, String key, String value) {
-        if (value == null || value.isBlank() || fields.hasNonNull(key)) {
-            return;
-        }
-        fields.put(key, value);
-    }
-
     private CierreProyectoRequest buildRequestFromSavedAnswers(String projectId) {
         List<com.proyecta.api_gestion.model.closure.ClosureAnswer> answers =
                 closureAnswerRepository.findByProyectoIdOrderByQuestion_OrdenAsc(projectId);
@@ -920,13 +814,16 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 }
                 if (!sb.isEmpty()) transferenciaActividad = sb.toString();
                 if (!fechas.isEmpty()) {
-                    try {
-                        transferenciaFecha = LocalDate.parse(fechas.toString().split(";")[0].trim());
-                    } catch (Exception ignored) {}
+                    transferenciaFecha = parseFechaTransferencia(fechas.toString(), projectId);
                 }
                 if (!evidencias.isEmpty()) transferenciaUbicacion = evidencias.toString();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            // CWE-390: sin respuestas de cierre no se puede armar el resumen;
+            // el fallo se registra para que el borrador no quede vacio sin rastro.
+            log.warn("No se pudieron leer las respuestas de cierre del proyecto {}: {}",
+                    projectId, ex.toString());
+        }
 
         if (resumenEjecutivo.isBlank() || leccionesPositivas.isBlank() || leccionesMejorar.isBlank()
                 || recomendaciones.isBlank() || (transferenciaActividad != null && transferenciaActividad.isBlank())) {
@@ -944,6 +841,17 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 null,
                 null
         );
+    }
+
+    private LocalDate parseFechaTransferencia(String fechasConcatenadas, String projectId) {
+        try {
+            return LocalDate.parse(fechasConcatenadas.split(";")[0].trim());
+        } catch (Exception ex) {
+            // CWE-390: fecha de transferencia no parseable; se deja sin valor.
+            log.warn("No se pudo parsear la fecha de transferencia del proyecto {}: {}",
+                    projectId, ex.toString());
+            return null;
+        }
     }
 
     private CierreProyectoRequest mergeRequestWithSavedAnswers(String projectId, CierreProyectoRequest request) {

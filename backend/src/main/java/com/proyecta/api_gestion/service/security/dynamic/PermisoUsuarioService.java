@@ -12,7 +12,6 @@ import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioPermisoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +25,7 @@ import java.util.stream.Collectors;
 public class PermisoUsuarioService {
 
     private static final Logger logger = LoggerFactory.getLogger(PermisoUsuarioService.class);
+    private static final String USUARIO_NO_ENCONTRADO = "Usuario no encontrado: ";
 
     private final SeguridadUsuarioRepository usuarioRepository;
     private final SeguridadPermisoRepository permisoRepository;
@@ -51,7 +51,7 @@ public class PermisoUsuarioService {
 
     public PermisoUsuarioMatrixDTO getMatrix(Long usuarioId) {
         SeguridadUsuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + usuarioId));
+                .orElseThrow(() -> new ResourceNotFoundException(USUARIO_NO_ENCONTRADO + usuarioId));
 
         Set<Long> rolePermisoIds = getRolePermissionIds(usuario.getRolCodigo());
         Map<Long, SeguridadUsuarioPermiso> userOverrides = getUserOverridesMap(usuarioId);
@@ -107,7 +107,7 @@ public class PermisoUsuarioService {
         }
 
         SeguridadUsuario usuario = usuarioRepository.findById(request.usuarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + request.usuarioId()));
+                .orElseThrow(() -> new ResourceNotFoundException(USUARIO_NO_ENCONTRADO + request.usuarioId()));
 
         Set<Long> rolePermisoIds = getRolePermissionIds(usuario.getRolCodigo());
 
@@ -118,7 +118,7 @@ public class PermisoUsuarioService {
         entityManager.clear();
 
         usuario = usuarioRepository.findById(request.usuarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + request.usuarioId()));
+                .orElseThrow(() -> new ResourceNotFoundException(USUARIO_NO_ENCONTRADO + request.usuarioId()));
 
         if (request.permisos() == null || request.permisos().isEmpty()) {
             catalogCacheService.evictAll();

@@ -11,7 +11,9 @@ public class LogoutRequest {
     @Schema(description = "Refresh token del usuario para revocarlo en Keycloak", example = "eyJhbGciOi...")
     private String refreshToken;
 
-    public LogoutRequest() {}
+    public LogoutRequest() {
+        // Constructor vacío intencional: lo requiere Jackson para desserializar la solicitud.
+    }
 
     public String getIdToken() { return idToken; }
     public void setIdToken(String idToken) { this.idToken = idToken; }

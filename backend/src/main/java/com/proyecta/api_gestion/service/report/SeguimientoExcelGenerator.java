@@ -20,6 +20,10 @@ import java.util.List;
 @Service
 public class SeguimientoExcelGenerator {
 
+    private static final String SUBHDR_EJECUTADO = "EJECUTADO";
+    private static final String SUBHDR_ATRASO = "ATRASO";
+    private static final String SUBHDR_PROG_HOY = "PROG HOY";
+
     private final ProyectoRepository proyectoRepository;
     private final PublicEvidenceAccessService evidenceAccessService;
     private final PublicUrlProperties publicUrlProperties;
@@ -125,7 +129,7 @@ public class SeguimientoExcelGenerator {
         titleCell.setCellStyle(headerStyle);
         sheet.addMergedRegion(new CellRangeAddress(0, 0, 1, 25));
 
-        Row row1 = sheet.createRow(1); // Spacing row
+        sheet.createRow(1); // Spacing row
 
         Row row2 = sheet.createRow(2); // Subheader 1
         Row row3 = sheet.createRow(3); // Subheader 2
@@ -135,16 +139,16 @@ public class SeguimientoExcelGenerator {
         subHeader1[3] = "HITO"; subHeader1[4] = "HITO";
         for (int i = 5; i <= 10; i++) subHeader1[i] = "Entregable";
         subHeader1[11] = "ENTREGA"; subHeader1[12] = "Entregable"; subHeader1[13] = "COMENTARIOS";
-        subHeader1[14] = "EJECUTADO"; subHeader1[15] = "EJECUTADO"; subHeader1[16] = "EJECUTADO";
-        subHeader1[17] = "ATRASO"; subHeader1[18] = "ATRASO"; subHeader1[19] = "ATRASO";
-        subHeader1[20] = "PROG HOY"; subHeader1[21] = "PROG HOY"; subHeader1[22] = "PROG HOY";
+        subHeader1[14] = SUBHDR_EJECUTADO; subHeader1[15] = SUBHDR_EJECUTADO; subHeader1[16] = SUBHDR_EJECUTADO;
+        subHeader1[17] = SUBHDR_ATRASO; subHeader1[18] = SUBHDR_ATRASO; subHeader1[19] = SUBHDR_ATRASO;
+        subHeader1[20] = SUBHDR_PROG_HOY; subHeader1[21] = SUBHDR_PROG_HOY; subHeader1[22] = SUBHDR_PROG_HOY;
         subHeader1[23] = "EyE"; subHeader1[24] = "Eficacia"; subHeader1[25] = "Eficiencia";
 
         String[] subHeader2 = new String[26];
         subHeader2[1] = "FASES"; subHeader2[2] = "Pond";
         subHeader2[3] = "HITOS"; subHeader2[4] = "Ponderado";
         subHeader2[5] = "ENTREGABLES"; subHeader2[6] = "Ponderado"; subHeader2[7] = "NOMBRE";
-        subHeader2[8] = "FECHA LIM"; subHeader2[9] = "FECHA ENTREGA"; subHeader2[10] = "ATRASO";
+        subHeader2[8] = "FECHA LIM"; subHeader2[9] = "FECHA ENTREGA"; subHeader2[10] = SUBHDR_ATRASO;
         subHeader2[11] = "OK"; subHeader2[12] = "RUTA EVIDENCIAS"; subHeader2[13] = "EVIDENCIAS";
         subHeader2[14] = "HITO"; subHeader2[15] = "FASE"; subHeader2[16] = "PYTO";
         subHeader2[17] = "HOY"; subHeader2[18] = "PROG"; subHeader2[19] = "VALIDA";
@@ -525,13 +529,7 @@ public class SeguimientoExcelGenerator {
     }
 
     private XSSFCellStyle createHitoStyle(XSSFWorkbook workbook, XSSFColor color) {
-        XSSFCellStyle style = workbook.createCellStyle();
-        style.setFillForegroundColor(color);
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        style.setAlignment(HorizontalAlignment.CENTER);
-        setBorder(style);
-        return style;
+        return createPhaseStyle(workbook, color);
     }
 
     private XSSFCellStyle createColoredStyle(XSSFWorkbook workbook, XSSFColor color, String dataFormat) {

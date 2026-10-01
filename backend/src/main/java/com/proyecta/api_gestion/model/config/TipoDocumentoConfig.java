@@ -33,7 +33,9 @@ public class TipoDocumentoConfig {
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
-    public TipoDocumentoConfig() {}
+    public TipoDocumentoConfig() {
+        // Constructor vacío intencional: lo requiere JPA para instanciar la entidad.
+    }
 
     @PrePersist
     protected void onCreate() {

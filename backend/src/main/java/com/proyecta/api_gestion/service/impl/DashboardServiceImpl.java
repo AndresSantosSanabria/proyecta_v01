@@ -7,8 +7,6 @@ import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,8 +17,6 @@ import java.util.List;
 @Service
 @org.springframework.transaction.annotation.Transactional(readOnly = true)
 public class DashboardServiceImpl implements DashboardService {
-
-    private static final Logger logger = LoggerFactory.getLogger(DashboardServiceImpl.class);
 
     private final ProyectoRepository proyectoRepository;
     private final EntregableRepository entregableRepository;

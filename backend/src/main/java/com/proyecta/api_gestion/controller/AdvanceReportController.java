@@ -20,6 +20,9 @@ import com.proyecta.api_gestion.service.impl.FileStorageServiceImpl;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.security.dynamic.ProyectoSecurity;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -39,6 +42,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/advance-report")
+@Tag(name = "Reporte de Avance", description = "Endpoints para la generación, revisión y devolución del reporte PDF de avance")
 public class AdvanceReportController {
 
     private static final Logger log = LoggerFactory.getLogger(AdvanceReportController.class);
@@ -84,12 +88,13 @@ public class AdvanceReportController {
      * Descarga el informe de avance. Params opcionales: periodo y version
      * (default: periodo vigente y version ACTUAL).
      */
+    @Operation(summary = "Descargar el PDF del informe de avance", description = "Si no se indican periodo ni versión se usa el periodo vigente y la versión ACTUAL.")
     @GetMapping("/download/{projectId}")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<Resource> downloadReport(
-            @PathVariable String projectId,
-            @RequestParam(required = false) String periodo,
-            @RequestParam(required = false) Integer version,
+            @Parameter(description = "Identificador del proyecto") @PathVariable String projectId,
+            @Parameter(description = "Periodo del informe (AAAA-MM), por defecto el vigente") @RequestParam(required = false) String periodo,
+            @Parameter(description = "Número de versión del informe, por defecto la versión ACTUAL") @RequestParam(required = false) Integer version,
             Authentication authentication) {
 
         String pid = projectId.trim().toUpperCase();
@@ -113,17 +118,19 @@ public class AdvanceReportController {
         Resource resource = fileStorageService.loadFileAsResource("informes-avance", versionEntity.getFilePath());
 
         // CWE-113: nunca ecoar el nombre original sin sanear en la cabecera.
-        String safeFileName = upload.getFileName().replaceAll("[^a-zA-Z0-9._-]", "_");
+        String safeFileName = com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.safeFileName(upload.getFileName());
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeFileName + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition("attachment", safeFileName))
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
 
+    @Operation(summary = "Obtener el estado del informe de avance de un proyecto")
     @GetMapping("/status/{projectId}")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<AdvanceReportStatusDTO>> getStatus(
-            @PathVariable String projectId,
+            @Parameter(description = "Identificador del proyecto") @PathVariable String projectId,
             Authentication authentication) {
 
         Proyecto proyecto = proyectoRepository.findById(projectId.trim().toUpperCase())
@@ -141,10 +148,12 @@ public class AdvanceReportController {
     /**
      * Historial de versiones del informe de avance para un periodo.
      */
+    @Operation(summary = "Listar el historial de versiones del informe de avance", description = "Si no se indica periodo se usa el periodo vigente.")
     @GetMapping("/versions/{projectId}")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #projectId, authentication)")
     public ResponseEntity<ApiResponse<List<AdvanceReportVersionDTO>>> getVersions(
-            @PathVariable String projectId,
-            @RequestParam(required = false) String periodo) {
+            @Parameter(description = "Identificador del proyecto") @PathVariable String projectId,
+            @Parameter(description = "Periodo del informe (AAAA-MM), por defecto el vigente") @RequestParam(required = false) String periodo) {
 
         String pid = projectId.trim().toUpperCase();
         String periodoDef = (periodo == null || periodo.isBlank())
@@ -169,7 +178,9 @@ public class AdvanceReportController {
      * Retorna todos los proyectos con informe pendiente (para el modal de login).
      * Misma regla de elegibilidad y autorizacion que el scheduler.
      */
+    @Operation(summary = "Listar proyectos con informe de avance pendiente", description = "Aplica la misma regla de elegibilidad y autorización que el programador de avisos; se usa en el modal de login.")
     @GetMapping("/pending")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<AdvanceReportStatusDTO>>> getPendingProjects(
             Authentication authentication) {
 
@@ -193,8 +204,12 @@ public class AdvanceReportController {
 
     /**
      * Retorna la configuracion actual del motor de reglas.
+     * Solo usuarios autenticados (lo consume el login-check de todos los roles);
+     * no contiene secretos. La escritura exige SISTEMA:CONFIGURAR.
      */
+    @Operation(summary = "Obtener la configuración del motor de reglas del informe de avance", description = "No contiene secretos; solo requiere un usuario autenticado.")
     @GetMapping("/settings")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, String>>> getSettings() {
         Map<String, String> settings = new LinkedHashMap<>();
         settings.put("due_date", systemParameterService.getString(SystemParameterKeys.ADVANCE_REPORT_DUE_DATE, ""));
@@ -216,6 +231,7 @@ public class AdvanceReportController {
     /**
      * Actualiza la configuración del motor de reglas (admin).
      */
+    @Operation(summary = "Actualizar la configuración del motor de reglas", description = "Requiere el permiso SISTEMA:CONFIGURAR. Los cambios se aplican en el próximo ciclo del programador de avisos.")
     @PutMapping("/settings")
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
     public ResponseEntity<ApiResponse<String>> updateSettings(@RequestBody Map<String, String> settings) {
@@ -238,10 +254,11 @@ public class AdvanceReportController {
     /**
      * Verifica (aprueba) un informe de avance. Rol gestor.
      */
+    @Operation(summary = "Verificar (aprobar) el informe de avance del periodo actual", description = "Rol con permiso de revisión; notifica al director que el informe fue verificado.")
     @PutMapping("/verify/{projectId}")
     @PreAuthorize("@proyectoSecurity.canReviewAdvanceReport(#projectId, authentication)")
     public ResponseEntity<ApiResponse<String>> verifyReport(
-            @PathVariable String projectId,
+            @Parameter(description = "Identificador del proyecto") @PathVariable String projectId,
             Authentication authentication) {
 
         String pid = projectId.trim().toUpperCase();
@@ -265,10 +282,11 @@ public class AdvanceReportController {
     /**
      * Devuelve un informe de avance al director con observaciones. Rol gestor.
      */
+    @Operation(summary = "Devolver el informe de avance al director con observaciones", description = "Las observaciones son obligatorias y se notifican al director.")
     @PutMapping("/return/{projectId}")
     @PreAuthorize("@proyectoSecurity.canReviewAdvanceReport(#projectId, authentication)")
     public ResponseEntity<ApiResponse<String>> returnReport(
-            @PathVariable String projectId,
+            @Parameter(description = "Identificador del proyecto") @PathVariable String projectId,
             @RequestBody Map<String, String> body,
             Authentication authentication) {
 
@@ -300,11 +318,12 @@ public class AdvanceReportController {
      * Sube un informe de avance. Crea version nueva (ACTUAL/HISTORICA) y
      * permite re-cargar tras DEVUELTO/VERIFICADO. Rol director.
      */
+    @Operation(summary = "Cargar el informe de avance del proyecto", description = "Crea una versión nueva y permite recargar tras DEVUELTO o VERIFICADO. Valida extensión, tamaño y contenido real del archivo. Rol director.")
     @PostMapping("/upload/{projectId}")
     @PreAuthorize("@proyectoSecurity.canUploadAdvanceReport(#projectId, authentication)")
     public ResponseEntity<ApiResponse<AdvanceReportStatusDTO>> uploadReport(
-            @PathVariable String projectId,
-            @RequestPart("file") MultipartFile file,
+            @Parameter(description = "Identificador del proyecto") @PathVariable String projectId,
+            @Parameter(description = "Archivo del informe de avance (PDF o PPTX)") @RequestPart("file") MultipartFile file,
             Authentication authentication) {
 
         String pid = projectId.trim().toUpperCase();
@@ -424,7 +443,7 @@ public class AdvanceReportController {
             if (!firma.startsWith("%PDF-")) {
                 throw new BadRequestException("El archivo cargado no es un PDF válido.");
             }
-        } catch (IOException ex) {
+        } catch (IOException _) {
             throw new BadRequestException("No fue posible validar el archivo PDF cargado.");
         }
     }
@@ -432,7 +451,7 @@ public class AdvanceReportController {
     private String resolveRol(Authentication authentication) {
         try {
             return localUserAuthorizationService.requireLocalUser(authentication).getRolCodigo();
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }
@@ -465,7 +484,7 @@ public class AdvanceReportController {
                 throw new com.proyecta.api_gestion.exception.BadRequestException(
                         "El contenido del archivo no corresponde a la extension declarada (." + extension + ").");
             }
-        } catch (java.io.IOException ex) {
+        } catch (java.io.IOException _) {
             throw new com.proyecta.api_gestion.exception.BadRequestException(
                     "No se pudo validar el contenido del archivo.");
         }

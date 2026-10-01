@@ -5,6 +5,9 @@ import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.cronograma.CronogramaResponseDTO;
 import com.proyecta.api_gestion.dto.cronograma.CronogramaUploadResponseDTO;
 import com.proyecta.api_gestion.service.interfaces.CronogramaService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -33,11 +36,17 @@ public class CronogramaController implements ICronogramaController {
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Cronograma cargado correctamente",
+        content = @Content(schema = @Schema(implementation = CronogramaUploadResponseDTO.class))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping(value = "/{proyectoId}/cronograma", consumes = "multipart/form-data")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('CRONOGRAMA:CARGAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<CronogramaUploadResponseDTO>> cargarCronograma(
-            @PathVariable String proyectoId, 
-            @RequestPart("archivo") MultipartFile archivo) {
+            @Parameter(description = "ID del proyecto", required = true) @PathVariable String proyectoId,
+            @Parameter(description = "Archivo PDF del cronograma") @RequestPart("archivo") MultipartFile archivo) {
         CronogramaUploadResponseDTO response = cronogramaService.cargarCronograma(proyectoId, archivo);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(response, "Archivo PDF subido y asociado correctamente"));
@@ -49,7 +58,8 @@ public class CronogramaController implements ICronogramaController {
     public ResponseEntity<Resource> descargarCronograma(@PathVariable String proyectoId) {
         Resource resource = cronogramaService.descargarCronograma(proyectoId);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition("attachment", resource.getFilename()))
                 .body(resource);
     }
 }

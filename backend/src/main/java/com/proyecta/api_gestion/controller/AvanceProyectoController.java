@@ -9,12 +9,15 @@ import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.model.DocumentoVersion;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
 import com.proyecta.api_gestion.repository.DocumentoVersionRepository;
 import com.proyecta.api_gestion.repository.EntregableRepository;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -104,34 +107,46 @@ public class AvanceProyectoController implements IAvanceProyectoController {
         return ResponseEntity.ok(ApiResponse.success(result, message));
     }
 
+    @Operation(
+        summary = "Listar versiones documentales de un entregable",
+        description = "Retorna el historico de versiones del PDF de evidencia de un entregable, de la mas reciente a la mas antigua."
+    )
     @GetMapping("/{proyectoId}/avance/entregables/{entregableId}/versiones")
     @PreAuthorize("@proyectoSecurity.canViewDocumentHistory(#proyectoId, authentication)")
     public ResponseEntity<ApiResponse<List<DocumentoVersionDTO>>> listarVersiones(
-            @PathVariable String proyectoId,
-            @PathVariable Integer entregableId,
+            @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001") @PathVariable String proyectoId,
+            @Parameter(description = "Identificador del entregable") @PathVariable Integer entregableId,
             Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(
                 proyectoAvanceService.listarVersiones(proyectoId, entregableId, authentication),
                 "Historico documental obtenido"));
     }
 
+    @Operation(
+        summary = "Listar observaciones documentales de un entregable",
+        description = "Retorna las observaciones registradas sobre la evidencia cargada para un entregable."
+    )
     @GetMapping("/{proyectoId}/avance/entregables/{entregableId}/observaciones")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<List<DocumentoObservacionDTO>>> listarObservaciones(
-            @PathVariable String proyectoId,
-            @PathVariable Integer entregableId,
+            @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001") @PathVariable String proyectoId,
+            @Parameter(description = "Identificador del entregable") @PathVariable Integer entregableId,
             Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(
                 proyectoAvanceService.listarObservaciones(proyectoId, entregableId, authentication),
                 "Observaciones documentales obtenidas"));
     }
 
+    @Operation(
+        summary = "Marcar una observacion de evidencia como subsanada",
+        description = "Cierra una observacion sobre la evidencia de un entregable. Admite un comentario opcional de subsanacion."
+    )
     @PutMapping("/{proyectoId}/avance/entregables/{entregableId}/observaciones/{observacionId}/subsanar")
     @PreAuthorize("@proyectoSecurity.canMarkEvidenceCorrected(#proyectoId, authentication)")
     public ResponseEntity<ApiResponse<DocumentoObservacionDTO>> marcarObservacionSubsanada(
-            @PathVariable String proyectoId,
-            @PathVariable Integer entregableId,
-            @PathVariable Long observacionId,
+            @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001") @PathVariable String proyectoId,
+            @Parameter(description = "Identificador del entregable") @PathVariable Integer entregableId,
+            @Parameter(description = "Identificador de la observacion a subsanar") @PathVariable Long observacionId,
             @RequestBody(required = false) DocumentoSubsanacionRequest request,
             Authentication authentication) {
         String comentario = request != null ? request.comentario() : null;
@@ -140,12 +155,16 @@ public class AvanceProyectoController implements IAvanceProyectoController {
                 "Observacion marcada como subsanada"));
     }
 
+    @Operation(
+        summary = "Revertir a una version anterior de la evidencia",
+        description = "Restaura una version documental previa como version vigente del entregable. Admite un motivo opcional de reversion."
+    )
     @PostMapping("/{proyectoId}/avance/entregables/{entregableId}/versiones/{versionId}/revertir")
     @PreAuthorize("@proyectoSecurity.canRevertDocumentVersion(#proyectoId, authentication)")
     public ResponseEntity<ApiResponse<EntregableAprobadoResponseDTO>> revertirVersion(
-            @PathVariable String proyectoId,
-            @PathVariable Integer entregableId,
-            @PathVariable Long versionId,
+            @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001") @PathVariable String proyectoId,
+            @Parameter(description = "Identificador del entregable") @PathVariable Integer entregableId,
+            @Parameter(description = "Numero de version a restaurar") @PathVariable Long versionId,
             @RequestBody(required = false) DocumentoReversionRequest request,
             Authentication authentication) {
         String motivo = request != null ? request.motivo() : null;
@@ -154,11 +173,15 @@ public class AvanceProyectoController implements IAvanceProyectoController {
                 "Version documental restaurada"));
     }
 
+    @Operation(
+        summary = "Descargar la evidencia vigente de un entregable",
+        description = "Retorna el archivo PDF de la version vigente de la evidencia cargada para el entregable, con disposicion en linea (inline)."
+    )
     @GetMapping("/{proyectoId}/avance/entregables/{entregableId}/evidencia")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<Resource> descargarEvidencia(
-            @PathVariable String proyectoId,
-            @PathVariable Integer entregableId) {
+            @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001") @PathVariable String proyectoId,
+            @Parameter(description = "Identificador del entregable") @PathVariable Integer entregableId) {
         Entregable entregable = entregableRepository.findByIdAndProyectoIdWithHierarchy(entregableId, proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado en el proyecto solicitado: " + entregableId));
 
@@ -186,9 +209,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
     }
 
     private String inlinePdfName(String fileName) {
-        String safeName = (fileName == null || fileName.isBlank())
-                ? "evidencia.pdf"
-                : fileName.replace("\"", "");
+        String safeName = com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.safeFileName(fileName);
         return ContentDisposition.inline()
                 .filename(safeName, StandardCharsets.UTF_8)
                 .build()
@@ -200,7 +221,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
                         entregable.getId(),
                         DocumentoVersionEstado.ACTUAL
                 )
-                .map(version -> version.getNombreArchivoOriginal())
+                .map(DocumentoVersion::getNombreArchivoOriginal)
                 .filter(nombre -> nombre != null && !nombre.isBlank())
                 .map(nombre -> nombre.replace("\"", ""))
                 .orElse(entregable.getArchivoPdf());

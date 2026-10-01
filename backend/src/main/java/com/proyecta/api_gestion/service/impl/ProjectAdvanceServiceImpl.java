@@ -61,6 +61,18 @@ import java.nio.charset.StandardCharsets;
 @Service
 public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
+    private static final String ATTR_DELIVERABLE_NAME = "deliverableName";
+    private static final String ATTR_PROJECT_NAME = "projectName";
+    private static final String ATTR_RECIPIENTS = "recipients";
+    private static final String MIME_PDF = "application/pdf";
+    private static final String MSG_ENTREGABLE_NO_ENCONTRADO = "Entregable no encontrado: ";
+    private static final String STORAGE_EVIDENCIAS = "evidencias";
+    private static final String URL_PROYECTOS_PREFIX = "/api/v1/proyectos/";
+    private static final String URL_AVANCE_ENTREGABLES = "/avance/entregables/";
+    private static final String URL_EVIDENCIA_SUFFIX = "/evidencia";
+    private static final String AUDIT_OBSERVACION_ID_PREFIX = "observacionId=";
+    private static final String USUARIO_SISTEMA = "sistema";
+
     private final ProyectoRepository proyectoRepository;
     private final EntregableRepository entregableRepository;
     private final IProgressCalculator progressCalculator;
@@ -144,14 +156,14 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             throw new UnprocessableEntityException("El archivo de evidencia es requerido");
         }
 
-        if (!"application/pdf".equals(evidencia.getContentType())) {
+        if (!MIME_PDF.equals(evidencia.getContentType())) {
             throw new UnprocessableEntityException("El archivo debe ser un PDF");
         }
 
         validarPdfReal(evidencia);
 
         Entregable entregable = entregableRepository.findById(entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
 
         try {
             entregable.asegurarModificable();
@@ -175,7 +187,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         String storedName = null;
 
         try {
-            storedName = storageProvider.storeFile(evidencia, "evidencias", fileName);
+            storedName = storageProvider.storeFile(evidencia, STORAGE_EVIDENCIAS, fileName);
             DocumentoVersion nuevaVersion = registrarNuevaVersion(entregable, evidencia, storedName, fechaEntrega, actor);
 
             entregable.completar(storedName, fechaEntrega);
@@ -211,13 +223,13 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                     proyectoId,
                     actor.username(),
                     java.util.Map.of(
-                            "deliverableName", entregable.getNombre(),
-                            "projectName", proyectoActualizado.getNombre(),
-                            "recipients", ProjectNotificationRecipients.resolve(proyectoActualizado)
+                            ATTR_DELIVERABLE_NAME, entregable.getNombre(),
+                            ATTR_PROJECT_NAME, proyectoActualizado.getNombre(),
+                            ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoActualizado)
                     )));
             ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
             beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
-            String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
+            String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
 
             return new EntregableAprobadoResponseDTO(
                     entregable.getId(),
@@ -228,7 +240,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             );
         } catch (RuntimeException ex) {
             if (storedName != null) {
-                storageProvider.deleteFile("evidencias", storedName);
+                storageProvider.deleteFile(STORAGE_EVIDENCIAS, storedName);
             }
             if (ex instanceof IllegalStateException) {
                 throw new UnprocessableEntityException(ex.getMessage());
@@ -241,7 +253,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     @Transactional
     public EntregableAprobadoResponseDTO aprobarEntregable(String proyectoId, Integer entregableId, Authentication authentication) {
         Entregable entregable = entregableRepository.findById(entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
 
         if (!entregable.getHito().getFase().getProyecto().getId().equals(proyectoId)) {
             throw new UnprocessableEntityException("El entregable no pertenece al proyecto especificado");
@@ -279,13 +291,13 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 proyectoId,
                 actor.username(),
                 java.util.Map.of(
-                        "deliverableName", entregable.getNombre(),
-                        "projectName", proyectoActualizado.getNombre(),
-                        "recipients", ProjectNotificationRecipients.resolve(proyectoActualizado)
+                        ATTR_DELIVERABLE_NAME, entregable.getNombre(),
+                        ATTR_PROJECT_NAME, proyectoActualizado.getNombre(),
+                        ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoActualizado)
                 )));
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
         beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
-        String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
+        String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
 
         return new EntregableAprobadoResponseDTO(
                 entregable.getId(),
@@ -304,7 +316,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         }
 
         Entregable entregable = entregableRepository.findById(entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
 
         if (!entregable.getHito().getFase().getProyecto().getId().equals(proyectoId)) {
             throw new UnprocessableEntityException("El entregable no pertenece al proyecto especificado");
@@ -326,7 +338,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         ActorContext actor = actorContext(authentication);
         DocumentoVersion version = asegurarVersionActual(entregable, actor);
         DocumentoObservacion observacionCreada = crearObservacion(entregable, version, observacion.trim(), actor);
-        auditar(entregable, version, observacionCreada, "OBSERVAR", actor, "observacionId=" + observacionCreada.getId());
+        auditar(entregable, version, observacionCreada, "OBSERVAR", actor, AUDIT_OBSERVACION_ID_PREFIX + observacionCreada.getId());
         entregableRepository.save(entregable);
         entityManager.flush();
 
@@ -343,14 +355,14 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 proyectoId,
                 actor.username(),
                 java.util.Map.of(
-                        "deliverableName", entregable.getNombre(),
-                        "projectName", proyectoActualizado.getNombre(),
+                        ATTR_DELIVERABLE_NAME, entregable.getNombre(),
+                        ATTR_PROJECT_NAME, proyectoActualizado.getNombre(),
                         "observation", observacion.trim(),
-                        "recipients", ProjectNotificationRecipients.resolve(proyectoActualizado)
+                        ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoActualizado)
                 )));
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
         beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
-        String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
+        String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
 
         return new EntregableAprobadoResponseDTO(
                 entregable.getId(),
@@ -397,7 +409,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         observacion.setSubsanadaEn(LocalDateTime.now());
         observacion.setComentarioSubsanacion(trimToNull(comentario));
         DocumentoObservacion guardada = documentoObservacionRepository.save(observacion);
-        auditar(guardada.getEntregable(), guardada.getVersion(), guardada, "SUBSANAR", actor, "observacionId=" + guardada.getId());
+        auditar(guardada.getEntregable(), guardada.getVersion(), guardada, "SUBSANAR", actor, AUDIT_OBSERVACION_ID_PREFIX + guardada.getId());
 
         Proyecto proyectoSubsanacion = guardada.getEntregable() != null
                 && guardada.getEntregable().getHito() != null
@@ -411,9 +423,9 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                 actor.username(),
                 java.util.Map.of(
                         "observationId", guardada.getId(),
-                        "deliverableName", guardada.getEntregable() != null ? guardada.getEntregable().getNombre() : "",
-                        "projectName", proyectoSubsanacion != null ? proyectoSubsanacion.getNombre() : "",
-                        "recipients", ProjectNotificationRecipients.resolve(proyectoSubsanacion)
+                        ATTR_DELIVERABLE_NAME, guardada.getEntregable() != null ? guardada.getEntregable().getNombre() : "",
+                        ATTR_PROJECT_NAME, proyectoSubsanacion != null ? proyectoSubsanacion.getNombre() : "",
+                        ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoSubsanacion)
                 )));
         return toObservacionDto(guardada);
     }
@@ -433,7 +445,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         DocumentoVersion version = documentoVersionRepository.findByIdAndEntregableId(versionId, entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Version documental no encontrada: " + versionId));
 
-        if (!storageProvider.fileExists("evidencias", version.getArchivoStorage())) {
+        if (!storageProvider.fileExists(STORAGE_EVIDENCIAS, version.getArchivoStorage())) {
             throw new ResourceNotFoundException("El archivo fisico de la version seleccionada no esta disponible.");
         }
 
@@ -471,11 +483,11 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
                     proyectoId,
                     actor.username(),
                     java.util.Map.of(
-                            "projectName", proyectoRevert.getNombre() != null ? proyectoRevert.getNombre() : "",
-                            "deliverableName", entregable.getNombre() != null ? entregable.getNombre() : "",
+                            ATTR_PROJECT_NAME, proyectoRevert.getNombre() != null ? proyectoRevert.getNombre() : "",
+                            ATTR_DELIVERABLE_NAME, entregable.getNombre() != null ? entregable.getNombre() : "",
                             "versionNumber", version.getNumeroVersion() != null ? version.getNumeroVersion() : 0,
                             "motivo", motivo.trim(),
-                            "recipients", revertRecipients
+                            ATTR_RECIPIENTS, revertRecipients
                     )));
         }
 
@@ -593,7 +605,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
         Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put("directorName", proyecto.getDirector() != null ? proyecto.getDirector() : "Director");
-        attributes.put("projectName", proyecto.getNombre());
+        attributes.put(ATTR_PROJECT_NAME, proyecto.getNombre());
         attributes.put("projectId", proyecto.getId());
         attributes.put("projectState", proyecto.getEstadoCodigo() != null ? proyecto.getEstadoCodigo() : "DESCONOCIDO");
         attributes.put("avanceTotal", proyecto.getAvanceTotal() != null ? proyecto.getAvanceTotal().toPlainString() : "0.00");
@@ -609,7 +621,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         attributes.put("projectUrl", projectUrl);
         attributes.put("sentBy", actor.username());
         attributes.put("sentAt", sentAt);
-        attributes.put("recipients", ProjectNotificationRecipients.resolve(proyecto));
+        attributes.put(ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto));
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_DIRECTOR_ALERT,
@@ -626,7 +638,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             if (!firma.startsWith("%PDF-")) {
                 throw new UnprocessableEntityException("El archivo cargado no es un PDF válido.");
             }
-        } catch (IOException ex) {
+        } catch (IOException _) {
             throw new UnprocessableEntityException("No fue posible validar el archivo PDF cargado.");
         }
     }
@@ -645,7 +657,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         version.setNumeroVersion(documentoVersionRepository.findMaxNumeroVersionByEntregableId(entregable.getId()) + 1);
         version.setNombreArchivoOriginal(nombreOriginalSeguro(evidencia));
         version.setArchivoStorage(storedName);
-        version.setMimeType(firstNonBlank(evidencia.getContentType(), "application/pdf"));
+        version.setMimeType(firstNonBlank(evidencia.getContentType(), MIME_PDF));
         version.setSizeBytes(evidencia.getSize());
         version.setChecksumSha256(sha256(evidencia));
         version.setFechaEntrega(fechaEntrega);
@@ -667,12 +679,12 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             version.setNumeroVersion(documentoVersionRepository.findMaxNumeroVersionByEntregableId(entregable.getId()) + 1);
             version.setNombreArchivoOriginal(entregable.getArchivoPdf());
             version.setArchivoStorage(entregable.getArchivoPdf());
-            version.setMimeType("application/pdf");
+            version.setMimeType(MIME_PDF);
             version.setFechaEntrega(entregable.getFechaEntregaReal());
             version.setComentarioCarga("Version inicial registrada automaticamente desde evidencia existente.");
             version.setEstado(DocumentoVersionEstado.ACTUAL);
-            version.setSubidoPor(actor != null ? actor.username() : "sistema");
-            version.setSubidoRol(actor != null ? actor.role() : "sistema");
+            version.setSubidoPor(actor != null ? actor.username() : USUARIO_SISTEMA);
+            version.setSubidoRol(actor != null ? actor.role() : USUARIO_SISTEMA);
             return documentoVersionRepository.save(version);
         });
     }
@@ -702,7 +714,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             observacion.setSubsanadaEn(LocalDateTime.now());
             observacion.setComentarioSubsanacion(comentario);
             documentoObservacionRepository.save(observacion);
-            auditar(entregable, observacion.getVersion(), observacion, "SUBSANAR", actor, "observacionId=" + observacion.getId());
+            auditar(entregable, observacion.getVersion(), observacion, "SUBSANAR", actor, AUDIT_OBSERVACION_ID_PREFIX + observacion.getId());
         }
     }
 
@@ -731,7 +743,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
 
     private Entregable cargarEntregableDelProyecto(String proyectoId, Integer entregableId) {
         Entregable entregable = entregableRepository.findById(entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
 
         if (entregable.getHito() == null
                 || entregable.getHito().getFase() == null
@@ -745,7 +757,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     private EntregableAprobadoResponseDTO responseConAvance(String proyectoId, Entregable entregable) {
         Proyecto proyectoActualizado = cargarProyecto(proyectoId);
         ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now());
-        String evidenciaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregable.getId() + "/evidencia";
+        String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
 
         return new EntregableAprobadoResponseDTO(
                 entregable.getId(),
@@ -759,7 +771,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     private DocumentoVersionDTO toVersionDto(DocumentoVersion version) {
         String proyectoId = version.getEntregable().getHito().getFase().getProyecto().getId();
         Integer entregableId = version.getEntregable().getId();
-        String descargaUrl = "/api/v1/proyectos/" + proyectoId + "/avance/entregables/" + entregableId
+        String descargaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregableId
                 + "/versiones/" + version.getId() + "/archivo";
 
         return new DocumentoVersionDTO(
@@ -804,11 +816,11 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
     private ActorContext actorContext(Authentication authentication) {
         try {
             SeguridadUsuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
-            String username = firstNonBlank(usuario.getCorreo(), usuario.getNombre(), identityExtractor.resolveUsername(authentication), "sistema");
+            String username = firstNonBlank(usuario.getCorreo(), usuario.getNombre(), identityExtractor.resolveUsername(authentication), USUARIO_SISTEMA);
             String role = firstNonBlank(SecurityRoleCatalog.normalize(usuario.getRolCodigo()), "sin_rol");
             return new ActorContext(username, role);
-        } catch (RuntimeException ex) {
-            return new ActorContext(firstNonBlank(identityExtractor.resolveUsername(authentication), "sistema"), "sin_rol");
+        } catch (RuntimeException _) {
+            return new ActorContext(firstNonBlank(identityExtractor.resolveUsername(authentication), USUARIO_SISTEMA), "sin_rol");
         }
     }
 
@@ -822,7 +834,7 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(evidencia.getBytes());
             return HexFormat.of().formatHex(hash);
-        } catch (IOException ex) {
+        } catch (IOException _) {
             throw new UnprocessableEntityException("No fue posible calcular la huella del documento cargado.");
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 no esta disponible en el entorno de ejecucion.", ex);

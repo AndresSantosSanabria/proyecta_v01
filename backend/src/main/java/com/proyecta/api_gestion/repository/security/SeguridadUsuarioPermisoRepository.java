@@ -2,9 +2,7 @@ package com.proyecta.api_gestion.repository.security;
 
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioPermiso;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;

@@ -21,15 +21,20 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
     private static final Logger logger = LoggerFactory.getLogger(DynamicJwtAuthoritiesConverter.class);
 
     private static final String KEYCLOAK_ADMIN_ROLE = "admin";
-    private static final String KEYCLOAK_USUARIO_ROLE = "usuario";
 
     private final List<String> resourceClientIds;
+    /**
+     * CWE-266/CWE-287: los claim "scope"/"scp" llegan del token y no son autoridad
+     * de la aplicacion. Solo se convierten en authorities si el scope esta en esta
+     * allowlist explicita (por defecto vacia: no se confia en ningun scope).
+     */
+    private final Set<String> trustedScopes;
     private final SecurityCatalogCacheService catalogCacheService;
     private final KeycloakIdentityExtractor identityExtractor;
-    private final RoleAliasService roleAliasService;
 
     public DynamicJwtAuthoritiesConverter(
             @Value("${gob.security.resource-client-ids}") String resourceClientIds,
+            @Value("${gob.security.trusted-scopes:}") String trustedScopes,
             SecurityCatalogCacheService catalogCacheService,
             KeycloakIdentityExtractor identityExtractor,
             RoleAliasService roleAliasService) {
@@ -37,9 +42,12 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toList();
+        this.trustedScopes = List.of(trustedScopes.split(",")).stream()
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         this.catalogCacheService = catalogCacheService;
         this.identityExtractor = identityExtractor;
-        this.roleAliasService = roleAliasService;
     }
 
     @Override
@@ -61,7 +69,10 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
                 catalogCacheService.getPermissionsForAllRoles().forEach(permission ->
                         authorities.add(new SimpleGrantedAuthority("PERM_" + permission.toUpperCase(Locale.ROOT))));
             } catch (RuntimeException ex) {
-                logger.warn("No se pudieron resolver permisos del catalogo de seguridad para ADMIN. Se continuo con rol ADMIN del JWT: {}", ex.getMessage());
+                // El rol ADMIN del JWT se conserva, pero sin permisos derivados del
+                // catalogo (deny-by-default): no se sustituyen por una lista completa.
+                logger.warn("No se pudieron resolver permisos del catalogo de seguridad para ADMIN; "
+                        + "se mantiene el rol ADMIN del JWT sin permisos del catalogo. causa={}", ex.toString());
             }
         } else {
             authorities.add(new SimpleGrantedAuthority("ROLE_usuario"));
@@ -75,29 +86,41 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
     }
 
     private void addScopes(String scopes, Set<GrantedAuthority> authorities) {
-        if (scopes == null || scopes.isBlank()) {
+        if (scopes == null || scopes.isBlank() || trustedScopes.isEmpty()) {
             return;
         }
 
         for (String scope : scopes.split(" ")) {
             if (!scope.isBlank()) {
-                authorities.add(new SimpleGrantedAuthority("SCOPE_" + scope.trim()));
+                addTrustedScope(scope.trim(), authorities);
             }
         }
     }
 
     private void addScopes(Collection<String> scopes, Set<GrantedAuthority> authorities) {
-        if (scopes == null) {
+        if (scopes == null || trustedScopes.isEmpty()) {
             return;
         }
 
         scopes.stream()
                 .filter(value -> value != null && !value.isBlank())
-                .map(value -> new SimpleGrantedAuthority("SCOPE_" + value.trim()))
-                .forEach(authorities::add);
+                .map(String::trim)
+                .forEach(value -> addTrustedScope(value, authorities));
     }
 
+    private void addTrustedScope(String scope, Set<GrantedAuthority> authorities) {
+        if (trustedScopes.contains(scope)) {
+            authorities.add(new SimpleGrantedAuthority("SCOPE_" + scope));
+        } else if (logger.isDebugEnabled()) {
+            logger.debug("Scope descartado por no estar en la allowlist: {}", scope);
+        }
+    }
+
+    /**
+     * CWE-522: el token JWT nunca se expone como "credentials" de la autenticacion
+     * (evita que aparezca en logs, trazas o eventos de seguridad).
+     */
     private org.springframework.security.core.Authentication authenticationFrom(Jwt jwt) {
-        return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(jwt, jwt.getTokenValue(), List.of());
+        return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(jwt, null, List.of());
     }
 }

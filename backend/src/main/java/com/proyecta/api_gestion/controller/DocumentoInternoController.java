@@ -6,6 +6,9 @@ import com.proyecta.api_gestion.dto.document.DocumentoInternoDTO;
 import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.dto.document.DocumentoInternoDownload;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoInternoService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -52,13 +55,19 @@ public class DocumentoInternoController implements IDocumentoInternoController {
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Documento cargado exitosamente",
+        content = @Content(schema = @Schema(implementation = DocumentoInternoDTO.class))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping(consumes = {"multipart/form-data"})
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('DOCUMENTO_INTERNO:CARGAR', authentication)")
     public ResponseEntity<ApiResponse<DocumentoInternoDTO>> cargar(
-            @RequestPart("nombre") String nombre,
-            @RequestPart(value = "descripcion", required = false) String descripcion,
-            @RequestPart(value = "fechaCreacion", required = false) String fechaCreacion,
-            @RequestPart("archivo") MultipartFile archivo,
+            @Parameter(description = "Nombre del documento interno") @RequestPart("nombre") String nombre,
+            @Parameter(description = "Descripcion del documento interno") @RequestPart(value = "descripcion", required = false) String descripcion,
+            @Parameter(description = "Fecha de creacion en formato yyyy-MM-dd") @RequestPart(value = "fechaCreacion", required = false) String fechaCreacion,
+            @Parameter(description = "Archivo a subir") @RequestPart("archivo") MultipartFile archivo,
             Authentication authentication) {
 
         LocalDate fecha = parseFecha(fechaCreacion);
@@ -89,7 +98,7 @@ public class DocumentoInternoController implements IDocumentoInternoController {
         }
         try {
             return LocalDate.parse(fechaCreacion.trim());
-        } catch (DateTimeParseException ex) {
+        } catch (DateTimeParseException _) {
             throw new BadRequestException("Fecha de creacion invalida. Use el formato YYYY-MM-DD.");
         }
     }
@@ -107,9 +116,6 @@ public class DocumentoInternoController implements IDocumentoInternoController {
     }
 
     private String sanitizeContentDispositionFilename(String filename) {
-        if (filename == null || filename.isBlank()) {
-            return "documento";
-        }
-        return filename.replace("\"", "").replace("\r", "").replace("\n", "");
+        return com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.safeFileName(filename);
     }
 }

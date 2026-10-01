@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class AdvanceReportSchemaEnsurer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdvanceReportSchemaEnsurer.class);
+    private static final String TABLE_ADVANCE_REPORT_UPLOADS = "advance_report_uploads";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -26,11 +27,11 @@ public class AdvanceReportSchemaEnsurer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         try {
-            addColumnIfMissing("advance_report_uploads", "verified_by", "VARCHAR(120)");
-            addColumnIfMissing("advance_report_uploads", "verified_at", "TIMESTAMP");
-            addColumnIfMissing("advance_report_uploads", "returned_by", "VARCHAR(120)");
-            addColumnIfMissing("advance_report_uploads", "returned_at", "TIMESTAMP");
-            addColumnIfMissing("advance_report_uploads", "subido_rol", "VARCHAR(60)");
+            addColumnIfMissing(TABLE_ADVANCE_REPORT_UPLOADS, "verified_by", "VARCHAR(120)");
+            addColumnIfMissing(TABLE_ADVANCE_REPORT_UPLOADS, "verified_at", "TIMESTAMP");
+            addColumnIfMissing(TABLE_ADVANCE_REPORT_UPLOADS, "returned_by", "VARCHAR(120)");
+            addColumnIfMissing(TABLE_ADVANCE_REPORT_UPLOADS, "returned_at", "TIMESTAMP");
+            addColumnIfMissing(TABLE_ADVANCE_REPORT_UPLOADS, "subido_rol", "VARCHAR(60)");
 
             jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS advance_report_version (

@@ -15,7 +15,6 @@ import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.model.enums.EstrategiaPeti;
-import com.proyecta.api_gestion.model.enums.NivelRiesgo;
 import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
@@ -29,10 +28,11 @@ import com.proyecta.api_gestion.service.report.RiesgosVerificacionPdfGenerator;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.security.dynamic.ProyectoSecurity;
 import com.proyecta.api_gestion.service.report.EstadoProyectoEspecificoPdfGenerator;
-import com.proyecta.api_gestion.service.report.SimplePdfReportBuilder;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
@@ -45,7 +45,6 @@ import java.text.Normalizer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Set;
@@ -58,11 +57,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Comparator;
-import java.util.stream.Collectors;
 import java.util.Date;
 
 @Service
 public class ReporteServiceImpl implements ReporteService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReporteServiceImpl.class);
 
     private final ProyectoRepository proyectoRepository;
     private final EntregableRepository entregableRepository;
@@ -147,18 +147,14 @@ public class ReporteServiceImpl implements ReporteService {
     @Override
     @Transactional(readOnly = true)
     public Optional<FuragReporteDTO> obtenerFurag(String proyectoId) {
-        return proyectoRepository.findById(proyectoId).map(p -> {
-            return new FuragReporteDTO(
-                    p.getId(),
-                    p.getNombre(),
-                    p.getPeti(),
-                    p.getEstrategiaPetiConfig() != null
-                            ? p.getEstrategiaPetiConfig().getCodigo()
-                            : p.getEstrategiaPeti() != null ? p.getEstrategiaPeti().name() : null,
-                    p.getVigenciaPeti(),
-                    p.getObjetivoGeneral()
-            );
-        });
+        return proyectoRepository.findById(proyectoId).map(p -> new FuragReporteDTO(
+                p.getId(),
+                p.getNombre(),
+                p.getPeti(),
+                codigoEstrategiaPeti(p),
+                p.getVigenciaPeti(),
+                p.getObjetivoGeneral()
+        ));
     }
 
     @Override
@@ -298,7 +294,7 @@ public class ReporteServiceImpl implements ReporteService {
         ) {
             poblarFichaProyecto(workbook.getSheetAt(0), proyecto);
             Map<String, Map<String, Integer>> context = poblarSeguimientoProyecto(workbook.getSheetAt(1), proyecto, avance, corte);
-            poblarAvancesProyecto(workbook.getSheetAt(2), proyecto, avance, context);
+            poblarAvancesProyecto(workbook.getSheetAt(2), proyecto, context);
             workbook.setForceFormulaRecalculation(true);
             workbook.write(outputStream);
             return outputStream.toByteArray();
@@ -397,7 +393,7 @@ public class ReporteServiceImpl implements ReporteService {
                 List<Integer> entRows = hitoEntregableRowsMap.get(detalle.hito());
                 StringBuilder sbO = new StringBuilder();
                 for (int r : entRows) {
-                    if (sbO.length() > 0) sbO.append("+");
+                    if (sbO.isEmpty()) sbO.append("+");
                     sbO.append("(G").append(r).append("*L").append(r).append(")");
                 }
                 setCellFormula(row, 14, sbO.toString());
@@ -409,7 +405,7 @@ public class ReporteServiceImpl implements ReporteService {
                 List<Integer> hRows = faseHitoRowsMap.get(detalle.fase());
                 StringBuilder sbP = new StringBuilder();
                 for (int r : hRows) {
-                    if (sbP.length() > 0) sbP.append("+");
+                    if (sbP.isEmpty()) sbP.append("+");
                     sbP.append("(O").append(r).append("*E").append(r).append(")");
                 }
                 setCellFormula(row, 15, sbP.toString());
@@ -420,7 +416,7 @@ public class ReporteServiceImpl implements ReporteService {
             if (isFirstInProject) {
                 StringBuilder sbQ = new StringBuilder();
                 for (int r : projectFaseFirstRows) {
-                    if (sbQ.length() > 0) sbQ.append("+");
+                    if (sbQ.isEmpty()) sbQ.append("+");
                     sbQ.append("(P").append(r).append("*C").append(r).append(")");
                 }
                 setCellFormula(row, 16, sbQ.toString());
@@ -436,7 +432,7 @@ public class ReporteServiceImpl implements ReporteService {
                 List<Integer> entRows = hitoEntregableRowsMap.get(detalle.hito());
                 StringBuilder sbU = new StringBuilder();
                 for (int r : entRows) {
-                    if (sbU.length() > 0) sbU.append("+");
+                    if (sbU.isEmpty()) sbU.append("+");
                     sbU.append("(G").append(r).append("*T").append(r).append(")");
                 }
                 setCellFormula(row, 20, sbU.toString());
@@ -448,7 +444,7 @@ public class ReporteServiceImpl implements ReporteService {
                 List<Integer> hRows = faseHitoRowsMap.get(detalle.fase());
                 StringBuilder sbV = new StringBuilder();
                 for (int r : hRows) {
-                    if (sbV.length() > 0) sbV.append("+");
+                    if (sbV.isEmpty()) sbV.append("+");
                     sbV.append("(E").append(r).append("*U").append(r).append(")");
                 }
                 setCellFormula(row, 21, sbV.toString());
@@ -459,7 +455,7 @@ public class ReporteServiceImpl implements ReporteService {
             if (isFirstInProject) {
                 StringBuilder sbW = new StringBuilder();
                 for (int r : projectFaseFirstRows) {
-                    if (sbW.length() > 0) sbW.append("+");
+                    if (sbW.isEmpty()) sbW.append("+");
                     sbW.append("(V").append(r).append("*C").append(r).append(")");
                 }
                 setCellFormula(row, 22, sbW.toString());
@@ -525,7 +521,7 @@ public class ReporteServiceImpl implements ReporteService {
         return context;
     }
 
-    private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, Map<String, Map<String, Integer>> context) {
+    private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, Map<String, Map<String, Integer>> context) {
         setCellText(ensureRow(sheet, 1), 1, "AVANCES DEL PROYECTO " + safe(proyecto.getId()));
 
         Map<String, Integer> faseFirstRowMap = context != null ? context.get("faseFirstRows") : Map.of();
@@ -592,15 +588,6 @@ public class ReporteServiceImpl implements ReporteService {
         }
     }
 
-    private int escribirAvance(Sheet sheet, int rowIndex, String nombre, BigDecimal programado, BigDecimal ejecutado, String estado) {
-        Row row = ensureRow(sheet, rowIndex);
-        setCellText(row, 2, nombre);
-        setCellPercent(row, 3, ratioDesdePorcentaje(programado));
-        setCellPercent(row, 4, ratioDesdePorcentaje(ejecutado));
-        setCellPercent(row, 5, ratioDesdePorcentaje(safeDecimal(programado).subtract(safeDecimal(ejecutado))));
-        setCellText(row, 6, safe(estado).replace('_', ' '));
-        return rowIndex + 1;
-    }
 
     private void prepararFilasDetalle(Sheet sheet, int totalFilas) {
         int firstDataRow = 4;
@@ -627,46 +614,12 @@ public class ReporteServiceImpl implements ReporteService {
         }
     }
 
-    private String formulaAtraso(int row) {
-        return "IF(I" + row + "=\"\",\"\",IF(J" + row + "=\"\",MIN(0,I" + row + "-R" + row + "),I" + row + "-J" + row + "))";
-    }
 
-    private String formulaPromedioPorHito(int row, int totalFilas, String column) {
-        int lastRow = 4 + Math.max(totalFilas, 1);
-        return "IFERROR(AVERAGEIFS($" + column + "$5:$" + column + "$" + lastRow + ",$D$5:$D$" + lastRow + ",D" + row + "),0)";
-    }
 
-    private String formulaPonderadoPorHito(int row, int totalFilas) {
-        int lastRow = 4 + Math.max(totalFilas, 1);
-        return "SUMPRODUCT(($D$5:$D$" + lastRow + "=D" + row + ")*$G$5:$G$" + lastRow + "*$L$5:$L$" + lastRow + ")";
-    }
 
-    private String formulaPonderadoPorFase(int row, int totalFilas) {
-        int lastRow = 4 + Math.max(totalFilas, 1);
-        return "SUMPRODUCT(($B$5:$B$" + lastRow + "=B" + row + ")*$E$5:$E$" + lastRow + "*$O$5:$O$" + lastRow + ")";
-    }
 
-    private String formulaPonderadoPyto(int row, List<DetalleSeguimiento> detalles) {
-        java.util.LinkedHashMap<String, Integer> faseFirstRow = new java.util.LinkedHashMap<>();
-        for (int i = 0; i < detalles.size(); i++) {
-            faseFirstRow.putIfAbsent(detalles.get(i).fase(), 5 + i);
-        }
-        StringBuilder sb = new StringBuilder();
-        for (int faseRow : faseFirstRow.values()) {
-            if (sb.length() > 0) sb.append("+");
-            sb.append("(P").append(faseRow).append("*C").append(faseRow).append(")");
-        }
-        return sb.length() > 0 ? sb.toString() : "0";
-    }
 
-    private String formulaPromedioPorFase(int row, int totalFilas, String column) {
-        int lastRow = 4 + Math.max(totalFilas, 1);
-        return "IFERROR(AVERAGEIFS($" + column + "$5:$" + column + "$" + lastRow + ",$B$5:$B$" + lastRow + ",B" + row + "),0)";
-    }
 
-    private void limpiarFilas(Sheet sheet, int fromRow, int toRow, int fromColumn, int toColumn) {
-        for (int row = fromRow; row <= toRow; row++) clearTemplateRow(ensureRow(sheet, row), fromColumn, toColumn);
-    }
 
     private List<DetalleSeguimiento> detallesSeguimiento(Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
         Map<Integer, FaseAvanceDTO> fases = safeList(avance.fases()).stream()
@@ -732,6 +685,11 @@ public class ReporteServiceImpl implements ReporteService {
         return proyecto.getEstrategiaPeti() == null ? "" : proyecto.getEstrategiaPeti().name().replace('_', ' ');
     }
 
+    private String codigoEstrategiaPeti(Proyecto proyecto) {
+        if (proyecto.getEstrategiaPetiConfig() != null) return proyecto.getEstrategiaPetiConfig().getCodigo();
+        return proyecto.getEstrategiaPeti() == null ? null : proyecto.getEstrategiaPeti().name();
+    }
+
     private String nombreEntregable(Entregable entregable) {
         String descripcion = safe(entregable.getDescripcion());
         return descripcion.isBlank() ? safe(entregable.getNombre()) : descripcion;
@@ -768,7 +726,10 @@ public class ReporteServiceImpl implements ReporteService {
                             .toList();
                 }
             } catch (RuntimeException ex) {
-                // Si no tiene acceso global, continuamos con el alcance de proyectos asignados.
+                // CWE-390: degradar a scope menor es el camino seguro, pero el fallo
+                // del chequeo de autorizacion jamas debe quedar sin registro.
+                log.warn("No se pudo evaluar acceso global para portafolio; "
+                        + "se restringe al alcance de proyectos asignados. causa={}", ex.toString());
             }
         }
 
@@ -1039,63 +1000,10 @@ public class ReporteServiceImpl implements ReporteService {
         );
     }
 
-    private CellStyle crearEstiloTitulo(Workbook workbook) {
-        Font font = workbook.createFont();
-        font.setBold(true);
-        font.setFontHeightInPoints((short) 14);
-        font.setColor(IndexedColors.WHITE.getIndex());
 
-        CellStyle style = workbook.createCellStyle();
-        style.setFont(font);
-        style.setFillForegroundColor(IndexedColors.DARK_GREEN.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
-    }
 
-    private CellStyle crearEstiloSubtitulo(Workbook workbook) {
-        Font font = workbook.createFont();
-        font.setBold(true);
-        font.setColor(IndexedColors.WHITE.getIndex());
 
-        CellStyle style = workbook.createCellStyle();
-        style.setFont(font);
-        style.setFillForegroundColor(IndexedColors.GREEN.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
-    }
 
-    private CellStyle crearEstiloEncabezado(Workbook workbook) {
-        Font font = workbook.createFont();
-        font.setBold(true);
-        font.setColor(IndexedColors.WHITE.getIndex());
-
-        CellStyle style = workbook.createCellStyle();
-        style.setFont(font);
-        style.setAlignment(HorizontalAlignment.CENTER);
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        style.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        applyThinBorders(style);
-        return style;
-    }
-
-    private CellStyle crearEstiloTexto(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        applyThinBorders(style);
-        return style;
-    }
-
-    private CellStyle crearEstiloTextoNegrita(Workbook workbook) {
-        Font font = workbook.createFont();
-        font.setBold(true);
-
-        CellStyle style = workbook.createCellStyle();
-        style.setFont(font);
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        applyThinBorders(style);
-        return style;
-    }
 
     private CellStyle crearEstiloNumero(Workbook workbook) {
         CellStyle style = workbook.createCellStyle();
@@ -1113,39 +1021,9 @@ public class ReporteServiceImpl implements ReporteService {
         return style;
     }
 
-    private CellStyle crearEstiloResumenEtiqueta(Workbook workbook) {
-        Font font = workbook.createFont();
-        font.setBold(true);
 
-        CellStyle style = workbook.createCellStyle();
-        style.setFont(font);
-        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        applyThinBorders(style);
-        return style;
-    }
 
-    private CellStyle crearEstiloResumenNumero(Workbook workbook) {
-        CellStyle style = crearEstiloNumero(workbook);
-        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
-    }
 
-    private CellStyle crearEstiloResumenPorcentaje(Workbook workbook) {
-        CellStyle style = crearEstiloPorcentaje(workbook);
-        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
-    }
-
-    private CellStyle crearEstiloFecha(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setDataFormat(workbook.createDataFormat().getFormat("dd/mm/yyyy"));
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        applyThinBorders(style);
-        return style;
-    }
 
     private void applyThinBorders(CellStyle style) {
         style.setBorderTop(BorderStyle.THIN);
@@ -1154,38 +1032,12 @@ public class ReporteServiceImpl implements ReporteService {
         style.setBorderRight(BorderStyle.THIN);
     }
 
-    private void createStringCell(Row row, int column, String value, CellStyle style) {
-        Cell cell = row.createCell(column);
-        cell.setCellValue(value != null ? value : "");
-        cell.setCellStyle(style);
-    }
 
-    private void createNumberCell(Row row, int column, BigDecimal value, CellStyle style) {
-        Cell cell = row.createCell(column);
-        if (value != null) {
-            cell.setCellValue(value.doubleValue());
-        }
-        cell.setCellStyle(style);
-    }
 
-    private void createNumberCell(Row row, int column, Long value, CellStyle style) {
-        Cell cell = row.createCell(column);
-        if (value != null) {
-            cell.setCellValue(value.doubleValue());
-        }
-        cell.setCellStyle(style);
-    }
 
-    private void createNumberCell(Row row, int column, Integer value, CellStyle style) {
-        Cell cell = row.createCell(column);
-        if (value != null) {
-            cell.setCellValue(value.doubleValue());
-        }
-        cell.setCellStyle(style);
-    }
 
     private BigDecimal promedio(List<BigDecimal> values) {
-        List<BigDecimal> safeValues = values.stream().filter(value -> value != null).toList();
+        List<BigDecimal> safeValues = values.stream().filter(java.util.Objects::nonNull).toList();
         if (safeValues.isEmpty()) {
             return BigDecimal.ZERO;
         }
@@ -1318,17 +1170,6 @@ public class ReporteServiceImpl implements ReporteService {
                         .toList();
     }
 
-    private List<Hito> ordenarHitos(Fase fase) {
-        return fase.getHitos() == null ? List.of() :
-                fase.getHitos().stream()
-                        .sorted((a, b) -> {
-                            if (a.getId() == null && b.getId() == null) return 0;
-                            if (a.getId() == null) return 1;
-                            if (b.getId() == null) return -1;
-                            return Integer.compare(a.getId(), b.getId());
-                        })
-                        .toList();
-    }
 
     private List<Entregable> obtenerEntregablesProyecto(String proyectoId) {
         return entregableRepository.findByProyectoId(proyectoId).stream()
@@ -1365,79 +1206,15 @@ public class ReporteServiceImpl implements ReporteService {
                 || Boolean.TRUE.equals(entregable.getConforme());
     }
 
-    private String estadoEntregable(Entregable entregable) {
-        if (entregable == null) {
-            return "No disponible";
-        }
-        if (EstadoEntregable.APROBADO.equals(entregable.getEstado()) || Boolean.TRUE.equals(entregable.getConforme())) {
-            return "Aprobado";
-        }
-        if (EstadoEntregable.COMPLETADO.equals(entregable.getEstado())) {
-            return "Completado";
-        }
-        if (entregable.getFechaLimite() != null && entregable.getFechaLimite().isBefore(LocalDate.now())) {
-            return "Vencido";
-        }
-        return "Pendiente";
-    }
 
-    private String estadoFase(Fase fase) {
-        if (fase == null || fase.getAvanceCalculado() == null) {
-            return "Pendiente";
-        }
-        if (fase.getAvanceCalculado().compareTo(new BigDecimal("100")) >= 0) {
-            return "Cumplido";
-        }
-        if (fase.getAvanceCalculado().compareTo(BigDecimal.ZERO) > 0) {
-            return "En progreso";
-        }
-        return "Pendiente";
-    }
 
-    private String estadoHito(Hito hito) {
-        if (hito == null || hito.getAvanceCalculado() == null) {
-            return "Pendiente";
-        }
-        if (hito.getAvanceCalculado().compareTo(new BigDecimal("100")) >= 0) {
-            return "Cumplido";
-        }
-        if (hito.getAvanceCalculado().compareTo(BigDecimal.ZERO) > 0) {
-            return "En progreso";
-        }
-        return "Pendiente";
-    }
 
-    private String formatDate(java.time.LocalDate date) {
-        if (date == null) {
-            return "No disponible";
-        }
-        return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-    }
 
-    private String vigenciaDelProyecto(Proyecto proyecto) {
-        if (proyecto == null) {
-            return vigenciaGlobal();
-        }
-        String vigencia = proyecto.getVigenciaPeti();
-        if (vigencia != null && !vigencia.isBlank()) {
-            return vigencia;
-        }
-        return vigenciaGlobal();
-    }
 
     private String vigenciaGlobal() {
         int year = LocalDate.now().getYear();
         return year + "-" + (year + 3);
     }
 
-    private static String formatPercent(BigDecimal value) {
-        if (value == null) {
-            return "0.00%";
-        }
-        BigDecimal normalized = value;
-        if (normalized.compareTo(BigDecimal.ONE) <= 0) {
-            normalized = normalized.multiply(BigDecimal.valueOf(100));
-        }
-        return normalized.setScale(2, RoundingMode.HALF_UP) + "%";
-    }
 }
+

@@ -15,14 +15,13 @@ public class DatabaseRetryConfig implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        if (bean instanceof DataSource) {
-            DataSource dataSource = (DataSource) bean;
+        if (bean instanceof DataSource dataSource) {
             int maxRetries = 20;
             int retries = 0;
             long waitInterval = 3000; // 3 seconds
 
             while (retries < maxRetries) {
-                try (Connection conn = dataSource.getConnection()) {
+                try (Connection _ = dataSource.getConnection()) {
                     logger.info("Database connection is ready.");
                     break;
                 } catch (Exception e) {
@@ -31,12 +30,12 @@ public class DatabaseRetryConfig implements BeanPostProcessor {
                             retries, maxRetries, waitInterval, e.getMessage());
                     if (retries >= maxRetries) {
                         logger.error("Failed to connect to the database after {} attempts.", maxRetries);
-                        break;
-                    }
-                    try {
-                        Thread.sleep(waitInterval);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
+                    } else {
+                        try {
+                            Thread.sleep(waitInterval);
+                        } catch (InterruptedException _) {
+                            Thread.currentThread().interrupt();
+                        }
                     }
                 }
             }

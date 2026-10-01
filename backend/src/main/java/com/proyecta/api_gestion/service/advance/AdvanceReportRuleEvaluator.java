@@ -160,7 +160,7 @@ public class AdvanceReportRuleEvaluator {
                     dates.add(LocalDate.parse(token, ISO_DATE));
                 }
             }
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.warn("Valor inválido para advance_report_specific_override_dates: '{}'", raw);
         }
         return dates;

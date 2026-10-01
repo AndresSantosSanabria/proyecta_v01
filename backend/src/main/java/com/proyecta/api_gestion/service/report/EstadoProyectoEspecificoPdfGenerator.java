@@ -43,7 +43,6 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
     private static final PDRectangle PAGE_SIZE = PDRectangle.A4;
     private static final float PAGE_WIDTH = PAGE_SIZE.getWidth();
-    private static final float PAGE_HEIGHT = PAGE_SIZE.getHeight();
 
     private static final float LEFT = 82f;
     private static final float RIGHT = 82f;
@@ -61,6 +60,11 @@ public final class EstadoProyectoEspecificoPdfGenerator {
     private static final Color COLOR_TEXT = new Color(18, 18, 18);
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_RULE = new Color(152, 152, 152);
+
+    private static final String NO_APLICA = "No aplica";
+    private static final String PORCENTAJE_CERO = "0.00%";
+    private static final String PENDIENTE = "Pendiente";
+    private static final String NO_DISPONIBLE = "No disponible";
 
     private enum DetailMode {
         RESUMIDO,
@@ -90,7 +94,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             PdfCanvas canvas = new PdfCanvas(document, fonts);
             DetailMode mode = DetailMode.from(detailMode);
 
-            canvas.renderPageOne(proyecto, objetivos, fases, entregablesPendientes, entregablesConformes, mode.isDetailed());
+            canvas.renderPageOne(proyecto, objetivos, mode.isDetailed());
             if (mode.isDetailed()) {
                 canvas.renderPageTwo(fases);
                 canvas.renderPageThree(proyecto, entregablesPendientes, entregablesConformes);
@@ -120,7 +124,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                             true
                     );
                 }
-            } catch (IOException ignored) {
+            } catch (IOException _) {
                 // Se intenta con el siguiente candidato.
             }
         }
@@ -147,9 +151,6 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
         void renderPageOne(Proyecto proyecto,
                            List<ObjetivoEspecifico> objetivos,
-                           List<Fase> fases,
-                           List<Entregable> entregablesPendientes,
-                           List<Entregable> entregablesConformes,
                            boolean detailed) throws IOException {
             startPage();
             drawHeaderLogo();
@@ -277,7 +278,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
         private List<List<String>> phasesRows(List<Fase> fases) {
             if (fases == null || fases.isEmpty()) {
-                return List.of(List.of("Sin fases registradas", "No aplica", "0.00%", "Pendiente"));
+                return List.of(List.of("Sin fases registradas", NO_APLICA, PORCENTAJE_CERO, PENDIENTE));
             }
             return fases.stream()
                     .sorted(Comparator.comparing(Fase::getId, Comparator.nullsLast(Integer::compareTo)))
@@ -310,7 +311,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                         });
             }
             if (rows.isEmpty()) {
-                rows.add(List.of("Sin hitos registrados", "No aplica", "Pendiente", "0.00%"));
+                rows.add(List.of("Sin hitos registrados", NO_APLICA, PENDIENTE, PORCENTAJE_CERO));
             }
             return rows;
         }
@@ -330,7 +331,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                 }
             }
             if (rows.isEmpty()) {
-                rows.add(List.of("Sin entregables vencidos", "No aplica", "No aplica", "No aplica", "No aplica", "No aplica"));
+                rows.add(List.of("Sin entregables vencidos", NO_APLICA, NO_APLICA, NO_APLICA, NO_APLICA, NO_APLICA));
             }
             return rows;
         }
@@ -349,14 +350,14 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                 }
             }
             if (rows.isEmpty()) {
-                rows.add(List.of("Sin entregables aprobados", "No aplica", "No aplica", "No aplica", "No aplica"));
+                rows.add(List.of("Sin entregables aprobados", NO_APLICA, NO_APLICA, NO_APLICA, NO_APLICA));
             }
             return rows;
         }
 
         private String projectoApprover(Proyecto proyecto) {
             if (proyecto == null) {
-                return "No disponible";
+                return NO_DISPONIBLE;
             }
             Patrocinador patrocinador = proyecto.getPatrocinador();
             if (patrocinador == null) {
@@ -593,7 +594,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
         }
 
         private List<String> wrap(String text, PDFont font, float fontSize, float width) throws IOException {
-            String value = text == null || text.isBlank() ? "No disponible" : text;
+            String value = text == null || text.isBlank() ? NO_DISPONIBLE : text;
             String normalized = normalizeForFont(value);
             String[] paragraphs = normalized.split("\\R");
             List<String> result = new ArrayList<>();
@@ -626,7 +627,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                 }
             }
             if (result.isEmpty()) {
-                result.add("No disponible");
+                result.add(NO_DISPONIBLE);
             }
             return result;
         }
@@ -667,7 +668,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
         }
 
         private String safe(String value) {
-            return value == null || value.isBlank() ? "No disponible" : value.trim();
+            return value == null || value.isBlank() ? NO_DISPONIBLE : value.trim();
         }
 
         private String valueOrPlaceholder(String value, String placeholder) {
@@ -683,10 +684,10 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             }
             String nombre = safe(patrocinador.getNombre());
             String cargo = safe(patrocinador.getCargo());
-            if (!nombre.equals("No disponible") && !cargo.equals("No disponible")) {
+            if (!nombre.equals(NO_DISPONIBLE) && !cargo.equals(NO_DISPONIBLE)) {
                 return nombre + " - " + cargo;
             }
-            if (!nombre.equals("No disponible")) {
+            if (!nombre.equals(NO_DISPONIBLE)) {
                 return nombre;
             }
             return "No asignado";
@@ -694,7 +695,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
         private String associatedLabel(Entregable entregable) {
             if (entregable == null || entregable.getHito() == null) {
-                return "No aplica";
+                return NO_APLICA;
             }
             Hito hito = entregable.getHito();
             if (hito.getFase() == null) {
@@ -705,7 +706,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
         private String estadoEntregableReporte(Entregable entregable) {
             if (entregable == null) {
-                return "Pendiente";
+                return PENDIENTE;
             }
             if (EstadoEntregable.APROBADO.equals(entregable.getEstado()) || Boolean.TRUE.equals(entregable.getConforme())) {
                 return "Aprobado";
@@ -714,14 +715,14 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                 return "En revisión";
             }
             if (entregable.getFechaLimite() != null && entregable.getFechaLimite().isBefore(LocalDate.now())) {
-                return "Pendiente";
+                return PENDIENTE;
             }
             return "En revisión";
         }
 
         private String estadoFase(Fase fase) {
             if (fase == null || fase.getAvanceCalculado() == null) {
-                return "Pendiente";
+                return PENDIENTE;
             }
             if (fase.getAvanceCalculado().compareTo(new BigDecimal("100")) >= 0) {
                 return "Cumplido";
@@ -729,12 +730,12 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             if (fase.getAvanceCalculado().compareTo(BigDecimal.ZERO) > 0) {
                 return "En progreso";
             }
-            return "Pendiente";
+            return PENDIENTE;
         }
 
         private String estadoHito(Hito hito) {
             if (hito == null || hito.getAvanceCalculado() == null) {
-                return "Pendiente";
+                return PENDIENTE;
             }
             if (hito.getAvanceCalculado().compareTo(new BigDecimal("100")) >= 0) {
                 return "Cumplido";
@@ -742,7 +743,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             if (hito.getAvanceCalculado().compareTo(BigDecimal.ZERO) > 0) {
                 return "En progreso";
             }
-            return "Pendiente";
+            return PENDIENTE;
         }
 
         private String formatDate(LocalDate date) {
@@ -759,7 +760,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             if (fallback != null) {
                 return formatDate(fallback);
             }
-            return "No disponible";
+            return NO_DISPONIBLE;
         }
 
         private String vigenciaDelProyecto(Proyecto proyecto) {
@@ -772,7 +773,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
         private String formatPercent(BigDecimal value) {
             if (value == null) {
-                return "0.00%";
+                return PORCENTAJE_CERO;
             }
             BigDecimal normalized = value;
             if (normalized.compareTo(BigDecimal.ONE) <= 0) {

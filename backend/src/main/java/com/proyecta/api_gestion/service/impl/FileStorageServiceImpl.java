@@ -16,11 +16,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -38,7 +38,7 @@ public class FileStorageServiceImpl implements IStorageProvider {
 
         try {
             Files.createDirectories(this.defaultStorageLocation);
-        } catch (Exception ex) {
+        } catch (Exception _) {
             throw new InternalErrorException("No se pudo crear el directorio de almacenamiento por defecto: " + this.defaultStorageLocation);
         }
     }
@@ -157,7 +157,7 @@ public class FileStorageServiceImpl implements IStorageProvider {
                 return false;
             }
             return Files.exists(filePath);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return false;
         }
     }
@@ -213,6 +213,25 @@ public class FileStorageServiceImpl implements IStorageProvider {
     // --- Metodos publicos para validacion externa (controller) ---
 
     /**
+     * Directorios que nunca pueden ser la base de almacenamiento (CWE-22 / CWE-73):
+     * el valor viene de un input del administrador y el test crea el directorio.
+     */
+    private static final List<Path> RUTAS_SISTEMA_PROHIBIDAS = List.of(
+            Paths.get("C:\\Windows"),
+            Paths.get("C:\\Program Files"),
+            Paths.get("C:\\Program Files (x86)"),
+            Paths.get("C:\\ProgramData"),
+            Paths.get("/etc"),
+            Paths.get("/proc"),
+            Paths.get("/sys"),
+            Paths.get("/dev"),
+            Paths.get("/bin"),
+            Paths.get("/sbin"),
+            Paths.get("/usr"),
+            Paths.get("/boot"),
+            Paths.get("/root"));
+
+    /**
      * Valida si una ruta es valida como base de almacenamiento.
      * Retorna null si es valida, o un mensaje de error si no lo es.
      */
@@ -221,15 +240,30 @@ public class FileStorageServiceImpl implements IStorageProvider {
             return "La ruta no puede estar vacia.";
         }
 
-        if (path.contains("..")) {
+        String ruta = path.trim();
+
+        if (ruta.contains("..")) {
             return "La ruta contiene secuencias de trayectoria no permitidas (..).";
+        }
+
+        // CWE-73: no se permiten rutas de red (UNC) ni rutas relativas.
+        if (ruta.startsWith("\\\\") || ruta.startsWith("//")) {
+            return "No se permiten rutas de red (UNC).";
         }
 
         Path resolved;
         try {
-            resolved = Paths.get(path).toAbsolutePath().normalize();
-        } catch (Exception e) {
-            return "La ruta no es valida: " + e.getMessage();
+            resolved = Paths.get(ruta).toAbsolutePath().normalize();
+        } catch (Exception _) {
+            return "La ruta no es valida.";
+        }
+
+        if (!resolved.isAbsolute()) {
+            return "Debe indicar una ruta absoluta.";
+        }
+
+        if (esRutaSistemaProhibida(resolved)) {
+            return "No se permite usar un directorio del sistema como ruta de almacenamiento.";
         }
 
         Path parent = resolved.getParent();
@@ -241,10 +275,8 @@ public class FileStorageServiceImpl implements IStorageProvider {
             return "La ruta existe pero no es un directorio.";
         }
 
-        if (Files.exists(resolved)) {
-            if (!Files.isWritable(resolved)) {
-                return "El directorio no tiene permisos de escritura.";
-            }
+        if (Files.exists(resolved) && !Files.isWritable(resolved)) {
+            return "El directorio no tiene permisos de escritura.";
         }
 
         return null;
@@ -278,6 +310,15 @@ public class FileStorageServiceImpl implements IStorageProvider {
     }
 
     // --- Metodos privados ---
+
+    private boolean esRutaSistemaProhibida(Path resolved) {
+        for (Path prohibida : RUTAS_SISTEMA_PROHIBIDAS) {
+            if (resolved.startsWith(prohibida)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private Path resolveSubDirectory(Path baseLocation, String subDirectory) {
         Path targetDir;
@@ -328,32 +369,8 @@ public class FileStorageServiceImpl implements IStorageProvider {
     }
 
     private String resolveMimeType(MultipartFile file) {
-        String contentType = file.getContentType();
-        if (contentType != null && !contentType.isEmpty()) {
-            return contentType.toLowerCase();
-        }
-
-        try {
-            String detected = Files.probeContentType(
-                    Paths.get(Objects.requireNonNull(file.getOriginalFilename()))
-            );
-            if (detected != null) {
-                return detected.toLowerCase();
-            }
-        } catch (IOException ignored) {
-        }
-
-        String extension = extractExtension(file.getOriginalFilename()).toLowerCase();
-        return switch (extension) {
-            case ".pdf" -> "application/pdf";
-            case ".png" -> "image/png";
-            case ".jpg", ".jpeg" -> "image/jpeg";
-            case ".doc" -> "application/msword";
-            case ".docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case ".xls" -> "application/vnd.ms-excel";
-            case ".xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            default -> "application/octet-stream";
-        };
+        // CWE-434: no se confia en el Content-Type declarado por el cliente.
+        return com.proyecta.api_gestion.infrastructure.UploadMimeSanitizer.resolverMimeType(file);
     }
 
     public record StoragePathInfo(boolean valid, String error, boolean existed, boolean writable, boolean created) {}

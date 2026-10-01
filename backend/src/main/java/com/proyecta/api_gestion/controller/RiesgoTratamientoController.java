@@ -6,7 +6,6 @@ import com.proyecta.api_gestion.dto.risk.RiesgoTratamientoRequest;
 import com.proyecta.api_gestion.service.IRiesgoTratamientoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -34,10 +33,8 @@ public class RiesgoTratamientoController {
         summary = "Listar historial de tratamientos de un riesgo",
         description = "Retorna todos los tratamientos registrados para un riesgo, ordenados del más reciente al más antiguo."
     )
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Lista de tratamientos obtenida exitosamente"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Riesgo no encontrado")
-    })
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Lista de tratamientos obtenida exitosamente")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Riesgo no encontrado")
     @GetMapping("/{proyectoId}/riesgos/{riesgoId}/tratamientos")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<List<RiesgoTratamientoDTO>>> listarTratamientos(
@@ -55,11 +52,9 @@ public class RiesgoTratamientoController {
             Se asigna automáticamente el número de iteración siguiente.
             """
     )
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tratamiento creado exitosamente"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Datos inválidos o exceso de archivos"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Riesgo no encontrado")
-    })
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tratamiento creado exitosamente")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Datos inválidos o exceso de archivos")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Riesgo no encontrado")
     @PostMapping("/{proyectoId}/riesgos/{riesgoId}/tratamientos")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<RiesgoTratamientoDTO>> crearTratamiento(
@@ -79,10 +74,8 @@ public class RiesgoTratamientoController {
         summary = "Descargar un adjunto de un tratamiento específico",
         description = "Descarga un archivo PDF adjunto a un tratamiento específico de un riesgo."
     )
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Archivo descargado exitosamente"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Adjunto no encontrado")
-    })
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Archivo descargado exitosamente")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Adjunto no encontrado")
     @GetMapping("/{proyectoId}/riesgos/{riesgoId}/tratamientos/{tratamientoId}/adjuntos/{adjuntoId}/descargar")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<Resource> descargarAdjunto(

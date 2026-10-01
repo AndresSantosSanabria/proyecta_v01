@@ -32,7 +32,7 @@ public class SystemParameterService {
                 .map(value -> {
                     try {
                         return Integer.parseInt(value);
-                    } catch (NumberFormatException ex) {
+                    } catch (NumberFormatException _) {
                         return defaultValue;
                     }
                 })
@@ -44,7 +44,7 @@ public class SystemParameterService {
                 .map(value -> {
                     try {
                         return Long.parseLong(value);
-                    } catch (NumberFormatException ex) {
+                    } catch (NumberFormatException _) {
                         return defaultValue;
                     }
                 })

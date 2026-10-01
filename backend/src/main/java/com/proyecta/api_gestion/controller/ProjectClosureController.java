@@ -90,7 +90,8 @@ public class ProjectClosureController implements IProjectClosureController {
             contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         }
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition("attachment", fileName))
                 .contentType(MediaType.parseMediaType(contentType))
                 .body(resource);
     }
@@ -108,6 +109,10 @@ public class ProjectClosureController implements IProjectClosureController {
         String contentType = evidencia.getContentType();
         if (contentType == null || !contentType.equals("application/pdf")) {
             throw new com.proyecta.api_gestion.exception.BadRequestException("Solo se permiten archivos PDF como evidencia.");
+        }
+        if (!com.proyecta.api_gestion.infrastructure.UploadMimeSanitizer.esPdfValido(evidencia)) {
+            // CWE-434: el Content-Type lo declara el cliente; se exige la firma real %PDF-.
+            throw new com.proyecta.api_gestion.exception.BadRequestException("El archivo cargado no es un PDF valido.");
         }
 
         String originalName = evidencia.getOriginalFilename() != null ? evidencia.getOriginalFilename() : "evidencia.pdf";
@@ -130,7 +135,8 @@ public class ProjectClosureController implements IProjectClosureController {
             @PathVariable String fileName) {
         Resource resource = storageProvider.loadFileAsResource("cierre-transferencia", fileName);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition("inline", fileName))
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }

@@ -53,13 +53,17 @@ public final class AnalyticsPdfGenerator {
     private static final PDFont FONT_REGULAR = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
     private static final PDFont FONT_BOLD = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
     private static final PDFont FONT_OBLIQUE = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
-    private static final Font CHART_FONT_REGULAR = new Font("SansSerif", Font.PLAIN, 7);
-    private static final Font CHART_FONT_BOLD = new Font("SansSerif", Font.BOLD, 8);
-    private static final Font CHART_FONT_PIE = new Font("SansSerif", Font.BOLD, 9);
+    private static final String CHART_FONT_NAME = "SansSerif";
+    private static final String LABEL_AVANCE = "Avance";
+    private static final String LABEL_EFICACIA = "Eficacia";
+    private static final String LABEL_EFICIENCIA = "Eficiencia";
+    private static final String LABEL_CODIGO = "Codigo";
+    private static final Font CHART_FONT_REGULAR = new Font(CHART_FONT_NAME, Font.PLAIN, 7);
+    private static final Font CHART_FONT_BOLD = new Font(CHART_FONT_NAME, Font.BOLD, 8);
+    private static final Font CHART_FONT_PIE = new Font(CHART_FONT_NAME, Font.BOLD, 9);
 
     private static final Color COLOR_TEXT = new Color(18, 18, 18);
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
-    private static final Color COLOR_BORDER = new Color(152, 152, 152);
     private static final Color COLOR_TITLE = new Color(20, 65, 93);
     private static final Color COLOR_SECTION = new Color(25, 85, 61);
     private static final Color COLOR_TABLE_HEAD = new Color(238, 242, 247);
@@ -73,9 +77,6 @@ public final class AnalyticsPdfGenerator {
     private static final Color COLOR_BANNER = new Color(250, 252, 255);
     private static final Color COLOR_FOOTER = new Color(122, 133, 146);
     private static final Color COLOR_LINE = new Color(223, 229, 237);
-    private static final Color COLOR_SUCCESS = new Color(16, 185, 129);
-    private static final Color COLOR_DANGER = new Color(239, 68, 68);
-    private static final Color COLOR_WARNING = new Color(245, 158, 11);
 
     private AnalyticsPdfGenerator() {
     }
@@ -258,7 +259,7 @@ public final class AnalyticsPdfGenerator {
             DefaultCategoryDataset dataset = new DefaultCategoryDataset();
             for (AnalyticsPortfolioDTO.DependenciaMetrics d : deps) {
                 double avance = d.avancePromedio() != null ? d.avancePromedio().doubleValue() : 0;
-                dataset.addValue(avance, "Avance", nz(d.dependencia()));
+                dataset.addValue(avance, LABEL_AVANCE, nz(d.dependencia()));
             }
 
             JFreeChart chart = ChartFactory.createBarChart(
@@ -278,7 +279,7 @@ public final class AnalyticsPdfGenerator {
 
             drawSectionTitle("DISTRIBUCION PETI");
 
-            DefaultPieDataset dataset = new DefaultPieDataset();
+            DefaultPieDataset<String> dataset = new DefaultPieDataset<>();
             dataset.setValue("PETI (" + peti + ")", peti);
             dataset.setValue("NO PETI (" + noPeti + ")", noPeti);
 
@@ -297,8 +298,8 @@ public final class AnalyticsPdfGenerator {
             for (AnalyticsPortfolioDTO.DependenciaMetrics d : deps) {
                 double eficacia = d.eficaciaPromedio() != null ? d.eficaciaPromedio().doubleValue() : 0;
                 double eficiencia = d.eficienciaPromedio() != null ? d.eficienciaPromedio().doubleValue() : 0;
-                dataset.addValue(eficacia, "Eficacia", nz(d.dependencia()));
-                dataset.addValue(eficiencia, "Eficiencia", nz(d.dependencia()));
+                dataset.addValue(eficacia, LABEL_EFICACIA, nz(d.dependencia()));
+                dataset.addValue(eficiencia, LABEL_EFICIENCIA, nz(d.dependencia()));
             }
 
             JFreeChart chart = ChartFactory.createBarChart(
@@ -351,7 +352,7 @@ public final class AnalyticsPdfGenerator {
         private void stylePieChart(JFreeChart chart) {
             chart.setBackgroundPaint(Color.WHITE);
             chart.setAntiAlias(true);
-            PiePlot plot = (PiePlot) chart.getPlot();
+            PiePlot<?> plot = (PiePlot<?>) chart.getPlot();
             plot.setBackgroundPaint(Color.WHITE);
             plot.setOutlineVisible(false);
             plot.setShadowPaint(null);
@@ -369,7 +370,7 @@ public final class AnalyticsPdfGenerator {
             drawSectionTitle("DESEMPENO POR DEPENDENCIA");
 
             float[] widths = {0.28f, 0.12f, 0.13f, 0.13f, 0.13f, 0.10f, 0.11f};
-            List<String> headers = List.of("Dependencia", "Proyectos", "Avance", "Eficacia", "Eficiencia", "PETI", "Riesgos");
+            List<String> headers = List.of("Dependencia", "Proyectos", LABEL_AVANCE, LABEL_EFICACIA, LABEL_EFICIENCIA, "PETI", "Riesgos");
 
             drawTableHeader(headers, widths, 24f);
             for (int i = 0; i < deps.size(); i++) {
@@ -400,7 +401,7 @@ public final class AnalyticsPdfGenerator {
             drawSectionTitle("DESEMPENO POR ESTRATEGIA PETI");
 
             float[] widths = {0.30f, 0.35f, 0.12f, 0.12f, 0.11f};
-            List<String> headers = List.of("Codigo", "Estrategia", "Proyectos", "Avance", "Eficacia");
+            List<String> headers = List.of(LABEL_CODIGO, "Estrategia", "Proyectos", LABEL_AVANCE, LABEL_EFICACIA);
 
             drawTableHeader(headers, widths, 24f);
             for (int i = 0; i < estrategias.size(); i++) {
@@ -450,7 +451,7 @@ public final class AnalyticsPdfGenerator {
             List<AnalyticsPortfolioDTO.FuragProjectMetrics> proyectos = furag.proyectos();
             if (proyectos != null && !proyectos.isEmpty()) {
                 float[] widths = {0.28f, 0.32f, 0.15f, 0.13f, 0.12f};
-                List<String> headers = List.of("Codigo", "Nombre", "Cobertura", "Completas", "Obligatorias");
+                List<String> headers = List.of(LABEL_CODIGO, "Nombre", "Cobertura", "Completas", "Obligatorias");
                 drawTableHeader(headers, widths, 24f);
                 for (int i = 0; i < proyectos.size(); i++) {
                     AnalyticsPortfolioDTO.FuragProjectMetrics p = proyectos.get(i);
@@ -524,7 +525,7 @@ public final class AnalyticsPdfGenerator {
             drawSectionTitle("DETALLE DE PROYECTOS");
 
             float[] widths = {0.15f, 0.22f, 0.16f, 0.10f, 0.10f, 0.10f, 0.09f, 0.08f};
-            List<String> headers = List.of("Codigo", "Nombre", "Dependencia", "Avance", "Eficacia", "Eficiencia", "Estado", "Atrasos");
+            List<String> headers = List.of(LABEL_CODIGO, "Nombre", "Dependencia", LABEL_AVANCE, LABEL_EFICACIA, LABEL_EFICIENCIA, "Estado", "Atrasos");
 
             drawTableHeader(headers, widths, 24f);
             for (int i = 0; i < proyectos.size(); i++) {
@@ -743,11 +744,11 @@ public final class AnalyticsPdfGenerator {
                 StringBuilder current = new StringBuilder();
                 for (String word : words) {
                     if (word.isBlank()) continue;
-                    String trial = current.length() == 0 ? word : current + " " + word;
+                    String trial = current.isEmpty() ? word : current + " " + word;
                     if (stringWidth(font, fontSize, trial) <= maxWidth) {
                         current = new StringBuilder(trial);
                     } else {
-                        if (current.length() > 0) {
+                        if (!current.isEmpty()) {
                             result.add(current.toString());
                         }
                         if (stringWidth(font, fontSize, word) <= maxWidth) {
@@ -758,7 +759,7 @@ public final class AnalyticsPdfGenerator {
                         }
                     }
                 }
-                if (current.length() > 0) {
+                if (!current.isEmpty()) {
                     result.add(current.toString());
                 }
             }
@@ -770,14 +771,14 @@ public final class AnalyticsPdfGenerator {
             StringBuilder current = new StringBuilder();
             for (char c : word.toCharArray()) {
                 String trial = current + String.valueOf(c);
-                if (stringWidth(font, fontSize, trial) <= maxWidth || current.length() == 0) {
+                if (stringWidth(font, fontSize, trial) <= maxWidth || current.isEmpty()) {
                     current.append(c);
                 } else {
                     parts.add(current.toString());
                     current = new StringBuilder().append(c);
                 }
             }
-            if (current.length() > 0) parts.add(current.toString());
+            if (!current.isEmpty()) parts.add(current.toString());
             return parts;
         }
 
@@ -800,7 +801,7 @@ public final class AnalyticsPdfGenerator {
                 if (stream == null) return null;
                 BufferedImage image = javax.imageio.ImageIO.read(stream);
                 return image == null ? null : LosslessFactory.createFromImage(doc, image);
-            } catch (Exception ex) {
+            } catch (Exception _) {
                 return null;
             }
         }

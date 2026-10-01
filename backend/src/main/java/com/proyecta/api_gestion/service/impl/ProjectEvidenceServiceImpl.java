@@ -6,8 +6,6 @@ import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.advance.AdvanceReportUpload;
 import com.proyecta.api_gestion.model.advance.AdvanceReportVersion;
 import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
-import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
-import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.repository.advance.AdvanceReportUploadRepository;
 import com.proyecta.api_gestion.repository.advance.AdvanceReportVersionRepository;
@@ -17,15 +15,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -34,10 +27,26 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
     private static final Logger log = LoggerFactory.getLogger(ProjectEvidenceServiceImpl.class);
 
+    private static final String CAT_DOCUMENTO_PROYECTO = "DOCUMENTO_PROYECTO";
+    private static final String CAT_DOCUMENTO_PROYECTO_AVANZADO = "DOCUMENTO_PROYECTO_AVANZADO";
+    private static final String CAT_DOCUMENTO_DINAMICO = "DOCUMENTO_DINAMICO";
+    private static final String CAT_EVIDENCIA_ENTREGABLE = "EVIDENCIA_ENTREGABLE";
+    private static final String CAT_CRONOGRAMA = "CRONOGRAMA";
+    private static final String CAT_RIESGO = "RIESGO";
+    private static final String CAT_MATRIZ_RIESGOS = "MATRIZ_RIESGOS";
+    private static final String CAT_CAMBIO_FECHA = "CAMBIO_FECHA";
+    private static final String CAT_CAMBIO_DESCRIPCION = "CAMBIO_DESCRIPCION";
+    private static final String CAT_ACTA_CIERRE = "ACTA_CIERRE";
+    private static final String CAT_INFORME_AVANCE = "INFORME_AVANCE";
+    private static final String URL_PROYECTOS_BASE = "/api/v1/proyectos/";
+    private static final String URL_DESCARGAR = "/descargar";
+    private static final String ESTADO_CARGADO = "CARGADO";
+    private static final String ESTADO_COMPLETADO = "COMPLETADO";
+
     private static final Map<String, String> DOC_TYPE_NAMES = Map.of(
             "VIABILIZACION", "Documento de viabilidad",
             "ACTA_CONSTITUCION", "Acta de constitucion",
-            "CRONOGRAMA", "Cronograma del proyecto",
+            CAT_CRONOGRAMA, "Cronograma del proyecto",
             "PLAN_COMUNICACIONES", "Plan de comunicaciones",
             "MATRIZ_RIESGOS_VIABILIDAD", "Matriz de Riesgos de Viabilidad"
     );
@@ -46,12 +55,10 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     private final EntregableRepository entregableRepository;
     private final DocumentoProyectoVersionRepository documentoProyectoVersionRepository;
     private final RiesgoRepository riesgoRepository;
-    private final RiesgoSolucionAdjuntoRepository riesgoSolucionAdjuntoRepository;
     private final EntregableCambioFechaRepository entregableCambioFechaRepository;
     private final EntregableCambioDescripcionRepository entregableCambioDescripcionRepository;
     private final DocumentoDinamicoRepository documentoDinamicoRepository;
     private final ActaCierreRepository actaCierreRepository;
-    private final DocumentoVersionRepository documentoVersionRepository;
     private final AdvanceReportUploadRepository advanceReportUploadRepository;
     private final AdvanceReportVersionRepository advanceReportVersionRepository;
 
@@ -59,24 +66,20 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                                       EntregableRepository entregableRepository,
                                       DocumentoProyectoVersionRepository documentoProyectoVersionRepository,
                                       RiesgoRepository riesgoRepository,
-                                      RiesgoSolucionAdjuntoRepository riesgoSolucionAdjuntoRepository,
                                       EntregableCambioFechaRepository entregableCambioFechaRepository,
                                       EntregableCambioDescripcionRepository entregableCambioDescripcionRepository,
                                       DocumentoDinamicoRepository documentoDinamicoRepository,
                                       ActaCierreRepository actaCierreRepository,
-                                      DocumentoVersionRepository documentoVersionRepository,
                                       AdvanceReportUploadRepository advanceReportUploadRepository,
                                       AdvanceReportVersionRepository advanceReportVersionRepository) {
         this.proyectoRepository = proyectoRepository;
         this.entregableRepository = entregableRepository;
         this.documentoProyectoVersionRepository = documentoProyectoVersionRepository;
         this.riesgoRepository = riesgoRepository;
-        this.riesgoSolucionAdjuntoRepository = riesgoSolucionAdjuntoRepository;
         this.entregableCambioFechaRepository = entregableCambioFechaRepository;
         this.entregableCambioDescripcionRepository = entregableCambioDescripcionRepository;
         this.documentoDinamicoRepository = documentoDinamicoRepository;
         this.actaCierreRepository = actaCierreRepository;
-        this.documentoVersionRepository = documentoVersionRepository;
         this.advanceReportUploadRepository = advanceReportUploadRepository;
         this.advanceReportVersionRepository = advanceReportVersionRepository;
     }
@@ -89,49 +92,51 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
-        boolean shouldCollectAll = (categoria == null || categoria.isBlank() || "TODOS".equals(categoria));
-
         Set<String> tiposConVersionActual = documentoProyectoVersionRepository
                 .findByProyectoIdOrderBySubidoEnDesc(proyectoId).stream()
                 .filter(v -> DocumentoProyectoVersionEstado.ACTUAL.equals(v.getEstado()))
                 .map(DocumentoProyectoVersion::getTipoDocumento)
                 .collect(Collectors.toSet());
 
-        if (shouldCollectAll || "DOCUMENTO_PROYECTO".equals(categoria)) {
-            safeAddAll(evidencias, () -> colDocumentosProyecto(proyectoId), "DOCUMENTO_PROYECTO");
+        if (categoriaCoincide(categoria, CAT_DOCUMENTO_PROYECTO)) {
+            safeAddAll(evidencias, () -> colDocumentosProyecto(proyectoId), CAT_DOCUMENTO_PROYECTO);
         }
-        if (shouldCollectAll || "DOCUMENTO_PROYECTO_AVANZADO".equals(categoria)) {
-            safeAddAll(evidencias, () -> colDocumentosProyectoAvanzado(proyecto, tiposConVersionActual), "DOCUMENTO_PROYECTO_AVANZADO");
+        if (categoriaCoincide(categoria, CAT_DOCUMENTO_PROYECTO_AVANZADO)) {
+            safeAddAll(evidencias, () -> colDocumentosProyectoAvanzado(proyecto, tiposConVersionActual), CAT_DOCUMENTO_PROYECTO_AVANZADO);
         }
-        if (shouldCollectAll || "DOCUMENTO_DINAMICO".equals(categoria)) {
-            safeAddAll(evidencias, () -> colDocumentosDinamicos(proyectoId), "DOCUMENTO_DINAMICO");
+        if (categoriaCoincide(categoria, CAT_DOCUMENTO_DINAMICO)) {
+            safeAddAll(evidencias, () -> colDocumentosDinamicos(proyectoId), CAT_DOCUMENTO_DINAMICO);
         }
-        if (shouldCollectAll || "EVIDENCIA_ENTREGABLE".equals(categoria)) {
-            safeAddAll(evidencias, () -> colEvidenciasEntregables(proyectoId), "EVIDENCIA_ENTREGABLE");
+        if (categoriaCoincide(categoria, CAT_EVIDENCIA_ENTREGABLE)) {
+            safeAddAll(evidencias, () -> colEvidenciasEntregables(proyectoId), CAT_EVIDENCIA_ENTREGABLE);
         }
-        if (shouldCollectAll || "CRONOGRAMA".equals(categoria)) {
-            safeAddAll(evidencias, () -> colCronograma(proyecto, tiposConVersionActual), "CRONOGRAMA");
+        if (categoriaCoincide(categoria, CAT_CRONOGRAMA)) {
+            safeAddAll(evidencias, () -> colCronograma(proyecto, tiposConVersionActual), CAT_CRONOGRAMA);
         }
-        if (shouldCollectAll || "RIESGO".equals(categoria)) {
-            safeAddAll(evidencias, () -> colSolucionesRiesgos(proyectoId), "RIESGO");
+        if (categoriaCoincide(categoria, CAT_RIESGO)) {
+            safeAddAll(evidencias, () -> colSolucionesRiesgos(proyectoId), CAT_RIESGO);
         }
-        if (shouldCollectAll || "MATRIZ_RIESGOS".equals(categoria)) {
-            safeAddAll(evidencias, () -> colMatrizRiesgos(proyectoId), "MATRIZ_RIESGOS");
+        if (categoriaCoincide(categoria, CAT_MATRIZ_RIESGOS)) {
+            safeAddAll(evidencias, () -> colMatrizRiesgos(proyectoId), CAT_MATRIZ_RIESGOS);
         }
-        if (shouldCollectAll || "CAMBIO_FECHA".equals(categoria)) {
-            safeAddAll(evidencias, () -> colCambiosFecha(proyectoId), "CAMBIO_FECHA");
+        if (categoriaCoincide(categoria, CAT_CAMBIO_FECHA)) {
+            safeAddAll(evidencias, () -> colCambiosFecha(proyectoId), CAT_CAMBIO_FECHA);
         }
-        if (shouldCollectAll || "CAMBIO_DESCRIPCION".equals(categoria)) {
-            safeAddAll(evidencias, () -> colCambiosDescripcion(proyectoId), "CAMBIO_DESCRIPCION");
+        if (categoriaCoincide(categoria, CAT_CAMBIO_DESCRIPCION)) {
+            safeAddAll(evidencias, () -> colCambiosDescripcion(proyectoId), CAT_CAMBIO_DESCRIPCION);
         }
-        if (shouldCollectAll || "ACTA_CIERRE".equals(categoria)) {
-            safeAddAll(evidencias, () -> colActaCierre(proyectoId), "ACTA_CIERRE");
+        if (categoriaCoincide(categoria, CAT_ACTA_CIERRE)) {
+            safeAddAll(evidencias, () -> colActaCierre(proyectoId), CAT_ACTA_CIERRE);
         }
-        if (shouldCollectAll || "INFORME_AVANCE".equals(categoria)) {
-            safeAddAll(evidencias, () -> colInformesAvance(proyectoId), "INFORME_AVANCE");
+        if (categoriaCoincide(categoria, CAT_INFORME_AVANCE)) {
+            safeAddAll(evidencias, () -> colInformesAvance(proyectoId), CAT_INFORME_AVANCE);
         }
 
         return evidencias;
+    }
+
+    private boolean categoriaCoincide(String categoria, String codigo) {
+        return categoria == null || categoria.isBlank() || "TODOS".equals(categoria) || codigo.equals(categoria);
     }
 
     private void safeAddAll(List<ProjectEvidenceDTO> target, Supplier<List<ProjectEvidenceDTO>> source, String categoria) {
@@ -154,18 +159,18 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                 .map(v -> {
                     String codigo = v.getTipoDocumento();
                     String nombreDisplay = DOC_TYPE_NAMES.getOrDefault(codigo, codigo);
-                    String urlDescarga = "/api/v1/proyectos/" + proyectoId + "/documentos/" + codigo + "/descargar";
+                    String urlDescarga = URL_PROYECTOS_BASE + proyectoId + "/documentos/" + codigo + URL_DESCARGAR;
                     return new ProjectEvidenceDTO(
                             "doc-" + codigo,
-                            "DOCUMENTO_PROYECTO",
+                            CAT_DOCUMENTO_PROYECTO,
                             nombreDisplay,
                             v.getNombreArchivoOriginal(),
                             urlDescarga,
                             v.getSubidoEn() != null ? v.getSubidoEn().toLocalDate() : null,
                             null,
                             null,
-                            "CARGADO",
-                            "CARGADO",
+                            ESTADO_CARGADO,
+                            ESTADO_CARGADO,
                             v.getSubidoPor(),
                             nombreDisplay,
                             codigo,
@@ -216,19 +221,19 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
             String nombreDisplay = DOC_TYPE_NAMES.getOrDefault(codigo, codigo);
             String nombreArchivo = extractFileName(pdfPath);
-            String urlDescarga = "/api/v1/proyectos/" + proyectoId + "/documentos/" + codigo + "/descargar";
+            String urlDescarga = URL_PROYECTOS_BASE + proyectoId + "/documentos/" + codigo + URL_DESCARGAR;
 
             evidencias.add(new ProjectEvidenceDTO(
                     "doc-proy-" + codigo,
-                    "DOCUMENTO_PROYECTO_AVANZADO",
+                    CAT_DOCUMENTO_PROYECTO_AVANZADO,
                     nombreDisplay,
                     nombreArchivo,
                     urlDescarga,
                     null,
                     null,
                     null,
-                    "CARGADO",
-                    "CARGADO",
+                    ESTADO_CARGADO,
+                    ESTADO_CARGADO,
                     null,
                     nombreDisplay,
                     codigo,
@@ -265,19 +270,19 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                     String nombreDisplay = doc.getTipoDocumento() != null ? doc.getTipoDocumento() : "Documento dinamico";
                     String urlDescarga = doc.getUrlDescarga() != null
                             ? doc.getUrlDescarga()
-                            : "/api/v1/proyectos/" + proyectoId + "/documentos-dinamicos/" + doc.getId() + "/descargar";
+                            : URL_PROYECTOS_BASE + proyectoId + "/documentos-dinamicos/" + doc.getId() + URL_DESCARGAR;
 
                     return new ProjectEvidenceDTO(
                             "doc-din-" + doc.getId(),
-                            "DOCUMENTO_DINAMICO",
+                            CAT_DOCUMENTO_DINAMICO,
                             nombreDisplay,
                             doc.getNombreOriginal(),
                             urlDescarga,
                             doc.getFechaCarga() != null ? doc.getFechaCarga().toLocalDate() : null,
                             null,
                             null,
-                            "CARGADO",
-                            "CARGADO",
+                            ESTADO_CARGADO,
+                            ESTADO_CARGADO,
                             null,
                             nombreDisplay,
                             doc.getTipoDocumento(),
@@ -322,7 +327,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                 }
             }
 
-            String urlEvidencia = "/api/v1/proyectos/" + proyectoId
+            String urlEvidencia = URL_PROYECTOS_BASE + proyectoId
                     + "/avance/entregables/" + entregable.getId() + "/evidencia";
 
             String estadoCodigo = mapEstado(entregable);
@@ -330,7 +335,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
             evidencias.add(new ProjectEvidenceDTO(
                     "ev-" + entregable.getId(),
-                    "EVIDENCIA_ENTREGABLE",
+                    CAT_EVIDENCIA_ENTREGABLE,
                     entregable.getArchivoPdf(),
                     entregable.getArchivoPdf(),
                     urlEvidencia,
@@ -369,25 +374,25 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     private List<ProjectEvidenceDTO> colCronograma(Proyecto proyecto, Set<String> tiposConVersionActual) {
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
-        if (tiposConVersionActual.contains("CRONOGRAMA")) {
+        if (tiposConVersionActual.contains(CAT_CRONOGRAMA)) {
             return evidencias;
         }
 
         if (proyecto.getCronogramaPdf() != null && !proyecto.getCronogramaPdf().isBlank()) {
             String nombreArchivo = extractFileName(proyecto.getCronogramaPdf());
-            String urlDescarga = "/api/v1/proyectos/" + proyecto.getId() + "/cronograma/descargar";
+            String urlDescarga = URL_PROYECTOS_BASE + proyecto.getId() + "/cronograma/descargar";
 
             evidencias.add(new ProjectEvidenceDTO(
                     "crono-" + proyecto.getId(),
-                    "CRONOGRAMA",
+                    CAT_CRONOGRAMA,
                     "Cronograma del proyecto",
                     nombreArchivo,
                     urlDescarga,
                     null,
                     null,
                     null,
-                    "CARGADO",
-                    "CARGADO",
+                    ESTADO_CARGADO,
+                    ESTADO_CARGADO,
                     null,
                     "Cronograma PDF",
                     null,
@@ -424,21 +429,21 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                 continue;
             }
             for (RiesgoSolucionAdjunto solucion : riesgo.getSoluciones()) {
-                String urlDescarga = "/api/v1/proyectos/" + proyectoId
+                String urlDescarga = URL_PROYECTOS_BASE + proyectoId
                         + "/riesgos/" + riesgo.getId()
-                        + "/soluciones/" + solucion.getId() + "/descargar";
+                        + "/soluciones/" + solucion.getId() + URL_DESCARGAR;
 
                 evidencias.add(new ProjectEvidenceDTO(
                         "riesgo-sol-" + solucion.getId(),
-                        "RIESGO",
+                        CAT_RIESGO,
                         solucion.getNombreOriginal() != null ? solucion.getNombreOriginal() : "Solucion " + solucion.getId(),
                         solucion.getNombreOriginal(),
                         urlDescarga,
                         solucion.getFechaCarga() != null ? solucion.getFechaCarga().toLocalDate() : null,
                         null,
                         null,
-                        "CARGADO",
-                        "CARGADO",
+                        ESTADO_CARGADO,
+                        ESTADO_CARGADO,
                         null,
                         "Solucion de riesgo",
                         null,
@@ -474,7 +479,6 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
         for (Riesgo riesgo : riesgos) {
             String nivelDisplay = riesgo.getNivel() != null ? riesgo.getNivel().name() : "SIN_NIVEL";
-            String estadoDisplay = riesgo.getEstado() != null ? riesgo.getEstado().name() : "PENDIENTE";
             String descripcion = "Riesgo: "
                     + (riesgo.getCodigo() != null ? riesgo.getCodigo() : riesgo.getId())
                     + " - " + truncate(riesgo.getDescripcion(), 80);
@@ -486,7 +490,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
             evidencias.add(new ProjectEvidenceDTO(
                     "riesgo-matriz-" + riesgo.getId(),
-                    "MATRIZ_RIESGOS",
+                    CAT_MATRIZ_RIESGOS,
                     truncate(riesgo.getDescripcion(), 100),
                     riesgo.getCodigo(),
                     null,
@@ -543,21 +547,21 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             for (EntregableCambioFecha cambio : cambios) {
                 String urlDescarga = null;
                 if (cambio.getArchivoPdf() != null && !cambio.getArchivoPdf().isBlank()) {
-                    urlDescarga = "/api/v1/proyectos/" + proyectoId
-                            + "/entregables/cambios-fecha/" + cambio.getId() + "/descargar";
+                    urlDescarga = URL_PROYECTOS_BASE + proyectoId
+                            + "/entregables/cambios-fecha/" + cambio.getId() + URL_DESCARGAR;
                 }
 
                 evidencias.add(new ProjectEvidenceDTO(
                         "cf-" + cambio.getId() + "-" + proyectoId,
-                        "CAMBIO_FECHA",
+                        CAT_CAMBIO_FECHA,
                         "Cambio de fecha - " + (entregable.getNombre() != null ? entregable.getNombre() : ""),
                         cambio.getNombreOriginal(),
                         urlDescarga,
                         cambio.getCreadoEn() != null ? cambio.getCreadoEn().toLocalDate() : null,
                         null,
                         null,
-                        "COMPLETADO",
-                        "COMPLETADO",
+                        ESTADO_COMPLETADO,
+                        ESTADO_COMPLETADO,
                         cambio.getUsuario(),
                         "Cambio de fecha",
                         null,
@@ -590,7 +594,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         if (entregable.getEstado() == null) return "PENDIENTE";
         return switch (entregable.getEstado()) {
             case APROBADO -> "APROBADO";
-            case COMPLETADO -> "COMPLETADO";
+            case COMPLETADO -> ESTADO_COMPLETADO;
             case EN_PROCESO -> "EN_PROCESO";
             case RECHAZADO -> "RECHAZADO";
             case PENDIENTE -> "PENDIENTE";
@@ -602,7 +606,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
         if (estadoCodigo == null) return "Pendiente";
         return switch (estadoCodigo) {
             case "APROBADO" -> "Aprobado";
-            case "COMPLETADO" -> "Completado";
+            case ESTADO_COMPLETADO -> "Completado";
             case "EN_PROCESO" -> "En Proceso";
             case "RECHAZADO" -> "Rechazado";
             default -> "Pendiente";
@@ -642,21 +646,21 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             for (EntregableCambioDescripcion cambio : cambios) {
                 String urlDescarga = null;
                 if (cambio.getArchivoPdf() != null && !cambio.getArchivoPdf().isBlank()) {
-                    urlDescarga = "/api/v1/proyectos/" + proyectoId
-                            + "/entregables/cambios-descripcion/" + cambio.getId() + "/descargar";
+                    urlDescarga = URL_PROYECTOS_BASE + proyectoId
+                            + "/entregables/cambios-descripcion/" + cambio.getId() + URL_DESCARGAR;
                 }
 
                 evidencias.add(new ProjectEvidenceDTO(
                         "cd-" + cambio.getId() + "-" + proyectoId,
-                        "CAMBIO_DESCRIPCION",
+                        CAT_CAMBIO_DESCRIPCION,
                         "Cambio de descripción - " + (entregable.getNombre() != null ? entregable.getNombre() : ""),
                         cambio.getNombreOriginal(),
                         urlDescarga,
                         cambio.getCreadoEn() != null ? cambio.getCreadoEn().toLocalDate() : null,
                         null,
                         null,
-                        "COMPLETADO",
-                        "COMPLETADO",
+                        ESTADO_COMPLETADO,
+                        ESTADO_COMPLETADO,
                         cambio.getUsuario(),
                         "Cambio de descripción",
                         null,
@@ -690,18 +694,18 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
         actaCierreRepository.findByProyectoId(proyectoId).ifPresent(acta -> {
             if (acta.getArchivoPdf() != null && !acta.getArchivoPdf().isBlank()) {
-                String urlPdf = "/api/v1/proyectos/" + proyectoId + "/cierre/descargar";
+                String urlPdf = URL_PROYECTOS_BASE + proyectoId + "/cierre/descargar";
                 evidencias.add(new ProjectEvidenceDTO(
                         "cierre-pdf-" + acta.getId(),
-                        "ACTA_CIERRE",
+                        CAT_ACTA_CIERRE,
                         "Acta de cierre (PDF)",
                         acta.getArchivoPdf(),
                         urlPdf,
                         acta.getFechaCierre() != null ? acta.getFechaCierre().toLocalDate() : null,
                         null,
                         null,
-                        "COMPLETADO",
-                        "COMPLETADO",
+                        ESTADO_COMPLETADO,
+                        ESTADO_COMPLETADO,
                         null,
                         "Acta de cierre",
                         null,
@@ -727,18 +731,18 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             }
 
             if (acta.getArchivoDocx() != null && !acta.getArchivoDocx().isBlank()) {
-                String urlDocx = "/api/v1/proyectos/" + proyectoId + "/cierre/descargar?formato=docx";
+                String urlDocx = URL_PROYECTOS_BASE + proyectoId + "/cierre/descargar?formato=docx";
                 evidencias.add(new ProjectEvidenceDTO(
                         "cierre-docx-" + acta.getId(),
-                        "ACTA_CIERRE",
+                        CAT_ACTA_CIERRE,
                         "Acta de cierre (DOCX)",
                         acta.getArchivoDocx(),
                         urlDocx,
                         acta.getFechaCierre() != null ? acta.getFechaCierre().toLocalDate() : null,
                         null,
                         null,
-                        "COMPLETADO",
-                        "COMPLETADO",
+                        ESTADO_COMPLETADO,
+                        ESTADO_COMPLETADO,
                         null,
                         "Acta de cierre",
                         null,
@@ -778,7 +782,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
             evidencias.add(new ProjectEvidenceDTO(
                     "informe-avance-" + upload.getId(),
-                    "INFORME_AVANCE",
+                    CAT_INFORME_AVANCE,
                     "Informe de avance " + upload.getPeriodo(),
                     upload.getFileName(),
                     url,

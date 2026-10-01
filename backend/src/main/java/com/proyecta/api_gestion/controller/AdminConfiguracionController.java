@@ -11,6 +11,9 @@ import com.proyecta.api_gestion.dto.security.SeguridadUsuarioProyectoRequest;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioUpdateRequest;
 import com.proyecta.api_gestion.service.impl.FileStorageServiceImpl;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityAdministrationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +34,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/configuracion")
+@Tag(name = "Administración - Seguridad", description = "Endpoints de administración de usuarios, roles y permisos de la plataforma")
 @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
 public class AdminConfiguracionController {
 
@@ -43,10 +47,11 @@ public class AdminConfiguracionController {
         this.fileStorageService = fileStorageService;
     }
 
+    @Operation(summary = "Listar usuarios del sistema", description = "Lista los usuarios de la plataforma con paginación y sincroniza los datos del usuario autenticado desde Keycloak.")
     @GetMapping("/usuarios")
     public ResponseEntity<ApiResponse<Page<SeguridadUsuarioDTO>>> listarUsuarios(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String rol,
+            @Parameter(description = "Texto de búsqueda por nombre o correo") @RequestParam(required = false) String search,
+            @Parameter(description = "Filtra por código de rol") @RequestParam(required = false) String rol,
             Authentication authentication,
             Pageable pageable) {
         securityAdministrationService.sincronizarUsuarioAutenticado(authentication);
@@ -55,6 +60,7 @@ public class AdminConfiguracionController {
                 "Usuarios listados correctamente"));
     }
 
+    @Operation(summary = "Actualizar los datos de un usuario")
     @PutMapping("/usuarios")
     @Transactional
     public ResponseEntity<ApiResponse<SeguridadUsuarioDTO>> actualizarUsuario(
@@ -64,6 +70,7 @@ public class AdminConfiguracionController {
                 "Usuario actualizado correctamente"));
     }
 
+    @Operation(summary = "Listar roles activos del sistema")
     @GetMapping("/roles")
     public ResponseEntity<ApiResponse<List<SeguridadRolDTO>>> listarRoles() {
         return ResponseEntity.ok(ApiResponse.success(
@@ -71,6 +78,7 @@ public class AdminConfiguracionController {
                 "Roles y permisos listados correctamente"));
     }
 
+    @Operation(summary = "Listar todos los roles del sistema", description = "Incluye además los roles inactivos o desactivados.")
     @GetMapping("/roles/todos")
     public ResponseEntity<ApiResponse<List<SeguridadRolDTO>>> listarRolesTodos() {
         return ResponseEntity.ok(ApiResponse.success(
@@ -78,6 +86,7 @@ public class AdminConfiguracionController {
                 "Roles y permisos listados correctamente"));
     }
 
+    @Operation(summary = "Crear un rol nuevo")
     @PostMapping("/roles")
     @Transactional
     public ResponseEntity<ApiResponse<SeguridadRolDTO>> crearRol(@RequestBody SeguridadRolRequest request) {
@@ -86,10 +95,11 @@ public class AdminConfiguracionController {
                 "Rol creado correctamente"));
     }
 
+    @Operation(summary = "Actualizar un rol existente")
     @PutMapping("/roles/{codigo}")
     @Transactional
     public ResponseEntity<ApiResponse<SeguridadRolDTO>> actualizarRol(
-            @PathVariable String codigo,
+            @Parameter(description = "Código único del rol") @PathVariable String codigo,
             @RequestBody SeguridadRolRequest request) {
         SeguridadRolRequest payload = new SeguridadRolRequest(
                 codigo,
@@ -102,14 +112,16 @@ public class AdminConfiguracionController {
                 "Rol actualizado correctamente"));
     }
 
+    @Operation(summary = "Desactivar un rol")
     @DeleteMapping("/roles/{codigo}")
     @Transactional
-    public ResponseEntity<ApiResponse<SeguridadRolDTO>> desactivarRol(@PathVariable String codigo) {
+    public ResponseEntity<ApiResponse<SeguridadRolDTO>> desactivarRol(@Parameter(description = "Código único del rol") @PathVariable String codigo) {
         return ResponseEntity.ok(ApiResponse.success(
                 securityAdministrationService.eliminarRol(codigo),
                 "Rol desactivado correctamente"));
     }
 
+    @Operation(summary = "Listar permisos del sistema")
     @GetMapping("/permisos")
     public ResponseEntity<ApiResponse<List<SeguridadPermisoDTO>>> listarPermisos() {
         return ResponseEntity.ok(ApiResponse.success(
@@ -117,6 +129,7 @@ public class AdminConfiguracionController {
                 "Permisos listados correctamente"));
     }
 
+    @Operation(summary = "Listar cargos disponibles para asignación")
     @GetMapping("/cargos-asignacion")
     public ResponseEntity<ApiResponse<List<String>>> listarCargosAsignacion() {
         return ResponseEntity.ok(ApiResponse.success(
@@ -124,6 +137,7 @@ public class AdminConfiguracionController {
                 "Cargos de asignacion listados correctamente"));
     }
 
+    @Operation(summary = "Actualizar la matriz de roles y permisos")
     @PutMapping("/roles-permisos")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> actualizarMatriz(@RequestBody SeguridadMatrizPermisosUpdateRequest request) {
@@ -131,6 +145,7 @@ public class AdminConfiguracionController {
         return ResponseEntity.ok(ApiResponse.success("Matriz de permisos actualizada correctamente"));
     }
 
+    @Operation(summary = "Asignar un usuario a un proyecto")
     @PostMapping("/usuario-proyecto")
     @Transactional
     public ResponseEntity<ApiResponse<SeguridadUsuarioProyectoDTO>> asignarUsuarioProyecto(
@@ -140,17 +155,19 @@ public class AdminConfiguracionController {
                 "Usuario asignado al proyecto correctamente"));
     }
 
+    @Operation(summary = "Listar proyectos asignados a un usuario")
     @GetMapping("/usuario-proyecto")
     public ResponseEntity<ApiResponse<List<SeguridadUsuarioProyectoDTO>>> listarAsignaciones(
-            @RequestParam String username) {
+            @Parameter(description = "Nombre de usuario (username)") @RequestParam String username) {
         return ResponseEntity.ok(ApiResponse.success(
                 securityAdministrationService.listarAsignaciones(username),
                 "Asignaciones del usuario listadas correctamente"));
     }
 
+    @Operation(summary = "Validar una ruta de almacenamiento de archivos")
     @GetMapping("/storage-path/test")
     public ResponseEntity<ApiResponse<FileStorageServiceImpl.StoragePathInfo>> testStoragePath(
-            @RequestParam String path) {
+            @Parameter(description = "Ruta del sistema a validar") @RequestParam String path) {
         FileStorageServiceImpl.StoragePathInfo info = fileStorageService.testStoragePath(path);
         return ResponseEntity.ok(ApiResponse.success(info, info.valid()
                 ? "Ruta de almacenamiento validada correctamente"

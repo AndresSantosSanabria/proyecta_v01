@@ -4,6 +4,7 @@ import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.proyecto.PatrocinadorDTO;
 import com.proyecta.api_gestion.model.Patrocinador;
 import com.proyecta.api_gestion.repository.PatrocinadorRepository;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/patrocinadores")
@@ -26,6 +26,7 @@ public class PatrocinadorController {
         this.patrocinadorRepository = patrocinadorRepository;
     }
 
+    @Operation(summary = "Listar los patrocinadores únicos registrados")
     @GetMapping
     public ResponseEntity<ApiResponse<List<PatrocinadorDTO>>> listarPatrocinadoresUnicos() {
         List<Patrocinador> patrocinadores = patrocinadorRepository.findUniquePatrocinadores();
@@ -36,7 +37,7 @@ public class PatrocinadorController {
                         p.getProcesoSigc(),
                         p.getProcedimiento()
                 ))
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(ApiResponse.success(dtos, "Patrocinadores obtenidos con éxito"));
     }
 }

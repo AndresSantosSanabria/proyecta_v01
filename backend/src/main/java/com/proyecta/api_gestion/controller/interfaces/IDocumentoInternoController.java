@@ -15,8 +15,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
-
 @Tag(name = "Modulo Documentacion Interna", description = "Gestion de documentacion interna (solo gestores/admin)")
 public interface IDocumentoInternoController {
 
@@ -55,12 +53,24 @@ public interface IDocumentoInternoController {
             Authentication authentication);
 
     @Operation(summary = "EP-DI-03 - Descargar un documento interno")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Archivo descargado exitosamente"
+        )
+    })
     @StandardApiResponses
     @GetMapping("/{id}/descargar")
     ResponseEntity<Resource> descargar(
             @Parameter(description = "ID del documento") @PathVariable Long id);
 
     @Operation(summary = "EP-DI-04 - Ver documento interno (PDF inline)")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Documento disponible en línea"
+        )
+    })
     @StandardApiResponses
     @GetMapping("/{id}/ver")
     ResponseEntity<Resource> ver(

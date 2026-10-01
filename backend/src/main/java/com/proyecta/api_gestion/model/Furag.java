@@ -50,6 +50,7 @@ public class Furag {
     private List<FuragPreguntaRespuestaDTO> detalle;
 
     public Furag() {
+        // Constructor vacío intencional: requerido por JPA para instanciar el embeddable.
     }
 
     // Getters and Setters

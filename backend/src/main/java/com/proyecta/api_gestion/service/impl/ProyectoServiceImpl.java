@@ -9,7 +9,6 @@ import com.proyecta.api_gestion.exception.BadRequestException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
-import com.proyecta.api_gestion.model.config.ListaParametricaConfig;
 import com.proyecta.api_gestion.model.config.MatrizRiesgo;
 import com.proyecta.api_gestion.model.enums.*;
 import com.proyecta.api_gestion.repository.ProyectoRepository;
@@ -17,7 +16,6 @@ import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
 import com.proyecta.api_gestion.repository.DocumentoProyectoVersionRepository;
 import com.proyecta.api_gestion.repository.DocumentoPreWizardRevisionRepository;
 import com.proyecta.api_gestion.repository.RiesgoRepository;
-import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
 import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
@@ -49,13 +47,11 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 @Service
@@ -63,6 +59,17 @@ public class ProyectoServiceImpl implements ProyectoService {
 
     private static final String PROJECT_CODE_PREFIX = "PROY-CUN-";
     private static final String PROJECT_CODE_REGEX = "^PROY-CUN-\\d{4}-\\d+$";
+    private static final String MSG_PROYECTO_NO_ENCONTRADO = "Proyecto no encontrado con id: ";
+    private static final String KEY_PROJECT_NAME = "projectName";
+    private static final String KEY_STATE = "state";
+    private static final String KEY_RECIPIENTS = "recipients";
+    private static final String FURAG_INFRAESTRUCTURA_DATOS = "infraestructuraDatos";
+    private static final String FURAG_INTEROPERABILIDAD = "interoperabilidad";
+    private static final String FURAG_DIGITALIZACION_AUTOMATIZACION = "digitalizacionAutomatizacion";
+    private static final String FURAG_CONTRATACION_PUBLICA = "contratacionPublica";
+    private static final String FURAG_SERVICIOS_NUBE = "serviciosNube";
+    private static final String FURAG_SANDBOX = "sandbox";
+    private static final String FURAG_TECNOLOGIAS_EMERGENTES = "tecnologiasEmergentes";
 
     private final ProyectoRepository proyectoRepository;
     private final FuragRespuestaRepository furagRespuestaRepository;
@@ -75,7 +82,6 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final KeycloakIdentityExtractor identityExtractor;
     private final DocumentoProyectoVersionRepository documentoVersionRepository;
     private final DocumentoPreWizardRevisionRepository preWizardRevisionRepository;
-    private final ListaParametricaConfigRepository listaParametricaRepository;
     private final RiesgoRepository riesgoRepository;
     private final MatrizRiesgoRepository matrizRiesgoRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -91,7 +97,6 @@ public class ProyectoServiceImpl implements ProyectoService {
                                KeycloakIdentityExtractor identityExtractor,
                                DocumentoProyectoVersionRepository documentoVersionRepository,
                                DocumentoPreWizardRevisionRepository preWizardRevisionRepository,
-                               ListaParametricaConfigRepository listaParametricaRepository,
                                RiesgoRepository riesgoRepository,
                                MatrizRiesgoRepository matrizRiesgoRepository,
                                com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
@@ -106,7 +111,6 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.identityExtractor = identityExtractor;
         this.documentoVersionRepository = documentoVersionRepository;
         this.preWizardRevisionRepository = preWizardRevisionRepository;
-        this.listaParametricaRepository = listaParametricaRepository;
         this.riesgoRepository = riesgoRepository;
         this.matrizRiesgoRepository = matrizRiesgoRepository;
         this.objectMapper = objectMapper;
@@ -174,7 +178,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public ProyectoResponseDTO obtenerPorId(String id) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         initializeLazyCollections(proyecto);
         return mapToResponseDto(proyecto);
     }
@@ -216,9 +220,9 @@ public class ProyectoServiceImpl implements ProyectoService {
                 guardado.getId(),
                 gestorUsername,
                 Map.of(
-                        "projectName", guardado.getNombre(),
-                        "state", guardado.getEstadoCodigo(),
-                        "recipients", List.of(director.getCorreo(), gestorUsername)
+                        KEY_PROJECT_NAME, guardado.getNombre(),
+                        KEY_STATE, guardado.getEstadoCodigo(),
+                        KEY_RECIPIENTS, List.of(director.getCorreo(), gestorUsername)
                 )));
 
         return new ProyectoCreatedDTO(
@@ -235,7 +239,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public ProyectoCompletionStatusDTO obtenerEstadoCompletitud(String id, String username) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         boolean directorAsignado = esDirectorAsignado(proyecto, username);
         if (proyecto.requiereCompletitudDirector() && directorAsignado) {
@@ -316,7 +320,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         String mensaje;
         if (!requiereCompletitud) {
             mensaje = "El proyecto ya tiene su informacion inicial completa.";
-        } else if (proyecto.getCierreForzoso()) {
+        } else if (Boolean.TRUE.equals(proyecto.getCierreForzoso())) {
             mensaje = "El proyecto fue cerrado forzosamente por el Gestor.";
         } else if (ViabilidadEstado.DEVUELTA.name().equals(viabilidadEstado)) {
             mensaje = "Algunos documentos fueron devueltos con observaciones. El Director debe subsanar.";
@@ -362,7 +366,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public ProyectoResponseDTO completarInformacionInicial(String id, ProyectoCompletarInformacionDTO dto, String username) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
             throw new BadRequestException("El proyecto no esta pendiente de completar.");
@@ -390,9 +394,9 @@ public class ProyectoServiceImpl implements ProyectoService {
                 guardado.getId(),
                 username,
                 Map.of(
-                        "projectName", guardado.getNombre(),
-                        "state", guardado.getEstadoCodigo(),
-                        "recipients", ProjectNotificationRecipients.resolve(guardado)
+                        KEY_PROJECT_NAME, guardado.getNombre(),
+                        KEY_STATE, guardado.getEstadoCodigo(),
+                        KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(guardado)
                 )));
         return proyectoRepository.findById(guardado.getId()).map(p -> {
             initializeLazyCollections(p);
@@ -405,7 +409,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto, Authentication authentication) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         String actorUsername = identityExtractor.resolveUsername(authentication);
 
         if (dto.nombre() != null) proyecto.setNombre(dto.nombre());
@@ -460,15 +464,15 @@ public class ProyectoServiceImpl implements ProyectoService {
             int[] entIdx = {0};
             int[] faseIdx = {0};
             dto.fases().stream()
-                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, dto.fechaInicio() != null ? dto.fechaInicio() : proyecto.getFechaInicio(), faseIdx[0], hitoIdx, entIdx); })
+                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, faseIdx[0], hitoIdx, entIdx); })
                     .forEach(proyecto.getFases()::add);
         }
 
         Proyecto actualizado = proyectoRepository.save(proyecto);
         sincronizarRespuestasFurag(actualizado);
         notificarCambioProyecto(actualizado, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
-                "projectName", actualizado.getNombre(),
-                "state", actualizado.getEstadoCodigo()
+                KEY_PROJECT_NAME, actualizado.getNombre(),
+                KEY_STATE, actualizado.getEstadoCodigo()
         ));
         return proyectoRepository.findById(actualizado.getId()).map(p -> {
             initializeLazyCollections(p);
@@ -481,12 +485,12 @@ public class ProyectoServiceImpl implements ProyectoService {
     public void eliminarProyecto(String id, Authentication authentication) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         proyectoRepository.delete(proyecto);
         notificarCambioProyecto(proyecto, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
-                "projectName", proyecto.getNombre(),
-                "state", proyecto.getEstadoCodigo(),
+                KEY_PROJECT_NAME, proyecto.getNombre(),
+                KEY_STATE, proyecto.getEstadoCodigo(),
                 "action", "deleted"
         ));
     }
@@ -496,7 +500,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public ProyectoResumenDTO obtenerResumen(String id) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto p = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         long totalFases = p.getFases().size();
         long totalHitos = 0;
@@ -568,7 +572,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public void cerrarProyecto(String id) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         BigDecimal avanceActual = progressCalculator.calcularYActualizarAvanceProyecto(normalizedId);
         proyecto.setAvanceTotal(avanceActual);
@@ -582,9 +586,9 @@ public class ProyectoServiceImpl implements ProyectoService {
                 proyecto.getId(),
                 "system",
                 Map.of(
-                        "projectName", proyecto.getNombre(),
-                        "state", proyecto.getEstadoCodigo(),
-                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
+                        KEY_PROJECT_NAME, proyecto.getNombre(),
+                        KEY_STATE, proyecto.getEstadoCodigo(),
+                        KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
                 )));
     }
 
@@ -611,7 +615,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public Furag obtenerFurag(String id) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         Furag reconstructed = reconstruirFuragDesdeRespuestas(normalizedId);
         if (reconstructed != null) {
             reconstructed.setDetalle(buildFuragDetalle(reconstructed));
@@ -640,7 +644,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public void actualizarFurag(String id, Furag furag) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         validarFuragCompleto(furag, furag.getRespuestas());
         proyecto.setFurag(furag);
         Proyecto guardado = proyectoRepository.save(proyecto);
@@ -700,7 +704,7 @@ public class ProyectoServiceImpl implements ProyectoService {
             final int[] hitoIdx = {0};
             final int[] entIdx = {0};
             dto.fases().stream()
-                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, dto.fechaInicio(), faseIdx[0], hitoIdx, entIdx); })
+                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, faseIdx[0], hitoIdx, entIdx); })
                     .forEach(proyecto.getFases()::add);
         }
     }
@@ -774,7 +778,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     private NivelRiesgo parseNivelRiesgo(String nivel) {
         try {
             return NivelRiesgo.valueOf(nivel);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return NivelRiesgo.BAJO;
         }
     }
@@ -800,13 +804,13 @@ public class ProyectoServiceImpl implements ProyectoService {
         Map<String, RespuestaFurag> respuestas = normalizeFuragResponses(dto.respuestas());
         Furag furag = new Furag();
         furag.setRespuestas(respuestas);
-        furag.setInfraestructuraDatos(resolveFuragAnswer(respuestas, "infraestructuraDatos"));
-        furag.setInteroperabilidad(resolveFuragAnswer(respuestas, "interoperabilidad"));
-        furag.setDigitalizacionAutomatizacion(resolveFuragAnswer(respuestas, "digitalizacionAutomatizacion"));
-        furag.setContratacionPublica(resolveFuragAnswer(respuestas, "contratacionPublica"));
-        furag.setServiciosNube(resolveFuragAnswer(respuestas, "serviciosNube"));
-        furag.setSandbox(resolveFuragAnswer(respuestas, "sandbox"));
-        furag.setTecnologiasEmergentes(resolveFuragAnswer(respuestas, "tecnologiasEmergentes"));
+        furag.setInfraestructuraDatos(resolveFuragAnswer(respuestas, FURAG_INFRAESTRUCTURA_DATOS));
+        furag.setInteroperabilidad(resolveFuragAnswer(respuestas, FURAG_INTEROPERABILIDAD));
+        furag.setDigitalizacionAutomatizacion(resolveFuragAnswer(respuestas, FURAG_DIGITALIZACION_AUTOMATIZACION));
+        furag.setContratacionPublica(resolveFuragAnswer(respuestas, FURAG_CONTRATACION_PUBLICA));
+        furag.setServiciosNube(resolveFuragAnswer(respuestas, FURAG_SERVICIOS_NUBE));
+        furag.setSandbox(resolveFuragAnswer(respuestas, FURAG_SANDBOX));
+        furag.setTecnologiasEmergentes(resolveFuragAnswer(respuestas, FURAG_TECNOLOGIAS_EMERGENTES));
         furag.setDetalle(buildFuragDetalle(furag));
         validarFuragCompleto(furag, respuestas);
         return furag;
@@ -888,14 +892,14 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (normalized.isBlank()) {
             return null;
         }
-        if (normalized.equals("infraestructuradedatos") || normalized.equals("usoinfraestructuradedatos")) return "infraestructuraDatos";
-        if (normalized.contains("infraestructura") && normalized.contains("dato")) return "infraestructuraDatos";
-        if (normalized.contains("interoperabilidad")) return "interoperabilidad";
-        if (normalized.equals("digitalizacionautomatizacion") || (normalized.contains("digitalizacion") && normalized.contains("automatizacion"))) return "digitalizacionAutomatizacion";
-        if (normalized.equals("contratacionpublica") || (normalized.contains("contratacion") && normalized.contains("publica"))) return "contratacionPublica";
-        if (normalized.equals("serviciosnube") || (normalized.contains("servicios") && normalized.contains("nube"))) return "serviciosNube";
-        if (normalized.equals("sandbox") || normalized.contains("sandbox")) return "sandbox";
-        if (normalized.equals("tecnologiasemergentes") || (normalized.contains("tecnologias") && normalized.contains("emergentes"))) return "tecnologiasEmergentes";
+        if (normalized.equals("infraestructuradedatos") || normalized.equals("usoinfraestructuradedatos")) return FURAG_INFRAESTRUCTURA_DATOS;
+        if (normalized.contains("infraestructura") && normalized.contains("dato")) return FURAG_INFRAESTRUCTURA_DATOS;
+        if (normalized.contains(FURAG_INTEROPERABILIDAD)) return FURAG_INTEROPERABILIDAD;
+        if (normalized.equals("digitalizacionautomatizacion") || (normalized.contains("digitalizacion") && normalized.contains("automatizacion"))) return FURAG_DIGITALIZACION_AUTOMATIZACION;
+        if (normalized.equals("contratacionpublica") || (normalized.contains("contratacion") && normalized.contains("publica"))) return FURAG_CONTRATACION_PUBLICA;
+        if (normalized.equals("serviciosnube") || (normalized.contains("servicios") && normalized.contains("nube"))) return FURAG_SERVICIOS_NUBE;
+        if (normalized.equals(FURAG_SANDBOX) || normalized.contains(FURAG_SANDBOX)) return FURAG_SANDBOX;
+        if (normalized.equals("tecnologiasemergentes") || (normalized.contains("tecnologias") && normalized.contains("emergentes"))) return FURAG_TECNOLOGIAS_EMERGENTES;
         if (normalized.equals("elpepe")) return "elPepe";
         if (normalized.equals("sanpepe")) return "sanPepe";
         return cleaned;
@@ -911,13 +915,13 @@ public class ProyectoServiceImpl implements ProyectoService {
             map.putAll(normalizeFuragResponses(dynamic));
             return map;
         }
-        if (furag.getInfraestructuraDatos() != null) map.put("infraestructuraDatos", furag.getInfraestructuraDatos());
-        if (furag.getInteroperabilidad() != null) map.put("interoperabilidad", furag.getInteroperabilidad());
-        if (furag.getDigitalizacionAutomatizacion() != null) map.put("digitalizacionAutomatizacion", furag.getDigitalizacionAutomatizacion());
-        if (furag.getContratacionPublica() != null) map.put("contratacionPublica", furag.getContratacionPublica());
-        if (furag.getServiciosNube() != null) map.put("serviciosNube", furag.getServiciosNube());
-        if (furag.getSandbox() != null) map.put("sandbox", furag.getSandbox());
-        if (furag.getTecnologiasEmergentes() != null) map.put("tecnologiasEmergentes", furag.getTecnologiasEmergentes());
+        if (furag.getInfraestructuraDatos() != null) map.put(FURAG_INFRAESTRUCTURA_DATOS, furag.getInfraestructuraDatos());
+        if (furag.getInteroperabilidad() != null) map.put(FURAG_INTEROPERABILIDAD, furag.getInteroperabilidad());
+        if (furag.getDigitalizacionAutomatizacion() != null) map.put(FURAG_DIGITALIZACION_AUTOMATIZACION, furag.getDigitalizacionAutomatizacion());
+        if (furag.getContratacionPublica() != null) map.put(FURAG_CONTRATACION_PUBLICA, furag.getContratacionPublica());
+        if (furag.getServiciosNube() != null) map.put(FURAG_SERVICIOS_NUBE, furag.getServiciosNube());
+        if (furag.getSandbox() != null) map.put(FURAG_SANDBOX, furag.getSandbox());
+        if (furag.getTecnologiasEmergentes() != null) map.put(FURAG_TECNOLOGIAS_EMERGENTES, furag.getTecnologiasEmergentes());
         return map;
     }
 
@@ -987,30 +991,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         Furag furag = new Furag();
         Map<String, RespuestaFurag> dynamic = new LinkedHashMap<>();
         for (FuragRespuesta respuesta : respuestas) {
-            if (respuesta == null) {
-                continue;
-            }
-            String key = trimToNull(respuesta.getCodigoPregunta());
-            if (key == null) {
-                key = trimToNull(respuesta.getPregunta());
-            }
-            if (key == null || respuesta.getRespuesta() == null) {
-                continue;
-            }
-            dynamic.put(key, respuesta.getRespuesta());
-            String canonicalKey = canonicalizeFuragKey(key);
-            switch (canonicalKey) {
-                case "infraestructuraDatos" -> furag.setInfraestructuraDatos(respuesta.getRespuesta());
-                case "interoperabilidad" -> furag.setInteroperabilidad(respuesta.getRespuesta());
-                case "digitalizacionAutomatizacion" -> furag.setDigitalizacionAutomatizacion(respuesta.getRespuesta());
-                case "contratacionPublica" -> furag.setContratacionPublica(respuesta.getRespuesta());
-                case "serviciosNube" -> furag.setServiciosNube(respuesta.getRespuesta());
-                case "sandbox" -> furag.setSandbox(respuesta.getRespuesta());
-                case "tecnologiasEmergentes" -> furag.setTecnologiasEmergentes(respuesta.getRespuesta());
-                default -> {
-                    // Preguntas nuevas quedan disponibles en el mapa dinamico.
-                }
-            }
+            aplicarRespuestaFurag(furag, dynamic, respuesta);
         }
 
         furag.setRespuestas(dynamic);
@@ -1018,7 +999,34 @@ public class ProyectoServiceImpl implements ProyectoService {
         return dynamic.isEmpty() ? null : furag;
     }
 
-    private Fase buildFase(FaseDTO fDto, Proyecto proyecto, LocalDate fechaInicioProyecto, int faseNumero, int[] hitoIdx, int[] entIdx) {
+    private void aplicarRespuestaFurag(Furag furag, Map<String, RespuestaFurag> dynamic, FuragRespuesta respuesta) {
+        if (respuesta == null) {
+            return;
+        }
+        String key = trimToNull(respuesta.getCodigoPregunta());
+        if (key == null) {
+            key = trimToNull(respuesta.getPregunta());
+        }
+        if (key == null || respuesta.getRespuesta() == null) {
+            return;
+        }
+        dynamic.put(key, respuesta.getRespuesta());
+        String canonicalKey = canonicalizeFuragKey(key);
+        switch (canonicalKey) {
+            case FURAG_INFRAESTRUCTURA_DATOS -> furag.setInfraestructuraDatos(respuesta.getRespuesta());
+            case FURAG_INTEROPERABILIDAD -> furag.setInteroperabilidad(respuesta.getRespuesta());
+            case FURAG_DIGITALIZACION_AUTOMATIZACION -> furag.setDigitalizacionAutomatizacion(respuesta.getRespuesta());
+            case FURAG_CONTRATACION_PUBLICA -> furag.setContratacionPublica(respuesta.getRespuesta());
+            case FURAG_SERVICIOS_NUBE -> furag.setServiciosNube(respuesta.getRespuesta());
+            case FURAG_SANDBOX -> furag.setSandbox(respuesta.getRespuesta());
+            case FURAG_TECNOLOGIAS_EMERGENTES -> furag.setTecnologiasEmergentes(respuesta.getRespuesta());
+            default -> {
+                // Preguntas nuevas quedan disponibles en el mapa dinamico.
+            }
+        }
+    }
+
+    private Fase buildFase(FaseDTO fDto, Proyecto proyecto, int faseNumero, int[] hitoIdx, int[] entIdx) {
         Fase fase = new Fase();
         fase.setNombre(String.format("F%02d", faseNumero));
         fase.setDescripcion(fDto.descripcion());
@@ -1026,13 +1034,13 @@ public class ProyectoServiceImpl implements ProyectoService {
         fase.setProyecto(proyecto);
 
         List<Hito> hitos = fDto.hitos().stream()
-                .map(hDto -> { hitoIdx[0]++; return buildHito(hDto, fase, fechaInicioProyecto, hitoIdx[0], entIdx); })
+                .map(hDto -> { hitoIdx[0]++; return buildHito(hDto, fase, hitoIdx[0], entIdx); })
                 .collect(Collectors.toList());
         fase.setHitos(hitos);
         return fase;
     }
 
-    private Hito buildHito(HitoDTO hDto, Fase fase, LocalDate fechaInicioProyecto, int hitoNumero, int[] entIdx) {
+    private Hito buildHito(HitoDTO hDto, Fase fase, int hitoNumero, int[] entIdx) {
         Hito hito = new Hito();
         hito.setNombre(String.format("H%02d", hitoNumero));
         hito.setDescripcion(hDto.descripcion());
@@ -1040,14 +1048,14 @@ public class ProyectoServiceImpl implements ProyectoService {
         hito.setFase(fase);
 
         List<Entregable> entregables = hDto.entregables().stream()
-                .map(eDto -> { entIdx[0]++; return buildEntregable(eDto, hito, fechaInicioProyecto, entIdx[0]); })
+                .map(eDto -> { entIdx[0]++; return buildEntregable(eDto, hito, entIdx[0]); })
                 .collect(Collectors.toList());
         hito.setEntregables(entregables);
         return hito;
     }
 
-    private Entregable buildEntregable(EntregableDTO eDto, Hito hito, LocalDate fechaInicioProyecto, int entNumero) {
-        validarFechasEntregableNuevo(eDto, fechaInicioProyecto);
+    private Entregable buildEntregable(EntregableDTO eDto, Hito hito, int entNumero) {
+        validarFechasEntregableNuevo(eDto);
         Entregable ent = new Entregable();
         ent.setNombre(String.format("E%02d", entNumero));
         ent.setDescripcion(eDto.descripcion());
@@ -1185,7 +1193,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 return 0;
             }
             return Integer.parseInt(afterPrefix.substring(lastDash + 1));
-        } catch (NumberFormatException ex) {
+        } catch (NumberFormatException _) {
             return 0;
         }
     }
@@ -1236,7 +1244,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                     if (entregable.ponderacion() == null || entregable.ponderacion() < 1 || entregable.ponderacion() > 100) {
                         throw new BadRequestException("La ponderacion del entregable debe estar entre 1 y 100");
                     }
-                    validarFechasEntregableNuevo(entregable, null);
+                    validarFechasEntregableNuevo(entregable);
                     sumEntregables += entregable.ponderacion();
                 }
                 if (sumEntregables != 100) {
@@ -1246,7 +1254,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
     }
 
-    private void validarFechasEntregableNuevo(EntregableDTO entregable, LocalDate fechaInicioProyecto) {
+    private void validarFechasEntregableNuevo(EntregableDTO entregable) {
         if (entregable.fechaInicio() == null) {
             throw new BadRequestException("La fecha de inicio del entregable es obligatoria");
         }
@@ -1259,17 +1267,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     }
 
     private ProyectoListDTO mapToListDto(Proyecto p) {
-        long total = 0, conformes = 0, atrasados = 0;
-        LocalDate hoy = LocalDate.now();
-        for (Fase f : p.getFases()) {
-            for (Hito h : f.getHitos()) {
-                for (Entregable e : h.getEntregables()) {
-                    total++;
-                    if (e.esConforme()) conformes++;
-                    if (!e.esConforme() && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy)) atrasados++;
-                }
-            }
-        }
+        ConteoEntregables conteo = contarEntregables(p);
 
         return new ProyectoListDTO(
                 p.getId(),
@@ -1282,15 +1280,35 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getEstadoCodigo(),
                 p.getViabilidadEstado() != null ? p.getViabilidadEstado().name() : null,
                 p.getDocumentosCargados(),
-                (int) total,
-                (int) conformes,
-                (int) atrasados,
+                (int) conteo.total(),
+                (int) conteo.conformes(),
+                (int) conteo.atrasados(),
                 p.getFurag() != null ? buildFuragDetalle(p.getFurag()) : List.of(),
                 Boolean.TRUE.equals(p.getCierreForzoso()),
                 p.getCierreObservaciones(),
                 p.getCierreForzosoPor(),
                 p.getCierreForzosoEn()
         );
+    }
+
+    private record ConteoEntregables(long total, long conformes, long atrasados) {
+    }
+
+    private ConteoEntregables contarEntregables(Proyecto p) {
+        long total = 0;
+        long conformes = 0;
+        long atrasados = 0;
+        LocalDate hoy = LocalDate.now();
+        for (Fase f : p.getFases()) {
+            for (Hito h : f.getHitos()) {
+                for (Entregable e : h.getEntregables()) {
+                    total++;
+                    if (e.esConforme()) conformes++;
+                    if (!e.esConforme() && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy)) atrasados++;
+                }
+            }
+        }
+        return new ConteoEntregables(total, conformes, atrasados);
     }
 
     private String normalizeProjectId(String id) {
@@ -1310,7 +1328,7 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         try {
             return EstrategiaPeti.valueOf(codigo.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }
@@ -1346,7 +1364,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 resolveDirectorUsuarioId(p),
                 resolveDirectorCorreoAsignado(p),
                 p.getObjetivoGeneral(),
-                p.getObjetivosEspecificos().stream().map(ObjetivoEspecifico::getDescripcion).collect(Collectors.toList()),
+                p.getObjetivosEspecificos().stream().map(ObjetivoEspecifico::getDescripcion).toList(),
                 p.getFechaInicio(),
                 p.getEstadoCodigo(),
                 p.getAvanceTotal(),
@@ -1357,8 +1375,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                 resolveEstrategiaPetiCodigo(p),
                 p.getTienePlanComunicaciones(),
                 p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
-                p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol(), m.getDependencia(), m.getTelefono(), m.getCorreo())).collect(Collectors.toList()),
-                p.getStakeholders().stream().map(s -> new StakeholderDTO(s.getRol(), s.getDescripcion(), s.getInteres(), s.getImpacto())).collect(Collectors.toList()),
+                p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol(), m.getDependencia(), m.getTelefono(), m.getCorreo())).toList(),
+                p.getStakeholders().stream().map(s -> new StakeholderDTO(s.getRol(), s.getDescripcion(), s.getInteres(), s.getImpacto())).toList(),
                 p.getFurag() != null ? buildFuragDto(p.getFurag()) : null,
                 p.getFases().stream()
                         .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
@@ -1372,9 +1390,9 @@ public class ProyectoServiceImpl implements ProyectoService {
                                         .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                                         .map(e -> new EntregableResponseDTO(
                                         e.getId(), e.getNombre(), e.getDescripcion(), e.getPonderacion(), e.getEstadoCodigo(), e.esConforme(), e.getFechaInicio(), e.getFechaLimite()
-                                )).collect(Collectors.toList())
-                        )).collect(Collectors.toList())
-                )).collect(Collectors.toList())
+                                )).toList()
+                        )).toList()
+                )).toList()
         );
     }
 
@@ -1448,7 +1466,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (extraAttributes != null) {
             attributes.putAll(extraAttributes);
         }
-        attributes.put("recipients", recipients);
+        attributes.put(KEY_RECIPIENTS, recipients);
 
         notificationPublisher.publish(new NotificationContext(
                 eventType,
@@ -1465,7 +1483,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public CompletitudBorradorDTO guardarBorradorCompletitud(String id, CompletitudBorradorDTO dto, String username) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
             throw new BadRequestException("El proyecto no esta pendiente de completar.");
@@ -1490,7 +1508,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public CompletitudBorradorDTO obtenerBorradorCompletitud(String id, String username) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
             throw new BadRequestException("El proyecto no esta pendiente de completar.");
@@ -1521,7 +1539,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public ProyectoResponseDTO completarFaseCompletitud(String id, Integer fase, String username) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
             throw new BadRequestException("El proyecto no esta pendiente de completar.");
@@ -1563,7 +1581,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     public void cerrarForzoso(String id, String gestorUsername, String comentario) {
         final String normalizedId = normalizeProjectId(id);
         Proyecto proyecto = proyectoRepository.findById(normalizedId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (proyecto.esEstadoTerminal()) {
             throw new BadRequestException("El proyecto ya se encuentra cerrado o finalizado.");
@@ -1580,32 +1598,12 @@ public class ProyectoServiceImpl implements ProyectoService {
                 proyecto.getId(),
                 gestorUsername,
                 java.util.Map.of(
-                        "projectName", proyecto.getNombre(),
-                        "state", proyecto.getEstadoCodigo() != null ? proyecto.getEstadoCodigo() : proyecto.getEstado().name(),
+                        KEY_PROJECT_NAME, proyecto.getNombre(),
+                        KEY_STATE, proyecto.getEstadoCodigo() != null ? proyecto.getEstadoCodigo() : proyecto.getEstado().name(),
                         "motivo", "Cierre forzoso / extraordinario",
                         "comentario", comentario.trim(),
-                        "recipients", ProjectNotificationRecipients.resolve(proyecto)
+                        KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
                 )));
-    }
-
-    private void recalcularDocumentosCargados(Proyecto proyecto) {
-        boolean tieneViabilidad = documentoVersionRepository
-                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "VIABILIZACION")
-                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
-        boolean tienePlanComunicaciones = documentoVersionRepository
-                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "PLAN_COMUNICACIONES")
-                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
-        boolean tieneMatrizRiesgos = documentoVersionRepository
-                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "MATRIZ_RIESGOS_VIABILIDAD")
-                .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
-
-        boolean cargados = tieneViabilidad && tienePlanComunicaciones && tieneMatrizRiesgos;
-        proyecto.setDocumentosCargados(cargados);
-
-        if (!cargados && proyecto.viabilidadCargada()) {
-            proyecto.setViabilidadEstado(com.proyecta.api_gestion.model.enums.ViabilidadEstado.PENDIENTE);
-            proyecto.setViabilidadObservaciones(null);
-        }
     }
 }
 

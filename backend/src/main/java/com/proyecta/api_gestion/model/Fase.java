@@ -40,6 +40,7 @@ public class Fase {
     private LocalDateTime fechaCreacion;
 
     public Fase() {
+        // Constructor por defecto requerido por JPA, sin lógica que ejecutar.
     }
 
     @PrePersist

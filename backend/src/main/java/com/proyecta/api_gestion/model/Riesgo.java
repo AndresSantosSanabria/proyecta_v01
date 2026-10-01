@@ -112,6 +112,7 @@ public class Riesgo {
     private Proyecto proyecto;
 
     public Riesgo() {
+        // Constructor vacio requerido por JPA.
     }
 
     @PrePersist

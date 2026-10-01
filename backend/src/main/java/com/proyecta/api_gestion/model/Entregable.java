@@ -63,6 +63,7 @@ public class Entregable {
     private LocalDateTime fechaCreacion;
 
     public Entregable() {
+        // Constructor por defecto requerido por JPA, sin lógica que ejecutar.
     }
 
     @PrePersist

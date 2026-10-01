@@ -43,6 +43,7 @@ public class Hito {
     private LocalDateTime fechaCreacion;
 
     public Hito() {
+        // Constructor vacío intencional: lo requiere JPA para instanciar la entidad.
     }
 
     @PrePersist

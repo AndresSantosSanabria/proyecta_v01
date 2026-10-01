@@ -26,7 +26,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -49,6 +48,7 @@ public final class FuragPdfGenerator {
     private static final float FOOTER_W = 470f;
     private static final float FOOTER_H = 60f;
     private static final float FOOTER_TOP_LIMIT = 92f;
+    private static final float TABLE_HEADER_HEIGHT = 52f;
 
     private static final Color COLOR_TEXT = new Color(18, 18, 18);
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
@@ -85,7 +85,7 @@ public final class FuragPdfGenerator {
                             true
                     );
                 }
-            } catch (IOException ignored) {
+            } catch (IOException _) {
                 // fallback below
             }
         }
@@ -114,21 +114,6 @@ public final class FuragPdfGenerator {
 
     private static String yesNo(boolean value) {
         return value ? "SI" : "NO";
-    }
-
-    private static boolean sameText(String left, String right) {
-        return normalize(left).equals(normalize(right));
-    }
-
-    private static String normalize(String value) {
-        String source = value == null ? "" : value;
-        String normalized = java.text.Normalizer.normalize(source, java.text.Normalizer.Form.NFD)
-                .replaceAll("\\p{M}+", "");
-        return normalized.toLowerCase(Locale.ROOT).trim();
-    }
-
-    private static boolean hasText(String value) {
-        return value != null && !value.trim().isEmpty();
     }
 
     private static boolean furagCompleto(Proyecto proyecto) {
@@ -184,7 +169,6 @@ public final class FuragPdfGenerator {
             List<FuragRow> rows = buildRows(proyectosDependencia);
             int countYes = (int) rows.stream().filter(FuragRow::responde).count();
             int countNo = rows.size() - countYes;
-            String dependencia = proyecto != null ? safe(proyecto.getDependencia()) : "";
 
             startPage();
             renderHeader();
@@ -263,7 +247,7 @@ public final class FuragPdfGenerator {
 
         private void renderTableHeading() throws IOException {
             drawTableHeader(cursorY);
-            cursorY -= headerHeight();
+            cursorY -= TABLE_HEADER_HEIGHT;
         }
 
         private void drawEmptyState(String message) throws IOException {
@@ -294,7 +278,7 @@ public final class FuragPdfGenerator {
                 String value = values[i];
                 float fontSize = i == 4 ? 10.2f : 9.2f;
                 List<String> wrapped = wrap(value, fonts.regular(), fontSize, colWidth - 8f);
-                drawWrapped(wrapped, fonts.regular(), fontSize, x + 4f, y - 11f, 10.8f, COLOR_TEXT, false);
+                drawWrapped(wrapped, fonts.regular(), fontSize, x + 4f, y - 11f, 10.8f, COLOR_TEXT);
                 x += colWidth;
             }
         }
@@ -327,10 +311,6 @@ public final class FuragPdfGenerator {
                 drawCenteredWrapped(wrappedHeaders.get(i), fonts.bold(), sizes[i], x, topY - 10f, colWidth, 10.5f, COLOR_MUTED);
                 x += colWidth;
             }
-        }
-
-        private float headerHeight() {
-            return 52f;
         }
 
         private float rowHeight(FuragRow row) throws IOException {
@@ -407,14 +387,10 @@ public final class FuragPdfGenerator {
             content.endText();
         }
 
-        private void drawWrapped(List<String> lines, PDFont font, float size, float x, float topY, float leading, Color color, boolean center) throws IOException {
+        private void drawWrapped(List<String> lines, PDFont font, float size, float x, float topY, float leading, Color color) throws IOException {
             float y = topY;
             for (String line : lines) {
-                float drawX = center ? x : x;
-                if (center) {
-                    drawX = x;
-                }
-                drawText(line, font, size, drawX, y, color);
+                drawText(line, font, size, x, y, color);
                 y -= leading;
             }
         }
@@ -443,19 +419,19 @@ public final class FuragPdfGenerator {
                 }
                 StringBuilder current = new StringBuilder();
                 for (String word : line.split("\\s+")) {
-                    String trial = current.length() == 0 ? word : current + " " + word;
+                    String trial = current.isEmpty() ? word : current + " " + word;
                     if (stringWidth(font, size, trial) <= maxWidth) {
                         current.setLength(0);
                         current.append(trial);
                     } else {
-                        if (current.length() > 0) {
+                        if (!current.isEmpty()) {
                             result.add(current.toString());
                         }
                         current.setLength(0);
                         current.append(word);
                     }
                 }
-                if (current.length() > 0) {
+                if (!current.isEmpty()) {
                     result.add(current.toString());
                 }
             }

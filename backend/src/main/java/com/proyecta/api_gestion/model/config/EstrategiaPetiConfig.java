@@ -32,7 +32,9 @@ public class EstrategiaPetiConfig {
     @Column(nullable = false)
     private Boolean activo = true;
 
-    public EstrategiaPetiConfig() {}
+    public EstrategiaPetiConfig() {
+        // Constructor por defecto requerido por JPA, sin lógica que ejecutar.
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

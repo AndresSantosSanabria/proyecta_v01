@@ -15,6 +15,8 @@ import com.proyecta.api_gestion.model.Furag;
 import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
@@ -29,10 +31,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -71,7 +72,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
 
     @Override
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
-    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable("id") String id) {
         return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerPorId(id), "Detalle del proyecto obtenido"));
     }
 
@@ -85,6 +86,12 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Proyecto registrado inicialmente",
+        content = @Content(schema = @Schema(implementation = ProyectoCreatedDTO.class))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
     public ResponseEntity<ApiResponse<ProyectoCreatedDTO>> registrarProyectoInicial(
             @Valid @RequestBody ProyectoRegistroInicialDTO dto,
@@ -106,7 +113,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @Override
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoCompletionStatusDTO>> obtenerEstadoCompletitud(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             Authentication authentication) {
         String username = identityExtractor.resolveUsername(authentication);
         return ResponseEntity.ok(ApiResponse.success(
@@ -118,7 +125,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @Override
     @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarInformacionInicial(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Valid @RequestBody ProyectoCompletarInformacionDTO dto,
             Authentication authentication) {
         String username = identityExtractor.resolveUsername(authentication);
@@ -131,7 +138,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @Override
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Valid @RequestBody ProyectoUpdateDTO dto,
             Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(proyectoService.actualizarProyecto(id, dto, authentication), "Proyecto actualizado exitosamente"));

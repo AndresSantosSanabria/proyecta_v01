@@ -11,7 +11,9 @@ import java.time.LocalDateTime;
  *
  * @param <T> El tipo de dato que contiene la respuesta.
  */
-@Schema(description = "Respuesta genérica de la API")
+@Schema(description = "Respuesta genérica de la API", example = """
+    {"success":true,"message":"Operación realizada con éxito","timestamp":"2026-07-15T10:30:00","data":{}}
+    """)
 public class ApiResponse<T> {
 
     @Schema(description = "Indica si la operación fue exitosa", example = "true")

@@ -89,7 +89,7 @@ public class PublicEvidenceUrlSigner {
         long exp;
         try {
             exp = Long.parseLong(expParam);
-        } catch (NumberFormatException ex) {
+        } catch (NumberFormatException _) {
             return false;
         }
         if (Instant.now().getEpochSecond() > exp) {
@@ -99,7 +99,7 @@ public class PublicEvidenceUrlSigner {
         byte[] actual;
         try {
             actual = Base64.getUrlDecoder().decode(sigParam);
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException _) {
             return false;
         }
         return MessageDigest.isEqual(expected, actual);

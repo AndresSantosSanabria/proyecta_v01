@@ -8,10 +8,7 @@ import com.proyecta.api_gestion.exception.ForbiddenException;
 import com.proyecta.api_gestion.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.model.*;
 import com.proyecta.api_gestion.model.enums.EstadoEntregable;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.repository.*;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
@@ -53,13 +50,15 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private final KeycloakIdentityExtractor identityExtractor;
     private final NotificationOrchestratorService notificationOrchestrator;
     private final NotificationEventPublisherPort notificationPublisher;
-    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
 
     private static final String DIAS_POR_VENCER_PARAM = "dias_por_vencer";
     private static final int DIAS_POR_VENCER_DEFAULT = 7;
     private static final double EPSILON_PONDERACION = 0.01;
     private static final long MAX_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
     private static final String CAMBIOS_FECHA_SUBDIR = "cambios-fecha";
+    private static final String FASE_NO_ENCONTRADA = "Fase no encontrada";
+    private static final String HITO_NO_ENCONTRADO = "Hito no encontrado";
+    private static final String ENTREGABLE_NO_ENCONTRADO = "Entregable no encontrado: ";
 
     public ProjectHierarchyServiceImpl(ProyectoRepository proyectoRepository,
                                         FaseRepository faseRepository,
@@ -72,8 +71,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                                         IStorageProvider storageProvider,
                                         KeycloakIdentityExtractor identityExtractor,
                                         NotificationOrchestratorService notificationOrchestrator,
-                                        NotificationEventPublisherPort notificationPublisher,
-                                        SeguridadUsuarioProyectoRepository usuarioProyectoRepository) {
+                                        NotificationEventPublisherPort notificationPublisher) {
         this.proyectoRepository = proyectoRepository;
         this.faseRepository = faseRepository;
         this.hitoRepository = hitoRepository;
@@ -86,7 +84,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         this.identityExtractor = identityExtractor;
         this.notificationOrchestrator = notificationOrchestrator;
         this.notificationPublisher = notificationPublisher;
-        this.usuarioProyectoRepository = usuarioProyectoRepository;
     }
 
     @Override
@@ -98,10 +95,10 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
         }
         String actorUsername = identityExtractor.resolveUsername(authentication);
-        validarFaseConHitos(dto, proyecto.getFechaInicio());
+        validarFaseConHitos(dto);
         validarPonderacionAlAgregarFase(proyectoId, dto.ponderacion());
         Fase fase = new Fase();
-        int faseCount = (int) faseRepository.findByProyectoId(proyectoId).size() + 1;
+        int faseCount = faseRepository.findByProyectoId(proyectoId).size() + 1;
         fase.setNombre(String.format("F%02d", faseCount));
         fase.setDescripcion(dto.descripcion());
         fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
@@ -119,7 +116,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @org.springframework.transaction.annotation.Transactional
     public Fase editarFase(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
         Fase fase = faseRepository.findById(faseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException(FASE_NO_ENCONTRADA));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
         if (fase.getProyecto().esEstadoTerminal()) {
@@ -139,8 +136,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @org.springframework.transaction.annotation.Transactional
     public void eliminarFase(String proyectoId, Integer faseId, Authentication authentication) {
         Fase fase = faseRepository.findById(faseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
-        String actorUsername = identityExtractor.resolveUsername(authentication);
+                .orElseThrow(() -> new ResourceNotFoundException(FASE_NO_ENCONTRADA));
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
         throw new BadRequestException("No se permite eliminar fases ya creadas. Solo se pueden modificar sus textos y ponderacion.");
     }
@@ -149,13 +145,13 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @org.springframework.transaction.annotation.Transactional
     public Hito agregarHito(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
         Fase fase = faseRepository.findById(faseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Fase no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException(FASE_NO_ENCONTRADA));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
         if (fase.getProyecto().esEstadoTerminal()) {
             throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
         }
-        validarHitoConEntregables(dto, fase.getProyecto() != null ? fase.getProyecto().getFechaInicio() : null);
+        validarHitoConEntregables(dto);
         validarPonderacionAlAgregarHito(faseId, dto.ponderacion());
         Hito guardado = crearHitoConEntregables(fase, dto);
         avanceCalculatorService.calcularYActualizarAvanceFase(faseId);
@@ -167,7 +163,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @org.springframework.transaction.annotation.Transactional
     public Hito editarHito(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
         Hito hito = hitoRepository.findById(hitoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException(HITO_NO_ENCONTRADO));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
@@ -188,8 +184,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @org.springframework.transaction.annotation.Transactional
     public void eliminarHito(String proyectoId, Integer faseId, Integer hitoId, Authentication authentication) {
         Hito hito = hitoRepository.findById(hitoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
-        String actorUsername = identityExtractor.resolveUsername(authentication);
+                .orElseThrow(() -> new ResourceNotFoundException(HITO_NO_ENCONTRADO));
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
         throw new BadRequestException("No se permite eliminar hitos ya creados. Solo se pueden modificar sus textos y ponderacion.");
@@ -199,19 +194,17 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @org.springframework.transaction.annotation.Transactional
     public Entregable agregarEntregable(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
         Hito hito = hitoRepository.findById(hitoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hito no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException(HITO_NO_ENCONTRADO));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
         if (hito.getFase().getProyecto().esEstadoTerminal()) {
             throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
         }
-        validarEntregableNuevo(dto, hito.getFase() != null && hito.getFase().getProyecto() != null
-                ? hito.getFase().getProyecto().getFechaInicio()
-                : null);
+        validarEntregableNuevo(dto);
         validarPonderacionAlAgregarEntregable(hitoId, dto.ponderacion());
         Entregable entregable = new Entregable();
-        int eCount = (int) entregableRepository.findByProyectoId(hito.getFase().getProyecto().getId()).size() + 1;
+        int eCount = entregableRepository.findByProyectoId(hito.getFase().getProyecto().getId()).size() + 1;
         entregable.setNombre(String.format("E%02d", eCount));
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         entregable.setFechaInicio(dto.fechaInicio());
@@ -255,51 +248,49 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     public void eliminarEntregable(String proyectoId, Integer entregableId, Authentication authentication) {
         Entregable entregable = entregableRepository.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
-        String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         throw new BadRequestException("No se permite eliminar entregables ya creados. Solo se pueden modificar sus textos y ponderacion.");
     }
 
-    private void validarFaseConHitos(com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, LocalDate fechaInicioProyecto) {
+    private void validarFaseConHitos(com.proyecta.api_gestion.dto.proyecto.FaseDTO dto) {
         validarPonderacion(dto.ponderacion(), "La ponderacion de la fase debe estar entre 1 y 100.");
         if (dto.hitos() == null || dto.hitos().isEmpty()) {
             throw new BadRequestException("Una fase debe crearse con al menos un hito.");
         }
         for (com.proyecta.api_gestion.dto.proyecto.HitoDTO hitoDto : dto.hitos()) {
-            validarHitoConEntregables(hitoDto, fechaInicioProyecto);
+            validarHitoConEntregables(hitoDto);
         }
         validarSumaHitosExacta(dto.hitos(), "Los hitos de una fase deben sumar exactamente 100%.");
     }
 
-    private void validarHitoConEntregables(com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, LocalDate fechaInicioProyecto) {
+    private void validarHitoConEntregables(com.proyecta.api_gestion.dto.proyecto.HitoDTO dto) {
         validarPonderacion(dto.ponderacion(), "La ponderacion del hito debe estar entre 1 y 100.");
         if (dto.entregables() == null || dto.entregables().isEmpty()) {
             throw new BadRequestException("Un hito debe crearse con al menos un entregable.");
         }
         for (com.proyecta.api_gestion.dto.proyecto.EntregableDTO entregableDto : dto.entregables()) {
-            validarEntregableNuevo(entregableDto, fechaInicioProyecto);
+            validarEntregableNuevo(entregableDto);
         }
         validarSumaEntregablesExacta(dto.entregables(), "Los entregables de un hito deben sumar exactamente 100%.");
     }
 
-    private void validarEntregableNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, LocalDate fechaInicioProyecto) {
+    private void validarEntregableNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
         validarPonderacion(dto.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100.");
-        validarFechasNuevo(dto, fechaInicioProyecto);
+        validarFechasNuevo(dto);
         validarArchivoRetroactivo(dto);
     }
 
     private void validarArchivoRetroactivo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
         java.time.LocalDate hoy = java.time.LocalDate.now();
-        if (dto.fechaLimite() != null && dto.fechaLimite().isBefore(hoy)) {
-            if (dto.archivoPdf() == null || dto.archivoPdf().isBlank()) {
-                throw new BadRequestException(
-                    "Debes adjuntar un archivo de soporte porque la fecha limite del entregable es anterior a la fecha actual."
-                );
-            }
+        if (dto.fechaLimite() != null && dto.fechaLimite().isBefore(hoy)
+                && (dto.archivoPdf() == null || dto.archivoPdf().isBlank())) {
+            throw new BadRequestException(
+                "Debes adjuntar un archivo de soporte porque la fecha limite del entregable es anterior a la fecha actual."
+            );
         }
     }
 
-    private void validarFechasNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, LocalDate fechaInicioProyecto) {
+    private void validarFechasNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
         if (dto.fechaInicio() == null) {
             throw new BadRequestException("La fecha de inicio del entregable es obligatoria.");
         }
@@ -308,12 +299,6 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         }
         if (dto.fechaLimite().isBefore(dto.fechaInicio())) {
             throw new BadRequestException("La fecha limite del entregable debe ser mayor o igual a la fecha de inicio.");
-        }
-    }
-
-    private void validarTexto(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new BadRequestException(message);
         }
     }
 
@@ -406,7 +391,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         String proyectoId = fase.getProyecto().getId();
 
         Hito hito = new Hito();
-        int hitoCount = (int) hitoRepository.findByProyectoId(proyectoId).size() + 1;
+        int hitoCount = hitoRepository.findByProyectoId(proyectoId).size() + 1;
         hito.setNombre(String.format("H%02d", hitoCount));
         hito.setDescripcion(dto.descripcion());
         hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
@@ -414,7 +399,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         hito = hitoRepository.save(hito);
 
         for (com.proyecta.api_gestion.dto.proyecto.EntregableDTO entregableDto : dto.entregables()) {
-            int eCount = (int) entregableRepository.findByHitoId(hito.getId()).size() + 1;
+            int eCount = entregableRepository.findByHitoId(hito.getId()).size() + 1;
             Entregable e = new Entregable();
             e.setNombre(String.format("E%02d", eCount));
             e.setPonderacion(java.math.BigDecimal.valueOf(entregableDto.ponderacion()));
@@ -593,7 +578,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         if (paramOpt.isPresent()) {
             try {
                 return Integer.parseInt(paramOpt.get().getValue());
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 return DIAS_POR_VENCER_DEFAULT;
             }
         }
@@ -621,7 +606,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                                               Authentication authentication) {
 
         Entregable entregable = entregableRepository.findById(entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+                .orElseThrow(() -> new ResourceNotFoundException(ENTREGABLE_NO_ENCONTRADO + entregableId));
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
             throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
@@ -709,7 +694,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<CambioFechaResponse> obtenerHistorialFechas(Integer entregableId) {
         entregableRepository.findById(entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+                .orElseThrow(() -> new ResourceNotFoundException(ENTREGABLE_NO_ENCONTRADO + entregableId));
         return cambioFechaRepository.findByEntregableIdOrderByCreadoEnDesc(entregableId).stream()
                 .map(this::toCambioFechaResponse)
                 .toList();
@@ -750,7 +735,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             }
         } catch (BadRequestException e) {
             throw e;
-        } catch (IOException e) {
+        } catch (IOException _) {
             throw new BadRequestException("No se pudo leer el archivo para validar su formato.");
         }
     }
@@ -791,7 +776,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             Authentication authentication) {
 
         Entregable entregable = entregableRepository.findById(entregableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado: " + entregableId));
+                .orElseThrow(() -> new ResourceNotFoundException(ENTREGABLE_NO_ENCONTRADO + entregableId));
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
             throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");

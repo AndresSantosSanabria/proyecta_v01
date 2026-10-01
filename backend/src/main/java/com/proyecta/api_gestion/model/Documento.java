@@ -49,6 +49,7 @@ public class Documento {
     private LocalDateTime fechaActualizacion;
 
     public Documento() {
+        // Constructor por defecto requerido por JPA, sin lógica que ejecutar.
     }
 
     @PrePersist

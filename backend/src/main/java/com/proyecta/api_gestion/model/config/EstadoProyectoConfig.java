@@ -32,7 +32,9 @@ public class EstadoProyectoConfig {
     @Column(nullable = false)
     private Boolean activo = true;
 
-    public EstadoProyectoConfig() {}
+    public EstadoProyectoConfig() {
+        // Constructor vacio requerido por JPA.
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

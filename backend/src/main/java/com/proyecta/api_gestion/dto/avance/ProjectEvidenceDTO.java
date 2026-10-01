@@ -1,8 +1,43 @@
 package com.proyecta.api_gestion.dto.avance;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
+@Schema(example = """
+    {
+      "id": "EVID-101-001",
+      "categoria": "ENTREGABLE",
+      "nombre": "Evidencia entregable: Documento de alcance aprobado",
+      "nombreArchivo": "evidencia_alcance.pdf",
+      "evidenciaUrl": "/api/v1/evidencias/101/descarga",
+      "fechaRegistro": "2026-07-15",
+      "fechaEntrega": "2026-07-15",
+      "fechaLimite": "2026-07-20",
+      "estado": "Conforme",
+      "estadoCodigo": "APROBADO",
+      "usuario": "luis.coordinador@proyecta.gov.co",
+      "tipo": "CARGA_DOCUMENTO",
+      "tipoDocumento": "ACTA_CONSTITUCION",
+      "faseNombre": "Planificación",
+      "hitoNombre": "Levantamiento de información",
+      "entregableNombre": "Documento de alcance aprobado",
+      "descripcion": "Carga de evidencia del entregable",
+      "observaciones": null,
+      "entregableId": 101,
+      "cambioId": null,
+      "riesgoId": null,
+      "riesgoSolucionId": null,
+      "archivoPdf": "evidencia_alcance.pdf",
+      "fechaAnterior": null,
+      "fechaNueva": null,
+      "justificacion": null,
+      "tamanoBytes": 245760,
+      "mimeType": "application/pdf",
+      "descripcionAnterior": null,
+      "descripcionNueva": null,
+      "solucionesCount": 0
+    }
+    """)
 public record ProjectEvidenceDTO(
         String id,
         String categoria,

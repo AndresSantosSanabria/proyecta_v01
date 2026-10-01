@@ -33,9 +33,9 @@ public class ProjectClosureRecordService {
 
     @Transactional(readOnly = true)
     public ProjectClosureRecordDTO getByProject(String proyectoId) {
-        ProjectClosureRecord record = recordRepository.findByProyectoId(proyectoId)
+        ProjectClosureRecord registro = recordRepository.findByProyectoId(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe registro de cierre para el proyecto: " + proyectoId));
-        return toDTO(record);
+        return toDTO(registro);
     }
 
     @Transactional
@@ -58,13 +58,13 @@ public class ProjectClosureRecordService {
             return toDTO(recordRepository.save(existing));
         }
 
-        ProjectClosureRecord record = new ProjectClosureRecord();
-        record.setProyecto(proyecto);
-        record.setTemplate(template);
-        record.setTemplateSnapshot(templateSnapshot);
-        record.setFormData(formDataJson);
-        record.setCreatedBy(username);
-        return toDTO(recordRepository.save(record));
+        ProjectClosureRecord registro = new ProjectClosureRecord();
+        registro.setProyecto(proyecto);
+        registro.setTemplate(template);
+        registro.setTemplateSnapshot(templateSnapshot);
+        registro.setFormData(formDataJson);
+        registro.setCreatedBy(username);
+        return toDTO(recordRepository.save(registro));
     }
 
     private ProjectClosureRecordDTO toDTO(ProjectClosureRecord r) {
@@ -72,12 +72,12 @@ public class ProjectClosureRecordService {
         Object formData;
         try {
             snapshot = objectMapper.readValue(r.getTemplateSnapshot(), Object.class);
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException _) {
             snapshot = r.getTemplateSnapshot();
         }
         try {
             formData = objectMapper.readValue(r.getFormData(), Object.class);
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException _) {
             formData = r.getFormData();
         }
         return new ProjectClosureRecordDTO(

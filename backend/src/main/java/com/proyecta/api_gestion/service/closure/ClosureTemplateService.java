@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ClosureTemplateService {
+    private static final String JSON_LABEL = "label";
+    private static final String JSON_TIPO_SECCION = "tipo_seccion";
+    private static final String JSON_TITULO = "titulo";
 
     private final ClosureTemplateRepository repository;
     private final ObjectMapper objectMapper;
@@ -79,7 +82,7 @@ public class ClosureTemplateService {
             JsonNode fields = data.has("fields") ? data.get("fields") : data;
 
             for (JsonNode seccion : secciones) {
-                if (!"formulario".equals(seccion.get("tipo_seccion").asText(""))) continue;
+                if (!"formulario".equals(seccion.get(JSON_TIPO_SECCION).asText(""))) continue;
                 JsonNode campos = seccion.get("campos");
                 if (campos == null || !campos.isArray()) continue;
 
@@ -90,7 +93,7 @@ public class ClosureTemplateService {
 
                     JsonNode val = fields.get(id);
                     if (val == null || val.isNull() || (val.isTextual() && val.asText("").isBlank())) {
-                        String label = campo.has("label") ? campo.get("label").asText() : id;
+                        String label = campo.has(JSON_LABEL) ? campo.get(JSON_LABEL).asText() : id;
                         throw new BadRequestException("El campo obligatorio '" + label + "' no tiene respuesta.");
                     }
                 }
@@ -110,20 +113,20 @@ public class ClosureTemplateService {
                 throw new BadRequestException("La plantilla debe tener al menos una seccion.");
             }
             for (JsonNode seccion : secciones) {
-                if (!seccion.has("titulo") || seccion.get("titulo").asText("").isBlank()) {
+                if (!seccion.has(JSON_TITULO) || seccion.get(JSON_TITULO).asText("").isBlank()) {
                     throw new BadRequestException("Todas las secciones deben tener un titulo.");
                 }
-                if (!seccion.has("tipo_seccion")) {
+                if (!seccion.has(JSON_TIPO_SECCION)) {
                     throw new BadRequestException("Cada seccion debe tener un tipo (formulario o tabla).");
                 }
-                String tipo = seccion.get("tipo_seccion").asText();
+                String tipo = seccion.get(JSON_TIPO_SECCION).asText();
                 if ("tabla".equals(tipo)) {
                     JsonNode columnas = seccion.get("columnas");
                     if (columnas == null || !columnas.isArray() || columnas.isEmpty()) {
-                        throw new BadRequestException("La seccion '" + seccion.get("titulo").asText() + "' tipo tabla debe tener al menos una columna.");
+                        throw new BadRequestException("La seccion '" + seccion.get(JSON_TITULO).asText() + "' tipo tabla debe tener al menos una columna.");
                     }
                     for (JsonNode col : columnas) {
-                        if (!col.has("label") || col.get("label").asText("").isBlank()) {
+                        if (!col.has(JSON_LABEL) || col.get(JSON_LABEL).asText("").isBlank()) {
                             throw new BadRequestException("Todas las columnas de la tabla deben tener un label.");
                         }
                     }
@@ -131,10 +134,10 @@ public class ClosureTemplateService {
                 if ("formulario".equals(tipo)) {
                     JsonNode campos = seccion.get("campos");
                     if (campos == null || !campos.isArray() || campos.isEmpty()) {
-                        throw new BadRequestException("La seccion '" + seccion.get("titulo").asText() + "' tipo formulario debe tener al menos un campo.");
+                        throw new BadRequestException("La seccion '" + seccion.get(JSON_TITULO).asText() + "' tipo formulario debe tener al menos un campo.");
                     }
                     for (JsonNode campo : campos) {
-                        if (!campo.has("label") || campo.get("label").asText("").isBlank()) {
+                        if (!campo.has(JSON_LABEL) || campo.get(JSON_LABEL).asText("").isBlank()) {
                             throw new BadRequestException("Todos los campos deben tener un label.");
                         }
                     }

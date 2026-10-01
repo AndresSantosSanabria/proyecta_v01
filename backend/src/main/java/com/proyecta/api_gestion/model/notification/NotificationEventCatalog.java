@@ -37,6 +37,7 @@ public class NotificationEventCatalog {
     private LocalDateTime createdAt;
 
     public NotificationEventCatalog() {
+        // Constructor vacío intencional: lo requiere JPA para instanciar la entidad.
     }
 
     @jakarta.persistence.PrePersist

@@ -117,9 +117,11 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
         EntregableCambioFecha registro = cambioFechaRepository.findById(cambioId)
                 .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException("Registro de cambio de fecha no encontrado: " + cambioId));
         Resource resource = storageProvider.loadFileAsResource("cambios-fecha", registro.getArchivoPdf());
-        String nombreDescarga = registro.getNombreOriginal() != null ? registro.getNombreOriginal() : "soporte-cambio-fecha.pdf";
+        String nombreDescarga = com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.safeFileName(
+                registro.getNombreOriginal() != null ? registro.getNombreOriginal() : "soporte-cambio-fecha.pdf");
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + nombreDescarga + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition("inline", nombreDescarga))
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
@@ -141,9 +143,11 @@ public class ProjectHierarchyController implements IProjectHierarchyController {
         com.proyecta.api_gestion.model.EntregableCambioDescripcion registro = cambioDescripcionRepository.findById(cambioId)
                 .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException("Registro de cambio de descripción no encontrado: " + cambioId));
         Resource resource = storageProvider.loadFileAsResource("cambios-descripcion", registro.getArchivoPdf());
-        String nombreDescarga = registro.getNombreOriginal() != null ? registro.getNombreOriginal() : "soporte-cambio-descripcion.pdf";
+        String nombreDescarga = com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.safeFileName(
+                registro.getNombreOriginal() != null ? registro.getNombreOriginal() : "soporte-cambio-descripcion.pdf");
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + nombreDescarga + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition("inline", nombreDescarga))
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }

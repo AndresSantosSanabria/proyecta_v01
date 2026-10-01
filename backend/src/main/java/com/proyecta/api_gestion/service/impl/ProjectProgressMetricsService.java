@@ -9,7 +9,6 @@ import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.model.DocumentoVersion;
 import com.proyecta.api_gestion.model.Entregable;
 import com.proyecta.api_gestion.model.Fase;
-import com.proyecta.api_gestion.model.enums.EstadoEntregable;
 import com.proyecta.api_gestion.model.Hito;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
@@ -24,9 +23,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
-import java.util.function.Function;
 
 @Service
 @Transactional(readOnly = true)
@@ -35,6 +32,8 @@ public class ProjectProgressMetricsService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final BigDecimal ONE = BigDecimal.ONE;
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final String ESTADO_EN_TIEMPO = "EN_TIEMPO";
+    private static final String ESTADO_ATRASO = "ATRASO";
 
     private static boolean isEntregableIniciado(Entregable e, LocalDate corte) {
         return e.getFechaInicio() != null && !e.getFechaInicio().isAfter(corte);
@@ -76,7 +75,7 @@ public class ProjectProgressMetricsService {
         BigDecimal progresoProgramado = escalar(agregarPorPesoFase(fases, FaseAvanceDTO::progresoProgramado));
         BigDecimal progresoEjecutado = escalar(agregarPorPesoFase(fases, FaseAvanceDTO::progresoEjecutado));
         BigDecimal diferencia = clampPct(progresoProgramado.subtract(progresoEjecutado).setScale(2, RoundingMode.HALF_UP));
-        String estado = diferencia.compareTo(ZERO) <= 0 ? "EN_TIEMPO" : "ATRASO";
+        String estado = diferencia.compareTo(ZERO) <= 0 ? ESTADO_EN_TIEMPO : ESTADO_ATRASO;
 
         long entregablesProgramadosAlCorte = contarEntregablesProgramadosAlCorte(proyecto, corte);
         long entregablesEntregadosAlCorte = contarEntregablesEntregadosAlCorte(proyecto, corte);
@@ -84,7 +83,7 @@ public class ProjectProgressMetricsService {
         BigDecimal eficaciaCorte = clampRatio(calcularRatio(entregablesEntregadosAlCorte, entregablesProgramadosAlCorte));
         BigDecimal eficienciaCorte = clampRatio(calcularRatio(entregablesEntregadosATiempo, entregablesProgramadosAlCorte));
         long entregablesConformes = contarEntregablesConformes(proyecto, corte);
-        long entregablesTotal = contarEntregablesTotales(proyecto, corte);
+        long entregablesTotal = contarEntregablesTotales(proyecto);
         long entregablesAtrasados = contarEntregablesAtrasados(proyecto, corte);
         long proximosAVencer = contarEntregablesPorVencer(proyecto, corte);
 
@@ -135,7 +134,7 @@ public class ProjectProgressMetricsService {
         BigDecimal progresoEjecutado = escalar(agregarPorPesoHito(hitos, HitoAvanceDTO::progresoEjecutado));
         BigDecimal diferencia = clampPct(progresoProgramado.subtract(progresoEjecutado).setScale(2, RoundingMode.HALF_UP));
         BigDecimal eficacia = clampRatio(calcularEficacia(progresoProgramado, progresoEjecutado));
-        String estado = diferencia.compareTo(ZERO) <= 0 ? "EN_TIEMPO" : "ATRASO";
+        String estado = diferencia.compareTo(ZERO) <= 0 ? ESTADO_EN_TIEMPO : ESTADO_ATRASO;
 
         return new FaseAvanceDTO(
                 fase.getId(),
@@ -166,7 +165,7 @@ public class ProjectProgressMetricsService {
         BigDecimal progresoEjecutado = escalar(agregarPorPesoEntregable(entregables, EntregableAvanceDTO::progresoEjecutado));
         BigDecimal diferencia = clampPct(progresoProgramado.subtract(progresoEjecutado).setScale(2, RoundingMode.HALF_UP));
         BigDecimal eficacia = clampRatio(calcularEficacia(progresoProgramado, progresoEjecutado));
-        String estado = diferencia.compareTo(ZERO) <= 0 ? "EN_TIEMPO" : "ATRASO";
+        String estado = diferencia.compareTo(ZERO) <= 0 ? ESTADO_EN_TIEMPO : ESTADO_ATRASO;
 
         return new HitoAvanceDTO(
                 hito.getId(),
@@ -414,13 +413,13 @@ public class ProjectProgressMetricsService {
         }
         if (conforme && fechaEntregaReal != null && fechaLimite != null
                 && !fechaEntregaReal.isAfter(fechaLimite)) {
-            return "EN_TIEMPO";
+            return ESTADO_EN_TIEMPO;
         }
         if (conforme && (diasAtraso == null || diasAtraso >= 0)) {
-            return "EN_TIEMPO";
+            return ESTADO_EN_TIEMPO;
         }
         if (diasAtraso != null && diasAtraso < 0) {
-            return "ATRASO";
+            return ESTADO_ATRASO;
         }
         if (!conforme && fechaLimite != null) {
             long diasRestantes = ChronoUnit.DAYS.between(corte, fechaLimite);
@@ -443,7 +442,7 @@ public class ProjectProgressMetricsService {
                 .count();
     }
 
-    private long contarEntregablesTotales(Proyecto proyecto, LocalDate corte) {
+    private long contarEntregablesTotales(Proyecto proyecto) {
         return fasesSeguras(proyecto).stream()
                 .filter(Objects::nonNull)
                 .flatMap(fase -> hitosSeguros(fase).stream())

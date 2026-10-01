@@ -61,9 +61,12 @@ public class PublicEvidenceSecurityFilter extends OncePerRequestFilter {
         }
 
         String clientIp = resolveClientIp(request);
+        // CWE-117: URI e IP llegan del cliente; se limpian antes de registrarlas.
+        String ip = com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(clientIp);
+        String ruta = com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(uri);
 
         if (!allow(clientIp)) {
-            log.warn("PUBLIC_RATE_LIMITED ip={} path={}", clientIp, uri);
+            log.warn("PUBLIC_RATE_LIMITED ip={} path={}", ip, ruta);
             response.setStatus(429);
             response.setHeader("Retry-After", "60");
             response.setContentType("application/json;charset=UTF-8");
@@ -72,7 +75,7 @@ public class PublicEvidenceSecurityFilter extends OncePerRequestFilter {
         }
 
         if (uri.startsWith(TOKEN_EXEMPT_PREFIX)) {
-            log.info("PUBLIC_ACCESS ip={} path={} result=OK_TOKEN", clientIp, uri);
+            log.info("PUBLIC_ACCESS ip={} path={} result=OK_TOKEN", ip, ruta);
             filterChain.doFilter(request, response);
             return;
         }
@@ -80,12 +83,12 @@ public class PublicEvidenceSecurityFilter extends OncePerRequestFilter {
         String exp = request.getParameter("exp");
         String sig = request.getParameter("sig");
         if (!signer.isValid(uri, exp, sig)) {
-            log.warn("PUBLIC_ACCESS_DENIED ip={} path={} reason=SIGNATURE_INVALID", clientIp, uri);
+            log.warn("PUBLIC_ACCESS_DENIED ip={} path={} reason=SIGNATURE_INVALID", ip, ruta);
             writeNotFound(response);
             return;
         }
 
-        log.info("PUBLIC_ACCESS ip={} path={} result=OK_SIGNED", clientIp, uri);
+        log.info("PUBLIC_ACCESS ip={} path={} result=OK_SIGNED", ip, ruta);
         filterChain.doFilter(request, response);
     }
 

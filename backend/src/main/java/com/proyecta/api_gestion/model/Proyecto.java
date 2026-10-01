@@ -190,6 +190,7 @@ public class Proyecto {
     private String emailMessageId;
 
     public Proyecto() {
+        // Constructor por defecto requerido por JPA, sin lógica que ejecutar.
     }
 
     @PrePersist

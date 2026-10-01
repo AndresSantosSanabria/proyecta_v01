@@ -1,10 +1,22 @@
 package com.proyecta.api_gestion.dto.project;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(example = """
+    {
+      "id": 45,
+      "numero": 2,
+      "nombre": "Levantamiento de información",
+      "descripcion": "Recopilación de requerimientos con las dependencias",
+      "ponderacion": 15.00,
+      "avanceCalculado": 60.00,
+      "entregables": []
+    }
+    """)
 public class HitoHierarchyDTO {
     private Integer id;
     private Short numero;

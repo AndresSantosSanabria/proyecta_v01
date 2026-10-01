@@ -2,7 +2,9 @@ package com.proyecta.api_gestion.dto.security;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "Respuesta de logout con URL para cerrar la sesión en Keycloak")
+@Schema(description = "Respuesta de logout con URL para cerrar la sesión en Keycloak", example = """
+    {"logoutUrl":"https://idp.proyecta.gov.co/realms/proyecta/protocol/openid-connect/logout?id_token_hint=eyJhbGciOi...&post_logout_redirect_uri=https%3A%2F%2Fproyecta.gov.co","localSessionInvalidated":true,"refreshTokenRevoked":true}
+    """)
 public class LogoutResponse {
 
     @Schema(description = "URL completa del end_session_endpoint de Keycloak con id_token_hint y post_logout_redirect_uri")

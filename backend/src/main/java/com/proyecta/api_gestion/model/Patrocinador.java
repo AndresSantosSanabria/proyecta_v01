@@ -30,6 +30,7 @@ public class Patrocinador {
     private String procedimiento;
 
     public Patrocinador() {
+        // Constructor vacio requerido por JPA.
     }
 
     // Manual Getters and Setters

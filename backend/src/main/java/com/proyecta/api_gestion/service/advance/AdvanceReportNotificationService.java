@@ -3,7 +3,6 @@ package com.proyecta.api_gestion.service.advance;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.advance.NotificationLog;
 import com.proyecta.api_gestion.model.advance.AdvanceReportUpload;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
 import com.proyecta.api_gestion.repository.advance.AdvanceReportUploadRepository;
 import com.proyecta.api_gestion.repository.advance.NotificationLogRepository;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
@@ -32,20 +31,21 @@ public class AdvanceReportNotificationService {
     private static final String NOTIFICATION_TYPE_PRE = "ADVANCE_REPORT_PRE_DUE";
     private static final String NOTIFICATION_TYPE_POST = "ADVANCE_REPORT_POST_DUE";
     private static final String NOTIFICATION_TYPE_OVERRIDE = "ADVANCE_REPORT_OVERRIDE";
+    private static final String SYSTEM_ACTOR = "system";
+    private static final String KEY_PROJECT_NAME = "projectName";
+    private static final String KEY_PERIODO = "periodo";
+    private static final String KEY_RECIPIENTS = "recipients";
 
-    private final ProyectoRepository proyectoRepository;
     private final NotificationLogRepository notificationLogRepository;
     private final AdvanceReportUploadRepository uploadRepository;
     private final NotificationEventPublisherPort notificationPublisher;
     private final AdvanceReportRuleEvaluator ruleEvaluator;
 
     public AdvanceReportNotificationService(
-            ProyectoRepository proyectoRepository,
             NotificationLogRepository notificationLogRepository,
             AdvanceReportUploadRepository uploadRepository,
             NotificationEventPublisherPort notificationPublisher,
             AdvanceReportRuleEvaluator ruleEvaluator) {
-        this.proyectoRepository = proyectoRepository;
         this.notificationLogRepository = notificationLogRepository;
         this.uploadRepository = uploadRepository;
         this.notificationPublisher = notificationPublisher;
@@ -88,7 +88,7 @@ public class AdvanceReportNotificationService {
         try {
             notificationLogRepository.save(
                     new NotificationLog(proyecto.getId(), today, notificationType));
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException _) {
             // Race condition: another thread inserted first. This is expected behavior.
             log.debug("Race condition al insertar notification_log para {} — ya fue procesado", proyecto.getId());
             return false;
@@ -101,13 +101,13 @@ public class AdvanceReportNotificationService {
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.ADVANCE_REPORT_DUE_NOTIFICATION,
                 proyecto.getId(),
-                "system",
+                SYSTEM_ACTOR,
                 Map.of(
-                        "projectName", projectName,
-                        "periodo", periodo != null ? periodo : "",
+                        KEY_PROJECT_NAME, projectName,
+                        KEY_PERIODO, periodo != null ? periodo : "",
                         "dueDate", ruleEvaluator.getDueDate() != null ? ruleEvaluator.getDueDate().toString() : "N/A",
                         "message", decision.message() != null ? decision.message() : "",
-                        "recipients", recipients,
+                        KEY_RECIPIENTS, recipients,
                         "title", "Informe de avance pendiente — " + proyecto.getId()
                 )));
 
@@ -139,12 +139,12 @@ public class AdvanceReportNotificationService {
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.ADVANCE_REPORT_UPLOADED,
                 proyecto.getId(),
-                actorUsername == null || actorUsername.isBlank() ? "system" : actorUsername,
+                actorUsername == null || actorUsername.isBlank() ? SYSTEM_ACTOR : actorUsername,
                 Map.of(
-                        "projectName", nombreProyecto(proyecto),
-                        "periodo", periodo != null ? periodo : "",
+                        KEY_PROJECT_NAME, nombreProyecto(proyecto),
+                        KEY_PERIODO, periodo != null ? periodo : "",
                         "fileName", fileName != null ? fileName : "",
-                        "recipients", recipients
+                        KEY_RECIPIENTS, recipients
                 )));
     }
 
@@ -156,11 +156,11 @@ public class AdvanceReportNotificationService {
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.ADVANCE_REPORT_VERIFIED,
                 proyecto.getId(),
-                actorUsername == null || actorUsername.isBlank() ? "system" : actorUsername,
+                actorUsername == null || actorUsername.isBlank() ? SYSTEM_ACTOR : actorUsername,
                 Map.of(
-                        "projectName", nombreProyecto(proyecto),
-                        "periodo", periodo != null ? periodo : "",
-                        "recipients", recipients
+                        KEY_PROJECT_NAME, nombreProyecto(proyecto),
+                        KEY_PERIODO, periodo != null ? periodo : "",
+                        KEY_RECIPIENTS, recipients
                 )));
     }
 
@@ -172,12 +172,12 @@ public class AdvanceReportNotificationService {
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.ADVANCE_REPORT_RETURNED,
                 proyecto.getId(),
-                actorUsername == null || actorUsername.isBlank() ? "system" : actorUsername,
+                actorUsername == null || actorUsername.isBlank() ? SYSTEM_ACTOR : actorUsername,
                 Map.of(
-                        "projectName", nombreProyecto(proyecto),
-                        "periodo", periodo != null ? periodo : "",
+                        KEY_PROJECT_NAME, nombreProyecto(proyecto),
+                        KEY_PERIODO, periodo != null ? periodo : "",
                         "observaciones", observaciones != null && !observaciones.isBlank() ? observaciones : "Sin observaciones",
-                        "recipients", recipients
+                        KEY_RECIPIENTS, recipients
                 )));
     }
 

@@ -7,6 +7,8 @@ import com.proyecta.api_gestion.dto.security.SeguridadAutorizacionMeDTO;
 import com.proyecta.api_gestion.service.security.KeycloakLogoutService;
 import com.proyecta.api_gestion.service.security.dynamic.RoleAliasService;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityAdministrationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/authz")
+@Tag(name = "Autorización", description = "Endpoints de resolución de autorización de la sesión actual y cierre de sesión en Keycloak")
 public class AuthorizationController {
 
     private final SecurityAdministrationService securityAdministrationService;
@@ -31,6 +34,7 @@ public class AuthorizationController {
         this.keycloakLogoutService = keycloakLogoutService;
     }
 
+    @Operation(summary = "Obtener la autorización del usuario autenticado", description = "Resuelve roles, permisos y accesos a proyectos de la sesión actual.")
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<SeguridadAutorizacionMeDTO>> me(Authentication authentication) {
@@ -39,6 +43,7 @@ public class AuthorizationController {
                 "Autorizacion resuelta correctamente"));
     }
 
+    @Operation(summary = "Listar los alias de roles del cliente")
     @GetMapping("/role-aliases")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<java.util.Map<String, String>>> roleAliases() {
@@ -47,6 +52,7 @@ public class AuthorizationController {
                 "Alias de roles resueltos correctamente"));
     }
 
+    @Operation(summary = "Cerrar sesión en Keycloak", description = "Revoca los tokens (si se envían), invalida la sesión local y limpia el contexto de seguridad. Devuelve la URL de logout de Keycloak.")
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<LogoutResponse>> logout(

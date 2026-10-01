@@ -25,6 +25,11 @@ public class TemplateResolver {
 
     private static final Logger log = LoggerFactory.getLogger(TemplateResolver.class);
     private static final DateTimeFormatter UI_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final String SECCIONES_KEY = "secciones";
+    private static final String TIPO_FORMULARIO = "formulario";
+    private static final String TIPO_SECCION_KEY = "tipo_seccion";
+    private static final String QUESTION_ID_KEY = "questionId";
+    private static final String ORDEN_KEY = "orden";
     private final ObjectMapper objectMapper;
 
     public TemplateResolver(ObjectMapper objectMapper) {
@@ -42,21 +47,21 @@ public class TemplateResolver {
     public Map<Long, String> extractMissingQuestions(String templateJson, Proyecto proyecto, Map<Long, String> answerMap) {
         try {
             JsonNode root = objectMapper.readTree(templateJson);
-            JsonNode secciones = root.get("secciones");
+            JsonNode secciones = root.get(SECCIONES_KEY);
             if (secciones == null || !secciones.isArray()) return Map.of();
 
             Map<Long, String> missing = new HashMap<>();
             for (JsonNode seccion : secciones) {
-                if (!"formulario".equals(seccion.path("tipo_seccion").asText("formulario"))) {
+                if (!TIPO_FORMULARIO.equals(seccion.path(TIPO_SECCION_KEY).asText(TIPO_FORMULARIO))) {
                     continue;
                 }
                 JsonNode campos = seccion.get("campos");
                 if (campos == null || !campos.isArray()) continue;
                 for (JsonNode campo : campos) {
-                    if (!campo.has("questionId") || campo.get("questionId").isNull()) {
+                    if (!campo.has(QUESTION_ID_KEY) || campo.get(QUESTION_ID_KEY).isNull()) {
                         continue;
                     }
-                    Long questionId = campo.get("questionId").asLong();
+                    Long questionId = campo.get(QUESTION_ID_KEY).asLong();
                     if (answerMap.containsKey(questionId) && answerMap.get(questionId) != null && !answerMap.get(questionId).isBlank()) {
                         continue;
                     }
@@ -69,7 +74,7 @@ public class TemplateResolver {
                 }
             }
             return missing;
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException _) {
             return Map.of();
         }
     }
@@ -77,7 +82,7 @@ public class TemplateResolver {
     private String resolveTemplate(String templateJson, Map<String, Object> projectValues, Map<Long, String> answerMap) {
         try {
             JsonNode root = objectMapper.readTree(templateJson);
-            JsonNode secciones = root.get("secciones");
+            JsonNode secciones = root.get(SECCIONES_KEY);
             if (secciones == null || !secciones.isArray()) return templateJson;
 
             for (JsonNode seccion : secciones) {
@@ -85,11 +90,11 @@ public class TemplateResolver {
                     continue;
                 }
                 ObjectNode sectionNode = (ObjectNode) seccion;
-                String tipo = seccion.has("tipo_seccion") ? seccion.get("tipo_seccion").asText() : "formulario";
-                if (!"formulario".equals(tipo) && !"tabla".equals(tipo)) {
+                String tipo = seccion.has(TIPO_SECCION_KEY) ? seccion.get(TIPO_SECCION_KEY).asText() : TIPO_FORMULARIO;
+                if (!TIPO_FORMULARIO.equals(tipo) && !"tabla".equals(tipo)) {
                     continue;
                 }
-                if ("formulario".equals(tipo)) {
+                if (TIPO_FORMULARIO.equals(tipo)) {
                     JsonNode campos = seccion.get("campos");
                     if (campos == null || !campos.isArray()) continue;
                     for (JsonNode campo : campos) {
@@ -105,8 +110,8 @@ public class TemplateResolver {
                                 fieldNode.put("readonly", true);
                             }
                         }
-                        if (campo.has("questionId") && !campo.get("questionId").isNull()) {
-                            Long questionId = campo.get("questionId").asLong();
+                        if (campo.has(QUESTION_ID_KEY) && !campo.get(QUESTION_ID_KEY).isNull()) {
+                            Long questionId = campo.get(QUESTION_ID_KEY).asLong();
                             String answer = answerMap.getOrDefault(questionId, "");
                             if (answer != null && !answer.isBlank()) {
                                 fieldNode.put("resolvedValue", answer);
@@ -114,7 +119,7 @@ public class TemplateResolver {
                         }
                     }
                 }
-                sectionNode.put("orden", seccion.path("orden").asInt(Integer.MAX_VALUE));
+                sectionNode.put(ORDEN_KEY, seccion.path(ORDEN_KEY).asInt(Integer.MAX_VALUE));
             }
 
             sortSections(root);
@@ -126,12 +131,12 @@ public class TemplateResolver {
     }
 
     private void sortSections(JsonNode root) {
-        JsonNode secciones = root.get("secciones");
+        JsonNode secciones = root.get(SECCIONES_KEY);
         if (secciones == null || !secciones.isArray()) return;
         List<JsonNode> ordered = new java.util.ArrayList<>();
         secciones.forEach(ordered::add);
-        ordered.sort(Comparator.comparingInt(node -> node.path("orden").asInt(Integer.MAX_VALUE)));
-        ((ObjectNode) root).set("secciones", objectMapper.valueToTree(ordered));
+        ordered.sort(Comparator.comparingInt(node -> node.path(ORDEN_KEY).asInt(Integer.MAX_VALUE)));
+        ((ObjectNode) root).set(SECCIONES_KEY, objectMapper.valueToTree(ordered));
     }
 
     private Map<String, Object> buildProjectValues(Proyecto proyecto) {

@@ -7,43 +7,51 @@ import static java.util.Map.entry;
 
 public final class SecurityRoleCatalog {
 
+    private static final String ROLE_ADMIN = "admin";
+    private static final String ROLE_GESTOR_TIC = "gestor_tic";
+    private static final String ROLE_GESTOR_PROYECTOS = "gestor_proyectos";
+    private static final String ROLE_DIRECTOR_PROYECTO = "director_proyecto";
+    private static final String ROLE_AUDITOR = "auditor";
+    private static final String ROLE_CONSULTA = "consulta";
+    private static final String ROLE_VISUALIZADOR = "visualizador";
+
     public static final Set<String> PROTECTED_ROLE_CODES = Set.of(
-            "admin",
+            ROLE_ADMIN,
             "usuario",
-            "gestor_tic",
-            "gestor_proyectos",
-            "director_proyecto",
-            "auditor",
-            "consulta",
-            "visualizador"
+            ROLE_GESTOR_TIC,
+            ROLE_GESTOR_PROYECTOS,
+            ROLE_DIRECTOR_PROYECTO,
+            ROLE_AUDITOR,
+            ROLE_CONSULTA,
+            ROLE_VISUALIZADOR
     );
 
-    public static final Set<String> TRANSVERSAL_ROLE_CODES = Set.of("admin", "gestor_tic", "gestor_proyectos");
+    public static final Set<String> TRANSVERSAL_ROLE_CODES = Set.of(ROLE_ADMIN, ROLE_GESTOR_TIC, ROLE_GESTOR_PROYECTOS);
 
     private static final Map<String, String> ROLE_ALIASES = Map.ofEntries(
-            entry("administrador", "admin"),
-            entry("admin", "admin"),
-            entry("gestor_proyectos_ti", "gestor_tic"),
-            entry("gestor_tic", "gestor_tic"),
-            entry("gestor_pro", "gestor_proyectos"),
-            entry("gestor_proyecto", "gestor_proyectos"),
-            entry("gestor_de_proyectos", "gestor_proyectos"),
-            entry("gestor_proyectos", "gestor_proyectos"),
-            entry("director_pro", "director_proyecto"),
-            entry("director_de_proyecto", "director_proyecto"),
-            entry("director_proyectos", "director_proyecto"),
-            entry("director_proyecto", "director_proyecto"),
-            entry("analista_proyectos", "consulta"),
-            entry("analista", "consulta"),
-            entry("auditor", "auditor"),
-            entry("consulta", "consulta")
+            entry("administrador", ROLE_ADMIN),
+            entry(ROLE_ADMIN, ROLE_ADMIN),
+            entry("gestor_proyectos_ti", ROLE_GESTOR_TIC),
+            entry(ROLE_GESTOR_TIC, ROLE_GESTOR_TIC),
+            entry("gestor_pro", ROLE_GESTOR_PROYECTOS),
+            entry("gestor_proyecto", ROLE_GESTOR_PROYECTOS),
+            entry("gestor_de_proyectos", ROLE_GESTOR_PROYECTOS),
+            entry(ROLE_GESTOR_PROYECTOS, ROLE_GESTOR_PROYECTOS),
+            entry("director_pro", ROLE_DIRECTOR_PROYECTO),
+            entry("director_de_proyecto", ROLE_DIRECTOR_PROYECTO),
+            entry("director_proyectos", ROLE_DIRECTOR_PROYECTO),
+            entry(ROLE_DIRECTOR_PROYECTO, ROLE_DIRECTOR_PROYECTO),
+            entry("analista_proyectos", ROLE_CONSULTA),
+            entry("analista", ROLE_CONSULTA),
+            entry(ROLE_AUDITOR, ROLE_AUDITOR),
+            entry(ROLE_CONSULTA, ROLE_CONSULTA)
     );
 
     private SecurityRoleCatalog() {}
 
     public static String normalize(String value) {
         if (value == null || value.trim().isBlank()) {
-            return "visualizador";
+            return ROLE_VISUALIZADOR;
         }
 
         String cleaned = value.trim();
@@ -54,8 +62,8 @@ public final class SecurityRoleCatalog {
                 .replaceAll("[^a-z0-9]+", "_")
                 .replaceAll("^_+|_+$", "");
 
-        if (lower.contains("admin")) {
-            return "admin";
+        if (lower.contains(ROLE_ADMIN)) {
+            return ROLE_ADMIN;
         }
         
         String mapped = ROLE_ALIASES.getOrDefault(lower, lower);
@@ -63,7 +71,7 @@ public final class SecurityRoleCatalog {
             return mapped;
         }
         
-        return "visualizador";
+        return ROLE_VISUALIZADOR;
     }
 
     public static boolean isProtected(String code) {

@@ -23,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class UsuarioController implements IUsuarioController {
 
+    private static final String JWT_CLAIM_PREFERRED_USERNAME = "preferred_username";
+
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final SeguridadUsuarioRepository seguridadUsuarioRepository;
     private final KeycloakIdentityExtractor identityExtractor;
@@ -43,13 +45,13 @@ public class UsuarioController implements IUsuarioController {
         String nombre = firstNonBlank(
                 usuario.getNombre(),
                 jwt.getClaimAsString("name"),
-                jwt.getClaimAsString("preferred_username"),
+                jwt.getClaimAsString(JWT_CLAIM_PREFERRED_USERNAME),
                 "Usuario Keycloak");
 
         String correo = firstNonBlank(
                 usuario.getCorreo(),
                 jwt.getClaimAsString("email"),
-                jwt.getClaimAsString("preferred_username"),
+                jwt.getClaimAsString(JWT_CLAIM_PREFERRED_USERNAME),
                 "");
 
         String username = identityExtractor.resolveUsername(authentication);
@@ -68,7 +70,7 @@ public class UsuarioController implements IUsuarioController {
                 usuario.getDependencia(),
                 jwt.getClaimAsString("department"),
                 jwt.getClaimAsString("organizational_unit"),
-                jwt.getClaimAsString("preferred_username"),
+                jwt.getClaimAsString(JWT_CLAIM_PREFERRED_USERNAME),
                 "No definida");
 
         Boolean recibirNotificacionesGlobales = resolveGlobalNotificationsFlag(username);
@@ -97,7 +99,7 @@ public class UsuarioController implements IUsuarioController {
                 .or(() -> seguridadUsuarioRepository.findByCorreoIgnoreCase(username))
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + username));
 
-        Boolean newValue = Boolean.TRUE.equals(request.recibirNotificacionesGlobales());
+        boolean newValue = Boolean.TRUE.equals(request.recibirNotificacionesGlobales());
         segUsuario.setRecibirNotificacionesGlobales(newValue);
         seguridadUsuarioRepository.save(segUsuario);
 

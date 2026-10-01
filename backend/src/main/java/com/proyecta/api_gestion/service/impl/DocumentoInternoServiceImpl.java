@@ -191,9 +191,10 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
         if (resource == null || !resource.exists()) {
             throw new ResourceNotFoundException("Archivo no encontrado para el documento interno " + id);
         }
+        String fallbackFilename = resource.getFilename() != null ? resource.getFilename() : "documento";
         String filename = doc.getNombreOriginal() != null && !doc.getNombreOriginal().isBlank()
                 ? doc.getNombreOriginal()
-                : (resource.getFilename() != null ? resource.getFilename() : "documento");
+                : fallbackFilename;
         return new DocumentoInternoDownload(resource, filename, doc.getMimeType());
     }
 
@@ -260,25 +261,12 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
     }
 
     private boolean esPdfValido(MultipartFile file) {
-        try (var in = file.getInputStream()) {
-            byte[] header = in.readNBytes(5);
-            String signature = new String(header, java.nio.charset.StandardCharsets.ISO_8859_1);
-            return signature.startsWith("%PDF-");
-        } catch (java.io.IOException ex) {
-            return false;
-        }
+        return com.proyecta.api_gestion.infrastructure.UploadMimeSanitizer.esPdfValido(file);
     }
 
     private String resolverMimeType(MultipartFile file) {
-        String contentType = file.getContentType();
-        if (contentType != null && !contentType.isBlank()) {
-            return contentType;
-        }
-        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
-        if (name.endsWith(".pdf")) return "application/pdf";
-        if (name.endsWith(".png")) return "image/png";
-        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
-        return "application/octet-stream";
+        // CWE-434: el Content-Type lo declara el cliente; se deriva de la extension.
+        return com.proyecta.api_gestion.infrastructure.UploadMimeSanitizer.resolverMimeType(file);
     }
 
     private DocumentoInternoDTO toDTO(DocumentoInterno doc) {

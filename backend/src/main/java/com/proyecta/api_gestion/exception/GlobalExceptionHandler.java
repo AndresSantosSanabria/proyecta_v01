@@ -18,11 +18,22 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String RECURSO_NO_ENCONTRADO = "Recurso no encontrado";
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleNotFound(ResourceNotFoundException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        pd.setTitle("Recurso no encontrado");
+        pd.setTitle(RECURSO_NO_ENCONTRADO);
+        pd.setType(URI.create("/errors/not-found"));
+        return pd;
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ProblemDetail handleNoResource(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        // Ruta inexistente (p.ej. endpoints deshabilitados como swagger): debe ser 404,
+        // no un 500 con traza de error.
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, RECURSO_NO_ENCONTRADO);
+        pd.setTitle(RECURSO_NO_ENCONTRADO);
         pd.setType(URI.create("/errors/not-found"));
         return pd;
     }

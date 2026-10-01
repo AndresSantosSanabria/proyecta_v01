@@ -18,6 +18,12 @@ import java.util.List;
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class ReporteController implements IReporteController {
 
+    private static final String HEADER_CACHE_CONTROL = "Cache-Control";
+    private static final String VALUE_NO_STORE = "no-store, no-cache, must-revalidate, max-age=0";
+    private static final String HEADER_PRAGMA = "Pragma";
+    private static final String VALUE_NO_CACHE = "no-cache";
+    private static final String HEADER_CONTENT_DISPOSITION = "Content-Disposition";
+
     private final ReporteService reporteService;
 
     public ReporteController(ReporteService reporteService) {
@@ -82,9 +88,9 @@ public class ReporteController implements IReporteController {
             @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
         byte[] content = reporteService.generarReporteProyectoPdf(id, detailMode);
         return ResponseEntity.ok()
-                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-                .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-estado-proyecto-especifico-" + id + ".pdf")
+                .header(HEADER_CACHE_CONTROL, VALUE_NO_STORE)
+                .header(HEADER_PRAGMA, VALUE_NO_CACHE)
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=reporte-estado-proyecto-especifico-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }
@@ -96,9 +102,9 @@ public class ReporteController implements IReporteController {
             @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
         byte[] content = reporteService.generarReportePortafolioPdf(detailMode);
         return ResponseEntity.ok()
-                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-                .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-estado-todos-los-proyectos.pdf")
+                .header(HEADER_CACHE_CONTROL, VALUE_NO_STORE)
+                .header(HEADER_PRAGMA, VALUE_NO_CACHE)
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=reporte-estado-todos-los-proyectos.pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }
@@ -110,9 +116,9 @@ public class ReporteController implements IReporteController {
             @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
         byte[] content = reporteService.generarReporteProyectosConRetrasosPdf(detailMode);
         return ResponseEntity.ok()
-                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-                .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-proyectos-con-retrasos-en-la-fecha-de-entrega.pdf")
+                .header(HEADER_CACHE_CONTROL, VALUE_NO_STORE)
+                .header(HEADER_PRAGMA, VALUE_NO_CACHE)
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=reporte-proyectos-con-retrasos-en-la-fecha-de-entrega.pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }
@@ -124,9 +130,9 @@ public class ReporteController implements IReporteController {
             @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
         byte[] content = reporteService.generarReportePlanComunicacionesPdf(detailMode);
         return ResponseEntity.ok()
-                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-                .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-plan-comunicaciones.pdf")
+                .header(HEADER_CACHE_CONTROL, VALUE_NO_STORE)
+                .header(HEADER_PRAGMA, VALUE_NO_CACHE)
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=reporte-plan-comunicaciones.pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }
@@ -139,9 +145,9 @@ public class ReporteController implements IReporteController {
             @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
         byte[] content = reporteService.generarReporteFuragPdf(proyectoId, detailMode);
         return ResponseEntity.ok()
-                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-                .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-furag-" + proyectoId + ".pdf")
+                .header(HEADER_CACHE_CONTROL, VALUE_NO_STORE)
+                .header(HEADER_PRAGMA, VALUE_NO_CACHE)
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=reporte-furag-" + proyectoId + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }
@@ -153,9 +159,9 @@ public class ReporteController implements IReporteController {
             @RequestParam(required = false, defaultValue = "resumido") String detailMode) {
         byte[] content = reporteService.generarReporteRiesgosPdf(detailMode);
         return ResponseEntity.ok()
-                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-                .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-verificacion-tratamiento-a-riesgos.pdf")
+                .header(HEADER_CACHE_CONTROL, VALUE_NO_STORE)
+                .header(HEADER_PRAGMA, VALUE_NO_CACHE)
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=reporte-verificacion-tratamiento-a-riesgos.pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(content);
     }
@@ -171,7 +177,7 @@ public class ReporteController implements IReporteController {
             Authentication authentication) {
         byte[] content = reporteService.generarReportePortafolioExcel(authentication, query, dependency, status, peti);
         return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=Consolidado Seguimiento Proyectos PETI.xlsx")
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=Consolidado Seguimiento Proyectos PETI.xlsx")
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(content);
     }
@@ -182,9 +188,9 @@ public class ReporteController implements IReporteController {
     public ResponseEntity<byte[]> descargarReporteActualProyectoExcel(@PathVariable String proyectoId) {
         byte[] content = reporteService.generarReporteActualProyectoExcel(proyectoId);
         return ResponseEntity.ok()
-                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-                .header("Pragma", "no-cache")
-                .header("Content-Disposition", "attachment; filename=reporte-actual-proyecto-" + proyectoId + ".xlsx")
+                .header(HEADER_CACHE_CONTROL, VALUE_NO_STORE)
+                .header(HEADER_PRAGMA, VALUE_NO_CACHE)
+                .header(HEADER_CONTENT_DISPOSITION, "attachment; filename=reporte-actual-proyecto-" + proyectoId + ".xlsx")
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(content);
     }

@@ -21,6 +21,7 @@ public class ObjetivoEspecifico {
     private Proyecto proyecto;
 
     public ObjetivoEspecifico() {
+        // Constructor vacío intencional: requerido por JPA para instanciar la entidad.
     }
 
     // Manual Getters and Setters

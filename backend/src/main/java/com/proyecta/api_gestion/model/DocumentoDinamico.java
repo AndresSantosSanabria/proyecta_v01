@@ -44,6 +44,7 @@ public class DocumentoDinamico {
     private LocalDateTime fechaActualizacion;
 
     public DocumentoDinamico() {
+        // Constructor vacío intencional: lo requiere JPA para instanciar la entidad.
     }
 
     @PrePersist

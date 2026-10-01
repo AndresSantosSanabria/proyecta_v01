@@ -1,9 +1,27 @@
 package com.proyecta.api_gestion.dto.project;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(example = """
+    {
+      "proyectoId": "PROY-CUN-2026-008",
+      "nombreProyecto": "Modernización de Redes LAN",
+      "fases": [
+        {
+          "id": 12,
+          "numero": 1,
+          "nombre": "Planificación",
+          "descripcion": "Definición del alcance y cronograma",
+          "ponderacion": 20.00,
+          "avanceCalculado": 100.00,
+          "hitos": []
+        }
+      ]
+    }
+    """)
 public class ProjectHierarchyDTO {
     private String proyectoId;
     private String nombreProyecto;

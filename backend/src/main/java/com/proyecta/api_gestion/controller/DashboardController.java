@@ -5,6 +5,8 @@ import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
+import io.swagger.v3.oas.annotations.media.Content;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +33,12 @@ public class DashboardController implements IDashboardController {
     }
 
     @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "204",
+        description = "No hay proyectos para mostrar",
+        content = @Content
+    )
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @GetMapping("/avance-por-proyecto")
     @PreAuthorize("@proyectoSecurity.canViewDashboard(authentication)")
     public ResponseEntity<ApiResponse<List<DashboardProjectSummaryDTO>>> getProjectSummary() {

@@ -36,38 +36,20 @@ public interface IDashboardController {
                 examples = @ExampleObject(
                     name = "200 OK",
                     summary = "Resumen ejecutivo obtenido exitosamente",
-                    value = "{\n" +
-                            "  \"success\": true,\n" +
-                            "  \"message\": \"Resumen ejecutivo obtenido con éxito\",\n" +
-                            "  \"timestamp\": \"2026-04-29T10:00:00\",\n" +
-                            "  \"data\": {\n" +
-                            "    \"totalProyectosActivos\": 25,\n" +
-                            "    \"avancePromedio\": 67.5,\n" +
-                            "    \"totalEntregablesConforme\": 150,\n" +
-                            "    \"totalEntregablesAtrasados\": 12,\n" +
-                            "    \"proyectosConAtrasos\": 8,\n" +
-                            "    \"riesgoPromedio\": 2.3\n" +
-                            "  }\n" +
-                            "}"
-                )
-            )
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "503",
-            description = DashboardSwaggerConstants.RESPONSE_503_DESC,
-            content = @Content(
-                mediaType = "application/json",
-                schema = @Schema(implementation = com.proyecta.api_gestion.dto.common.ApiErrorResponseDTO.class),
-                examples = @ExampleObject(
-                    name = "503 Service Unavailable",
-                    summary = "Base de datos no disponible",
-                    value = "{\n" +
-                            "  \"status\": 503,\n" +
-                            "  \"error\": \"Service Unavailable\",\n" +
-                            "  \"message\": \"Servicio de base de datos no disponible\",\n" +
-                            "  \"path\": \"/api/dashboard/summary\",\n" +
-                            "  \"timestamp\": \"2026-04-29T10:00:00\"\n" +
-                            "}"
+                    value = """
+                            {
+                              "success": true,
+                              "message": "Resumen ejecutivo obtenido con éxito",
+                              "timestamp": "2026-04-29T10:00:00",
+                              "data": {
+                                "totalProyectosActivos": 25,
+                                "avancePromedio": 67.5,
+                                "totalEntregablesConforme": 150,
+                                "totalEntregablesAtrasados": 12,
+                                "proyectosConAtrasos": 8,
+                                "riesgoPromedio": 2.3
+                              }
+                            }"""
                 )
             )
         )
@@ -89,21 +71,22 @@ public interface IDashboardController {
                 examples = @ExampleObject(
                     name = "200 OK",
                     summary = "Lista de proyectos obtenida exitosamente",
-                    value = "{\n" +
-                            "  \"success\": true,\n" +
-                            "  \"message\": \"Lista de proyectos obtenida con éxito\",\n" +
-                            "  \"timestamp\": \"2026-04-29T10:00:00\",\n" +
-                            "  \"data\": [\n" +
-                            "    {\n" +
-                            "      \"proyectoId\": \"PROY-001\",\n" +
-                            "      \"nombre\": \"Sistema de Gestión\",\n" +
-                            "      \"avance\": 75.5,\n" +
-                            "      \"estado\": \"activo\",\n" +
-                            "      \"entregablesConforme\": 15,\n" +
-                            "      \"entregablesAtrasados\": 2\n" +
-                            "    }\n" +
-                            "  ]\n" +
-                            "}"
+                    value = """
+                            {
+                              "success": true,
+                              "message": "Lista de proyectos obtenida con éxito",
+                              "timestamp": "2026-04-29T10:00:00",
+                              "data": [
+                                {
+                                  "proyectoId": "PROY-001",
+                                  "nombre": "Sistema de Gestión",
+                                  "avance": 75.5,
+                                  "estado": "activo",
+                                  "entregablesConforme": 15,
+                                  "entregablesAtrasados": 2
+                                }
+                              ]
+                            }"""
                 )
             )
         ),
@@ -111,25 +94,6 @@ public interface IDashboardController {
             responseCode = "204",
             description = "No hay proyectos para mostrar",
             content = @Content
-        ),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "503",
-            description = DashboardSwaggerConstants.RESPONSE_503_DESC,
-            content = @Content(
-                mediaType = "application/json",
-                schema = @Schema(implementation = com.proyecta.api_gestion.dto.common.ApiErrorResponseDTO.class),
-                examples = @ExampleObject(
-                    name = "503 Service Unavailable",
-                    summary = "Base de datos no disponible",
-                    value = "{\n" +
-                            "  \"status\": 503,\n" +
-                            "  \"error\": \"Service Unavailable\",\n" +
-                            "  \"message\": \"Servicio de base de datos no disponible\",\n" +
-                            "  \"path\": \"/api/dashboard/projectSummary\",\n" +
-                            "  \"timestamp\": \"2026-04-29T10:00:00\"\n" +
-                            "}"
-                )
-            )
         )
     })
     @StandardApiResponses

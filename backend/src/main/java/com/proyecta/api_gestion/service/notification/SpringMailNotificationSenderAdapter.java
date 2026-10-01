@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class SpringMailNotificationSenderAdapter implements NotificationSenderPort {
 
     private static final Logger logger = LoggerFactory.getLogger(SpringMailNotificationSenderAdapter.class);
+    private static final String LOG_MAIL_ERROR = "[Mail] {}";
 
     private final JavaMailSender javaMailSender;
     private final NotificationMailDispatchTracker tracker;
@@ -53,27 +54,27 @@ public class SpringMailNotificationSenderAdapter implements NotificationSenderPo
         } catch (MailAuthenticationException e) {
             String detail = "Fallo de autenticación SMTP: " + safeMessage(e);
             tracker.failed(to, message.subject(), detail);
-            logger.error("[Mail] {}", detail, e);
+            logger.error(LOG_MAIL_ERROR, detail, e);
             return NotificationSendResult.failed(detail);
         } catch (MailSendException e) {
             String detail = "Fallo al enviar SMTP: " + safeMessage(e);
             tracker.failed(to, message.subject(), detail);
-            logger.error("[Mail] {}", detail, e);
+            logger.error(LOG_MAIL_ERROR, detail, e);
             return NotificationSendResult.failed(detail);
         } catch (MailException e) {
             String detail = "Error SMTP: " + safeMessage(e);
             tracker.failed(to, message.subject(), detail);
-            logger.error("[Mail] {}", detail, e);
+            logger.error(LOG_MAIL_ERROR, detail, e);
             return NotificationSendResult.failed(detail);
         } catch (MessagingException e) {
             String detail = "Error MIME: " + safeMessage(e);
             tracker.failed(to, message.subject(), detail);
-            logger.error("[Mail] {}", detail, e);
+            logger.error(LOG_MAIL_ERROR, detail, e);
             return NotificationSendResult.failed(detail);
         } catch (Exception e) {
             String detail = "Error inesperado de correo: " + safeMessage(e);
             tracker.failed(to, message.subject(), detail);
-            logger.error("[Mail] {}", detail, e);
+            logger.error(LOG_MAIL_ERROR, detail, e);
             return NotificationSendResult.failed(detail);
         }
     }
@@ -108,7 +109,7 @@ public class SpringMailNotificationSenderAdapter implements NotificationSenderPo
 
     private String resolveThreadDomain() {
         String from = resolveFromEmail();
-        int at = from == null ? -1 : from.lastIndexOf('@');
+        int at = from.lastIndexOf('@');
         if (at > 0 && at < from.length() - 1) {
             return from.substring(at + 1).trim().toLowerCase(java.util.Locale.ROOT);
         }

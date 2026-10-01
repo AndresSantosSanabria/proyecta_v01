@@ -3,12 +3,8 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.analytics.AnalyticsPortfolioDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.model.ActaCierre;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.FuragRespuesta;
 import com.proyecta.api_gestion.model.Proyecto;
 import com.proyecta.api_gestion.model.Riesgo;
-import com.proyecta.api_gestion.model.config.MatrizRiesgo;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
 import com.proyecta.api_gestion.repository.ActaCierreRepository;
 import com.proyecta.api_gestion.repository.EntregableRepository;
@@ -30,12 +26,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
 public class AnalyticsServiceImpl implements AnalyticsService {
+
+    private static final String NO_PETI = "NO_PETI";
 
     private final ProyectoRepository proyectoRepository;
     private final EntregableRepository entregableRepository;
@@ -165,7 +162,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private List<AnalyticsPortfolioDTO.EstrategiaMetrics> construirEstrategias(List<ProjectMetricsHolder> proyectos) {
         return proyectos.stream()
                 .collect(Collectors.groupingBy(
-                        holder -> Boolean.TRUE.equals(holder.proyecto().getPeti()) ? "PETI" : "NO_PETI",
+                        holder -> Boolean.TRUE.equals(holder.proyecto().getPeti()) ? "PETI" : NO_PETI,
                         LinkedHashMap::new,
                         Collectors.toList()))
                 .entrySet()
@@ -355,9 +352,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private String estrategiaLabel(Proyecto proyecto) {
         if (proyecto == null) {
-            return "NO_PETI";
+            return NO_PETI;
         }
-        return Boolean.TRUE.equals(proyecto.getPeti()) ? "PETI" : "NO_PETI";
+        return Boolean.TRUE.equals(proyecto.getPeti()) ? "PETI" : NO_PETI;
     }
 
     private String normalizeGroup(String value) {
@@ -376,13 +373,6 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             case "EXTREMO", "CRITICO" -> 4;
             default -> 99;
         };
-    }
-
-    private boolean esPendienteCompletar(Proyecto proyecto) {
-        if (proyecto.getEstadoConfig() != null) {
-            return "PENDIENTE_COMPLETAR".equals(proyecto.getEstadoConfig().getCodigo());
-        }
-        return EstadoProyecto.PENDIENTE_COMPLETAR.equals(proyecto.getEstado());
     }
 
     private record ProjectMetricsHolder(

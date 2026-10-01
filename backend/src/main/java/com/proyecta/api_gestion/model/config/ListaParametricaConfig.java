@@ -40,7 +40,9 @@ public class ListaParametricaConfig {
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
-    public ListaParametricaConfig() {}
+    public ListaParametricaConfig() {
+        // Constructor por defecto requerido por JPA, sin lógica que ejecutar.
+    }
 
     @PrePersist
     protected void onCreate() {

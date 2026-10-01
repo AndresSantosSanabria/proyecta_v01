@@ -6,28 +6,18 @@ import com.proyecta.api_gestion.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
 
 @Service("localUserAuthorization")
 public class LocalUserAuthorizationService {
 
-    private static final Logger logger = LoggerFactory.getLogger(LocalUserAuthorizationService.class);
-
     private final SeguridadUsuarioRepository seguridadUsuarioRepository;
     private final KeycloakIdentityExtractor identityExtractor;
-    private final Set<String> bootstrapAdminEmails;
 
     public LocalUserAuthorizationService(
             SeguridadUsuarioRepository seguridadUsuarioRepository,
@@ -35,11 +25,6 @@ public class LocalUserAuthorizationService {
             @Value("${gob.security.admin-emails:}") String adminEmails) {
         this.seguridadUsuarioRepository = seguridadUsuarioRepository;
         this.identityExtractor = identityExtractor;
-        this.bootstrapAdminEmails = Arrays.stream(adminEmails.split(","))
-                .map(this::clean)
-                .filter(value -> value != null && !value.isBlank())
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 
     public SeguridadUsuario requireLocalUser(Authentication authentication) {
@@ -139,7 +124,7 @@ public class LocalUserAuthorizationService {
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .map(SecurityRoleCatalog::normalize)
-                .anyMatch(role -> "admin".equals(role));
+                .anyMatch("admin"::equals);
     }
 
     public static boolean esAdministrador(SeguridadUsuario usuario) {

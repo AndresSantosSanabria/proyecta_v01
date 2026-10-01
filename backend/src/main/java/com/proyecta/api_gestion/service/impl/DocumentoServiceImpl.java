@@ -16,7 +16,6 @@ import com.proyecta.api_gestion.model.enums.TipoDocumento;
 import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
 import com.proyecta.api_gestion.repository.*;
 import com.proyecta.api_gestion.repository.config.TipoDocumentoConfigRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
@@ -58,15 +57,17 @@ public class DocumentoServiceImpl implements IDocumentoService {
     );
     private static final String STORAGE_SUBDIR = "documentos";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String TIPO_VIABILIZACION = "VIABILIZACION";
+    private static final String TIPO_PLAN_COMUNICACIONES = "PLAN_COMUNICACIONES";
+    private static final String TIPO_MATRIZ_RIESGOS_VIABILIDAD = "MATRIZ_RIESGOS_VIABILIDAD";
+    private static final String ESTADO_DEVUELTO = "DEVUELTO";
     private static final List<String> PRE_WIZARD_TYPES = List.of(
-            "VIABILIZACION", "PLAN_COMUNICACIONES", "MATRIZ_RIESGOS_VIABILIDAD");
+            TIPO_VIABILIZACION, TIPO_PLAN_COMUNICACIONES, TIPO_MATRIZ_RIESGOS_VIABILIDAD);
 
     private final DocumentoRepository documentoRepository;
     private final DocumentoProyectoVersionRepository versionRepository;
     private final ProyectoRepository proyectoRepository;
-    private final DocumentoDinamicoRepository documentoDinamicoRepository;
     private final TipoDocumentoConfigRepository tipoDocumentoConfigRepository;
-    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
     private final DocumentoPreWizardRevisionRepository preWizardRevisionRepository;
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
@@ -77,9 +78,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
             DocumentoRepository documentoRepository,
             DocumentoProyectoVersionRepository versionRepository,
             ProyectoRepository proyectoRepository,
-            DocumentoDinamicoRepository documentoDinamicoRepository,
             TipoDocumentoConfigRepository tipoDocumentoConfigRepository,
-            SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
             DocumentoPreWizardRevisionRepository preWizardRevisionRepository,
             NotificationEventPublisherPort notificationPublisher,
             KeycloakIdentityExtractor identityExtractor,
@@ -88,9 +87,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         this.documentoRepository = documentoRepository;
         this.versionRepository = versionRepository;
         this.proyectoRepository = proyectoRepository;
-        this.documentoDinamicoRepository = documentoDinamicoRepository;
         this.tipoDocumentoConfigRepository = tipoDocumentoConfigRepository;
-        this.usuarioProyectoRepository = usuarioProyectoRepository;
         this.preWizardRevisionRepository = preWizardRevisionRepository;
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
@@ -148,8 +145,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         Integer nuevaVersion = maxVersion + 1;
 
         String nombreOriginal = storageProvider.sanitizeFileName(archivo.getOriginalFilename());
-        String extension = extraerExtension(nombreOriginal);
-        String nombreUnico = generarNombreUnico(tipoDocumento, extension);
+        String nombreUnico = generarNombreUnico(tipoDocumento);
         String mimeType = resolverMimeType(archivo);
 
         String nombreAlmacenado = storageProvider.storeFile(archivo, STORAGE_SUBDIR, nombreUnico);
@@ -542,7 +538,6 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 .orElse(null);
 
         if (documentoExistente != null) {
-            // ELIMINADO: storageProvider.deleteFile(STORAGE_SUBDIR, documentoExistente.getNombreAlmacenado());
             // No podemos borrar el archivo físico porque la version anterior (histórica) en `DocumentoProyectoVersion`
             // lo sigue referenciando y es necesario para que funcione el visor de historial.
             documentoExistente.setNombreOriginal(version.getNombreArchivoOriginal());
@@ -574,32 +569,13 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + proyectoId));
     }
 
-    private String extraerExtension(String fileName) {
-        if (fileName == null) return "";
-        int dotIndex = fileName.lastIndexOf('.');
-        return dotIndex > 0 ? fileName.substring(dotIndex).toLowerCase() : "";
-    }
-
-    private String generarNombreUnico(String tipoDocumento, String extension) {
+    private String generarNombreUnico(String tipoDocumento) {
         return tipoDocumento.toLowerCase() + "_" + UUID.randomUUID().toString();
     }
 
     private String resolverMimeType(MultipartFile file) {
-        String contentType = file.getContentType();
-        if (contentType != null && !contentType.isEmpty()) {
-            return contentType.toLowerCase();
-        }
-        String ext = extraerExtension(file.getOriginalFilename()).toLowerCase();
-        return switch (ext) {
-            case ".pdf" -> "application/pdf";
-            case ".png" -> "image/png";
-            case ".jpg", ".jpeg" -> "image/jpeg";
-            case ".doc" -> "application/msword";
-            case ".docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case ".xls" -> "application/vnd.ms-excel";
-            case ".xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            default -> "application/octet-stream";
-        };
+        // CWE-434: el Content-Type lo declara el cliente; se deriva de la extension.
+        return com.proyecta.api_gestion.infrastructure.UploadMimeSanitizer.resolverMimeType(file);
     }
 
     private String construirUrlDescarga(String proyectoId, String tipoDocumento) {
@@ -612,7 +588,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         }
         try {
             return TipoDocumento.valueOf(tipoDocumento.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException _) {
             throw new BadRequestException("Tipo de documento no válido: " + tipoDocumento);
         }
     }
@@ -657,7 +633,6 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private DocumentoProyectoVersionDTO toVersionDTO(DocumentoProyectoVersion v) {
-        String urlDescarga = construirUrlDescarga(v.getProyectoId(), v.getTipoDocumento()) + "?version=" + v.getNumeroVersion();
         return new DocumentoProyectoVersionDTO(
                 v.getId(),
                 v.getTipoDocumento(),
@@ -692,17 +667,19 @@ public class DocumentoServiceImpl implements IDocumentoService {
         if (proyecto == null) return;
 
         switch (tipoDocumento) {
-            case "VIABILIZACION" -> proyecto.setViabilizacionPdf(version.getNombreAlmacenado());
+            case TIPO_VIABILIZACION -> proyecto.setViabilizacionPdf(version.getNombreAlmacenado());
             case "CRONOGRAMA" -> proyecto.setCronogramaPdf(version.getNombreAlmacenado());
             case "ACTA_CONSTITUCION" -> {
                 proyecto.setActaConstitucionPdf(version.getNombreAlmacenado());
                 proyecto.marcarActaConstitucionCargada();
             }
-            case "PLAN_COMUNICACIONES" -> {
+            case TIPO_PLAN_COMUNICACIONES -> {
                 proyecto.setPlanComunicacionesPdf(version.getNombreAlmacenado());
                 proyecto.setTienePlanComunicaciones(true);
             }
-            default -> { }
+            default -> {
+                // Tipos sin flag propio: no requieren actualización adicional.
+            }
         }
 
         boolean esPreWizard = PRE_WIZARD_TYPES.contains(tipoDocumento);
@@ -736,13 +713,13 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
     private void verificarTodosDocumentosCargados(Proyecto proyecto) {
         boolean tieneViabilidad = versionRepository
-                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "VIABILIZACION")
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), TIPO_VIABILIZACION)
                 .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
         boolean tienePlanComunicaciones = versionRepository
-                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "PLAN_COMUNICACIONES")
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), TIPO_PLAN_COMUNICACIONES)
                 .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
         boolean tieneMatrizRiesgos = versionRepository
-                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), "MATRIZ_RIESGOS_VIABILIDAD")
+                .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), TIPO_MATRIZ_RIESGOS_VIABILIDAD)
                 .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
 
         proyecto.setDocumentosCargados(tieneViabilidad && tienePlanComunicaciones && tieneMatrizRiesgos);
@@ -778,13 +755,13 @@ public class DocumentoServiceImpl implements IDocumentoService {
                 estado = "CARGADO (pendiente de revision)";
             } else if ("APROBADO".equals(estadoRevision)) {
                 estado = "VERIFICADO";
-            } else if ("DEVUELTO".equals(estadoRevision)) {
-                estado = "DEVUELTO";
+            } else if (ESTADO_DEVUELTO.equals(estadoRevision)) {
+                estado = ESTADO_DEVUELTO;
             } else {
                 estado = estadoRevision;
             }
             sb.append("- ").append(nombreDocumentoPreWizard(tipo)).append(": ").append(estado);
-            if ("DEVUELTO".equals(estadoRevision) && rev.getObservacion() != null && !rev.getObservacion().isBlank()) {
+            if (ESTADO_DEVUELTO.equals(estadoRevision) && rev.getObservacion() != null && !rev.getObservacion().isBlank()) {
                 sb.append(" — ").append(rev.getObservacion().trim());
             }
             sb.append('\n');
@@ -794,9 +771,9 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
     private String nombreDocumentoPreWizard(String tipo) {
         return switch (tipo) {
-            case "VIABILIZACION" -> "Documento de Viabilidad";
-            case "PLAN_COMUNICACIONES" -> "Plan de Comunicaciones";
-            case "MATRIZ_RIESGOS_VIABILIDAD" -> "Matriz de Riesgos de Viabilidad";
+            case TIPO_VIABILIZACION -> "Documento de Viabilidad";
+            case TIPO_PLAN_COMUNICACIONES -> "Plan de Comunicaciones";
+            case TIPO_MATRIZ_RIESGOS_VIABILIDAD -> "Matriz de Riesgos de Viabilidad";
             default -> tipo;
         };
     }

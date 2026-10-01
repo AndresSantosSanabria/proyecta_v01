@@ -23,17 +23,14 @@ public class AdvanceReportReminderScheduler {
 
     private final ProyectoRepository proyectoRepository;
     private final AdvanceReportNotificationService notificationService;
-    private final AdvanceReportRuleEvaluator ruleEvaluator;
     private final AdvanceReportPeriodService periodService;
 
     public AdvanceReportReminderScheduler(
             ProyectoRepository proyectoRepository,
             AdvanceReportNotificationService notificationService,
-            AdvanceReportRuleEvaluator ruleEvaluator,
             AdvanceReportPeriodService periodService) {
         this.proyectoRepository = proyectoRepository;
         this.notificationService = notificationService;
-        this.ruleEvaluator = ruleEvaluator;
         this.periodService = periodService;
     }
 

@@ -23,6 +23,8 @@ public class ClosureQuestionService {
     private final ClosureAnswerRepository answerRepository;
     private final ObjectMapper objectMapper;
 
+    private static final String MSG_PREGUNTA_NO_ENCONTRADA = "Pregunta no encontrada: ";
+
     public ClosureQuestionService(ClosureQuestionRepository questionRepository,
                                    ClosureAnswerRepository answerRepository,
                                    ObjectMapper objectMapper) {
@@ -51,7 +53,7 @@ public class ClosureQuestionService {
         q.setTexto(request.texto());
         q.setTipoRespuesta(request.tipoRespuesta() != null ? request.tipoRespuesta() : "texto_libre");
         q.setOpciones(serializeOpciones(request.opciones()));
-        q.setActivo(request.activo() != null ? request.activo() : true);
+        q.setActivo(request.activo() == null || request.activo());
         q.setOrden(request.orden() != null ? request.orden() : getNextOrden());
         q.setCreatedBy(username);
         q.setUpdatedBy(username);
@@ -61,7 +63,7 @@ public class ClosureQuestionService {
     @Transactional
     public ClosureQuestionDTO update(Long id, ClosureQuestionRequest request, String username) {
         ClosureQuestion q = questionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pregunta no encontrada: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + id));
         q.setTexto(request.texto());
         if (request.tipoRespuesta() != null) q.setTipoRespuesta(request.tipoRespuesta());
         q.setOpciones(serializeOpciones(request.opciones()));
@@ -74,7 +76,7 @@ public class ClosureQuestionService {
     @Transactional
     public void toggleActivo(Long id, String username) {
         ClosureQuestion q = questionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pregunta no encontrada: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + id));
         q.setActivo(!Boolean.TRUE.equals(q.getActivo()));
         q.setUpdatedBy(username);
         questionRepository.save(q);
@@ -83,7 +85,7 @@ public class ClosureQuestionService {
     @Transactional
     public void delete(Long id) {
         ClosureQuestion q = questionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pregunta no encontrada: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + id));
         if (answerRepository.existsByQuestionId(id)) {
             throw new BadRequestException("No se puede eliminar una pregunta que tiene respuestas registradas. Desactivala en su lugar.");
         }
@@ -111,7 +113,7 @@ public class ClosureQuestionService {
     public void saveAnswers(String projectId, List<ClosureAnswerRequest> answers) {
         for (ClosureAnswerRequest ans : answers) {
             ClosureQuestion q = questionRepository.findById(ans.questionId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Pregunta no encontrada: " + ans.questionId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + ans.questionId()));
             ClosureAnswer existing = answerRepository.findByProyectoIdAndQuestionId(projectId, ans.questionId()).orElse(null);
             if (existing != null) {
                 existing.setRespuesta(ans.respuesta());
@@ -136,13 +138,13 @@ public class ClosureQuestionService {
             try {
                 objectMapper.readTree(s);
                 return s;
-            } catch (JsonProcessingException e) {
+            } catch (JsonProcessingException _) {
                 throw new BadRequestException("Las opciones no son JSON valido.");
             }
         }
         try {
             return objectMapper.writeValueAsString(opciones);
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException _) {
             throw new BadRequestException("No fue posible serializar las opciones.");
         }
     }
@@ -152,7 +154,7 @@ public class ClosureQuestionService {
         if (q.getOpciones() != null && !q.getOpciones().isBlank()) {
             try {
                 ops = objectMapper.readValue(q.getOpciones(), Object.class);
-            } catch (JsonProcessingException e) {
+            } catch (JsonProcessingException _) {
                 ops = q.getOpciones();
             }
         }

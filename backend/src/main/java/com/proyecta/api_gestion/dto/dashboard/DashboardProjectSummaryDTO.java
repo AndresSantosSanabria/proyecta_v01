@@ -2,6 +2,9 @@ package com.proyecta.api_gestion.dto.dashboard;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(example = """
+    {"codigo":"PROY-CUN-2026-005","nombreProyecto":"Modernización de Redes LAN","nombreDependencia":"Secretaría de Transformación Digital","avance":85.5,"estado":"Con retrasos","entregablesAtrasados":2}
+    """)
 public class DashboardProjectSummaryDTO {
 
     @Schema(description = "Codigo de los proyectos registrados", example = "PROY-CUN-2026-005")

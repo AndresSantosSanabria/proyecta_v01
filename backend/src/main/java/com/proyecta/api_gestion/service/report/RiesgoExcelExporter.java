@@ -119,7 +119,7 @@ public class RiesgoExcelExporter {
                             labels.append('\n');
                             urls.append('\n');
                         }
-                        labels.append(defaultLabel(adjunto.getNombreOriginal(), i + 1));
+                        labels.append(defaultLabel(i + 1));
                         urls.append(publicTreatmentUrl(projectId, riesgo.getId(), ultimoTratamiento.getId(), adjunto.getId()));
                     }
                     evidenciaLabel = labels.toString();
@@ -242,7 +242,7 @@ public class RiesgoExcelExporter {
         return value.trim();
     }
 
-    private String defaultLabel(String nombreOriginal, int index) {
+    private String defaultLabel(int index) {
         return "Entregable - " + String.format(Locale.ROOT, "%02d", index);
     }
 

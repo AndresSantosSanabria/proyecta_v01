@@ -54,15 +54,13 @@ public class RoleAliasService {
         Map<String, String> aliases = new LinkedHashMap<>();
         for (String pair : raw.split(",")) {
             String[] parts = pair.split(":");
-            if (parts.length != 2) {
-                continue;
+            if (parts.length == 2) {
+                String source = normalizeKey(parts[0]);
+                String target = normalizeKey(parts[1]);
+                if (source != null && target != null && !CANONICAL_ROLE_CODES.contains(source)) {
+                    aliases.put(source, CANONICAL_ROLE_CODES.contains(target) ? target : SecurityRoleCatalog.normalize(target));
+                }
             }
-            String source = normalizeKey(parts[0]);
-            String target = normalizeKey(parts[1]);
-            if (source == null || target == null || CANONICAL_ROLE_CODES.contains(source)) {
-                continue;
-            }
-            aliases.put(source, CANONICAL_ROLE_CODES.contains(target) ? target : SecurityRoleCatalog.normalize(target));
         }
         return aliases;
     }
@@ -76,7 +74,7 @@ public class RoleAliasService {
                 .toLowerCase(Locale.ROOT)
                 .replaceFirst("^role[\\s_-]+", "")
                 .replaceAll("[^a-z0-9]+", "_")
-                .replaceAll("^_+|_+$", "");
+                .replaceAll("(?:^_+|_+$)", "");
         return cleaned.isBlank() ? null : cleaned;
     }
 }

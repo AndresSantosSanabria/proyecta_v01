@@ -1,7 +1,11 @@
 package com.proyecta.api_gestion.dto.document;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
+@Schema(example = """
+    {"id":8801,"codigo":"DOC-INT-2026-014","nombre":"Acta de comité directivo","descripcion":"Acta de la reunión del comité directivo del proyecto","fechaCreacion":"2026-07-15","nombreOriginal":"acta_comite_directivo.pdf","mimeType":"application/pdf","tamanoBytes":314572,"tamanoFormateado":"307 KB","creadoPor":"ana.gestion@proyecta.gov.co","creadoEn":"2026-07-15T10:30:00"}
+    """)
 public record DocumentoInternoDTO(
         Long id,
         String codigo,
@@ -15,6 +19,9 @@ public record DocumentoInternoDTO(
         String creadoPor,
         String creadoEn
 ) {
+    @Schema(example = """
+        {"documentos":[{"id":8801,"codigo":"DOC-INT-2026-014","nombre":"Acta de comité directivo","descripcion":"Acta de la reunión del comité directivo del proyecto","fechaCreacion":"2026-07-15","nombreOriginal":"acta_comite_directivo.pdf","mimeType":"application/pdf","tamanoBytes":314572,"tamanoFormateado":"307 KB","creadoPor":"ana.gestion@proyecta.gov.co","creadoEn":"2026-07-15T10:30:00"}],"total":1,"page":0,"size":10}
+        """)
     public record Listado(
             List<DocumentoInternoDTO> documentos,
             long total,
