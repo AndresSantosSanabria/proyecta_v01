@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AlertTriangle, Clock, FileText, ExternalLink, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import advanceReportService from '../../../services/advanceReportService';
@@ -45,6 +45,23 @@ const AdvanceReportLoginModal = ({ isOpen, onClose }) => {
     onClose();
   };
 
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === overlayRef.current) onClose();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
   if (!isOpen || (pendingProjects.length === 0 && !uploadTarget)) return null;
 
   const firstProject = pendingProjects[0];
@@ -53,8 +70,8 @@ const AdvanceReportLoginModal = ({ isOpen, onClose }) => {
 
   return (
     <>
-      <div className="arm-overlay" onClick={onClose}>
-        <div className="arm-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="arm-overlay" ref={overlayRef}>
+        <div className="arm-modal">
           <div className="arm-header">
             <div className="arm-header__icon">
               <AlertTriangle size={20} />

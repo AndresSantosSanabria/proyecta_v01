@@ -138,9 +138,9 @@ const DashboardPage = () => {
       </header>
 
       <div className="kpi-grid">
-        {kpiData.map((kpi, index) => (
+        {kpiData.map((kpi) => (
           <KPICard 
-            key={index}
+            key={kpi.title}
             title={kpi.title}
             value={kpi.value}
             detail={kpi.detail}

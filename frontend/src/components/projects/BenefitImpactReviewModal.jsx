@@ -99,7 +99,7 @@ const BenefitImpactReviewModal = ({ isOpen, onClose, proyectoId, projectName, be
 
   return (
     <div className="birm-overlay" role="presentation" onClick={onClose}>
-      <div className="birm-modal" role="dialog" aria-modal="true" aria-labelledby="birm-title" onClick={(e) => e.stopPropagation()}>
+      <div className="birm-modal" role="dialog" aria-modal="true" aria-labelledby="birm-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <div className="birm-header">
           <div className="birm-header-text">
             <span className="birm-kicker">

@@ -261,8 +261,8 @@ const EditProjectModal = ({ projectId, onClose, onSaved }) => {
 
   if (loading) {
     return (
-      <div className="edit-modal-overlay" onClick={onClose}>
-        <div className="edit-modal-shell" onClick={(e) => e.stopPropagation()}>
+      <div className="edit-modal-overlay" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+        <div className="edit-modal-shell" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <div className="edit-modal-panel" style={{ display: 'grid', placeItems: 'center' }}>
             <span style={{ color: 'var(--text-muted)' }}>Cargando proyecto...</span>
           </div>
@@ -273,8 +273,8 @@ const EditProjectModal = ({ projectId, onClose, onSaved }) => {
 
   if (submitSuccess) {
     return (
-      <div className="edit-modal-overlay" onClick={onClose}>
-        <div className="edit-modal-shell" onClick={(e) => e.stopPropagation()}>
+      <div className="edit-modal-overlay" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+        <div className="edit-modal-shell" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <div className="edit-modal-panel" style={{ display: 'grid', placeItems: 'center' }}>
             <div style={{ textAlign: 'center', display: 'grid', gap: '12px', justifyItems: 'center' }}>
               <CheckCircle size={56} color="#16a34a" />
@@ -288,8 +288,8 @@ const EditProjectModal = ({ projectId, onClose, onSaved }) => {
   }
 
   return (
-    <div className="edit-modal-overlay" onClick={onClose}>
-      <div className="edit-modal-shell" onClick={(e) => e.stopPropagation()}>
+    <div className="edit-modal-overlay" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="edit-modal-shell" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <div className="edit-modal-panel">
 
           {/* Header */}

@@ -49,7 +49,7 @@
 }
 .global-notif-check:hover {
   border-color: #0f766e;
-  background: #0f766e0d;
+  background: #f3f8f8;
   color: #0f766e;
 }
 .global-notif-check input[type='checkbox'] {
@@ -319,7 +319,7 @@
 
 .channel-push {
   background: rgba(139, 92, 246, 0.12);
-  color: #8b5cf6;
+  color: #060111;
   border-color: rgba(139, 92, 246, 0.2);
 }
 
@@ -1044,11 +1044,11 @@
   height: 40px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
-  background: #dc262622;
+  background: #fae2e2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #dc2626;
+  color: #bf1f1f;
   cursor: pointer;
 }
 
@@ -1261,12 +1261,12 @@
 }
 
 .failures-channel.channel-email {
-  background: #2563eb15;
-  color: #2563eb;
+  background: #edf2fd;
+  color: #1c5cea;
 }
 
 .failures-channel.channel-in-app {
-  background: #7c3aed15;
+  background: #f4effe;
   color: #7c3aed;
 }
 
@@ -1275,8 +1275,8 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 6px;
-  background: #dc262615;
-  color: #dc2626;
+  background: #fceded;
+  color: #c92020;
 }
 
 .failures-reason {

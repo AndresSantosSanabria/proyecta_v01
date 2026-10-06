@@ -427,7 +427,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
     : null;
 
   return (
-    <div className="edm-overlay" onClick={onClose}>
+    <div className="edm-overlay" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div className="edm-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
         <header className="edm-header">
           <div className="edm-header-content">
@@ -722,7 +722,7 @@ const EvidenciaDetailModal = ({ evidencia, open, onClose, proyectoId }) => {
       </div>
 
       {(viewerError || viewerBlob) && (
-        <div className="edm-viewer-overlay" onClick={handleCloseViewer}>
+        <div className="edm-viewer-overlay" onClick={handleCloseViewer} onKeyDown={(e) => { if (e.key === 'Escape') handleCloseViewer(); }}>
           <div className="edm-viewer-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
             <header className="edm-viewer-header">
               <div className="edm-viewer-title">

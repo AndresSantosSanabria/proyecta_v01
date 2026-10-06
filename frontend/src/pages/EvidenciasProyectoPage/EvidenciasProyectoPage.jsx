@@ -143,7 +143,6 @@ const EvidenciasProyectoPage = () => {
           valB = (b.nombre || '').toLowerCase();
           break;
         case 'fechaRegistro':
-        default:
           valA = a.fechaRegistro || '';
           valB = b.fechaRegistro || '';
           break;

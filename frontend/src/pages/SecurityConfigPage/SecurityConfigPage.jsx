@@ -1378,7 +1378,7 @@ const SecurityConfigPage = () => {
                                   >
                                     <Pencil size={14} />
                                   </button>
-                                  <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
+                                  <label className="row-toggle" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
                                     <input type="checkbox" checked={Boolean(user.activo)} readOnly />
                                     <span />
                                   </label>
@@ -1856,7 +1856,7 @@ const SecurityConfigPage = () => {
                                 >
                                   <Pencil size={14} />
                                 </button>
-                                <label className="row-toggle" onClick={(event) => event.stopPropagation()}>
+                                <label className="row-toggle" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
                                   <input type="checkbox" checked={Boolean(role.activo)} readOnly />
                                   <span />
                                 </label>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, FileText, Upload, X, LoaderCircle } from 'lucide-react';
 import SpellCheckerTextarea from '../../common/SpellCheckerTextarea';
 import './ModificarFechaModal.css';
@@ -10,6 +10,23 @@ export default function ModificarFechaModal({ entregable, proyectoId, onClose, o
   const [archivoNombre, setArchivoNombre] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
+
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === overlayRef.current) onClose();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
 
   const fechaMinima = entregable.fechaInicio || '';
   const fechaActual = entregable.fechaEntrega || '';
@@ -66,8 +83,8 @@ export default function ModificarFechaModal({ entregable, proyectoId, onClose, o
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="mfm-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" ref={overlayRef}>
+      <div className="mfm-modal">
         <div className="mfm-header">
           <h3><Calendar size={16} /> Modificar Fecha Límite</h3>
           <button className="mfm-close" onClick={onClose}><X size={18} /></button>
@@ -80,9 +97,10 @@ export default function ModificarFechaModal({ entregable, proyectoId, onClose, o
           </div>
 
           <div className="mfm-field">
-            <label>Nueva fecha límite</label>
+            <label htmlFor="mfm-fecha">Nueva fecha límite</label>
             <input
               type="date"
+              id="mfm-fecha"
               value={nuevaFecha}
               min={fechaMinima}
               onChange={(e) => setNuevaFecha(e.target.value)}
@@ -93,8 +111,9 @@ export default function ModificarFechaModal({ entregable, proyectoId, onClose, o
           </div>
 
           <div className="mfm-field">
-            <label>Justificación del cambio</label>
+            <label htmlFor="mfm-justificacion">Justificación del cambio</label>
             <SpellCheckerTextarea
+              id="mfm-justificacion"
               rows={4}
               value={justificacion}
               onChange={(e) => setJustificacion(e.target.value)}
@@ -103,7 +122,7 @@ export default function ModificarFechaModal({ entregable, proyectoId, onClose, o
           </div>
 
           <div className="mfm-field">
-            <label>PDF de soporte</label>
+            <label htmlFor="mfm-pdf">PDF de soporte</label>
             <div className="mfm-file-input">
               <input
                 type="file"

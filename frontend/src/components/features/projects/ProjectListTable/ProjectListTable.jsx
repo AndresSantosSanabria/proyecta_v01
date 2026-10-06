@@ -406,13 +406,20 @@ const ProjectListTable = ({
       </div>
 
       {forceCloseTarget && forceCloseStep === 'warning' && (
-        <div className="force-close-overlay" onClick={closeForceCloseModal}>
+        <div className="force-close-overlay">
+          <button
+            type="button"
+            className="force-close-overlay__backdrop"
+            onClick={closeForceCloseModal}
+            aria-label="Cerrar modal de cierre forzoso"
+          />
           <div
             className="force-close-modal force-close-modal--danger"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="force-close-warning-title"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="force-close-modal__header">
               <div className="force-close-modal__header-title">
@@ -471,13 +478,20 @@ const ProjectListTable = ({
       )}
 
       {forceCloseTarget && forceCloseStep === 'comment' && (
-        <div className="force-close-overlay" onClick={closeForceCloseModal}>
+        <div className="force-close-overlay">
+          <button
+            type="button"
+            className="force-close-overlay__backdrop"
+            onClick={closeForceCloseModal}
+            aria-label="Cerrar modal de cierre forzoso"
+          />
           <div
             className="force-close-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="force-close-comment-title"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="force-close-modal__header">
               <div className="force-close-modal__header-title">

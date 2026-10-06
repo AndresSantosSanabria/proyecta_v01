@@ -70,7 +70,6 @@
   color: var(--text-main);
   line-height: 1.2;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .edm-header p {
@@ -219,7 +218,6 @@
   color: var(--text-main);
   line-height: 1.4;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .edm-description-box {
@@ -235,7 +233,6 @@
   font-size: 0.88rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
-  word-break: break-word;
   white-space: pre-wrap;
 }
 

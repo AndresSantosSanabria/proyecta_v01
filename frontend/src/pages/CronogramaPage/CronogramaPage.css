@@ -256,7 +256,6 @@
   font-size: 0.92rem;
   text-align: right;
   overflow-wrap: anywhere;
-  word-break: break-word;
   min-width: 0;
 }
 
@@ -272,7 +271,6 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  word-break: break-word;
   overflow-wrap: anywhere;
 }
 
@@ -605,7 +603,6 @@
   font-weight: 800;
   font-size: 0.9rem;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .milestone-name {
@@ -615,7 +612,6 @@
   align-items: flex-start;
   min-width: 0;
   overflow-wrap: anywhere;
-  word-break: break-word;
   line-height: 1.35;
 }
 
@@ -686,7 +682,6 @@
   font-weight: 700;
   line-height: 1.35;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .deliverable-dot {

@@ -15,8 +15,9 @@ const advanceReportService = {
     if (options.periodo) params.set('periodo', options.periodo);
     if (options.version) params.set('version', options.version);
     const query = params.toString();
+    const queryString = query ? `?${query}` : '';
     const response = await apiClient.get(
-      `/advance-report/download/${normalizeProjectId(projectId)}${query ? `?${query}` : ''}`,
+      `/advance-report/download/${normalizeProjectId(projectId)}${queryString}`,
       { responseType: 'blob' },
     );
     return response.data;

@@ -52,7 +52,6 @@
   color: var(--text-main);
   line-height: 1.15;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .evp-header p {

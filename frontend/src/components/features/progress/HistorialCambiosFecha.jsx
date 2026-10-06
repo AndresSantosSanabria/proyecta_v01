@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, Download, X, LoaderCircle } from 'lucide-react';
 import './HistorialCambiosFecha.css';
 
@@ -6,6 +6,23 @@ export default function HistorialCambiosFecha({ entregable, proyectoId, onClose 
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === overlayRef.current) onClose();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
 
   useEffect(() => {
     (async () => {
@@ -58,8 +75,8 @@ export default function HistorialCambiosFecha({ entregable, proyectoId, onClose 
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="hcf-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" ref={overlayRef}>
+      <div className="hcf-modal">
         <div className="hcf-header">
           <h3><Clock size={16} /> Historial de Cambios de Fecha</h3>
           <button className="hcf-close" onClick={onClose}><X size={18} /></button>

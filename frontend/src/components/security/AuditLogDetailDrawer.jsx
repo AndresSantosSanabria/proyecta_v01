@@ -14,7 +14,7 @@ import {
   Terminal,
   X,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const formatDateTimeShort = (value) => {
   if (!value) return '-';
@@ -57,6 +57,21 @@ const statusLabel = (code) => {
     case 503: return 'Servicio no disponible';
     default: return `HTTP ${code}`;
   }
+};
+
+const httpBadgeTone = (code) => {
+  if (code < 300) return 'ok';
+  if (code < 400) return 'redir';
+  if (code < 500) return 'client';
+  return 'server';
+};
+
+const sqlstateExplicacion = (sqlstate) => {
+  if (sqlstate?.startsWith('23')) return 'Viola restricción de integridad de datos (unique, foreign key, not null, check).';
+  if (sqlstate?.startsWith('42')) return 'Error de sintaxis o nombre de objeto inexistente en la base de datos.';
+  if (sqlstate?.startsWith('08')) return 'Error de conexión con la base de datos.';
+  if (sqlstate?.startsWith('57')) return 'Interrupción de la operación por timeout o cancelación.';
+  return 'Consulte la documentación de PostgreSQL para esta clasificación SQLSTATE.';
 };
 
 const parseJsonSafe = (str) => {
@@ -162,7 +177,7 @@ const parseDetailedError = (errorString) => {
 const generateResumenEjecutivo = (log, isError, errorDetails) => {
   const user = log.usuarioNombre || log.usuarioId || 'SYSTEM';
   const accion = accionMeta[log.accion] || log.accion;
-  const entidad = log.entidadTipo || log.modulo?.split('/').filter(Boolean).pop() || 'recurso';
+  const entidad = log.entidadTipo || log.modulo?.split('/').findLast(Boolean) || 'recurso';
   const metodo = log.metodoHttp || '-';
   const code = log.codigoEstado;
   const codeLabel = statusLabel(code);
@@ -325,6 +340,16 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
   const [showRequestBody, setShowRequestBody] = useState(false);
   const [showResponseBody, setShowResponseBody] = useState(false);
 
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === overlayRef.current) onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [onClose]);
+
   const accion = accionMeta[log.accion] || log.accion || '-';
   const isError = String(log.estado || '').toUpperCase() === 'ERROR' || (log.codigoEstado != null && log.codigoEstado >= 400);
   const code = log.codigoEstado;
@@ -336,17 +361,11 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
   const respuestaBodyJson = parseJsonSafe(log.respuestaBody);
   const recomendacones = generateRecomendaciones(log, isError, errorDetails);
 
-  const entidadLabel = log.entidadTipo || log.modulo?.split('/').filter(Boolean).pop() || '-';
+  const entidadLabel = log.entidadTipo || log.modulo?.split('/').findLast(Boolean) || '-';
 
   return (
-    <div className="audit-modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <div
-        className="audit-modal audit-modal--report"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Reporte de Auditoría"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <div className="audit-modal-backdrop" ref={overlayRef}>
+      <div className="audit-modal audit-modal--report">
         <header className="audit-modal-header audit-report-header">
           <div className="audit-modal-header-content">
             <div className="audit-modal-icon">
@@ -425,7 +444,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                   <Server size={13} /> RESPUESTA
                 </span>
                 <span className="audit-report-meta-value">
-                  <span className={`audit-http-badge ${code < 300 ? 'ok' : code < 400 ? 'redir' : code < 500 ? 'client' : 'server'}`}>
+                  <span className={`audit-http-badge ${httpBadgeTone(code)}`}>
                     {code} {statusLabel(code)}
                   </span>
                 </span>
@@ -553,8 +572,8 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {fieldDiff.map((row, idx) => (
-                        <tr key={idx}>
+                      {fieldDiff.map((row) => (
+                        <tr key={row.campo}>
                           <td className="audit-report-diff-campo">{row.campo}</td>
                           <td className="audit-report-diff-anterior">{row.anterior}</td>
                           <td className="audit-report-diff-nuevo">{row.nuevo}</td>
@@ -655,8 +674,8 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                   <div className="audit-report-diagnosis-card">
                     <h4>Operación SQL Afectada</h4>
                     <p>
-                      La consulta que falló opera sobre la tabla asociada a la entidad
-                      <strong> {entidadLabel}</strong>. La consulta completa es:
+                      La consulta que falló opera sobre la tabla asociada a la entidad{' '}
+                      <strong>{entidadLabel}</strong>. La consulta completa es:
                     </p>
                     <pre className="audit-report-code-block audit-report-code-block--mini">
                       {errorDetails.sqlQuery}
@@ -669,15 +688,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                     <h4>Clasificación del Error SQL</h4>
                     <p>
                       <strong>SQLSTATE {errorDetails.sqlstate}</strong> -{' '}
-                      {errorDetails.sqlstate?.startsWith('23')
-                        ? 'Viola restricción de integridad de datos (unique, foreign key, not null, check).'
-                        : errorDetails.sqlstate?.startsWith('42')
-                          ? 'Error de sintaxis o nombre de objeto inexistente en la base de datos.'
-                          : errorDetails.sqlstate?.startsWith('08')
-                            ? 'Error de conexión con la base de datos.'
-                            : errorDetails.sqlstate?.startsWith('57')
-                              ? 'Interrupción de la operación por timeout o cancelación.'
-                              : 'Consulte la documentación de PostgreSQL para esta clasificación SQLSTATE.'}
+                      {sqlstateExplicacion(errorDetails.sqlstate)}
                     </p>
                   </div>
                 )}
@@ -696,7 +707,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                     {showStack && (
                       <pre className="audit-report-code-block audit-report-code-block--stacktrace">
                         {errorDetails.stackTrace.map((line, i) => (
-                          <div key={i} className="audit-stack-line">
+                          <div key={line} className="audit-stack-line">
                             <span className="audit-stack-number">#{i}</span>
                             <span className="audit-stack-content">{line}</span>
                           </div>
@@ -757,7 +768,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
                       correctamente con código HTTP {code} ({statusLabel(code)}).
                     </p>
                   )}
-                  {['CREACION', 'ACTUALIZACION', 'ELIMINACION', 'CONSULTA', 'LOGIN'].indexOf(log.accion) === -1 && (
+                  {!['CREACION', 'ACTUALIZACION', 'ELIMINACION', 'CONSULTA', 'LOGIN'].includes(log.accion) && (
                     <p>
                       La operación de tipo {accion} se ejecutó con resultado exitoso
                       (HTTP {code} - {statusLabel(code)}).
@@ -786,7 +797,7 @@ const AuditLogDetailDrawer = ({ log, onClose }) => {
 
             <div className="audit-report-recommendations">
               {recomendacones.map((rec, idx) => (
-                <div key={idx} className={`audit-report-rec-card audit-report-rec-card--${rec.prioridad}`}>
+                <div key={`${rec.titulo}-${rec.prioridad}`} className={`audit-report-rec-card audit-report-rec-card--${rec.prioridad}`}>
                   <div className="audit-report-rec-header">
                     <span className="audit-report-rec-number">{idx + 1}</span>
                     <div>

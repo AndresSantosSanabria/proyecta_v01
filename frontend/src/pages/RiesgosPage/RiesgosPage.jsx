@@ -108,7 +108,6 @@ const RiesgosPage = () => {
   const [solutionModalOpen, setSolutionModalOpen] = useState(false);
   const [solutionRisk, setSolutionRisk] = useState(null);
   const [solutionError, setSolutionError] = useState(null);
-  const [previewSolution, setPreviewSolution] = useState(null);
   const [tratamientoTab, setTratamientoTab] = useState('history');
   const [tratamientos, setTratamientos] = useState([]);
   const [loadingTratamientos, setLoadingTratamientos] = useState(false);
@@ -127,7 +126,6 @@ const RiesgosPage = () => {
     setSolutionModalOpen(false);
     setSolutionRisk(null);
     setSolutionError(null);
-    setPreviewSolution(null);
     setTratamientos([]);
     setTratamientoTab('history');
   };
@@ -584,7 +582,7 @@ const RiesgosPage = () => {
 
       {modalOpen && (
         <div className="risk-modal-overlay" role="presentation" onClick={closeModal}>
-          <div className="risk-modal" role="dialog" aria-modal="true" aria-labelledby="risk-modal-title" onClick={(event) => event.stopPropagation()}>
+          <div className="risk-modal" role="dialog" aria-modal="true" aria-labelledby="risk-modal-title" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
             <div className="risk-modal-header">
               <div>
                 <span className="panel-chip">{editingId ? 'Editar riesgo' : 'Nuevo riesgo'}</span>
@@ -799,6 +797,7 @@ const RiesgosPage = () => {
             aria-modal="true"
             aria-labelledby="solution-modal-title"
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
           >
             <div className="risk-modal-header">
               <div>
@@ -884,24 +883,6 @@ const RiesgosPage = () => {
         </div>
       )}
 
-      {previewSolution && solutionRisk && (
-        <div className="pdf-preview-backdrop" role="presentation" onClick={() => { window.URL.revokeObjectURL(previewSolution.blobUrl); setPreviewSolution(null); }}>
-          <div className="pdf-preview-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="pdf-preview-header">
-              <span>{previewSolution.nombreOriginal}</span>
-              <button type="button" className="modal-close-btn" onClick={() => { window.URL.revokeObjectURL(previewSolution.blobUrl); setPreviewSolution(null); }} aria-label="Cerrar">
-                <X size={18} />
-              </button>
-            </div>
-            <iframe
-              className="pdf-preview-iframe"
-              src={previewSolution.blobUrl}
-              title={previewSolution.nombreOriginal}
-            />
-          </div>
-        </div>
-      )}
-
       {matrixHelpOpen && (
         <div className="matrix-help-overlay" role="presentation" onClick={() => setMatrixHelpOpen(false)}>
           <div
@@ -910,6 +891,7 @@ const RiesgosPage = () => {
             aria-modal="true"
             aria-labelledby="matrix-help-title"
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
           >
             <div className="matrix-help-header">
               <div>

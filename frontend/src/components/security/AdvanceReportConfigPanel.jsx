@@ -37,7 +37,7 @@ const AdvanceReportConfigPanel = () => {
       setLoading(true);
       setError('');
       const data = await advanceReportService.getSettings();
-      const merged = { ...DEFAULTS, ...(data || {}) };
+      const merged = { ...DEFAULTS, ...data };
       setSettings(merged);
       setOriginal(merged);
     } catch {
@@ -163,7 +163,7 @@ const AdvanceReportConfigPanel = () => {
           </div>
         </div>
         <div className="arp-field arp-field--full" style={{ marginTop: '0.6rem' }}>
-          <label>Estados del proyecto que generan obligacion</label>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-main)' }}>Estados del proyecto que generan obligacion</span>
           <div className="arp-check-grid">
             {ESTADOS_PROYECTO.map((estado) => (
               <label key={estado} className="arp-check">
@@ -172,7 +172,7 @@ const AdvanceReportConfigPanel = () => {
                   checked={estadosSeleccionados.includes(estado)}
                   onChange={() => toggleEstado(estado)}
                 />
-                {estado.replaceAll(/_/g, ' ')}
+                {estado.replaceAll('_', ' ')}
               </label>
             ))}
           </div>

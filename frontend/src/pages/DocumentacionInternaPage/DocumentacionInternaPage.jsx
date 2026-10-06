@@ -400,8 +400,8 @@ const DocumentacionInternaPage = () => {
       )}
 
       {viewer && (
-        <div className="di-modal-backdrop" onClick={closeViewer}>
-          <div className="di-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="di-modal-backdrop" onClick={closeViewer} onKeyDown={(e) => { if (e.key === 'Escape') closeViewer(); }}>
+          <div className="di-modal" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <div className="di-modal__header">
               <div>
                 <span className="di-code">{viewer.doc.codigo}</span>

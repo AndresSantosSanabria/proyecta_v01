@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BellRing,
   ChevronLeft,
@@ -354,6 +354,16 @@ const NotificationTemplatesPanel = () => {
       targetRoles: template?.targetRoles || '',
     });
   }, [events, selectedCode, templates]);
+
+  const backdropRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === backdropRef.current) setIsEditorOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   const stats = useMemo(() => {
     const totalEvents = notifStats?.totalEvents ?? events.length;
@@ -753,13 +763,12 @@ const NotificationTemplatesPanel = () => {
       </article>
 
       {isEditorOpen ? (
-        <div className="template-modal-backdrop" role="presentation" onMouseDown={() => setIsEditorOpen(false)}>
+        <div className="template-modal-backdrop" ref={backdropRef}>
           <dialog
           className="template-modal"
           style={{ position: 'static', padding: 0 }}
           aria-modal="true"
           open
-          onMouseDown={(event) => event.stopPropagation()}
         >
             <header className="template-modal__header">
               <div className="template-modal__title">

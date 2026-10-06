@@ -1,8 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 
 const TOAST_EVENT = 'proyecta:toast';
 const DEFAULT_TIMEOUT = 3500;
+
+let toastSeq = 0;
+const nextToastId = () => {
+  toastSeq += 1;
+  return `${Date.now()}-${toastSeq}`;
+};
 
 const iconByTone = {
   success: CheckCircle2,
@@ -14,10 +20,14 @@ const iconByTone = {
 const ToastHost = () => {
   const [toasts, setToasts] = useState([]);
 
+  const dismissToast = useCallback((id) => {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  }, []);
+
   useEffect(() => {
     const handleToast = (event) => {
       const detail = event?.detail || {};
-      const id = detail.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const id = detail.id || nextToastId();
       const toast = {
         id,
         title: detail.title || 'Notificación',
@@ -28,13 +38,13 @@ const ToastHost = () => {
       setToasts((current) => [...current, toast]);
 
       globalThis.setTimeout(() => {
-        setToasts((current) => current.filter((item) => item.id !== id));
+        dismissToast(id);
       }, detail.duration || DEFAULT_TIMEOUT);
     };
 
     globalThis.addEventListener(TOAST_EVENT, handleToast);
     return () => globalThis.removeEventListener(TOAST_EVENT, handleToast);
-  }, []);
+  }, [dismissToast]);
 
   if (toasts.length === 0) return null;
 
@@ -77,7 +87,7 @@ const ToastHost = () => {
             </div>
             <button
               type="button"
-              onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))}
+              onClick={() => dismissToast(toast.id)}
               aria-label="Cerrar notificación"
               style={{
                 background: 'transparent',

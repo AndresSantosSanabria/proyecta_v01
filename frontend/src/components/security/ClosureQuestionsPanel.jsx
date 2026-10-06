@@ -229,7 +229,7 @@ const ClosureQuestionsPanel = () => {
                 <label>Opciones de Respuesta</label>
                 <div className="cqp-options-list">
                   {form.opciones.map((opt, i) => (
-                    <div key={i} className="cqp-option-chip">
+                    <div key={opt} className="cqp-option-chip">
                       <span>{opt}</span>
                       <button type="button" className="cqp-btn-icon-sm" onClick={() => removeOption(i)}>
                         <X size={12} />

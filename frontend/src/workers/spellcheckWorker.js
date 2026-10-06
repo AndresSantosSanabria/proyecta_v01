@@ -172,7 +172,7 @@ function checkAccent(word) {
     return ACCENT_MAP[lower];
   }
   const stripped = stripAccents(lower);
-  if (stripped !== lower && dictionary && dictionary.check(stripped)) {
+  if (stripped !== lower && dictionary?.check(stripped)) {
     return stripped;
   }
   return findAccentedMatch(lower);
@@ -215,13 +215,13 @@ self.onmessage = async (e) => {
     const misspelledWords = [];
 
     words.forEach(word => {
-      if (!word.trim() || !isNaN(word) || word.length <= 1) return;
+      if (!word.trim() || !Number.isNaN(Number(word)) || word.length <= 1) return;
       const lower = word.toLowerCase();
-      if (misspelledWords.find(w => w.word === lower)) return;
+      if (misspelledWords.some(w => w.word === lower)) return;
 
       const accentSuggestion = checkAccent(lower);
       if (accentSuggestion) {
-        if (!misspelledWords.find(w => w.word === lower)) {
+        if (!misspelledWords.some(w => w.word === lower)) {
           misspelledWords.push({ word: lower, suggestions: [accentSuggestion] });
         }
         return;

@@ -179,6 +179,7 @@ const ProjectBenefitImpactPanel = ({ proyectoId, refreshToken = 0, onSaved, isGe
             aria-modal="true"
             aria-labelledby="benefit-impact-modal-title"
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
           >
             <div className="benefit-impact-modal-header">
               <div>

@@ -459,15 +459,7 @@ const TreeTableRow = ({
                   <td>{eficaciaEnt.toFixed(1)}%</td>
                   <td>{eficienciaEnt.toFixed(1)}%</td>
                   <td className="action-col">
-                    <div
-                      className="action-icon-group"
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
-                      }}
-                    >
+                    <div className="action-icon-group">
                       {!tieneDocumento && canUploadEvidence && (
                         <button
                           type="button"
@@ -645,6 +637,13 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
   const [showCambiarFechaModal, setShowCambiarFechaModal] = React.useState(null);
   const [showCambiarDescripcionModal, setShowCambiarDescripcionModal] = React.useState(null);
   const [showHistorialFechasModal, setShowHistorialFechasModal] = React.useState(null);
+
+  const hierarchyOverlayRef = React.useRef(null);
+  const historyOverlayRef = React.useRef(null);
+  const revertOverlayRef = React.useRef(null);
+  const approvalOverlayRef = React.useRef(null);
+  const reviewOverlayRef = React.useRef(null);
+  const previewOverlayRef = React.useRef(null);
 
   React.useEffect(() => {
     return () => {
@@ -1177,6 +1176,47 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     };
   }, [previewEvidence.open]);
 
+  React.useEffect(() => {
+    const overlays = [
+      { ref: hierarchyOverlayRef, open: hierarchyModal.open, escape: true, close: handleCloseHierarchyModal },
+      { ref: historyOverlayRef, open: historyModal.open, escape: true, close: handleCloseHistory },
+      { ref: revertOverlayRef, open: revertModal.open, escape: true, close: handleCloseRevertModal },
+      { ref: approvalOverlayRef, open: approvalModal.open, escape: true, close: handleCloseApprovalModal },
+      { ref: reviewOverlayRef, open: reviewModal.open, escape: true, close: handleCloseReviewModal },
+      { ref: previewOverlayRef, open: previewEvidence.open, escape: false, close: closePreviewEvidence },
+    ];
+    const onDown = (event) => {
+      overlays.forEach((overlay) => {
+        if (overlay.open && event.target === overlay.ref.current) overlay.close();
+      });
+    };
+    const onKey = (event) => {
+      if (event.key !== 'Escape') return;
+      overlays.forEach((overlay) => {
+        if (overlay.open && overlay.escape) overlay.close();
+      });
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [
+    hierarchyModal.open,
+    historyModal.open,
+    revertModal.open,
+    approvalModal.open,
+    reviewModal.open,
+    previewEvidence.open,
+    handleCloseHierarchyModal,
+    handleCloseHistory,
+    handleCloseRevertModal,
+    handleCloseApprovalModal,
+    handleCloseReviewModal,
+    closePreviewEvidence,
+  ]);
+
   const avanceTotal = toNumber(progressData.progresoEjecutado ?? progressData.avanceTotal ?? 0);
   const corte = progressData.corte
     ? new Date(progressData.corte).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' })
@@ -1326,16 +1366,10 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {hierarchyModal.open && (
-        <div className="review-modal-overlay" onClick={handleCloseHierarchyModal}>
+        <div className="review-modal-overlay" ref={hierarchyOverlayRef}>
           <form
             className="review-modal hierarchy-modal hierarchy-structure-modal"
-            role="button"
-            tabIndex={0}
             onSubmit={handleSaveHierarchy}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
-            }}
           >
             <div className="review-modal-header">
               <div>
@@ -1398,16 +1432,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {historyModal.open && (
-        <div className="review-modal-overlay" onClick={handleCloseHistory}>
-          <div
-            className="review-modal history-modal"
-            role="button"
-            tabIndex={0}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
-            }}
-          >
+        <div className="review-modal-overlay" ref={historyOverlayRef}>
+          <div className="review-modal history-modal">
             <div className="review-modal-header">
               <div>
                 <span className="review-modal-kicker history">Historico documental</span>
@@ -1486,16 +1512,10 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {revertModal.open && (
-        <div className="review-modal-overlay" onClick={handleCloseRevertModal}>
+        <div className="review-modal-overlay" ref={revertOverlayRef}>
           <form
             className="review-modal revert-modal"
-            role="button"
-            tabIndex={0}
             onSubmit={handleConfirmRevert}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
-            }}
           >
             <div className="review-modal-header">
               <div>
@@ -1546,16 +1566,10 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {approvalModal.open && (
-        <div className="review-modal-overlay" onClick={handleCloseApprovalModal}>
+        <div className="review-modal-overlay" ref={approvalOverlayRef}>
           <form
             className="review-modal approval-modal"
-            role="button"
-            tabIndex={0}
             onSubmit={handleConfirmApproveEvidence}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
-            }}
           >
             <div className="review-modal-header">
               <div>
@@ -1598,16 +1612,10 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {reviewModal.open && (
-        <div className="review-modal-overlay" onClick={handleCloseReviewModal}>
+        <div className="review-modal-overlay" ref={reviewOverlayRef}>
           <form
             className="review-modal"
-            role="button"
-            tabIndex={0}
             onSubmit={handleRejectEvidence}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
-            }}
           >
             <div className="review-modal-header">
               <div>
@@ -1662,24 +1670,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
       )}
 
       {previewEvidence.open && (
-        <div
-          className="evidence-preview-overlay"
-          role="button"
-          tabIndex={0}
-          onClick={closePreviewEvidence}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') closePreviewEvidence();
-          }}
-        >
-          <div
-            className="evidence-preview-modal"
-            role="button"
-            tabIndex={0}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
-            }}
-          >
+        <div className="evidence-preview-overlay" ref={previewOverlayRef}>
+          <div className="evidence-preview-modal">
             <div className="evidence-preview-header">
               <div>
                 <span className="evidence-preview-kicker">Evidencia PDF</span>

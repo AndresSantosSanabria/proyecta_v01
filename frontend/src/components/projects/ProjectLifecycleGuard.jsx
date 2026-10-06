@@ -255,9 +255,6 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                   <div
                     key={tipo}
                     className={`plg-doc-card ${file ? 'plg-doc-card--has-file' : 'plg-doc-card--empty'}`}
-                    onDragOver={(e) => { e.preventDefault(); }}
-                    onDrop={(e) => handleDrop(tipo, e)}
-                    onClick={!file ? () => handleFileSelect(tipo) : undefined}
                   >
                     {file ? (
                       <div className="plg-doc-card__inner">
@@ -293,7 +290,13 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                         )}
                       </div>
                     ) : (
-                      <div className="plg-doc-card__placeholder">
+                      <button
+                        type="button"
+                        className="plg-doc-card__placeholder"
+                        onDragOver={(e) => { e.preventDefault(); }}
+                        onDrop={(e) => handleDrop(tipo, e)}
+                        onClick={() => handleFileSelect(tipo)}
+                      >
                         <div className="plg-doc-card__placeholder-icon">
                           <Upload size={20} />
                         </div>
@@ -302,7 +305,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                         {isReturned && (
                           <span className="plg-doc-status plg-doc-status--returned">Devuelto</span>
                         )}
-                      </div>
+                      </button>
                     )}
                     {isReturned && revision?.observacion && (
                       <div className="plg-doc-card__observation">
@@ -748,8 +751,14 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
       )}
 
       {previewUrl && (
-        <div className="plg-preview-overlay" onClick={handleClosePreview}>
-          <div className="plg-preview-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="plg-preview-overlay">
+          <button
+            type="button"
+            className="plg-preview-overlay__backdrop"
+            onClick={handleClosePreview}
+            aria-label="Cerrar vista previa"
+          />
+          <div className="plg-preview-modal">
             <div className="plg-preview-modal__header">
               <span className="plg-preview-modal__name">{previewName}</span>
               <button className="plg-preview-modal__close" onClick={handleClosePreview}>
@@ -889,13 +898,20 @@ const PlazoVencidoView = ({ project, completionStatus, onRefresh }) => {
       </div>
 
       {showForceCloseModal && forceCloseStep === 'warning' && (
-        <div className="plg-modal-overlay" onClick={closeForceCloseModal}>
+        <div className="plg-modal-overlay">
+          <button
+            type="button"
+            className="plg-modal-overlay__backdrop"
+            onClick={closeForceCloseModal}
+            aria-label="Cerrar modal de cierre forzoso"
+          />
           <div
             className="plg-modal plg-modal--danger"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="plg-force-close-warning-title"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="plg-modal__header">
               <div className="plg-modal__header-title">
@@ -954,13 +970,20 @@ const PlazoVencidoView = ({ project, completionStatus, onRefresh }) => {
       )}
 
       {showForceCloseModal && forceCloseStep === 'comment' && (
-        <div className="plg-modal-overlay" onClick={closeForceCloseModal}>
+        <div className="plg-modal-overlay">
+          <button
+            type="button"
+            className="plg-modal-overlay__backdrop"
+            onClick={closeForceCloseModal}
+            aria-label="Cerrar modal de cierre forzoso"
+          />
           <div
             className="plg-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="plg-force-close-comment-title"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="plg-modal__header">
               <div className="plg-modal__header-title">

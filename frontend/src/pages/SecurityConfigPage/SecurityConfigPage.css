@@ -422,12 +422,6 @@
   background: color-mix(in srgb, var(--primary) 6%, transparent);
 }
 
-.table-empty-cell {
-  padding: 48px 16px;
-  text-align: center;
-  color: var(--text-muted);
-}
-
 .user-chip {
   display: flex;
   align-items: center;
@@ -1750,6 +1744,9 @@
 }
 
 .table-empty-cell {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-muted);
   border: none !important;
   background: color-mix(in srgb, var(--bg-main) 40%, var(--bg-surface));
 }

@@ -350,7 +350,7 @@ img {
 }
 
 .status-badge.info {
-  color: #3b82f6;
+  color: var(--primary, #3b82f6);
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.2);
 }
@@ -387,19 +387,19 @@ img {
 
 .error-banner {
   color: #ffd1d1;
-  background: rgba(239, 100, 100, 0.08);
+  background: #231e27;
   border-color: rgba(239, 100, 100, 0.16);
 }
 
 .warning-banner {
   color: #f6dfad;
-  background: rgba(217, 155, 43, 0.08);
+  background: #212223;
   border-color: rgba(217, 155, 43, 0.16);
 }
 
 .info-banner {
   color: #cfe6ff;
-  background: rgba(88, 166, 255, 0.08);
+  background: #172334;
   border-color: rgba(88, 166, 255, 0.16);
 }
 
@@ -489,7 +489,7 @@ td {
   place-items: center;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.08);
+  background: #1c212a;
   color: #eaf1fb;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   flex-shrink: 0;

@@ -430,6 +430,7 @@ const ProjectProgressPage = () => {
             aria-modal="true"
             aria-labelledby="project-summary-modal-title"
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
           >
             <div className="project-summary-modal-header">
               <div>

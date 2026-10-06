@@ -3,7 +3,7 @@ import { NO_ACCESS_MESSAGE } from './accessMessages';
 const AUTH_TOAST_EVENT = 'proyecta:toast';
 
 export const emitToast = ({ title, message = '', tone = 'info', duration = 4500 }) => {
-  if (typeof globalThis.window === 'undefined') {
+  if (globalThis.window === undefined) {
     return;
   }
 

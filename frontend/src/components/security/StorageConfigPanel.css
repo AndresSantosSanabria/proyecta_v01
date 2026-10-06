@@ -127,13 +127,13 @@
 .scp-test-result.valid {
   background: rgba(34, 197, 94, 0.08);
   border: 1px solid rgba(34, 197, 94, 0.25);
-  color: #16a34a;
+  color: #09441f;
 }
 
 .scp-test-result.invalid {
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.25);
-  color: #dc2626;
+  color: #280707;
 }
 
 .scp-test-result svg {

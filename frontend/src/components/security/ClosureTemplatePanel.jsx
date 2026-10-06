@@ -17,7 +17,11 @@ const COMPONENT_TYPES = [
   { type: 'signature', label: 'Bloque de Firma', desc: 'Area de validacion digital para responsables y verificadores.', icon: Signature },
 ];
 
-const uid = () => `id_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+let uidSeq = 0;
+const uid = () => {
+  uidSeq += 1;
+  return `id_${Date.now()}_${uidSeq}`;
+};
 
 const createComponent = (type) => {
   switch (type) {

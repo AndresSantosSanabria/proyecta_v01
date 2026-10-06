@@ -43,12 +43,12 @@
 
 .audit-stat-icon.ok {
   background: rgba(22, 163, 74, 0.12);
-  color: #16a34a;
+  color: #04210f;
 }
 
 .audit-stat-icon.error {
   background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-stat-card > div {
@@ -177,83 +177,83 @@
 
 .audit-http-badge.ok {
   background: rgba(22, 163, 74, 0.12);
-  color: #16a34a;
+  color: #04210f;
 }
 
 .audit-http-badge.redir {
   background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-http-badge.client {
   background: rgba(217, 119, 6, 0.14);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-http-badge.server {
   background: rgba(220, 38, 38, 0.14);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-state-badge.update {
   background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-action-badge.consulta {
   background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-action-badge.creacion {
   background: rgba(22, 163, 74, 0.12);
-  color: #16a34a;
+  color: #04210f;
 }
 
 .audit-action-badge.actualizacion {
   background: rgba(217, 119, 6, 0.12);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-action-badge.eliminacion {
   background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-action-badge.login {
   background: rgba(147, 51, 234, 0.12);
-  color: #9333ea;
+  color: #f5f3ff;
 }
 
 .audit-state-badge.success {
   background: rgba(22, 163, 74, 0.12);
-  color: #16a34a;
+  color: #04210f;
 }
 
 .audit-state-badge.error {
   background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-method.get {
   background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-method.post {
   background: rgba(22, 163, 74, 0.1);
-  color: #16a34a;
+  color: #04210f;
 }
 
 .audit-method.put,
 .audit-method.patch {
   background: rgba(217, 119, 6, 0.1);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-method.delete {
   background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-duration {
@@ -411,7 +411,7 @@
   border: none;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  color: #475569;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s ease;
@@ -456,7 +456,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .audit-modal-info-value.audit-modal-user-agent {
@@ -482,32 +482,32 @@
 
 .audit-modal-action-badge.consulta {
   background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-modal-action-badge.creacion {
   background: rgba(22, 163, 74, 0.12);
-  color: #16a34a;
+  color: #04210f;
 }
 
 .audit-modal-action-badge.actualizacion {
   background: rgba(217, 119, 6, 0.12);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-modal-action-badge.eliminacion {
   background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-modal-action-badge.login {
   background: rgba(147, 51, 234, 0.12);
-  color: #9333ea;
+  color: #f5f3ff;
 }
 
 .audit-modal-action-badge.otro {
   background: rgba(100, 116, 139, 0.12);
-  color: #64748b;
+  color: #ffffff;
 }
 
 .audit-modal-sections {
@@ -551,7 +551,7 @@
   font-size: 0.8rem;
   line-height: 1.6;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   max-height: 200px;
   overflow-y: auto;
 }
@@ -616,7 +616,7 @@
 .audit-error-detail-value {
   font-size: 0.85rem;
   color: #7f1d1d;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .audit-error-detail-value.sqlstate {
@@ -625,7 +625,7 @@
   padding: 0.15rem 0.35rem;
   border-radius: 4px;
   font-weight: 700;
-  color: #991b1b;
+  color: #ffffff;
 }
 
 .audit-error-detail-value.exception {
@@ -780,37 +780,37 @@
 
 .audit-report-severity--info {
   background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-report-severity--baja {
   background: rgba(100, 116, 139, 0.12);
-  color: #64748b;
+  color: #ffffff;
 }
 
 .audit-report-severity--media {
   background: rgba(217, 119, 6, 0.12);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-report-severity--alta {
   background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-report-section-icon {
   background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-report-section-icon--warning {
   background: rgba(217, 119, 6, 0.1);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-report-section-icon--action {
   background: rgba(22, 163, 74, 0.1);
-  color: #16a34a;
+  color: #04210f;
 }
 
 .audit-report-section-title {
@@ -879,9 +879,9 @@
   border: 1px solid rgba(220, 38, 38, 0.15);
   border-radius: 6px;
   font-size: 0.8rem;
-  color: #991b1b;
+  color: #ffffff;
   font-family: 'Consolas', 'Monaco', monospace;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .audit-report-resumen-error svg {
@@ -930,7 +930,7 @@
   font-size: 0.68rem;
   font-weight: 600;
   background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
+  color: #eff6ff;
 }
 
 .audit-report-entity-id {
@@ -975,17 +975,17 @@
 
 .audit-report-error-chip--sqlstate {
   background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-report-error-chip--exception {
   background: rgba(217, 119, 6, 0.1);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-report-error-chip--constraint {
   background: rgba(147, 51, 234, 0.1);
-  color: #9333ea;
+  color: #f5f3ff;
 }
 
 .audit-report-error-message {
@@ -1007,7 +1007,7 @@
   font-size: 0.85rem;
   color: #7f1d1d;
   font-family: 'Consolas', 'Monaco', monospace;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* ─── SQL blocks ─── */
@@ -1137,7 +1137,7 @@
 }
 
 .audit-report-diff-anterior {
-  color: #991b1b;
+  color: #ffffff;
   background: rgba(220, 38, 38, 0.03);
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 0.78rem;
@@ -1145,7 +1145,7 @@
 }
 
 .audit-report-diff-nuevo {
-  color: #166534;
+  color: #04210f;
   background: rgba(22, 163, 74, 0.03);
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 0.78rem;
@@ -1202,7 +1202,7 @@
   font-size: 0.78rem;
   line-height: 1.5;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   max-height: 250px;
   overflow-y: auto;
 }
@@ -1357,17 +1357,17 @@
 
 .audit-report-rec-prioridad--alta {
   background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
+  color: #ffffff;
 }
 
 .audit-report-rec-prioridad--media {
   background: rgba(217, 119, 6, 0.1);
-  color: #d97706;
+  color: #241302;
 }
 
 .audit-report-rec-prioridad--baja {
   background: rgba(100, 116, 139, 0.1);
-  color: #64748b;
+  color: #ffffff;
 }
 
 .audit-report-rec-descripcion {
@@ -1401,7 +1401,7 @@
 .dark .audit-report-resumen-error {
   background: rgba(220, 38, 38, 0.08);
   border-color: rgba(220, 38, 38, 0.2);
-  color: #fca5a5;
+  color: #ffffff;
 }
 
 .dark .audit-report-error-message {
@@ -1415,12 +1415,12 @@
 
 .dark .audit-report-diff-anterior {
   background: rgba(220, 38, 38, 0.06);
-  color: #fca5a5;
+  color: #ffffff;
 }
 
 .dark .audit-report-diff-nuevo {
   background: rgba(22, 163, 74, 0.06);
-  color: #86efac;
+  color: #04210f;
 }
 
 .dark .audit-report-diagnosis-card--cause {

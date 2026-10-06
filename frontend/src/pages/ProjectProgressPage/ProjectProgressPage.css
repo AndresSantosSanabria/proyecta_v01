@@ -75,7 +75,6 @@
   color: var(--text-muted);
   line-height: 1.55;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .progress-hero-chips {
@@ -155,14 +154,12 @@
   letter-spacing: -0.04em;
   color: var(--text-main);
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .hero-status-card small {
   color: var(--text-muted);
   line-height: 1.45;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .hero-side-link {
@@ -237,7 +234,6 @@
   letter-spacing: -0.03em;
   color: var(--text-main);
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .excel-summary-title p {
@@ -245,7 +241,6 @@
   color: var(--text-muted);
   line-height: 1.55;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .summary-clamp-two {
@@ -255,7 +250,6 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  word-break: break-word;
   overflow-wrap: anywhere;
 }
 
@@ -335,7 +329,6 @@
   letter-spacing: -0.01em;
   color: var(--text-main);
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .excel-summary-grid article strong.summary-clamp-two {
@@ -447,7 +440,6 @@
   color: var(--text-main);
   line-height: 1.5;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .project-summary-modal-block strong {
@@ -1974,10 +1966,6 @@
 
   .progress-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .tree-table {
-    min-width: 1250px;
   }
 
   .action-col-absolute {

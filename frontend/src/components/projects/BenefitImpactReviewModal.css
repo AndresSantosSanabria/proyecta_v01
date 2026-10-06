@@ -117,13 +117,13 @@
 }
 
 .birm-alert.error {
-  background: rgba(239, 68, 68, 0.1);
+  background: #251c2d;
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
 
 .birm-alert.success {
-  background: rgba(16, 185, 129, 0.1);
+  background: #0f2733;
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #6ee7b7;
 }
@@ -153,19 +153,19 @@
 }
 
 .birm-state-badge.pending {
-  background: rgba(234, 179, 8, 0.15);
+  background: #302e25;
   color: #fbbf24;
   border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
 .birm-state-badge.observed {
-  background: rgba(239, 68, 68, 0.15);
+  background: #311e2e;
   color: #fca5a5;
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .birm-state-badge.approved {
-  background: rgba(16, 185, 129, 0.15);
+  background: #0f2f37;
   color: #6ee7b7;
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
@@ -316,19 +316,19 @@
 }
 
 .birm-btn.success {
-  background: #10b981;
+  background: #047857;
   color: white;
 }
 
 .birm-btn.success:hover:not(:disabled) {
-  background: #059669;
+  background: #065f46;
 }
 
 .birm-btn.danger {
-  background: #ef4444;
+  background: #dc2626;
   color: white;
 }
 
 .birm-btn.danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: #b91c1c;
 }

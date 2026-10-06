@@ -928,8 +928,8 @@ const ProjectClosurePage = () => {
       </div>
 
       {showRejectModal && (
-        <div className="closure-confirm-overlay" onClick={() => { if (!rejectingClosure) { setShowRejectModal(false); setRejectObservaciones(''); setError(null); } }}>
-          <div className="closure-confirm-modal closure-reject-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="closure-confirm-overlay" onClick={() => { if (!rejectingClosure) { setShowRejectModal(false); setRejectObservaciones(''); setError(null); } }} onKeyDown={(e) => { if (e.key === 'Escape') { if (!rejectingClosure) { setShowRejectModal(false); setRejectObservaciones(''); setError(null); } } }}>
+          <div className="closure-confirm-modal closure-reject-modal" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <div className="reject-modal-header">
               <div className="closure-confirm-icon-wrapper reject-icon-wrapper">
                 <XCircle size={24} />
@@ -969,8 +969,8 @@ const ProjectClosurePage = () => {
       )}
 
       {showSolicitConfirm && (
-        <div className="closure-confirm-overlay" onClick={() => setShowSolicitConfirm(false)}>
-          <div className="closure-confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="closure-confirm-overlay" onClick={() => setShowSolicitConfirm(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowSolicitConfirm(false); }}>
+          <div className="closure-confirm-modal" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <div className="reject-modal-header">
               <div className="closure-confirm-icon-wrapper" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}>
                 <Send size={24} style={{ color: '#3b82f6' }} />
@@ -995,8 +995,8 @@ const ProjectClosurePage = () => {
       )}
 
       {showApproveConfirm && (
-        <div className="closure-confirm-overlay" onClick={() => setShowApproveConfirm(false)}>
-          <div className="closure-confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="closure-confirm-overlay" onClick={() => setShowApproveConfirm(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowApproveConfirm(false); }}>
+          <div className="closure-confirm-modal" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <div className="reject-modal-header">
               <div className="closure-confirm-icon-wrapper" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
                 <CheckCircle2 size={24} style={{ color: '#22c55e' }} />
@@ -1021,13 +1021,14 @@ const ProjectClosurePage = () => {
       )}
 
       {showExtraordinaryConfirm && (
-        <div className="closure-confirm-overlay" onClick={() => setShowExtraordinaryConfirm(false)}>
+        <div className="closure-confirm-overlay" onClick={() => setShowExtraordinaryConfirm(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowExtraordinaryConfirm(false); }}>
           <div
             className="closure-confirm-modal closure-confirm-modal--danger"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="extraordinary-confirm-title"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="reject-modal-header">
               <div className="closure-confirm-icon-wrapper" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}>

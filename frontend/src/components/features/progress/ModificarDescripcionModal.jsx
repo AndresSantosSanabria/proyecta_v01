@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileEdit, FileText, Upload, X, LoaderCircle } from 'lucide-react';
 import SpellCheckerTextarea from '../../common/SpellCheckerTextarea';
 import './ModificarDescripcionModal.css';
@@ -10,6 +10,16 @@ export default function ModificarDescripcionModal({ entregable, proyectoId, onCl
   const [archivoNombre, setArchivoNombre] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
+
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === overlayRef.current) onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [onClose]);
 
   const descripcionActual = entregable?.descripcion || '';
 
@@ -68,8 +78,8 @@ export default function ModificarDescripcionModal({ entregable, proyectoId, onCl
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="mdm-modal" role="presentation" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" ref={overlayRef}>
+      <div className="mdm-modal">
         <div className="mdm-header">
           <h3><FileEdit size={16} /> Modificar Descripción de Entregable</h3>
           <button className="mdm-close" onClick={onClose}><X size={18} /></button>

@@ -60,7 +60,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: #3b82f6;
+  background-color: #2563eb;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -70,7 +70,7 @@
 }
 
 .benefit-impact-open:hover {
-  background-color: #2563eb;
+  background-color: #1d4ed8;
 }
 
 .benefit-impact-grid {
@@ -224,7 +224,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: #10b981;
+  background-color: #047857;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -234,12 +234,12 @@
 }
 
 .benefit-impact-submit:hover {
-  background-color: #059669;
+  background-color: #065f46;
 }
 
 .benefit-impact-submit:disabled {
   background-color: #064e3b;
-  color: #94a3b8;
+  color: #afbaca;
   cursor: not-allowed;
 }
 

@@ -28,4 +28,17 @@ export default defineConfig([
       'react-hooks/set-state-in-effect': 'warn',
     },
   },
+  {
+    // Globals de Vitest en los archivos de prueba
+    files: ['src/**/*.test.{js,jsx}', 'src/test/**'],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+        vi: true,
+        afterEach: true,
+        beforeAll: true,
+        afterAll: true,
+      },
+    },
+  },
 ])

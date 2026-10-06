@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Upload, FileText, X, LoaderCircle, Clock, CheckCircle2 } from 'lucide-react';
 import advanceReportService from '../../../services/advanceReportService';
 import { emitToast } from '../../../utils/feedback';
@@ -78,14 +78,31 @@ const AdvanceReportUploadModal = ({ project, isOpen, onClose, onUploaded }) => {
     setDragOver(false);
   };
 
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === overlayRef.current) onClose();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
   if (!isOpen || !project) return null;
 
   const dueDate = project.dueDate;
   const isOverdue = project.isOverdue;
 
   return (
-    <div className="arum-overlay" onClick={onClose}>
-      <div className="arum-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="arum-overlay" ref={overlayRef}>
+      <div className="arum-modal">
         <div className="arum-header">
           <div className="arum-header__icon">
             <Upload size={20} />
@@ -121,7 +138,8 @@ const AdvanceReportUploadModal = ({ project, isOpen, onClose, onUploaded }) => {
               </div>
             </div>
           ) : (
-            <div
+            <button
+              type="button"
               className={`arum-dropzone ${dragOver ? 'arum-dropzone--active' : ''}`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
@@ -129,10 +147,10 @@ const AdvanceReportUploadModal = ({ project, isOpen, onClose, onUploaded }) => {
               onClick={() => fileInputRef.current?.click()}
             >
               {uploading ? (
-                <div className="arum-loading">
+                <span className="arum-loading">
                   <LoaderCircle size={22} className="arum-spin" />
                   <span>Subiendo informe...</span>
-                </div>
+                </span>
               ) : (
                 <>
                   <Upload size={22} className="arum-dropzone__icon" />
@@ -144,7 +162,7 @@ const AdvanceReportUploadModal = ({ project, isOpen, onClose, onUploaded }) => {
                   </span>
                 </>
               )}
-            </div>
+            </button>
           )}
 
           <input
@@ -164,6 +182,7 @@ const AdvanceReportUploadModal = ({ project, isOpen, onClose, onUploaded }) => {
             <button
               className="arum-btn arum-btn--primary"
               onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
               disabled={uploading}
             >
               <FileText size={14} />

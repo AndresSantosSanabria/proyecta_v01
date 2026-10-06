@@ -18,34 +18,11 @@
   min-height: 0;
 }
 
-.project-onboarding__panel {
-  display: grid;
-  gap: 12px;
-  grid-auto-rows: min-content;
-  align-content: start;
-  flex: 1;
-  min-height: 0;
-  max-height: 100%;
-  padding: 16px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-surface) 98%, var(--bg-panel)), var(--bg-surface));
-  border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
-  box-shadow: var(--shadow-lg);
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
 .project-onboarding__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-.project-onboarding__hero {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 78%, var(--bg-surface)), var(--bg-surface));
 }
 
 .project-onboarding__hero-copy {
@@ -57,16 +34,6 @@
 .project-onboarding__hero-copy .page-title,
 .project-onboarding__hero-copy .page-subtitle {
   margin: 0;
-}
-
-.project-onboarding__status-card {
-  width: min(280px, 100%);
-  display: grid;
-  gap: 5px;
-  padding: 12px 13px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border-color));
-  background: color-mix(in srgb, var(--warning-soft) 72%, var(--bg-surface));
 }
 
 .project-onboarding__status-card span {
@@ -127,20 +94,6 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-}
-
-.project-onboarding__locked-card {
-  min-width: 0;
-  display: grid;
-  gap: 5px;
-  padding: 10px 11px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
-  background: color-mix(in srgb, var(--bg-elevated) 60%, var(--bg-surface));
-}
-
-.project-onboarding__locked-card--wide {
-  grid-column: 1 / -1;
 }
 
 .project-onboarding__locked-card span {
@@ -296,29 +249,6 @@
   font-size: 11px;
 }
 
-.project-onboarding__steps {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.project-onboarding__step {
-  min-height: 30px;
-  padding: 7px 9px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-elevated) 78%, var(--bg-surface));
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
-}
-
-.project-onboarding__step.active {
-  color: var(--text-main);
-  border-color: color-mix(in srgb, var(--primary) 28%, var(--border-color));
-  background: color-mix(in srgb, var(--primary-soft) 46%, var(--bg-surface));
-}
-
 .project-onboarding__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -399,27 +329,6 @@
   gap: 5px;
 }
 
-.project-onboarding .form-label {
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.project-onboarding .form-input,
-.project-onboarding .custom-select-trigger {
-  min-height: 40px;
-  padding: 9px 10px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-elevated));
-  font-size: 12px;
-  border-color: color-mix(in srgb, var(--border-color) 88%, transparent);
-}
-
-.project-onboarding .form-input:focus,
-.project-onboarding .custom-select-trigger.open {
-  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-color));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
-}
-
 .project-onboarding .form-textarea {
   min-height: 96px;
 }
@@ -449,13 +358,6 @@
   background: color-mix(in srgb, var(--primary-soft) 40%, var(--bg-surface));
 }
 
-.project-onboarding .array-card {
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
-  background: color-mix(in srgb, var(--bg-elevated) 54%, var(--bg-surface));
-}
-
 .project-onboarding .array-card-header {
   display: flex;
   align-items: center;
@@ -464,18 +366,7 @@
   margin-bottom: 8px;
 }
 
-.project-onboarding .array-card-header strong {
-  font-size: 12px;
-  color: var(--text-main);
-}
-
 .project-onboarding .array-card-body {
-  gap: 8px;
-}
-
-.project-onboarding .array-field-row {
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
 
@@ -492,11 +383,6 @@
   color: var(--text-main);
   font-size: 11px;
   font-weight: 700;
-}
-
-.project-onboarding .btn-add {
-  width: fit-content;
-  padding: 7px 10px;
 }
 
 .project-onboarding .btn-add-sm {
@@ -517,6 +403,18 @@
 }
 
 .project-onboarding__panel {
+  display: grid;
+  gap: 12px;
+  grid-auto-rows: min-content;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
+  box-shadow: var(--shadow-lg);
+  overflow: auto;
+  overscroll-behavior: contain;
   background:
     radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 28%),
     radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--success) 12%, transparent), transparent 24%),
@@ -524,6 +422,9 @@
 }
 
 .project-onboarding__hero {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
   border-color: color-mix(in srgb, var(--primary) 32%, var(--border-color));
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 22%, transparent), transparent 38%),
@@ -531,6 +432,12 @@
 }
 
 .project-onboarding__status-card {
+  width: min(280px, 100%);
+  display: grid;
+  gap: 5px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border-color));
   border-color: color-mix(in srgb, var(--warning) 48%, var(--border-color));
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--warning) 24%, transparent), transparent 46%),
@@ -548,6 +455,13 @@
 }
 
 .project-onboarding__locked-card {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 60%, var(--bg-surface));
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
 }
 
@@ -567,12 +481,16 @@
 }
 
 .project-onboarding__locked-card--wide {
+  grid-column: 1 / -1;
   border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 68%, var(--primary-soft)), color-mix(in srgb, var(--bg-surface) 76%, var(--success-soft)));
 }
 
 .project-onboarding__steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
   padding: 6px;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border-color));
@@ -580,6 +498,14 @@
 }
 
 .project-onboarding__step {
+  min-height: 30px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-elevated) 78%, var(--bg-surface));
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
@@ -850,6 +776,7 @@
 }
 
 .project-onboarding .btn-add {
+  width: fit-content;
   border-style: dashed;
   border-color: color-mix(in srgb, var(--primary) 58%, var(--border-color));
   background:
@@ -927,6 +854,8 @@
 }
 
 .project-onboarding .form-label {
+  font-size: 10px;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -945,6 +874,11 @@
 
 .project-onboarding .form-input,
 .project-onboarding .custom-select-trigger {
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-elevated));
+  font-size: 12px;
+  border-color: color-mix(in srgb, var(--border-color) 88%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 7%, transparent);
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
@@ -957,6 +891,7 @@
 
 .project-onboarding .form-input:focus,
 .project-onboarding .custom-select-trigger.open {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
   transform: translateY(-1px);
 }
 
@@ -981,6 +916,9 @@
 }
 
 .project-onboarding .array-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
@@ -988,6 +926,9 @@
 }
 
 .project-onboarding .array-card {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
   position: relative;
   overflow: hidden;
   border-color: color-mix(in srgb, var(--success) 28%, var(--border-color));
@@ -1005,6 +946,7 @@
 }
 
 .project-onboarding .array-card-header strong {
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   gap: 7px;

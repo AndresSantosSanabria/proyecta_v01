@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Download, Eye, FileText, X } from 'lucide-react';
 import riskService from '../../../services/riskService';
 import { createSafePdfObjectUrl } from '../../../utils/safePdfPreview';
@@ -56,7 +56,7 @@ const TratamientoHistory = ({ tratamientos = [], proyectoId, riesgoId }) => {
       link.download = adjunto.nombreOriginal || `tratamiento_${tratamientoId}.pdf`;
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
       console.error('Error al descargar adjunto');
@@ -70,6 +70,23 @@ const TratamientoHistory = ({ tratamientos = [], proyectoId, riesgoId }) => {
     setPreviewBlob(null);
     setPreviewName('');
   };
+
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (e.target === overlayRef.current) closePreview();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') closePreview();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [closePreview]);
 
   if (!tratamientos || tratamientos.length === 0) {
     return (
@@ -149,8 +166,8 @@ const TratamientoHistory = ({ tratamientos = [], proyectoId, riesgoId }) => {
       })}
 
       {previewBlob && (
-        <div className="pdf-preview-backdrop" onClick={closePreview}>
-          <div className="pdf-preview-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="pdf-preview-backdrop" ref={overlayRef}>
+          <div className="pdf-preview-modal">
             <div className="pdf-preview-header">
               <span className="pdf-preview-title">{previewName}</span>
               <button className="pdf-preview-close" onClick={closePreview}>

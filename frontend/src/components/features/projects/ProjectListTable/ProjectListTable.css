@@ -59,7 +59,7 @@
   line-height: 1.35;
   max-width: 280px;
   white-space: normal;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .force-close-reason--card {
@@ -220,7 +220,7 @@
 }
 
 .btn-action-force-close {
-  color: #fff;
+  color: #010409;
   background: linear-gradient(180deg, #e35d6a, #dc3545);
   border: 1px solid rgba(220, 53, 69, 0.45);
 }
@@ -243,6 +243,14 @@
   padding: 16px;
   background: rgba(2, 8, 16, 0.62);
   backdrop-filter: blur(3px);
+}
+
+.force-close-overlay__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  padding: 0;
+  background: transparent;
 }
 
 .force-close-modal {

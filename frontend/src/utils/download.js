@@ -13,7 +13,7 @@ export function downloadBlob(blob, fileName) {
     link.setAttribute('download', fileName || 'archivo.pdf');
     document.body.appendChild(link);
     link.click();
-    link.parentNode.removeChild(link);
+    link.remove();
     return true;
   } finally {
     URL.revokeObjectURL(objectUrl);

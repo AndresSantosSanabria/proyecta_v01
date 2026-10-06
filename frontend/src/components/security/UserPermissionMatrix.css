@@ -174,7 +174,7 @@
   background: rgba(251, 191, 36, 0.15);
   border: 1px solid rgba(251, 191, 36, 0.3);
   border-radius: 12px;
-  color: #b45309;
+  color: #7f3b06;
   font-weight: 500;
 }
 
@@ -369,7 +369,7 @@
   padding: 0.1rem 0.4rem;
   background: rgba(251, 191, 36, 0.15);
   border-radius: 8px;
-  color: #b45309;
+  color: #7f3b06;
   font-weight: 500;
 }
 
@@ -417,7 +417,7 @@
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.2);
   border-radius: 6px;
-  color: #059669;
+  color: #023b2a;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -431,7 +431,7 @@
   background: rgba(99, 102, 241, 0.1);
   border: 1px solid rgba(99, 102, 241, 0.2);
   border-radius: 6px;
-  color: #6366f1;
+  color: #000000;
   font-weight: 600;
   letter-spacing: 0.03em;
 }
@@ -501,13 +501,13 @@
 
 .upm-accion-badge.visible {
   background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  color: #023b2a;
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .upm-accion-badge.hidden {
   background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  color: #280707;
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 

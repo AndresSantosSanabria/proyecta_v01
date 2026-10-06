@@ -1021,8 +1021,8 @@ const ProjectOnboardingWizard = ({
 
       {/* Close confirmation modal */}
       {showCloseConfirm && (
-        <div className="modal-overlay" onClick={cancelCloseWizard}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={cancelCloseWizard} onKeyDown={(e) => { if (e.key === 'Escape') cancelCloseWizard(); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <h3>Cerrar asistente</h3>
             <p>
               Su progreso se ha guardado automaticamente. Puede continuar donde se quedo 

@@ -101,7 +101,7 @@ const DefaultEntryRoute = () => {
  * Shows the advance report pending modal once per login session
  * after backend identity is fully loaded.
  */
-const AdvanceReportLoginCheck = () => {
+export const AdvanceReportLoginCheck = () => {
   const { backendLoading, isAuthenticated, hasRole } = useAuthContext();
   const [showModal, setShowModal] = useState(false);
   const shownRef = useRef(false);
@@ -114,7 +114,7 @@ const AdvanceReportLoginCheck = () => {
     const run = async () => {
       try {
         const settings = await advanceReportService.getSettings();
-        const delay = parseInt(settings?.login_modal_delay_ms, 10) || 1200;
+        const delay = Number.parseInt(settings?.login_modal_delay_ms, 10) || 1200;
         timer = setTimeout(() => { if (!cancelled) setShowModal(true); }, delay);
       } catch {
         timer = setTimeout(() => { if (!cancelled) setShowModal(true); }, 1200);

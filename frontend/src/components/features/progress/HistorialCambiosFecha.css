@@ -71,7 +71,7 @@
 .hcf-error {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #dc2626;
+  color: #ce2121;
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
@@ -138,9 +138,9 @@
 }
 
 .hcf-download-btn:hover {
-  background: var(--primary, #3b82f6);
+  background: var(--primary, #2563eb);
   color: #fff;
-  border-color: var(--primary, #3b82f6);
+  border-color: var(--primary, #2563eb);
 }
 
 .spin { animation: spin 1s linear infinite; }

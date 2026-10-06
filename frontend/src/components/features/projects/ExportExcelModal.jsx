@@ -77,8 +77,8 @@ const ExportExcelModal = ({ isOpen, onClose, onExport, projects, exporting }) =>
   if (!isOpen) return null;
 
   return (
-    <div className="export-modal-overlay" onClick={onClose}>
-      <div className="export-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="export-modal-overlay" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="export-modal" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <div className="export-modal__header">
           <div className="export-modal__title">
             <Download size={18} />

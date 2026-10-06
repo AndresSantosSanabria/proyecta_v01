@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const ThemeContext = createContext();
 
@@ -28,12 +28,17 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [isDarkMode]);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setIsDarkMode(prev => !prev);
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({ isDarkMode, toggleTheme }),
+    [isDarkMode, toggleTheme],
+  );
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

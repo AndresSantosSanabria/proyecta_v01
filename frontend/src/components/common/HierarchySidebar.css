@@ -183,12 +183,12 @@
 }
 
 .hs-sidebar__suma--ok {
-  color: #22c55e;
+  color: #0c4320;
   background: rgba(34, 197, 94, 0.12);
 }
 
 .hs-sidebar__suma--error {
-  color: #ef4444;
+  color: #2c0404;
   background: rgba(239, 68, 68, 0.12);
 }
 
