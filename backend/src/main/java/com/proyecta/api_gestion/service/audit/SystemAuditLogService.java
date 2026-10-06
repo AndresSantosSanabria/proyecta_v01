@@ -3,20 +3,20 @@ package com.proyecta.api_gestion.service.audit;
 import com.proyecta.api_gestion.dto.audit.AuditLogPageResponse;
 import com.proyecta.api_gestion.dto.audit.AuditLogStatsDTO;
 import com.proyecta.api_gestion.dto.audit.SystemAuditLogDTO;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.audit.SystemAuditLog;
-import com.proyecta.api_gestion.repository.audit.SystemAuditLogRepository;
-import jakarta.persistence.criteria.Predicate;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.value.AuditLogFilter;
+import com.proyecta.api_gestion.domain.value.PageQuery;
+import com.proyecta.api_gestion.domain.value.PageResult;
+import com.proyecta.api_gestion.domain.model.audit.SystemAuditLog;
+import com.proyecta.api_gestion.application.port.out.persistence.audit.SystemAuditLogRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +26,11 @@ import java.util.UUID;
 public class SystemAuditLogService {
 
     private static final Logger log = LoggerFactory.getLogger(SystemAuditLogService.class);
-    private static final String CAMPO_FECHA_CREACION = "fechaCreacion";
-    private static final String MSG_REGISTRO_AUDITORIA_NO_ENCONTRADO = "Registro de auditoria no encontrado: ";
+        private static final String MSG_REGISTRO_AUDITORIA_NO_ENCONTRADO = "Registro de auditoria no encontrado: ";
 
-    private final SystemAuditLogRepository repository;
+    private final SystemAuditLogRepositoryPort repository;
 
-    public SystemAuditLogService(SystemAuditLogRepository repository) {
+    public SystemAuditLogService(SystemAuditLogRepositoryPort repository) {
         this.repository = repository;
     }
 
@@ -46,83 +45,17 @@ public class SystemAuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public AuditLogPageResponse listarConFiltros(
-            String accion, String estado, String usuarioId, String modulo,
-            String metodoHttp, Integer codigoEstado, String search,
-            LocalDateTime desde, LocalDateTime hasta,
-            int page, int size) {
+    public AuditLogPageResponse listarConFiltros(AuditLogFilter filtros, int page, int size) {
 
-        Specification<SystemAuditLog> spec = buildFiltros(
-                accion, estado, usuarioId, modulo, metodoHttp,
-                codigoEstado, search, desde, hasta);
+        PageResult<SystemAuditLog> result = repository.buscarConFiltros(filtros, PageQuery.of(page, size));
 
-        Page<SystemAuditLog> result = repository.findAll(spec, PageRequest.of(page, size));
-
-        List<SystemAuditLogDTO> entries = result.getContent().stream()
+        List<SystemAuditLogDTO> entries = result.content().stream()
                 .map(SystemAuditLogService::toDTO)
                 .toList();
 
         return new AuditLogPageResponse(
-                entries, result.getNumber(), result.getSize(),
-                result.getTotalElements(), result.getTotalPages());
-    }
-
-    private Specification<SystemAuditLog> buildFiltros(
-            String accion, String estado, String usuarioId, String modulo,
-            String metodoHttp, Integer codigoEstado, String search,
-            LocalDateTime desde, LocalDateTime hasta) {
-
-        return (root, query, cb) -> {
-            List<Predicate> predicates = new java.util.ArrayList<>();
-
-            predicates.add(cb.isFalse(root.get("eliminado")));
-
-            if (accion != null && !accion.isBlank()) {
-                predicates.add(cb.equal(root.get("accion"), accion));
-            }
-            if (estado != null && !estado.isBlank()) {
-                predicates.add(cb.equal(root.get("estado"), estado));
-            }
-            if (usuarioId != null && !usuarioId.isBlank()) {
-                String usuarioPattern = "%" + usuarioId.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("usuarioId")), usuarioPattern),
-                        cb.like(cb.lower(root.get("usuarioNombre")), usuarioPattern)));
-            }
-            if (modulo != null && !modulo.isBlank()) {
-                predicates.add(cb.like(
-                        cb.lower(root.get("modulo")),
-                        "%" + modulo.toLowerCase() + "%"));
-            }
-            if (metodoHttp != null && !metodoHttp.isBlank()) {
-                predicates.add(cb.equal(root.get("metodoHttp"), metodoHttp));
-            }
-            if (codigoEstado != null) {
-                predicates.add(cb.equal(root.get("codigoEstado"), codigoEstado));
-            }
-            if (search != null && !search.isBlank()) {
-                String pattern = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("detalle")), pattern),
-                        cb.like(cb.lower(root.get("modulo")), pattern),
-                        cb.like(cb.lower(root.get("recurso")), pattern),
-                        cb.like(cb.lower(root.get("usuarioNombre")), pattern),
-                        cb.like(cb.lower(root.get("usuarioId")), pattern),
-                        cb.like(cb.lower(root.get("accion")), pattern),
-                        cb.like(
-                                cb.lower(root.get("codigoEstado").as(String.class)),
-                                pattern)));
-            }
-            if (desde != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get(CAMPO_FECHA_CREACION), desde));
-            }
-            if (hasta != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get(CAMPO_FECHA_CREACION), hasta));
-            }
-
-            query.orderBy(cb.desc(root.get(CAMPO_FECHA_CREACION)));
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+                entries, result.page(), result.size(),
+                result.totalElements(), result.totalPages());
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +91,7 @@ public class SystemAuditLogService {
         SystemAuditLog entry = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_REGISTRO_AUDITORIA_NO_ENCONTRADO + id));
         entry.setEliminado(true);
-        entry.setFechaEliminacion(LocalDateTime.now());
+        entry.setFechaEliminacion(LocalDateTime.now(ZoneId.systemDefault()));
         repository.save(entry);
     }
 

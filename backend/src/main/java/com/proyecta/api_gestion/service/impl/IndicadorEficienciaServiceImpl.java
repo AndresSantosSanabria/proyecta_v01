@@ -1,10 +1,10 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.avance.IndicadoresEficienciaDTO;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.IIndicadorEficienciaService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,15 +22,15 @@ public class IndicadorEficienciaServiceImpl implements IIndicadorEficienciaServi
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
 
-    private final ProyectoRepository proyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
 
-    public IndicadorEficienciaServiceImpl(ProyectoRepository proyectoRepository) {
-        this.proyectoRepository = proyectoRepository;
+    public IndicadorEficienciaServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort) {
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
     }
 
     @Override
     public IndicadoresEficienciaDTO calcular(String proyectoId, LocalDate fechaCorte) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 
         List<Entregable> todosEntregables = proyecto.getFases().stream()

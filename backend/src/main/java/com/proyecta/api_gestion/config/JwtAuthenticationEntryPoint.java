@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Map;
 
 @Component
@@ -42,7 +43,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 "error", "Unauthorized",
                 "message", "Token de acceso ausente, inválido o vencido. Renueve el token o inicie sesión nuevamente.",
                 "path", request.getRequestURI(),
-                "timestamp", LocalDateTime.now().toString(),
+                "timestamp", LocalDateTime.now(ZoneId.systemDefault()).toString(),
                 "action", "REFRESH_OR_LOGIN"
         );
 

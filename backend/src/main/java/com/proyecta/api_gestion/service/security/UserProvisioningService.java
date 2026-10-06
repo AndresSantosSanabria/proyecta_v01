@@ -1,9 +1,9 @@
 package com.proyecta.api_gestion.service.security;
 
-import com.proyecta.api_gestion.model.security.SeguridadRol;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.security.SeguridadRolRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.security.SeguridadRol;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadRolRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,16 +37,16 @@ public class UserProvisioningService {
     /** Rol que se asigna al primer login de un usuario nuevo. */
     private static final String DEFAULT_ROLE = "visualizador";
 
-    private final SeguridadUsuarioRepository usuarioRepository;
-    private final SeguridadRolRepository     rolRepository;
+    private final SeguridadUsuarioRepositoryPort usuarioRepositoryPort;
+    private final SeguridadRolRepositoryPort     rolRepositoryPort;
     private final KeycloakIdentityExtractor  identityExtractor;
 
     public UserProvisioningService(
-            SeguridadUsuarioRepository usuarioRepository,
-            SeguridadRolRepository rolRepository,
+            SeguridadUsuarioRepositoryPort usuarioRepositoryPort,
+            SeguridadRolRepositoryPort rolRepositoryPort,
             KeycloakIdentityExtractor identityExtractor) {
-        this.usuarioRepository = usuarioRepository;
-        this.rolRepository     = rolRepository;
+        this.usuarioRepositoryPort = usuarioRepositoryPort;
+        this.rolRepositoryPort     = rolRepositoryPort;
         this.identityExtractor = identityExtractor;
     }
 
@@ -108,7 +108,7 @@ public class UserProvisioningService {
         nuevo.setActivo(true);
 
         // Asignar rol por defecto
-        Optional<SeguridadRol> rolOpt = rolRepository.findByCodigoIgnoreCase(DEFAULT_ROLE);
+        Optional<SeguridadRol> rolOpt = rolRepositoryPort.findByCodigoIgnoreCase(DEFAULT_ROLE);
         if (rolOpt.isPresent()) {
             SeguridadRol rol = rolOpt.get();
             nuevo.setRolCodigo(rol.getCodigo());
@@ -119,7 +119,7 @@ public class UserProvisioningService {
         }
 
         try {
-            SeguridadUsuario saved = usuarioRepository.saveAndFlush(nuevo);
+            SeguridadUsuario saved = usuarioRepositoryPort.saveAndFlush(nuevo);
             log.info("[JIT-Upsert] ✅ Usuario CREADO — ID={}, username='{}'",
                     saved.getId(), saved.getUsername());
             return saved;
@@ -190,7 +190,7 @@ public class UserProvisioningService {
         }
 
         if (changed) {
-            SeguridadUsuario saved = usuarioRepository.saveAndFlush(usuario);
+            SeguridadUsuario saved = usuarioRepositoryPort.saveAndFlush(usuario);
             log.info("[JIT-Upsert] ✅ Usuario ACTUALIZADO — ID={}, username='{}'",
                     saved.getId(), saved.getUsername());
             return saved;
@@ -210,21 +210,21 @@ public class UserProvisioningService {
      */
     private SeguridadUsuario findExistingUser(String sub, String email, String username) {
         if (hasValue(sub)) {
-            Optional<SeguridadUsuario> bySub = usuarioRepository.findByKeycloakSubIgnoreCase(sub);
+            Optional<SeguridadUsuario> bySub = usuarioRepositoryPort.findByKeycloakSubIgnoreCase(sub);
             if (bySub.isPresent()) {
                 log.debug("[JIT-Upsert] Registro encontrado por keycloak_sub='{}'", sub);
                 return bySub.get();
             }
         }
         if (hasValue(email)) {
-            Optional<SeguridadUsuario> byEmail = usuarioRepository.findByCorreoIgnoreCase(email);
+            Optional<SeguridadUsuario> byEmail = usuarioRepositoryPort.findByCorreoIgnoreCase(email);
             if (byEmail.isPresent()) {
                 log.debug("[JIT-Upsert] Registro encontrado por correo='{}'", email);
                 return byEmail.get();
             }
         }
         if (hasValue(username)) {
-            Optional<SeguridadUsuario> byUsername = usuarioRepository.findByUsernameIgnoreCase(username);
+            Optional<SeguridadUsuario> byUsername = usuarioRepositoryPort.findByUsernameIgnoreCase(username);
             if (byUsername.isPresent()) {
                 log.debug("[JIT-Upsert] Registro encontrado por username='{}'", username);
                 return byUsername.get();

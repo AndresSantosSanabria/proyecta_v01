@@ -89,10 +89,10 @@ Authorization: Bearer <jwt_token>
 | Parámetro   | Tipo    | Default   | Descripción                                            |
 | ----------- | ------- | --------- | ------------------------------------------------------ |
 | `page`      | integer | 0         | Número de página (0-indexed)                           |
-| `size`      | integer | 10        | Tamaño de página (`@PageableDefault`)                  |
-| `sort`      | string  | `id,DESC` | Campo y dirección de orden (algunos endpoints usan `createdAt`) |
+| `size`      | integer | 20        | Tamaño de página (default por endpoint; tope `2000`)   |
+| `sort`      | string  | *(ninguno)* | `?sort=campo,asc\|desc`; parámetro repetible         |
 
-> Algunos endpoints no usan `Pageable` sino parámetros explícitos `page`/`size` (p. ej. `GET /api/v1/documentos-internos`, con `size` entre 1 y 200).
+> Los endpoints paginados reciben `page`/`size`/`sort` como `@RequestParam` y los traducen a `PageQuery` con `PageSupport.fromParams` (la respuesta conserva la forma `Page<T>`). Algunos endpoints usan límites propios (p. ej. `GET /api/v1/documentos-internos`, con `size` entre 1 y 200).
 
 ### Control de Acceso
 
@@ -457,8 +457,9 @@ Envía un correo de prueba al usuario autenticado.
 | ----- | ---- | ----------- | ----------- |
 | `leido` | boolean | No | Filtrar por estado de lectura |
 | `eventCode` | string | No | Filtrar por código del evento de notificación |
-| `page` | integer | No | Página |
-| `size` | integer | No | Tamaño de página |
+| `page` | integer | No | Página (default: 0) |
+| `size` | integer | No | Tamaño de página (default: 20) |
+| `sort` | string | No | Ordenamiento (repetible, `campo,asc\|desc`) |
 
 **Response 200:** `Page<InAppNotificationDTO>`
 
@@ -564,8 +565,9 @@ Envía un correo de prueba al usuario autenticado.
 | ----- | ---- | ----------- | ----------- |
 | `search` | string | No | Búsqueda por nombre/username |
 | `rol` | string | No | Filtrar por rol |
-| `page` | integer | No | Página |
-| `size` | integer | No | Tamaño |
+| `page` | integer | No | Página (default: 0) |
+| `size` | integer | No | Tamaño (default: 20) |
+| `sort` | string | No | Ordenamiento (repetible, `campo,asc\|desc`) |
 
 **Response 200:** `Page<SeguridadUsuarioDTO>`
 
@@ -923,8 +925,8 @@ Envía un correo de prueba al usuario autenticado.
 | `estado` | string | No | Filtrar por estado |
 | `peti` | boolean | No | Filtrar proyectos PETI |
 | `page` | integer | No | Página (default: 0) |
-| `size` | integer | No | Tamaño (default: 10) |
-| `sort` | string | No | Ordenamiento (default: `id,DESC`) |
+| `size` | integer | No | Tamaño (default: 20) |
+| `sort` | string | No | Ordenamiento (repetible, `campo,asc\|desc`; sin default) |
 
 **Response 200:** `Page<ProyectoListDTO>`
 

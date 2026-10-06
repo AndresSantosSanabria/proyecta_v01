@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.interfaces;
 
 import com.proyecta.api_gestion.dto.report.*;
+import com.proyecta.api_gestion.application.readmodel.ProyectoReporteResumenDTO;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;

@@ -2,8 +2,8 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.proyecto.PatrocinadorDTO;
-import com.proyecta.api_gestion.model.Patrocinador;
-import com.proyecta.api_gestion.repository.PatrocinadorRepository;
+import com.proyecta.api_gestion.domain.model.Patrocinador;
+import com.proyecta.api_gestion.application.port.out.persistence.PatrocinadorRepositoryPort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -20,16 +20,16 @@ import java.util.List;
 @PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
 public class PatrocinadorController {
 
-    private final PatrocinadorRepository patrocinadorRepository;
+    private final PatrocinadorRepositoryPort patrocinadorRepositoryPort;
 
-    public PatrocinadorController(PatrocinadorRepository patrocinadorRepository) {
-        this.patrocinadorRepository = patrocinadorRepository;
+    public PatrocinadorController(PatrocinadorRepositoryPort patrocinadorRepositoryPort) {
+        this.patrocinadorRepositoryPort = patrocinadorRepositoryPort;
     }
 
     @Operation(summary = "Listar los patrocinadores únicos registrados")
     @GetMapping
     public ResponseEntity<ApiResponse<List<PatrocinadorDTO>>> listarPatrocinadoresUnicos() {
-        List<Patrocinador> patrocinadores = patrocinadorRepository.findUniquePatrocinadores();
+        List<Patrocinador> patrocinadores = patrocinadorRepositoryPort.findUniquePatrocinadores();
         List<PatrocinadorDTO> dtos = patrocinadores.stream()
                 .map(p -> new PatrocinadorDTO(
                         p.getNombre(),

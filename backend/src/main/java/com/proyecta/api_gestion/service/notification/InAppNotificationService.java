@@ -1,32 +1,33 @@
 package com.proyecta.api_gestion.service.notification;
 
 import com.proyecta.api_gestion.dto.notification.InAppNotificationDTO;
-import com.proyecta.api_gestion.model.notification.InAppNotification;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.notification.InAppNotificationRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.proyecta.api_gestion.domain.model.notification.InAppNotification;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.InAppNotificationRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
+import com.proyecta.api_gestion.domain.value.PageQuery;
+import com.proyecta.api_gestion.domain.value.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class InAppNotificationService {
-    private final InAppNotificationRepository repository;
-    private final SeguridadUsuarioRepository usuarioRepository;
+    private final InAppNotificationRepositoryPort repository;
+    private final SeguridadUsuarioRepositoryPort usuarioRepositoryPort;
 
-    public InAppNotificationService(InAppNotificationRepository repository, SeguridadUsuarioRepository usuarioRepository) {
+    public InAppNotificationService(InAppNotificationRepositoryPort repository, SeguridadUsuarioRepositoryPort usuarioRepositoryPort) {
         this.repository = repository;
-        this.usuarioRepository = usuarioRepository;
+        this.usuarioRepositoryPort = usuarioRepositoryPort;
     }
 
     @Transactional
     public InAppNotification create(String usernameOrEmail, String title, String message, String eventCode, String severity, String sourceEntityId, String targetUrl) {
-        SeguridadUsuario user = usuarioRepository.findByUsernameIgnoreCase(usernameOrEmail)
-                .or(() -> usuarioRepository.findByCorreoIgnoreCase(usernameOrEmail))
+        SeguridadUsuario user = usuarioRepositoryPort.findByUsernameIgnoreCase(usernameOrEmail)
+                .or(() -> usuarioRepositoryPort.findByCorreoIgnoreCase(usernameOrEmail))
                 .orElse(null);
         if (user == null) {
             return null;
@@ -43,27 +44,27 @@ public class InAppNotificationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<InAppNotificationDTO> list(String username, Boolean readStatus, String eventCode, Pageable pageable) {
+    public PageResult<InAppNotificationDTO> list(String username, Boolean readStatus, String eventCode, PageQuery query) {
         if (eventCode != null && !eventCode.isBlank()) {
-            return repository.findByRecipient_UsernameIgnoreCaseAndEventCodeOrderByCreatedAtDesc(username, eventCode, pageable)
+            return repository.findByRecipientUsernameIgnoreCaseAndEventCodeOrderByCreatedAtDesc(username, eventCode, query)
                     .map(this::toDto);
         }
         if (readStatus != null) {
-            return repository.findByRecipient_UsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(username, readStatus, pageable)
+            return repository.findByRecipientUsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(username, readStatus, query)
                     .map(this::toDto);
         }
-        return repository.findByRecipient_UsernameIgnoreCaseOrderByCreatedAtDesc(username, pageable)
+        return repository.findByRecipientUsernameIgnoreCaseOrderByCreatedAtDesc(username, query)
                 .map(this::toDto);
     }
 
     @Transactional(readOnly = true)
     public long countUnread(String username) {
-        return repository.countByRecipient_UsernameIgnoreCaseAndReadStatusFalse(username);
+        return repository.countByRecipientUsernameIgnoreCaseAndReadStatusFalse(username);
     }
 
     @Transactional(readOnly = true)
     public boolean existsForRecipient(Long recipientId, String eventCode, String sourceEntityId, LocalDateTime createdAtAfter) {
-        return repository.existsByRecipient_IdAndEventCodeAndSourceEntityIdAndCreatedAtAfter(
+        return repository.existsByRecipientIdAndEventCodeAndSourceEntityIdAndCreatedAtAfter(
                 recipientId, eventCode, sourceEntityId, createdAtAfter);
     }
 
@@ -79,16 +80,16 @@ public class InAppNotificationService {
             throw new IllegalArgumentException("Notificacion no encontrada: " + id);
         }
         notification.setReadStatus(true);
-        notification.setReadAt(LocalDateTime.now());
+        notification.setReadAt(LocalDateTime.now(ZoneId.systemDefault()));
         repository.save(notification);
     }
 
     @Transactional
     public void markAllRead(String username) {
-        List<InAppNotification> unread = repository.findByRecipient_UsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(username, false, org.springframework.data.domain.Pageable.unpaged()).getContent();
+        List<InAppNotification> unread = repository.findByRecipientUsernameIgnoreCaseAndReadStatusOrderByCreatedAtDesc(username, false);
         for (InAppNotification notification : unread) {
             notification.setReadStatus(true);
-            notification.setReadAt(LocalDateTime.now());
+            notification.setReadAt(LocalDateTime.now(ZoneId.systemDefault()));
         }
         repository.saveAll(unread);
     }

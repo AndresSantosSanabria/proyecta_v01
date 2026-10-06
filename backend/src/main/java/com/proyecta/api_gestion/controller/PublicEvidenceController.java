@@ -1,8 +1,8 @@
 package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.config.openapi.PublicEndpoint;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.Entregable;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.Entregable;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import com.proyecta.api_gestion.service.IRiesgoService;
@@ -31,6 +31,9 @@ import org.springframework.web.bind.annotation.*;
 public class PublicEvidenceController {
 
     private static final Logger log = LoggerFactory.getLogger(PublicEvidenceController.class);
+
+    private static final String HEADER_X_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options";
+    private static final String VALUE_NOSNIFF = "nosniff";
 
     private final PublicEvidenceAccessService evidenceAccessService;
     private final IStorageProvider storageProvider;
@@ -64,7 +67,7 @@ public class PublicEvidenceController {
         String safeName = entregable.getArchivoPdf().replaceAll("[^a-zA-Z0-9._-]", "_");
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeName + "\"")
-                .header("X-Content-Type-Options", "nosniff")
+                .header(HEADER_X_CONTENT_TYPE_OPTIONS, VALUE_NOSNIFF)
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
@@ -78,10 +81,10 @@ public class PublicEvidenceController {
             String safeName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeName + "\"")
-                    .header("X-Content-Type-Options", "nosniff")
+                    .header(HEADER_X_CONTENT_TYPE_OPTIONS, VALUE_NOSNIFF)
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(resource);
-        } catch (ResourceNotFoundException ex) {
+        } catch (ResourceNotFoundException _) {
             return ResponseEntity.notFound().build();
         } catch (RuntimeException ex) {
             // CWE-209: no exponer mensajes internos del storage al cliente anonimo.
@@ -104,7 +107,7 @@ public class PublicEvidenceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
                         + "; filename=\"solucion-riesgo-" + riesgoId + "-" + solucionId + ".pdf\"")
-                .header("X-Content-Type-Options", "nosniff")
+                .header(HEADER_X_CONTENT_TYPE_OPTIONS, VALUE_NOSNIFF)
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
@@ -124,7 +127,7 @@ public class PublicEvidenceController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, (inline ? "inline" : "attachment")
                         + "; filename=\"tratamiento-" + riesgoId + "-" + tratamientoId + "-" + adjuntoId + ".pdf\"")
-                .header("X-Content-Type-Options", "nosniff")
+                .header(HEADER_X_CONTENT_TYPE_OPTIONS, VALUE_NOSNIFF)
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }

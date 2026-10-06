@@ -2,23 +2,24 @@ package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.document.DocumentoInternoDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoInternoDownload;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.InternalErrorException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.exception.UnauthorizedException;
-import com.proyecta.api_gestion.model.DocumentoInterno;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.DocumentoInternoRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.InternalErrorException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.value.PageQuery;
+import com.proyecta.api_gestion.domain.value.SortOrder;
+import com.proyecta.api_gestion.domain.exception.UnauthorizedException;
+import com.proyecta.api_gestion.domain.model.DocumentoInterno;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoInternoRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoInternoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.Resource;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -50,20 +52,29 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
     /** Lock fair: el segundo hilo espera al primero (FIFO) para asignar el siguiente slot de codigo. */
     private final ReentrantLock codigoLock = new ReentrantLock(true);
 
-    private final DocumentoInternoRepository documentoInternoRepository;
+    private final DocumentoInternoRepositoryPort documentoInternoRepositoryPort;
     private final IStorageProvider storageProvider;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final KeycloakIdentityExtractor identityExtractor;
 
+    /** Proxy transaccional de esta misma bean; null en tests unitarios sin contexto Spring. */
+    private final DocumentoInternoServiceImpl self;
+
+    private DocumentoInternoServiceImpl selfProxy() {
+        return self != null ? self : this;
+    }
+
     public DocumentoInternoServiceImpl(
-            DocumentoInternoRepository documentoInternoRepository,
+            DocumentoInternoRepositoryPort documentoInternoRepositoryPort,
             IStorageProvider storageProvider,
             LocalUserAuthorizationService localUserAuthorizationService,
-            KeycloakIdentityExtractor identityExtractor) {
-        this.documentoInternoRepository = documentoInternoRepository;
+            KeycloakIdentityExtractor identityExtractor,
+            @Lazy DocumentoInternoServiceImpl self) {
+        this.documentoInternoRepositoryPort = documentoInternoRepositoryPort;
         this.storageProvider = storageProvider;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.identityExtractor = identityExtractor;
+        this.self = self;
     }
 
     @Override
@@ -86,10 +97,10 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
             throw new BadRequestException("El archivo cargado no es un PDF valido.");
         }
 
-        String actor = resolveActor(authentication);
+        Actor actor = resolveActor(authentication);
         String nombreLimpio = nombre.trim();
         String descripcionLimpia = (descripcion == null || descripcion.isBlank()) ? null : descripcion.trim();
-        LocalDate fecha = (fechaCreacion == null) ? LocalDate.now() : fechaCreacion;
+        LocalDate fecha = (fechaCreacion == null) ? LocalDate.now(ZoneId.systemDefault()) : fechaCreacion;
 
         String nombreOriginal = storageProvider.sanitizeFileName(archivo.getOriginalFilename());
         String extension = extraerExtension(nombreOriginal);
@@ -110,6 +121,7 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
         }
     }
 
+    @SuppressWarnings("java:S107")
     DocumentoInterno guardarConCodigoUnico(
             String nombreLimpio,
             String descripcionLimpia,
@@ -118,7 +130,7 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
             String nombreAlmacenado,
             String mimeType,
             long tamanoBytes,
-            String actor) {
+            Actor actor) {
 
         DataIntegrityViolationException lastViolation = null;
         for (int attempt = 0; attempt < MAX_SAVE_RETRIES; attempt++) {
@@ -134,8 +146,9 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
                 doc.setRutaAlmacenamiento(STORAGE_SUBDIR);
                 doc.setMimeType(mimeType);
                 doc.setTamanoBytes(tamanoBytes);
-                doc.setCreadoPor(actor);
-                return documentoInternoRepository.saveAndFlush(doc);
+                doc.setCreadoPor(actor.id());
+                doc.setCreadoPorNombre(actor.nombre());
+                return documentoInternoRepositoryPort.saveAndFlush(doc);
             } catch (DataIntegrityViolationException ex) {
                 lastViolation = ex;
                 logger.warn("Colision de codigo {} en intento {}", codigo, attempt + 1);
@@ -161,11 +174,12 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
 
         String nombrePattern = buildLikePattern(nombre);
         String descripcionPattern = buildLikePattern(descripcion);
-        long total = documentoInternoRepository.contarConFiltros(nombrePattern, anio, descripcionPattern);
-        PageRequest pageable = PageRequest.of(pageIndex, pageSize,
-                Sort.by(Sort.Order.desc("fechaCreacion"), Sort.Order.desc("creadoEn")));
-        List<DocumentoInternoDTO> documentos = documentoInternoRepository
-                .buscarConFiltros(nombrePattern, anio, descripcionPattern, pageable)
+        long total = documentoInternoRepositoryPort.contarConFiltros(nombrePattern, anio, descripcionPattern);
+        PageQuery query = new PageQuery(pageIndex, pageSize, List.of(
+                new SortOrder("fechaCreacion", false),
+                new SortOrder("creadoEn", false)));
+        List<DocumentoInternoDTO> documentos = documentoInternoRepositoryPort
+                .buscarConFiltros(nombrePattern, anio, descripcionPattern, query)
                 .stream()
                 .map(this::toDTO)
                 .toList();
@@ -201,7 +215,7 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
     @Override
     @Transactional(readOnly = true)
     public DocumentoInternoDownload ver(Long id) {
-        return descargar(id);
+        return selfProxy().descargar(id);
     }
 
     /**
@@ -212,10 +226,10 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
     String asignarCodigoUnico() {
         codigoLock.lock();
         try {
-            LocalDateTime slot = LocalDateTime.now();
+            LocalDateTime slot = LocalDateTime.now(ZoneId.systemDefault());
             for (int i = 0; i < MAX_SLOT_RETRIES; i++) {
                 String codigo = formatCodigo(slot);
-                if (!documentoInternoRepository.existsByCodigo(codigo)) {
+                if (!documentoInternoRepositoryPort.existsByCodigo(codigo)) {
                     return codigo;
                 }
                 slot = slot.plusMinutes(1);
@@ -231,17 +245,24 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
     }
 
     private DocumentoInterno obtener(Long id) {
-        return documentoInternoRepository.findById(id)
+        return documentoInternoRepositoryPort.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento interno no encontrado: " + id));
     }
 
-    private String resolveActor(Authentication authentication) {
+    /**
+     * Autor del documento: {@code id} para la FK {@code documento_interno.creado_por}
+     * (usuarios.id) y {@code nombre} visible para {@code creado_por_nombre}.
+     */
+    record Actor(Long id, String nombre) {
+    }
+
+    private Actor resolveActor(Authentication authentication) {
         SeguridadUsuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
-        String username = firstNonBlank(usuario.getNombre(), usuario.getCorreo(), identityExtractor.resolveUsername(authentication));
-        if (username == null) {
+        String nombreVisible = firstNonBlank(usuario.getNombre(), usuario.getCorreo(), identityExtractor.resolveUsername(authentication));
+        if (nombreVisible == null) {
             throw new UnauthorizedException("No fue posible identificar el usuario que carga el documento.");
         }
-        return username;
+        return new Actor(usuario.getId(), nombreVisible);
     }
 
     private String firstNonBlank(String... values) {
@@ -280,6 +301,7 @@ public class DocumentoInternoServiceImpl implements IDocumentoInternoService {
                 doc.getMimeType(),
                 doc.getTamanoBytes(),
                 formatearTamano(doc.getTamanoBytes()),
+                doc.getCreadoPorNombre(),
                 doc.getCreadoPor(),
                 doc.getCreadoEn() != null ? doc.getCreadoEn().toString() : null
         );

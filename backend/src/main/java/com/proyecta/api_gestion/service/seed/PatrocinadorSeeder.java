@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.seed;
 
-import com.proyecta.api_gestion.model.Patrocinador;
-import com.proyecta.api_gestion.repository.PatrocinadorRepository;
+import com.proyecta.api_gestion.domain.model.Patrocinador;
+import com.proyecta.api_gestion.application.port.out.persistence.PatrocinadorRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,10 +16,10 @@ import org.springframework.stereotype.Service;
 public class PatrocinadorSeeder {
     
     private static final Logger logger = LoggerFactory.getLogger(PatrocinadorSeeder.class);
-    private final PatrocinadorRepository patrocinadorRepository;
+    private final PatrocinadorRepositoryPort patrocinadorRepositoryPort;
 
-    public PatrocinadorSeeder(PatrocinadorRepository patrocinadorRepository) {
-        this.patrocinadorRepository = patrocinadorRepository;
+    public PatrocinadorSeeder(PatrocinadorRepositoryPort patrocinadorRepositoryPort) {
+        this.patrocinadorRepositoryPort = patrocinadorRepositoryPort;
     }
 
     public void seedPatrocinadores() {
@@ -48,7 +48,7 @@ public class PatrocinadorSeeder {
 
     private void crearPatrocinadorSiNoExiste(String nombre, String cargo, String dependencia,
                                              String entidad, String procesoSigc, String procedimiento) {
-        if (patrocinadorRepository.findFirstByNombreOrderByIdAsc(nombre).isEmpty()) {
+        if (patrocinadorRepositoryPort.findFirstByNombreOrderByIdAsc(nombre).isEmpty()) {
             Patrocinador p = new Patrocinador();
             p.setNombre(nombre);
             p.setCargo(cargo);
@@ -56,7 +56,7 @@ public class PatrocinadorSeeder {
             p.setEntidad(entidad);
             p.setProcesoSigc(procesoSigc);
             p.setProcedimiento(procedimiento);
-            patrocinadorRepository.save(p);
+            patrocinadorRepositoryPort.save(p);
             logger.debug("Patrocinador creado: {}", nombre);
         }
     }

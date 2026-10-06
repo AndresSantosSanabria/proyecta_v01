@@ -6,13 +6,13 @@ import com.proyecta.api_gestion.dto.avance.EntregableAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.FaseAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.HitoAvanceDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
-import com.proyecta.api_gestion.model.DocumentoVersion;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.Fase;
-import com.proyecta.api_gestion.model.Hito;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
-import com.proyecta.api_gestion.repository.DocumentoVersionRepository;
+import com.proyecta.api_gestion.domain.model.DocumentoVersion;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Fase;
+import com.proyecta.api_gestion.domain.model.Hito;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoVersionEstado;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoVersionRepositoryPort;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,12 +54,12 @@ public class ProjectProgressMetricsService {
     }
 
     private final ObjectMapper objectMapper;
-    private final DocumentoVersionRepository documentoVersionRepository;
+    private final DocumentoVersionRepositoryPort documentoVersionRepositoryPort;
 
     public ProjectProgressMetricsService(ObjectMapper objectMapper,
-                                         DocumentoVersionRepository documentoVersionRepository) {
+                                         DocumentoVersionRepositoryPort documentoVersionRepositoryPort) {
         this.objectMapper = objectMapper;
-        this.documentoVersionRepository = documentoVersionRepository;
+        this.documentoVersionRepositoryPort = documentoVersionRepositoryPort;
     }
 
     public ProyectoAvanceResponseDTO construir(Proyecto proyecto, LocalDate corte) {
@@ -230,7 +230,7 @@ public class ProjectProgressMetricsService {
             return null;
         }
 
-        return documentoVersionRepository.findFirstByEntregableIdAndEstadoOrderByNumeroVersionDesc(
+        return documentoVersionRepositoryPort.findFirstByEntregableIdAndEstadoOrderByNumeroVersionDesc(
                         entregable.getId(),
                         DocumentoVersionEstado.ACTUAL
                 )

@@ -1,8 +1,7 @@
 package com.proyecta.api_gestion.service.seed;
 
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadRolRepository;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,20 +17,19 @@ public class UsuarioSeeder {
     private static final Logger logger = LoggerFactory.getLogger(UsuarioSeeder.class);
     private static final String ROL_ADMIN = "admin";
 
-    private final SeguridadUsuarioRepository seguridadUsuarioRepository;
+    private final SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort;
     private final List<UsuarioSeed> configuredUsers;
     private final String adminUsername;
     private final String adminCorreo;
     private final String adminNombre;
 
     public UsuarioSeeder(
-            SeguridadUsuarioRepository seguridadUsuarioRepository,
-            SeguridadRolRepository seguridadRolRepository,
+            SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort,
             @Value("${gob.seed.users:}") String seedUsers,
             @Value("${gob.seed.admin.username:}") String adminUsername,
             @Value("${gob.seed.admin.correo:}") String adminCorreo,
             @Value("${gob.seed.admin.nombre:}") String adminNombre) {
-        this.seguridadUsuarioRepository = seguridadUsuarioRepository;
+        this.seguridadUsuarioRepositoryPort = seguridadUsuarioRepositoryPort;
         this.configuredUsers = parseUsers(seedUsers);
         this.adminUsername = trimToNull(adminUsername);
         this.adminCorreo = trimToNull(adminCorreo);
@@ -64,10 +62,10 @@ public class UsuarioSeeder {
             return;
         }
 
-        SeguridadUsuario usuario = seguridadUsuarioRepository
+        SeguridadUsuario usuario = seguridadUsuarioRepositoryPort
                 .findByUsernameIgnoreCase(adminUsername)
                 .or(() -> adminCorreo != null
-                        ? seguridadUsuarioRepository.findByCorreoIgnoreCase(adminCorreo)
+                        ? seguridadUsuarioRepositoryPort.findByCorreoIgnoreCase(adminCorreo)
                         : java.util.Optional.empty())
                 .orElseGet(SeguridadUsuario::new);
 
@@ -85,13 +83,13 @@ public class UsuarioSeeder {
         usuario.setActivo(true);
         usuario.setRolCodigo(ROL_ADMIN);
         usuario.setRolNombre("Administrador");
-        seguridadUsuarioRepository.save(usuario);
+        seguridadUsuarioRepositoryPort.save(usuario);
         logger.info("Usuario admin '{}' forzado a rol admin ({})", adminUsername,
                 isNew ? "creado" : "actualizado");
     }
 
     private void upsertUsuario(UsuarioSeed seed) {
-        SeguridadUsuario usuario = seguridadUsuarioRepository.findByCorreoIgnoreCase(seed.correo())
+        SeguridadUsuario usuario = seguridadUsuarioRepositoryPort.findByCorreoIgnoreCase(seed.correo())
                 .orElseGet(SeguridadUsuario::new);
         boolean isNew = usuario.getId() == null;
 
@@ -105,7 +103,7 @@ public class UsuarioSeeder {
         usuario.setRolCodigo(rolCodigo);
         usuario.setRolNombre(rolCodigo);
 
-        seguridadUsuarioRepository.save(usuario);
+        seguridadUsuarioRepositoryPort.save(usuario);
         logger.debug("Usuario {} desde configuracion: {}", isNew ? "creado" : "actualizado", seed.correo());
     }
 

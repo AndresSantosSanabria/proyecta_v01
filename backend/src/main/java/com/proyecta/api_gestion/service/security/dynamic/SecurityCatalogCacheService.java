@@ -1,11 +1,11 @@
 package com.proyecta.api_gestion.service.security.dynamic;
 
-import com.proyecta.api_gestion.model.security.SeguridadPermiso;
-import com.proyecta.api_gestion.model.security.SeguridadRolPermiso;
-import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
-import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import com.proyecta.api_gestion.domain.model.security.SeguridadPermiso;
+import com.proyecta.api_gestion.domain.model.security.SeguridadRolPermiso;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuarioProyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadPermisoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadRolPermisoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -37,21 +37,21 @@ public class SecurityCatalogCacheService {
 
     private record CachedValue<T>(T value, long expiresAt) {}
 
-    private final SeguridadRolPermisoRepository rolPermisoRepository;
-    private final SeguridadPermisoRepository permisoRepository;
-    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final SeguridadRolPermisoRepositoryPort rolPermisoRepositoryPort;
+    private final SeguridadPermisoRepositoryPort permisoRepositoryPort;
+    private final SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort;
 
     private final Map<String, CachedValue<Set<String>>> permissionsByRoleCache = new ConcurrentHashMap<>();
     private final Map<String, CachedValue<Boolean>> projectsByUserCache = new ConcurrentHashMap<>();
     private final AtomicLong lastSweepMs = new AtomicLong(System.currentTimeMillis());
 
     public SecurityCatalogCacheService(
-            SeguridadRolPermisoRepository rolPermisoRepository,
-            SeguridadPermisoRepository permisoRepository,
-            SeguridadUsuarioProyectoRepository usuarioProyectoRepository) {
-        this.rolPermisoRepository = rolPermisoRepository;
-        this.permisoRepository = permisoRepository;
-        this.usuarioProyectoRepository = usuarioProyectoRepository;
+            SeguridadRolPermisoRepositoryPort rolPermisoRepositoryPort,
+            SeguridadPermisoRepositoryPort permisoRepositoryPort,
+            SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort) {
+        this.rolPermisoRepositoryPort = rolPermisoRepositoryPort;
+        this.permisoRepositoryPort = permisoRepositoryPort;
+        this.usuarioProyectoRepositoryPort = usuarioProyectoRepositoryPort;
     }
 
     public Set<String> getPermissionsForRoles(Collection<String> roleCodes) {
@@ -84,7 +84,7 @@ public class SecurityCatalogCacheService {
             return cached.value();
         }
         sweepExpired(now);
-        Set<String> result = rolPermisoRepository.findActiveByRoleCodes(Set.of(cacheKey)).stream()
+        Set<String> result = rolPermisoRepositoryPort.findActiveByRoleCodes(Set.of(cacheKey)).stream()
                 .map(SeguridadRolPermiso::getPermiso)
                 .filter(permiso -> permiso != null && Boolean.TRUE.equals(permiso.getActivo()))
                 .map(SeguridadPermiso::getCodigo)
@@ -110,7 +110,7 @@ public class SecurityCatalogCacheService {
             return cached.value();
         }
         sweepExpired(now);
-        boolean assigned = usuarioProyectoRepository.existsByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndActivoTrue(
+        boolean assigned = usuarioProyectoRepositoryPort.existsByUsuarioUsernameIgnoreCaseAndProyectoIdIgnoreCaseAndActivoTrue(
                 username.trim(), proyectoId.trim());
         projectsByUserCache.put(cacheKey, new CachedValue<>(assigned, now + CACHE_TTL_MS));
         return assigned;
@@ -131,7 +131,7 @@ public class SecurityCatalogCacheService {
             return List.of();
         }
 
-        return usuarioProyectoRepository.findByUsername(username).stream()
+        return usuarioProyectoRepositoryPort.findByUsername(username).stream()
                 .filter(item -> Boolean.TRUE.equals(item.getActivo()))
                 .map(SeguridadUsuarioProyecto::getProyectoId)
                 .filter(value -> value != null && !value.isBlank())
@@ -141,7 +141,7 @@ public class SecurityCatalogCacheService {
     }
 
     public Set<String> getPermissionsForAllRoles() {
-        return permisoRepository.findAllByActivoTrueOrderByCodigoAsc().stream()
+        return permisoRepositoryPort.findAllByActivoTrueOrderByCodigoAsc().stream()
                 .map(SeguridadPermiso::getCodigo)
                 .filter(codigo -> codigo != null && !codigo.isBlank())
                 .map(codigo -> codigo.trim().toUpperCase(Locale.ROOT))

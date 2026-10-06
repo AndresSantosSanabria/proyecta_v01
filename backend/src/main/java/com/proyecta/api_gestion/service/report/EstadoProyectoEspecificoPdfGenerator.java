@@ -1,21 +1,19 @@
 package com.proyecta.api_gestion.service.report;
 
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.Fase;
-import com.proyecta.api_gestion.model.Hito;
-import com.proyecta.api_gestion.model.ObjetivoEspecifico;
-import com.proyecta.api_gestion.model.Patrocinador;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.EstadoEntregable;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Fase;
+import com.proyecta.api_gestion.domain.model.Hito;
+import com.proyecta.api_gestion.domain.model.ObjetivoEspecifico;
+import com.proyecta.api_gestion.domain.model.Patrocinador;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoEntregable;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
+import java.util.regex.Pattern;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.core.io.ClassPathResource;
@@ -24,16 +22,18 @@ import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Genera el PDF "Estado de proyecto específico" con el mismo layout
@@ -90,7 +90,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                         String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            FontPack fonts = loadFonts(document);
+            FontPack fonts = FontPack.load(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
             DetailMode mode = DetailMode.from(detailMode);
 
@@ -105,38 +105,6 @@ public final class EstadoProyectoEspecificoPdfGenerator {
         } catch (IOException ex) {
             throw new IllegalStateException("No fue posible generar el PDF del reporte de proyecto específico.", ex);
         }
-    }
-
-    private static FontPack loadFonts(PDDocument document) {
-        List<String[]> candidates = List.of(
-                new String[]{"C:\\Windows\\Fonts\\calibri.ttf", "C:\\Windows\\Fonts\\calibrib.ttf"},
-                new String[]{"C:\\Windows\\Fonts\\arial.ttf", "C:\\Windows\\Fonts\\arialbd.ttf"}
-        );
-
-        for (String[] candidate : candidates) {
-            try {
-                File regular = new File(candidate[0]);
-                File bold = new File(candidate[1]);
-                if (regular.isFile() && bold.isFile()) {
-                    return new FontPack(
-                            PDType0Font.load(document, regular),
-                            PDType0Font.load(document, bold),
-                            true
-                    );
-                }
-            } catch (IOException _) {
-                // Se intenta con el siguiente candidato.
-            }
-        }
-
-        return new FontPack(
-                new PDType1Font(Standard14Fonts.FontName.HELVETICA),
-                new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD),
-                false
-        );
-    }
-
-    private record FontPack(PDFont regular, PDFont bold, boolean unicode) {
     }
 
     private static final class PdfCanvas {
@@ -159,7 +127,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             drawText("REPORTE: ESTADO DE PROYECTO EN ESPECÍFICO.", fonts.bold(), 17.2f, LEFT, y, COLOR_TEXT);
 
             y -= 36f;
-            drawLabelValueLine("Fecha del reporte:", formatDate(LocalDate.now()), y);
+            drawLabelValueLine("Fecha del reporte:", formatDate(LocalDate.now(ZoneId.systemDefault())), y);
             y -= 26f;
             drawLabelValueLine("Vigencia:", safe(vigenciaDelProyecto(proyecto)), y);
 
@@ -208,7 +176,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             drawStateCheckboxes(proyecto.getEstado(), y);
             if (!detailed) {
                 y -= 22f;
-                drawText("VersiÃ³n resumida: para ver fases, hitos y entregables use el modo detallado.",
+                drawText("Versión resumida: para ver fases, hitos y entregables use el modo detallado.",
                         fonts.regular(), 9.3f, LEFT, y, COLOR_MUTED);
             }
             finishPage();
@@ -443,47 +411,19 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
         private float drawPlainTable(TableBlock table, float topY, float headerFontSize, float cellFontSize, float rowLeading) throws IOException {
             float[] widths = table.normalizedWidths();
-            float x = LEFT;
+            HeaderCache headerCache = buildHeaderCache(table, widths, headerFontSize, rowLeading);
             float headerTop = topY;
-            float headerHeight = 0f;
-            List<List<String>> headerLinesCache = new ArrayList<>();
-            for (int i = 0; i < table.headers.length; i++) {
-                float columnWidth = CONTENT_WIDTH * widths[i];
-                List<String> headerLines = wrap(table.headers[i], fonts.bold(), headerFontSize, columnWidth - 4f);
-                headerLinesCache.add(headerLines);
-                headerHeight = Math.max(headerHeight, Math.max(16f, headerLines.size() * rowLeading));
-            }
+            float cursorY = drawHeaderRow(headerCache, headerTop, widths, headerFontSize, rowLeading);
 
-            for (int i = 0; i < table.headers.length; i++) {
-                float columnWidth = CONTENT_WIDTH * widths[i];
-                drawWrapped(headerLinesCache.get(i), fonts.bold(), headerFontSize, x + 2f, headerTop, rowLeading, COLOR_TEXT);
-                x += columnWidth;
-            }
-
-            float cursorY = headerTop - headerHeight - 8f;
             for (List<String> row : table.rows) {
                 float rowHeight = computeRowHeight(row, widths, cellFontSize, rowLeading);
                 if (cursorY - rowHeight < FOOTER_TOP_LIMIT) {
                     finishPage();
                     startPage();
                     drawHeaderLogo();
-                    cursorY = 680f;
-                    headerTop = cursorY;
-                    x = LEFT;
-                    headerLinesCache = new ArrayList<>();
-                    headerHeight = 0f;
-                    for (int i = 0; i < table.headers.length; i++) {
-                        float columnWidth = CONTENT_WIDTH * widths[i];
-                        List<String> headerLines = wrap(table.headers[i], fonts.bold(), headerFontSize, columnWidth - 4f);
-                        headerLinesCache.add(headerLines);
-                        headerHeight = Math.max(headerHeight, Math.max(16f, headerLines.size() * rowLeading));
-                    }
-                    for (int i = 0; i < table.headers.length; i++) {
-                        float columnWidth = CONTENT_WIDTH * widths[i];
-                        drawWrapped(headerLinesCache.get(i), fonts.bold(), headerFontSize, x + 2f, headerTop, rowLeading, COLOR_TEXT);
-                        x += columnWidth;
-                    }
-                    cursorY = headerTop - headerHeight - 8f;
+                    headerCache = buildHeaderCache(table, widths, headerFontSize, rowLeading);
+                    headerTop = 680f;
+                    cursorY = drawHeaderRow(headerCache, headerTop, widths, headerFontSize, rowLeading);
                 }
 
                 float cellX = LEFT;
@@ -497,6 +437,31 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                 cursorY -= rowHeight + 10f;
             }
             return cursorY;
+        }
+
+        private record HeaderCache(List<List<String>> lines, float height) {
+        }
+
+        private HeaderCache buildHeaderCache(TableBlock table, float[] widths, float headerFontSize, float rowLeading) throws IOException {
+            List<List<String>> cache = new ArrayList<>();
+            float height = 0f;
+            for (int i = 0; i < table.headers.length; i++) {
+                float columnWidth = CONTENT_WIDTH * widths[i];
+                List<String> headerLines = wrap(table.headers[i], fonts.bold(), headerFontSize, columnWidth - 4f);
+                cache.add(headerLines);
+                height = Math.max(height, Math.max(16f, headerLines.size() * rowLeading));
+            }
+            return new HeaderCache(cache, height);
+        }
+
+        private float drawHeaderRow(HeaderCache cache, float topY, float[] widths, float headerFontSize, float rowLeading) throws IOException {
+            float x = LEFT;
+            for (int i = 0; i < cache.lines().size(); i++) {
+                float columnWidth = CONTENT_WIDTH * widths[i];
+                drawWrapped(cache.lines().get(i), fonts.bold(), headerFontSize, x + 2f, topY, rowLeading, COLOR_TEXT);
+                x += columnWidth;
+            }
+            return topY - cache.height() - 8f;
         }
 
         private float computeRowHeight(List<String> row, float[] widths, float fontSize, float leading) throws IOException {
@@ -593,6 +558,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             }
         }
 
+        private static final Pattern WHITESPACE = Pattern.compile("\\s+");
         private List<String> wrap(String text, PDFont font, float fontSize, float width) throws IOException {
             String value = text == null || text.isBlank() ? NO_DISPONIBLE : text;
             String normalized = normalizeForFont(value);
@@ -603,24 +569,9 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                     result.add("");
                     continue;
                 }
-                String[] words = paragraph.split("\\s+");
                 StringBuilder line = new StringBuilder();
-                for (String word : words) {
-                    String candidate = line.isEmpty() ? word : line + " " + word;
-                    if (stringWidth(font, fontSize, candidate) <= width) {
-                        line.setLength(0);
-                        line.append(candidate);
-                    } else {
-                        if (!line.isEmpty()) {
-                            result.add(line.toString());
-                            line.setLength(0);
-                        }
-                        if (stringWidth(font, fontSize, word) <= width) {
-                            line.append(word);
-                        } else {
-                            result.addAll(breakLongWord(word, font, fontSize, width));
-                        }
-                    }
+                for (String word : WHITESPACE.split(paragraph)) {
+                    appendWord(word, line, result, font, fontSize, width);
                 }
                 if (!line.isEmpty()) {
                     result.add(line.toString());
@@ -630,6 +581,24 @@ public final class EstadoProyectoEspecificoPdfGenerator {
                 result.add(NO_DISPONIBLE);
             }
             return result;
+        }
+
+        private void appendWord(String word, StringBuilder line, List<String> result, PDFont font, float fontSize, float width) throws IOException {
+            String candidate = line.isEmpty() ? word : line + " " + word;
+            if (stringWidth(font, fontSize, candidate) <= width) {
+                line.setLength(0);
+                line.append(candidate);
+                return;
+            }
+            if (!line.isEmpty()) {
+                result.add(line.toString());
+                line.setLength(0);
+            }
+            if (stringWidth(font, fontSize, word) <= width) {
+                line.append(word);
+            } else {
+                result.addAll(breakLongWord(word, font, fontSize, width));
+            }
         }
 
         private List<String> breakLongWord(String word, PDFont font, float fontSize, float width) throws IOException {
@@ -714,7 +683,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
             if (EstadoEntregable.COMPLETADO.equals(entregable.getEstado())) {
                 return "En revisión";
             }
-            if (entregable.getFechaLimite() != null && entregable.getFechaLimite().isBefore(LocalDate.now())) {
+            if (entregable.getFechaLimite() != null && entregable.getFechaLimite().isBefore(LocalDate.now(ZoneId.systemDefault()))) {
                 return PENDIENTE;
             }
             return "En revisión";
@@ -765,7 +734,7 @@ public final class EstadoProyectoEspecificoPdfGenerator {
 
         private String vigenciaDelProyecto(Proyecto proyecto) {
             if (proyecto == null || proyecto.getVigenciaPeti() == null || proyecto.getVigenciaPeti().isBlank()) {
-                int year = LocalDate.now().getYear();
+                int year = LocalDate.now(ZoneId.systemDefault()).getYear();
                 return year + "-" + (year + 3);
             }
             return proyecto.getVigenciaPeti().trim();
@@ -784,6 +753,28 @@ public final class EstadoProyectoEspecificoPdfGenerator {
     }
 
     private record TableBlock(String[] headers, float[] widths, List<List<String>> rows) {
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof TableBlock(String[] otherHeaders, float[] otherWidths,
+                    List<List<String>> otherRows))) return false;
+            return Arrays.equals(headers, otherHeaders)
+                    && Arrays.equals(widths, otherWidths)
+                    && Objects.equals(rows, otherRows);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(Arrays.hashCode(headers), Arrays.hashCode(widths), rows);
+        }
+
+        @Override
+        public String toString() {
+            return "TableBlock[headers=" + Arrays.toString(headers) + ", widths=" + Arrays.toString(widths)
+                    + ", rows=" + rows + "]";
+        }
+
         private float[] normalizedWidths() {
             float total = 0f;
             for (float width : widths) {

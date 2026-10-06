@@ -157,16 +157,10 @@ INSERT INTO estrategia_peti_config (codigo, nombre, descripcion, vigencia_desde,
 ('GOBIERNO_DIGITAL',                   'Gobierno Digital',                     'Estrategia de gobierno digital', '2024', '2027', 4);
 
 -- =============================================================================
--- 8. ESTADOS DE RIESGO
--- =============================================================================
+-- 8. ESTADOS DE RIESGO -> RETIRADO
+--    El catalogo estado_riesgo_config fue eliminado en la normalizacion:
+--    el estado de riesgo vive en riesgos.estado (enum de la aplicacion).
 
-INSERT INTO estado_riesgo_config (codigo, nombre, descripcion) VALUES
-('IDENTIFICADO', 'Identificado', 'Riesgo recién identificado'),
-('MITIGADO',     'Mitigado',     'Riesgo con acciones de mitigación en curso'),
-('ACEPTADO',     'Aceptado',     'Riesgo aceptado por la dirección'),
-('CERRADO',      'Cerrado',      'Riesgo cerrado o materializado');
-
--- =============================================================================
 -- 9. MATRIZ DE RIESGO (5×5)
 -- =============================================================================
 
@@ -343,7 +337,7 @@ ON CONFLICT (code) DO UPDATE SET
 -- 14. PLANTILLAS DE NOTIFICACIÓN
 -- =============================================================================
 
-INSERT INTO notification_template (event_code, enabled, subject_template, body_template, target_roles, updated_by, updated_at) VALUES
+INSERT INTO notification_template (event_code, enabled, subject_template, body_template, target_roles, updated_by, actualizado_en) VALUES
 ('PROJECT_INITIAL_REGISTERED', TRUE,
  'Nuevo proyecto registrado: {{projectName}}',
  'El proyecto "{{projectName}}" ({{projectId}}) fue registrado por {{actorUsername}} y actualmente se encuentra en estado "{{state}}". Por favor, diríjase al proyecto para que el director pueda completar la información inicial.
@@ -642,7 +636,7 @@ ON CONFLICT (event_code) DO UPDATE SET
     body_template    = EXCLUDED.body_template,
     target_roles     = EXCLUDED.target_roles,
     updated_by       = EXCLUDED.updated_by,
-    updated_at       = EXCLUDED.updated_at;
+    actualizado_en   = EXCLUDED.actualizado_en;
 
 
 -- =============================================================================
@@ -675,3 +669,15 @@ INSERT INTO project_closure_question (texto, tipo_respuesta, activo, orden, crea
 -- =============================================================================
 -- FIN DE DATOS SEMILLA
 -- =============================================================================
+
+-- =============================================================================
+-- 17. BACKFILL DE VERSIONES DE INFORME DE AVANCE (idempotente)
+--     Migrado del antiguo V3: uploads sin version reciben la version 1.
+-- =============================================================================
+INSERT INTO advance_report_version
+    (upload_id, proyecto_id, periodo, numero_version, file_name, file_path, file_size,
+     estado, subido_por, subido_en)
+SELECT u.id, u.proyecto_id, u.periodo, 1, u.file_name, u.file_path, u.file_size,
+       'ACTUAL', u.uploaded_by, u.uploaded_at
+FROM advance_report_uploads u
+WHERE NOT EXISTS (SELECT 1 FROM advance_report_version v WHERE v.upload_id = u.id);

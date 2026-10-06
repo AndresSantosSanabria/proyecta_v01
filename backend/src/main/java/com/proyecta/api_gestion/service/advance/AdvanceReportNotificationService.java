@@ -1,10 +1,10 @@
 package com.proyecta.api_gestion.service.advance;
 
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.advance.NotificationLog;
-import com.proyecta.api_gestion.model.advance.AdvanceReportUpload;
-import com.proyecta.api_gestion.repository.advance.AdvanceReportUploadRepository;
-import com.proyecta.api_gestion.repository.advance.NotificationLogRepository;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.advance.NotificationLog;
+import com.proyecta.api_gestion.domain.model.advance.AdvanceReportUpload;
+import com.proyecta.api_gestion.application.port.out.persistence.advance.AdvanceReportUploadRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.advance.NotificationLogRepositoryPort;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
@@ -36,18 +36,18 @@ public class AdvanceReportNotificationService {
     private static final String KEY_PERIODO = "periodo";
     private static final String KEY_RECIPIENTS = "recipients";
 
-    private final NotificationLogRepository notificationLogRepository;
-    private final AdvanceReportUploadRepository uploadRepository;
+    private final NotificationLogRepositoryPort notificationLogRepositoryPort;
+    private final AdvanceReportUploadRepositoryPort uploadRepositoryPort;
     private final NotificationEventPublisherPort notificationPublisher;
     private final AdvanceReportRuleEvaluator ruleEvaluator;
 
     public AdvanceReportNotificationService(
-            NotificationLogRepository notificationLogRepository,
-            AdvanceReportUploadRepository uploadRepository,
+            NotificationLogRepositoryPort notificationLogRepositoryPort,
+            AdvanceReportUploadRepositoryPort uploadRepositoryPort,
             NotificationEventPublisherPort notificationPublisher,
             AdvanceReportRuleEvaluator ruleEvaluator) {
-        this.notificationLogRepository = notificationLogRepository;
-        this.uploadRepository = uploadRepository;
+        this.notificationLogRepositoryPort = notificationLogRepositoryPort;
+        this.uploadRepositoryPort = uploadRepositoryPort;
         this.notificationPublisher = notificationPublisher;
         this.ruleEvaluator = ruleEvaluator;
     }
@@ -59,7 +59,7 @@ public class AdvanceReportNotificationService {
     @Transactional
     public boolean processProject(Proyecto proyecto, LocalDate today, String periodo) {
         // Skip if already uploaded for this period
-        if (uploadRepository.existsByProjectIdAndPeriodo(proyecto.getId(), periodo)) {
+        if (uploadRepositoryPort.existsByProjectIdAndPeriodo(proyecto.getId(), periodo)) {
             return false;
         }
 
@@ -79,14 +79,14 @@ public class AdvanceReportNotificationService {
         if (notificationType == null) return false;
 
         // Idempotency check: try to insert log, catch unique constraint violation
-        if (notificationLogRepository.existsByProjectIdAndNotificationDateAndNotificationType(
+        if (notificationLogRepositoryPort.existsByProjectIdAndNotificationDateAndNotificationType(
                 proyecto.getId(), today, notificationType)) {
             log.debug("Notificación ya enviada hoy para proyecto {} tipo {}", proyecto.getId(), notificationType);
             return false;
         }
 
         try {
-            notificationLogRepository.save(
+            notificationLogRepositoryPort.save(
                     new NotificationLog(proyecto.getId(), today, notificationType));
         } catch (DataIntegrityViolationException _) {
             // Race condition: another thread inserted first. This is expected behavior.
@@ -120,7 +120,7 @@ public class AdvanceReportNotificationService {
      */
     @Transactional(readOnly = true)
     public boolean isUploaded(String projectId, String periodo) {
-        return uploadRepository.existsByProjectIdAndPeriodo(projectId, periodo);
+        return uploadRepositoryPort.existsByProjectIdAndPeriodo(projectId, periodo);
     }
 
     /**
@@ -128,7 +128,7 @@ public class AdvanceReportNotificationService {
      */
     @Transactional(readOnly = true)
     public AdvanceReportUpload getUpload(String projectId, String periodo) {
-        return uploadRepository.findByProjectIdAndPeriodo(projectId, periodo).orElse(null);
+        return uploadRepositoryPort.findByProjectIdAndPeriodo(projectId, periodo).orElse(null);
     }
 
     @Transactional

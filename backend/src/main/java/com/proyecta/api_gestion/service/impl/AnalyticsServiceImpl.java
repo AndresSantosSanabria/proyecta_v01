@@ -2,16 +2,16 @@ package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.analytics.AnalyticsPortfolioDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
-import com.proyecta.api_gestion.model.ActaCierre;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.Riesgo;
-import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
-import com.proyecta.api_gestion.repository.ActaCierreRepository;
-import com.proyecta.api_gestion.repository.EntregableRepository;
-import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.RiesgoRepository;
-import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
+import com.proyecta.api_gestion.domain.model.ActaCierre;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.Riesgo;
+import com.proyecta.api_gestion.domain.model.enums.EstadoRiesgo;
+import com.proyecta.api_gestion.application.port.out.persistence.ActaCierreRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.FuragRespuestaRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.RiesgoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.config.MatrizRiesgoRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.AnalyticsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -34,35 +35,35 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private static final String NO_PETI = "NO_PETI";
 
-    private final ProyectoRepository proyectoRepository;
-    private final EntregableRepository entregableRepository;
-    private final RiesgoRepository riesgoRepository;
-    private final FuragRespuestaRepository furagRespuestaRepository;
-    private final ActaCierreRepository actaCierreRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
+    private final RiesgoRepositoryPort riesgoRepositoryPort;
+    private final FuragRespuestaRepositoryPort furagRespuestaRepositoryPort;
+    private final ActaCierreRepositoryPort actaCierreRepositoryPort;
     private final ProjectProgressMetricsService progressMetricsService;
-    private final MatrizRiesgoRepository matrizRiesgoRepository;
+    private final MatrizRiesgoRepositoryPort matrizRiesgoRepositoryPort;
 
     public AnalyticsServiceImpl(
-            ProyectoRepository proyectoRepository,
-            EntregableRepository entregableRepository,
-            RiesgoRepository riesgoRepository,
-            FuragRespuestaRepository furagRespuestaRepository,
-            ActaCierreRepository actaCierreRepository,
+            ProyectoRepositoryPort proyectoRepositoryPort,
+            EntregableRepositoryPort entregableRepositoryPort,
+            RiesgoRepositoryPort riesgoRepositoryPort,
+            FuragRespuestaRepositoryPort furagRespuestaRepositoryPort,
+            ActaCierreRepositoryPort actaCierreRepositoryPort,
             ProjectProgressMetricsService progressMetricsService,
-            MatrizRiesgoRepository matrizRiesgoRepository) {
-        this.proyectoRepository = proyectoRepository;
-        this.entregableRepository = entregableRepository;
-        this.riesgoRepository = riesgoRepository;
-        this.furagRespuestaRepository = furagRespuestaRepository;
-        this.actaCierreRepository = actaCierreRepository;
+            MatrizRiesgoRepositoryPort matrizRiesgoRepositoryPort) {
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
+        this.riesgoRepositoryPort = riesgoRepositoryPort;
+        this.furagRespuestaRepositoryPort = furagRespuestaRepositoryPort;
+        this.actaCierreRepositoryPort = actaCierreRepositoryPort;
         this.progressMetricsService = progressMetricsService;
-        this.matrizRiesgoRepository = matrizRiesgoRepository;
+        this.matrizRiesgoRepositoryPort = matrizRiesgoRepositoryPort;
     }
 
     @Override
     public AnalyticsPortfolioDTO getPortfolioAnalytics() {
-        LocalDate corte = LocalDate.now();
-        List<ProjectMetricsHolder> proyectos = proyectoRepository.findAll().stream()
+        LocalDate corte = LocalDate.now(ZoneId.systemDefault());
+        List<ProjectMetricsHolder> proyectos = proyectoRepositoryPort.findAll().stream()
                 .map(proyecto -> construirProyectoMetrics(proyecto, corte))
                 .sorted(Comparator.comparing(
                                 (ProjectMetricsHolder holder) -> normalizeGroup(holder.metrics().dependencia()),
@@ -107,8 +108,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         BigDecimal eficaciaPromedio = average(eficacias);
         BigDecimal eficienciaPromedio = average(eficiencias);
 
-        long entregablesAtrasados = entregableRepository.countAtrasadosTotal(corte);
-        long proximosAVencer = entregableRepository.countProximosActivos(corte, corte.plusDays(7));
+        long entregablesAtrasados = entregableRepositoryPort.countAtrasadosTotal(corte);
+        long proximosAVencer = entregableRepositoryPort.countProximosActivos(corte, corte.plusDays(7));
 
         return new AnalyticsPortfolioDTO.ExecutiveMetrics(
                 total,
@@ -132,8 +133,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .stream()
                 .map(entry -> {
                     List<ProjectMetricsHolder> items = entry.getValue();
-                    long riesgosTratados = items.stream().mapToLong(holder -> riesgoRepository.countByProyecto_IdAndEstado(holder.proyecto().getId(), EstadoRiesgo.TRATADO)).sum();
-                    long riesgosPendientes = items.stream().mapToLong(holder -> riesgoRepository.countByProyecto_IdAndEstado(holder.proyecto().getId(), EstadoRiesgo.PENDIENTE)).sum();
+                    long riesgosTratados = items.stream().mapToLong(holder -> riesgoRepositoryPort.countByProyectoIdAndEstado(holder.proyecto().getId(), EstadoRiesgo.TRATADO)).sum();
+                    long riesgosPendientes = items.stream().mapToLong(holder -> riesgoRepositoryPort.countByProyectoIdAndEstado(holder.proyecto().getId(), EstadoRiesgo.PENDIENTE)).sum();
                     long proyectosPeti = items.stream().filter(holder -> Boolean.TRUE.equals(holder.proyecto().getPeti())).count();
 
                     List<BigDecimal> avances = new ArrayList<>();
@@ -191,13 +192,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     private AnalyticsPortfolioDTO.RiskMetrics construirRiesgos() {
-        List<Riesgo> riesgos = riesgoRepository.findAll();
+        List<Riesgo> riesgos = riesgoRepositoryPort.findAll();
         long total = riesgos.size();
         long tratados = riesgos.stream().filter(r -> EstadoRiesgo.TRATADO.equals(r.getEstado())).count();
         long pendientes = riesgos.stream().filter(r -> EstadoRiesgo.PENDIENTE.equals(r.getEstado())).count();
         BigDecimal indiceMitigacion = total == 0 ? BigDecimal.ZERO : ratioPercent(tratados, total);
 
-        Map<String, String> colorByLevel = matrizRiesgoRepository.findAllByOrderByIdAsc().stream()
+        Map<String, String> colorByLevel = matrizRiesgoRepositoryPort.findAllByOrderByIdAsc().stream()
                 .collect(Collectors.toMap(
                         item -> normalizeGroup(item.getNivelResultante()),
                         item -> normalizeGroup(item.getColor()),
@@ -230,8 +231,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         for (ProjectMetricsHolder holder : proyectos) {
             String proyectoId = holder.proyecto().getId();
-            long obligatorias = furagRespuestaRepository.countByProyecto_IdAndObligatoriaTrue(proyectoId);
-            long completas = furagRespuestaRepository.countByProyecto_IdAndObligatoriaTrueAndRespuestaIsNotNull(proyectoId);
+            long obligatorias = furagRespuestaRepositoryPort.countByProyectoIdAndObligatoriaTrue(proyectoId);
+            long completas = furagRespuestaRepositoryPort.countByProyectoIdAndObligatoriaTrueAndRespuestaIsNotNull(proyectoId);
             totalObligatorias += obligatorias;
             totalCompletas += completas;
             if (obligatorias > 0) {
@@ -268,9 +269,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private ProjectMetricsHolder construirProyectoMetrics(Proyecto proyecto, LocalDate corte) {
         ProyectoAvanceResponseDTO avance = resolverAvance(proyecto, corte);
-        long riesgosTotal = riesgoRepository.countByProyecto_Id(proyecto.getId());
-        long riesgosTratados = riesgoRepository.countByProyecto_IdAndEstado(proyecto.getId(), EstadoRiesgo.TRATADO);
-        long riesgosPendientes = riesgoRepository.countByProyecto_IdAndEstado(proyecto.getId(), EstadoRiesgo.PENDIENTE);
+        long riesgosTotal = riesgoRepositoryPort.countByProyectoId(proyecto.getId());
+        long riesgosTratados = riesgoRepositoryPort.countByProyectoIdAndEstado(proyecto.getId(), EstadoRiesgo.TRATADO);
+        long riesgosPendientes = riesgoRepositoryPort.countByProyectoIdAndEstado(proyecto.getId(), EstadoRiesgo.PENDIENTE);
         BigDecimal indiceMitigacion = riesgosTotal == 0 ? BigDecimal.ZERO : ratioPercent(riesgosTratados, riesgosTotal);
         boolean tieneActividad = tieneEntregablesIniciados(proyecto, corte);
 
@@ -315,7 +316,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private ProyectoAvanceResponseDTO resolverAvance(Proyecto proyecto, LocalDate corte) {
         if (proyecto.esEstadoTerminal()) {
-            ActaCierre acta = actaCierreRepository.findByProyectoId(proyecto.getId()).orElse(null);
+            ActaCierre acta = actaCierreRepositoryPort.findByProyectoId(proyecto.getId()).orElse(null);
             if (acta != null && acta.getSnapshotJson() != null && !acta.getSnapshotJson().isBlank()) {
                 return progressMetricsService.deserializar(acta.getSnapshotJson());
             }
@@ -324,8 +325,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     private BigDecimal furagCoverage(String proyectoId) {
-        long obligatorias = furagRespuestaRepository.countByProyecto_IdAndObligatoriaTrue(proyectoId);
-        long completas = furagRespuestaRepository.countByProyecto_IdAndObligatoriaTrueAndRespuestaIsNotNull(proyectoId);
+        long obligatorias = furagRespuestaRepositoryPort.countByProyectoIdAndObligatoriaTrue(proyectoId);
+        long completas = furagRespuestaRepositoryPort.countByProyectoIdAndObligatoriaTrueAndRespuestaIsNotNull(proyectoId);
         if (obligatorias == 0) {
             return BigDecimal.ZERO;
         }

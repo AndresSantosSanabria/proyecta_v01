@@ -4,8 +4,8 @@ import com.proyecta.api_gestion.controller.interfaces.IUsuarioController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.user.GlobalNotificationUpdateRequest;
 import com.proyecta.api_gestion.dto.user.UsuarioDTO;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import jakarta.validation.Valid;
@@ -26,14 +26,14 @@ public class UsuarioController implements IUsuarioController {
     private static final String JWT_CLAIM_PREFERRED_USERNAME = "preferred_username";
 
     private final LocalUserAuthorizationService localUserAuthorizationService;
-    private final SeguridadUsuarioRepository seguridadUsuarioRepository;
+    private final SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort;
     private final KeycloakIdentityExtractor identityExtractor;
 
     public UsuarioController(LocalUserAuthorizationService localUserAuthorizationService,
-                             SeguridadUsuarioRepository seguridadUsuarioRepository,
+                             SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort,
                              KeycloakIdentityExtractor identityExtractor) {
         this.localUserAuthorizationService = localUserAuthorizationService;
-        this.seguridadUsuarioRepository = seguridadUsuarioRepository;
+        this.seguridadUsuarioRepositoryPort = seguridadUsuarioRepositoryPort;
         this.identityExtractor = identityExtractor;
     }
 
@@ -95,13 +95,13 @@ public class UsuarioController implements IUsuarioController {
             @Valid GlobalNotificationUpdateRequest request,
             Authentication authentication) {
         String username = identityExtractor.resolveUsername(authentication);
-        SeguridadUsuario segUsuario = seguridadUsuarioRepository.findByUsernameIgnoreCase(username)
-                .or(() -> seguridadUsuarioRepository.findByCorreoIgnoreCase(username))
+        SeguridadUsuario segUsuario = seguridadUsuarioRepositoryPort.findByUsernameIgnoreCase(username)
+                .or(() -> seguridadUsuarioRepositoryPort.findByCorreoIgnoreCase(username))
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + username));
 
         boolean newValue = Boolean.TRUE.equals(request.recibirNotificacionesGlobales());
         segUsuario.setRecibirNotificacionesGlobales(newValue);
-        seguridadUsuarioRepository.save(segUsuario);
+        seguridadUsuarioRepositoryPort.save(segUsuario);
 
         return ResponseEntity.ok(ApiResponse.success(newValue, newValue
                 ? "Notificaciones globales activadas"
@@ -110,8 +110,8 @@ public class UsuarioController implements IUsuarioController {
 
     private Boolean resolveGlobalNotificationsFlag(String username) {
         if (username == null || username.isBlank()) return false;
-        return seguridadUsuarioRepository.findByUsernameIgnoreCase(username)
-                .or(() -> seguridadUsuarioRepository.findByCorreoIgnoreCase(username))
+        return seguridadUsuarioRepositoryPort.findByUsernameIgnoreCase(username)
+                .or(() -> seguridadUsuarioRepositoryPort.findByCorreoIgnoreCase(username))
                 .map(SeguridadUsuario::getRecibirNotificacionesGlobales)
                 .orElse(false);
     }

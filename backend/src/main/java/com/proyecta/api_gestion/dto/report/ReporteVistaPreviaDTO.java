@@ -1,4 +1,5 @@
 package com.proyecta.api_gestion.dto.report;
+import com.proyecta.api_gestion.application.readmodel.EntregablePendienteDTO;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;

@@ -5,16 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.beneficioimpacto.ProyectoBeneficioImpactoRequest;
 import com.proyecta.api_gestion.dto.beneficioimpacto.ProyectoBeneficioImpactoResponseDTO;
-import com.proyecta.api_gestion.exception.ForbiddenException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.exception.UnprocessableEntityException;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.beneficioimpacto.ProyectoBeneficioImpacto;
-import com.proyecta.api_gestion.model.enums.EstadoBeneficioImpacto;
-import com.proyecta.api_gestion.repository.ProyectoBeneficioImpactoRepository;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.exception.UnprocessableEntityException;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.beneficioimpacto.ProyectoBeneficioImpacto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoBeneficioImpacto;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoBeneficioImpactoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.ProyectoBeneficioImpactoService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
@@ -23,6 +21,7 @@ import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipien
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
+import com.proyecta.api_gestion.service.support.TextSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -31,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,23 +50,21 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     private static final String PATH_BENEFIT_IMPACT = "/beneficio-impacto";
     private static final String ATTR_RECIPIENTS = "recipients";
 
-    private final ProyectoRepository proyectoRepository;
-    private final ProyectoBeneficioImpactoRepository beneficioImpactoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final ProyectoBeneficioImpactoRepositoryPort beneficioImpactoRepositoryPort;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final KeycloakIdentityExtractor identityExtractor;
     private final NotificationEventPublisherPort notificationPublisher;
     private final ObjectMapper objectMapper;
 
-    public ProyectoBeneficioImpactoServiceImpl(ProyectoRepository proyectoRepository,
-                                               ProyectoBeneficioImpactoRepository beneficioImpactoRepository,
-                                               SeguridadUsuarioRepository usuarioRepository,
-                                               SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+    public ProyectoBeneficioImpactoServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                               ProyectoBeneficioImpactoRepositoryPort beneficioImpactoRepositoryPort,
                                                LocalUserAuthorizationService localUserAuthorizationService,
                                                KeycloakIdentityExtractor identityExtractor,
                                                NotificationEventPublisherPort notificationPublisher,
                                                ObjectMapper objectMapper) {
-        this.proyectoRepository = proyectoRepository;
-        this.beneficioImpactoRepository = beneficioImpactoRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.beneficioImpactoRepositoryPort = beneficioImpactoRepositoryPort;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.identityExtractor = identityExtractor;
         this.notificationPublisher = notificationPublisher;
@@ -77,7 +75,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     @Transactional(readOnly = true)
     public ProyectoBeneficioImpactoResponseDTO obtener(String proyectoId, Authentication authentication) {
         Proyecto proyecto = cargarProyecto(proyectoId);
-        ProyectoBeneficioImpacto registro = beneficioImpactoRepository.findByProyecto_Id(proyecto.getId()).orElse(null);
+        ProyectoBeneficioImpacto registro = beneficioImpactoRepositoryPort.findByProyectoId(proyecto.getId()).orElse(null);
         AuthInfo auth = authInfo(authentication);
 
         if (registro == null) {
@@ -95,7 +93,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     @Transactional
     public ProyectoBeneficioImpactoResponseDTO guardar(String proyectoId, ProyectoBeneficioImpactoRequest request, Authentication authentication) {
         Proyecto proyecto = cargarProyecto(proyectoId);
-        ProyectoBeneficioImpacto registro = beneficioImpactoRepository.findByProyecto_Id(proyecto.getId())
+        ProyectoBeneficioImpacto registro = beneficioImpactoRepositoryPort.findByProyectoId(proyecto.getId())
                 .orElseGet(ProyectoBeneficioImpacto::new);
 
         AuthInfo auth = authInfo(authentication);
@@ -128,12 +126,12 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         registro.setObservaciones(trimToNull(request.observaciones()));
 
         if (registro.getDiligenciadoEn() == null) {
-            registro.setDiligenciadoEn(LocalDateTime.now());
+            registro.setDiligenciadoEn(LocalDateTime.now(ZoneId.systemDefault()));
         }
         registro.setDiligenciadoPor(auth.username());
         registro.setSnapshotJson(buildSnapshotJson(registro));
 
-        ProyectoBeneficioImpacto saved = beneficioImpactoRepository.save(registro);
+        ProyectoBeneficioImpacto saved = beneficioImpactoRepositoryPort.save(registro);
         notificarSubmision(proyecto, saved, auth.username(), veniaObservado);
         return toResponse(saved, auth);
     }
@@ -142,7 +140,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     @Transactional
     public ProyectoBeneficioImpactoResponseDTO revisar(String proyectoId, boolean aprobado, String observaciones, Authentication authentication) {
         Proyecto proyecto = cargarProyecto(proyectoId);
-        ProyectoBeneficioImpacto registro = beneficioImpactoRepository.findByProyecto_Id(proyecto.getId())
+        ProyectoBeneficioImpacto registro = beneficioImpactoRepositoryPort.findByProyectoId(proyecto.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("No existe informacion de beneficio e impacto para este proyecto."));
 
         AuthInfo auth = authInfo(authentication);
@@ -165,13 +163,13 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
 
         EstadoBeneficioImpacto nuevoEstado = aprobado ? EstadoBeneficioImpacto.APROBADO : EstadoBeneficioImpacto.OBSERVADO;
         registro.setEstado(nuevoEstado);
-        registro.setRevisadoEn(LocalDateTime.now());
+        registro.setRevisadoEn(LocalDateTime.now(ZoneId.systemDefault()));
         registro.setRevisadoPor(auth.username());
-        if (!aprobado && observaciones != null && !observaciones.isBlank()) {
+        if (!aprobado) {
             registro.setObservaciones(observaciones.trim());
         }
 
-        ProyectoBeneficioImpacto saved = beneficioImpactoRepository.save(registro);
+        ProyectoBeneficioImpacto saved = beneficioImpactoRepositoryPort.save(registro);
         notificarRevision(proyecto, saved, auth.username(), aprobado, observaciones);
         return toResponse(saved, auth);
     }
@@ -184,7 +182,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         }
 
         Proyecto proyecto = cargarProyecto(proyectoId);
-        ProyectoBeneficioImpacto registro = beneficioImpactoRepository.findByProyecto_Id(proyecto.getId()).orElse(null);
+        ProyectoBeneficioImpacto registro = beneficioImpactoRepositoryPort.findByProyectoId(proyecto.getId()).orElse(null);
         if (registro != null) {
             if (registro.getEstado() != null && registro.getEstado() != EstadoBeneficioImpacto.PENDIENTE) {
                 return;
@@ -198,16 +196,16 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
             registro = new ProyectoBeneficioImpacto();
             registro.setProyecto(proyecto);
             registro.setEstado(EstadoBeneficioImpacto.PENDIENTE);
-            registro.setRequeridoEn(LocalDateTime.now());
+            registro.setRequeridoEn(LocalDateTime.now(ZoneId.systemDefault()));
             registro.setRequeridoPor(trimToNull(actorUsername));
-            beneficioImpactoRepository.save(registro);
+            beneficioImpactoRepositoryPort.save(registro);
             notificarRequerimiento(proyecto, trimToNull(actorUsername));
             return;
         }
 
-        registro.setRequeridoEn(LocalDateTime.now());
+        registro.setRequeridoEn(LocalDateTime.now(ZoneId.systemDefault()));
         registro.setRequeridoPor(trimToNull(actorUsername));
-        beneficioImpactoRepository.save(registro);
+        beneficioImpactoRepositoryPort.save(registro);
         notificarRequerimiento(proyecto, trimToNull(actorUsername));
     }
 
@@ -218,7 +216,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
             throw new UnprocessableEntityException("El proyecto debe registrar la informacion de beneficio e impacto antes del cierre.");
         }
 
-        ProyectoBeneficioImpacto registro = beneficioImpactoRepository.findByProyecto_Id(normalizeProjectId(proyectoId))
+        ProyectoBeneficioImpacto registro = beneficioImpactoRepositoryPort.findByProyectoId(normalizeProjectId(proyectoId))
                 .orElseThrow(() -> new UnprocessableEntityException("El proyecto debe registrar la informacion de beneficio e impacto antes del cierre."));
 
         if (registro.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO
@@ -231,7 +229,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         if (proyectoId == null || proyectoId.isBlank()) {
             throw new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId);
         }
-        return proyectoRepository.findById(normalizeProjectId(proyectoId))
+        return proyectoRepositoryPort.findById(normalizeProjectId(proyectoId))
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
     }
 
@@ -244,9 +242,10 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
 
     private ProyectoBeneficioImpactoResponseDTO toResponse(ProyectoBeneficioImpacto registro, AuthInfo auth) {
         boolean visibleParaGestor = registro.getEstado() != null && registro.getEstado() != EstadoBeneficioImpacto.PENDIENTE;
-        boolean editable = puedeEditar(auth) && (registro.getEstado() == null
+        boolean editable = registro.getEstado() == null
                 || registro.getEstado() == EstadoBeneficioImpacto.PENDIENTE
-                || registro.getEstado() == EstadoBeneficioImpacto.OBSERVADO);
+                || registro.getEstado() == EstadoBeneficioImpacto.OBSERVADO
+                || (registro.getEstado() == EstadoBeneficioImpacto.DILIGENCIADO && puedeEditar(auth));
 
         return new ProyectoBeneficioImpactoResponseDTO(
                 registro.getId(),
@@ -321,7 +320,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     }
 
     private void notificarRequerimiento(Proyecto proyecto, String actorUsername) {
-        List<String> recipients = resolverRecipientesProyecto(proyecto, actorUsername);
+        List<String> recipients = resolverRecipientesProyecto(proyecto);
 
         if (recipients.isEmpty()) {
             return;
@@ -340,7 +339,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     }
 
     private void notificarSubmision(Proyecto proyecto, ProyectoBeneficioImpacto registro, String actorUsername, boolean resubmitted) {
-        List<String> recipients = resolverRecipientesProyecto(proyecto, actorUsername);
+        List<String> recipients = resolverRecipientesProyecto(proyecto);
         if (recipients.isEmpty()) {
             return;
         }
@@ -361,7 +360,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     }
 
     private void notificarRevision(Proyecto proyecto, ProyectoBeneficioImpacto registro, String actorUsername, boolean aprobado, String observaciones) {
-        List<String> recipients = resolverRecipientesProyecto(proyecto, actorUsername);
+        List<String> recipients = resolverRecipientesProyecto(proyecto);
         if (recipients.isEmpty()) return;
 
         Map<String, Object> attrs = new java.util.HashMap<>();
@@ -380,7 +379,7 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
         ));
     }
 
-    private List<String> resolverRecipientesProyecto(Proyecto proyecto, String actorUsername) {
+    private List<String> resolverRecipientesProyecto(Proyecto proyecto) {
         return ProjectNotificationRecipients.resolve(proyecto);
     }
 
@@ -420,23 +419,11 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     }
 
     private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isBlank() ? null : trimmed;
+        return TextSupport.trimToNull(value);
     }
 
     private String firstNonBlank(String... values) {
-        if (values == null) {
-            return null;
-        }
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value.trim();
-            }
-        }
-        return null;
+        return TextSupport.firstNonBlank(values);
     }
 
     private record AuthInfo(String username, Set<String> roleCodes, boolean admin, boolean director) {}

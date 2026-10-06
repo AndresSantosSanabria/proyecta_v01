@@ -1,14 +1,14 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.avance.ProjectEvidenceDTO;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.*;
-import com.proyecta.api_gestion.model.advance.AdvanceReportUpload;
-import com.proyecta.api_gestion.model.advance.AdvanceReportVersion;
-import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
-import com.proyecta.api_gestion.repository.*;
-import com.proyecta.api_gestion.repository.advance.AdvanceReportUploadRepository;
-import com.proyecta.api_gestion.repository.advance.AdvanceReportVersionRepository;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.*;
+import com.proyecta.api_gestion.domain.model.advance.AdvanceReportUpload;
+import com.proyecta.api_gestion.domain.model.advance.AdvanceReportVersion;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoProyectoVersionEstado;
+import com.proyecta.api_gestion.application.port.out.persistence.*;
+import com.proyecta.api_gestion.application.port.out.persistence.advance.AdvanceReportUploadRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.advance.AdvanceReportVersionRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.ProjectEvidenceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,48 +51,48 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             "MATRIZ_RIESGOS_VIABILIDAD", "Matriz de Riesgos de Viabilidad"
     );
 
-    private final ProyectoRepository proyectoRepository;
-    private final EntregableRepository entregableRepository;
-    private final DocumentoProyectoVersionRepository documentoProyectoVersionRepository;
-    private final RiesgoRepository riesgoRepository;
-    private final EntregableCambioFechaRepository entregableCambioFechaRepository;
-    private final EntregableCambioDescripcionRepository entregableCambioDescripcionRepository;
-    private final DocumentoDinamicoRepository documentoDinamicoRepository;
-    private final ActaCierreRepository actaCierreRepository;
-    private final AdvanceReportUploadRepository advanceReportUploadRepository;
-    private final AdvanceReportVersionRepository advanceReportVersionRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
+    private final DocumentoProyectoVersionRepositoryPort documentoProyectoVersionRepositoryPort;
+    private final RiesgoRepositoryPort riesgoRepositoryPort;
+    private final EntregableCambioFechaRepositoryPort entregableCambioFechaRepositoryPort;
+    private final EntregableCambioDescripcionRepositoryPort entregableCambioDescripcionRepositoryPort;
+    private final DocumentoDinamicoRepositoryPort documentoDinamicoRepositoryPort;
+    private final ActaCierreRepositoryPort actaCierreRepositoryPort;
+    private final AdvanceReportUploadRepositoryPort advanceReportUploadRepositoryPort;
+    private final AdvanceReportVersionRepositoryPort advanceReportVersionRepositoryPort;
 
-    public ProjectEvidenceServiceImpl(ProyectoRepository proyectoRepository,
-                                      EntregableRepository entregableRepository,
-                                      DocumentoProyectoVersionRepository documentoProyectoVersionRepository,
-                                      RiesgoRepository riesgoRepository,
-                                      EntregableCambioFechaRepository entregableCambioFechaRepository,
-                                      EntregableCambioDescripcionRepository entregableCambioDescripcionRepository,
-                                      DocumentoDinamicoRepository documentoDinamicoRepository,
-                                      ActaCierreRepository actaCierreRepository,
-                                      AdvanceReportUploadRepository advanceReportUploadRepository,
-                                      AdvanceReportVersionRepository advanceReportVersionRepository) {
-        this.proyectoRepository = proyectoRepository;
-        this.entregableRepository = entregableRepository;
-        this.documentoProyectoVersionRepository = documentoProyectoVersionRepository;
-        this.riesgoRepository = riesgoRepository;
-        this.entregableCambioFechaRepository = entregableCambioFechaRepository;
-        this.entregableCambioDescripcionRepository = entregableCambioDescripcionRepository;
-        this.documentoDinamicoRepository = documentoDinamicoRepository;
-        this.actaCierreRepository = actaCierreRepository;
-        this.advanceReportUploadRepository = advanceReportUploadRepository;
-        this.advanceReportVersionRepository = advanceReportVersionRepository;
+    public ProjectEvidenceServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                      EntregableRepositoryPort entregableRepositoryPort,
+                                      DocumentoProyectoVersionRepositoryPort documentoProyectoVersionRepositoryPort,
+                                      RiesgoRepositoryPort riesgoRepositoryPort,
+                                      EntregableCambioFechaRepositoryPort entregableCambioFechaRepositoryPort,
+                                      EntregableCambioDescripcionRepositoryPort entregableCambioDescripcionRepositoryPort,
+                                      DocumentoDinamicoRepositoryPort documentoDinamicoRepositoryPort,
+                                      ActaCierreRepositoryPort actaCierreRepositoryPort,
+                                      AdvanceReportUploadRepositoryPort advanceReportUploadRepositoryPort,
+                                      AdvanceReportVersionRepositoryPort advanceReportVersionRepositoryPort) {
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
+        this.documentoProyectoVersionRepositoryPort = documentoProyectoVersionRepositoryPort;
+        this.riesgoRepositoryPort = riesgoRepositoryPort;
+        this.entregableCambioFechaRepositoryPort = entregableCambioFechaRepositoryPort;
+        this.entregableCambioDescripcionRepositoryPort = entregableCambioDescripcionRepositoryPort;
+        this.documentoDinamicoRepositoryPort = documentoDinamicoRepositoryPort;
+        this.actaCierreRepositoryPort = actaCierreRepositoryPort;
+        this.advanceReportUploadRepositoryPort = advanceReportUploadRepositoryPort;
+        this.advanceReportVersionRepositoryPort = advanceReportVersionRepositoryPort;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProjectEvidenceDTO> listarEvidencias(String proyectoId, String categoria) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
-        Set<String> tiposConVersionActual = documentoProyectoVersionRepository
+        Set<String> tiposConVersionActual = documentoProyectoVersionRepositoryPort
                 .findByProyectoIdOrderBySubidoEnDesc(proyectoId).stream()
                 .filter(v -> DocumentoProyectoVersionEstado.ACTUAL.equals(v.getEstado()))
                 .map(DocumentoProyectoVersion::getTipoDocumento)
@@ -151,7 +151,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     }
 
     private List<ProjectEvidenceDTO> colDocumentosProyecto(String proyectoId) {
-        List<DocumentoProyectoVersion> versiones = documentoProyectoVersionRepository
+        List<DocumentoProyectoVersion> versiones = documentoProyectoVersionRepositoryPort
                 .findByProyectoIdOrderBySubidoEnDesc(proyectoId);
 
         return versiones.stream()
@@ -211,11 +211,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
             String codigo = entry.getKey();
             String pdfPath = entry.getValue();
 
-            if (pdfPath == null || pdfPath.isBlank()) {
-                continue;
-            }
-
-            if (tiposConVersionActual.contains(codigo)) {
+            if (pdfPath == null || pdfPath.isBlank() || tiposConVersionActual.contains(codigo)) {
                 continue;
             }
 
@@ -262,7 +258,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     }
 
     private List<ProjectEvidenceDTO> colDocumentosDinamicos(String proyectoId) {
-        List<DocumentoDinamico> documentos = documentoDinamicoRepository
+        List<DocumentoDinamico> documentos = documentoDinamicoRepositoryPort
                 .findByProyectoIdOrderByFechaCargaDesc(proyectoId);
 
         return documentos.stream()
@@ -310,7 +306,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     }
 
     private List<ProjectEvidenceDTO> colEvidenciasEntregables(String proyectoId) {
-        List<Entregable> entregables = entregableRepository.findByProyectoId(proyectoId);
+        List<Entregable> entregables = entregableRepositoryPort.findByProyectoId(proyectoId);
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
         for (Entregable entregable : entregables) {
@@ -421,7 +417,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     }
 
     private List<ProjectEvidenceDTO> colSolucionesRiesgos(String proyectoId) {
-        List<Riesgo> riesgos = riesgoRepository.findByProyectoId(proyectoId);
+        List<Riesgo> riesgos = riesgoRepositoryPort.findByProyectoId(proyectoId);
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
         for (Riesgo riesgo : riesgos) {
@@ -473,7 +469,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     }
 
     private List<ProjectEvidenceDTO> colMatrizRiesgos(String proyectoId) {
-        List<Riesgo> riesgos = riesgoRepository.findByProyectoId(proyectoId);
+        List<Riesgo> riesgos = riesgoRepositoryPort.findByProyectoId(proyectoId);
         log.info("colMatrizRiesgos: proyectoId={}, riesgos encontrados={}", proyectoId, riesgos.size());
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
@@ -528,66 +524,123 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     }
 
     private List<ProjectEvidenceDTO> colCambiosFecha(String proyectoId) {
-        List<Entregable> entregables = entregableRepository.findByProyectoId(proyectoId);
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
+        List<Entregable> entregables = entregableRepositoryPort.findByProyectoId(proyectoId);
 
         for (Entregable entregable : entregables) {
-            List<EntregableCambioFecha> cambios = entregableCambioFechaRepository
+            List<EntregableCambioFecha> cambios = entregableCambioFechaRepositoryPort
                     .findByEntregableIdOrderByCreadoEnDesc(entregable.getId());
 
-            String faseNombre = null;
-            String hitoNombre = null;
-            if (entregable.getHito() != null) {
-                hitoNombre = entregable.getHito().getNombre();
-                if (entregable.getHito().getFase() != null) {
-                    faseNombre = entregable.getHito().getFase().getNombre();
-                }
-            }
+            HitoFaseNombres nombres = resolverNombresHitoFase(entregable);
 
             for (EntregableCambioFecha cambio : cambios) {
-                String urlDescarga = null;
-                if (cambio.getArchivoPdf() != null && !cambio.getArchivoPdf().isBlank()) {
-                    urlDescarga = URL_PROYECTOS_BASE + proyectoId
-                            + "/entregables/cambios-fecha/" + cambio.getId() + URL_DESCARGAR;
-                }
-
-                evidencias.add(new ProjectEvidenceDTO(
-                        "cf-" + cambio.getId() + "-" + proyectoId,
-                        CAT_CAMBIO_FECHA,
-                        "Cambio de fecha - " + (entregable.getNombre() != null ? entregable.getNombre() : ""),
-                        cambio.getNombreOriginal(),
-                        urlDescarga,
-                        cambio.getCreadoEn() != null ? cambio.getCreadoEn().toLocalDate() : null,
-                        null,
-                        null,
-                        ESTADO_COMPLETADO,
-                        ESTADO_COMPLETADO,
-                        cambio.getUsuario(),
-                        "Cambio de fecha",
-                        null,
-                        faseNombre,
-                        hitoNombre,
-                        entregable.getNombre(),
-                        cambio.getJustificacion(),
-                        null,
-                        entregable.getId(),
-                        cambio.getId(),
-                        null,
-                        null,
-                        cambio.getArchivoPdf(),
-                        cambio.getFechaAnterior() != null ? cambio.getFechaAnterior().toString() : null,
-                        cambio.getFechaNueva() != null ? cambio.getFechaNueva().toString() : null,
-                        cambio.getJustificacion(),
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                ));
+                evidencias.add(buildCambioFechaDTO(entregable, cambio, nombres, proyectoId));
             }
         }
 
         return evidencias;
+    }
+
+    private HitoFaseNombres resolverNombresHitoFase(Entregable entregable) {
+        Hito hito = entregable.getHito();
+        if (hito == null) {
+            return new HitoFaseNombres(null, null);
+        }
+        String hitoNombre = hito.getNombre();
+        String faseNombre = null;
+        if (hito.getFase() != null) {
+            faseNombre = hito.getFase().getNombre();
+        }
+        return new HitoFaseNombres(hitoNombre, faseNombre);
+    }
+
+    private ProjectEvidenceDTO buildCambioFechaDTO(Entregable entregable, EntregableCambioFecha cambio,
+            HitoFaseNombres nombres, String proyectoId) {
+        String urlDescarga = null;
+        if (cambio.getArchivoPdf() != null && !cambio.getArchivoPdf().isBlank()) {
+            urlDescarga = URL_PROYECTOS_BASE + proyectoId
+                    + "/entregables/cambios-fecha/" + cambio.getId() + URL_DESCARGAR;
+        }
+
+        return new ProjectEvidenceDTO(
+                "cf-" + cambio.getId() + "-" + proyectoId,
+                CAT_CAMBIO_FECHA,
+                "Cambio de fecha - " + (entregable.getNombre() != null ? entregable.getNombre() : ""),
+                cambio.getNombreOriginal(),
+                urlDescarga,
+                cambio.getCreadoEn() != null ? cambio.getCreadoEn().toLocalDate() : null,
+                null,
+                null,
+                ESTADO_COMPLETADO,
+                ESTADO_COMPLETADO,
+                cambio.getUsuario(),
+                "Cambio de fecha",
+                null,
+                nombres.faseNombre(),
+                nombres.hitoNombre(),
+                entregable.getNombre(),
+                cambio.getJustificacion(),
+                null,
+                entregable.getId(),
+                cambio.getId(),
+                null,
+                null,
+                cambio.getArchivoPdf(),
+                cambio.getFechaAnterior() != null ? cambio.getFechaAnterior().toString() : null,
+                cambio.getFechaNueva() != null ? cambio.getFechaNueva().toString() : null,
+                cambio.getJustificacion(),
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    private ProjectEvidenceDTO buildCambioDescripcionDTO(Entregable entregable, EntregableCambioDescripcion cambio,
+            HitoFaseNombres nombres, String proyectoId) {
+        String urlDescarga = null;
+        if (cambio.getArchivoPdf() != null && !cambio.getArchivoPdf().isBlank()) {
+            urlDescarga = URL_PROYECTOS_BASE + proyectoId
+                    + "/entregables/cambios-descripcion/" + cambio.getId() + URL_DESCARGAR;
+        }
+
+        return new ProjectEvidenceDTO(
+                "cd-" + cambio.getId() + "-" + proyectoId,
+                CAT_CAMBIO_DESCRIPCION,
+                "Cambio de descripción - " + (entregable.getNombre() != null ? entregable.getNombre() : ""),
+                cambio.getNombreOriginal(),
+                urlDescarga,
+                cambio.getCreadoEn() != null ? cambio.getCreadoEn().toLocalDate() : null,
+                null,
+                null,
+                ESTADO_COMPLETADO,
+                ESTADO_COMPLETADO,
+                cambio.getUsuario(),
+                "Cambio de descripción",
+                null,
+                nombres.faseNombre(),
+                nombres.hitoNombre(),
+                entregable.getNombre(),
+                cambio.getJustificacion(),
+                null,
+                entregable.getId(),
+                cambio.getId(),
+                null,
+                null,
+                cambio.getArchivoPdf(),
+                null,
+                null,
+                cambio.getJustificacion(),
+                null,
+                null,
+                cambio.getDescripcionAnterior(),
+                cambio.getDescripcionNueva(),
+                null
+        );
+    }
+
+    private record HitoFaseNombres(String hitoNombre, String faseNombre) {
     }
 
     private String mapEstado(Entregable entregable) {
@@ -626,63 +679,21 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
     private List<ProjectEvidenceDTO> colCambiosDescripcion(String proyectoId) {
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
-        Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId).orElse(null);
         if (proyecto == null) return evidencias;
 
-        List<Entregable> entregables = entregableRepository.findByProyectoId(proyectoId);
+        List<Entregable> entregables = entregableRepositoryPort.findByProyectoId(proyectoId);
 
         for (Entregable entregable : entregables) {
-            List<EntregableCambioDescripcion> cambios = entregableCambioDescripcionRepository
+            List<EntregableCambioDescripcion> cambios = entregableCambioDescripcionRepositoryPort
                     .findByEntregableIdOrderByCreadoEnDesc(entregable.getId());
 
             if (cambios.isEmpty()) continue;
 
-            String hitoNombre = entregable.getHito() != null ? entregable.getHito().getNombre() : null;
-            String faseNombre = null;
-            if (entregable.getHito() != null && entregable.getHito().getFase() != null) {
-                faseNombre = entregable.getHito().getFase().getNombre();
-            }
+            HitoFaseNombres nombres = resolverNombresHitoFase(entregable);
 
             for (EntregableCambioDescripcion cambio : cambios) {
-                String urlDescarga = null;
-                if (cambio.getArchivoPdf() != null && !cambio.getArchivoPdf().isBlank()) {
-                    urlDescarga = URL_PROYECTOS_BASE + proyectoId
-                            + "/entregables/cambios-descripcion/" + cambio.getId() + URL_DESCARGAR;
-                }
-
-                evidencias.add(new ProjectEvidenceDTO(
-                        "cd-" + cambio.getId() + "-" + proyectoId,
-                        CAT_CAMBIO_DESCRIPCION,
-                        "Cambio de descripción - " + (entregable.getNombre() != null ? entregable.getNombre() : ""),
-                        cambio.getNombreOriginal(),
-                        urlDescarga,
-                        cambio.getCreadoEn() != null ? cambio.getCreadoEn().toLocalDate() : null,
-                        null,
-                        null,
-                        ESTADO_COMPLETADO,
-                        ESTADO_COMPLETADO,
-                        cambio.getUsuario(),
-                        "Cambio de descripción",
-                        null,
-                        faseNombre,
-                        hitoNombre,
-                        entregable.getNombre(),
-                        cambio.getJustificacion(),
-                        null,
-                        entregable.getId(),
-                        cambio.getId(),
-                        null,
-                        null,
-                        cambio.getArchivoPdf(),
-                        null,
-                        null,
-                        cambio.getJustificacion(),
-                        null,
-                        null,
-                        cambio.getDescripcionAnterior(),
-                        cambio.getDescripcionNueva(),
-                        null
-                ));
+                evidencias.add(buildCambioDescripcionDTO(entregable, cambio, nombres, proyectoId));
             }
         }
 
@@ -692,7 +703,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     private List<ProjectEvidenceDTO> colActaCierre(String proyectoId) {
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
-        actaCierreRepository.findByProyectoId(proyectoId).ifPresent(acta -> {
+        actaCierreRepositoryPort.findByProyectoId(proyectoId).ifPresent(acta -> {
             if (acta.getArchivoPdf() != null && !acta.getArchivoPdf().isBlank()) {
                 String urlPdf = URL_PROYECTOS_BASE + proyectoId + "/cierre/descargar";
                 evidencias.add(new ProjectEvidenceDTO(
@@ -774,9 +785,9 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
     private List<ProjectEvidenceDTO> colInformesAvance(String proyectoId) {
         List<ProjectEvidenceDTO> evidencias = new ArrayList<>();
 
-        for (AdvanceReportUpload upload : advanceReportUploadRepository.findByProjectIdOrderByUploadedAtDesc(proyectoId)) {
+        for (AdvanceReportUpload upload : advanceReportUploadRepositoryPort.findByProjectIdOrderByUploadedAtDesc(proyectoId)) {
             String url = "/api/v1/advance-report/download/" + proyectoId + "?periodo=" + upload.getPeriodo();
-            AdvanceReportVersion actual = advanceReportVersionRepository
+            AdvanceReportVersion actual = advanceReportVersionRepositoryPort
                     .findByUploadIdAndEstado(upload.getId(), AdvanceReportVersion.ESTADO_ACTUAL)
                     .orElse(null);
 

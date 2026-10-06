@@ -2,7 +2,7 @@ package com.proyecta.api_gestion.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.proyecta.api_gestion.model.audit.SystemAuditLog;
+import com.proyecta.api_gestion.domain.model.audit.SystemAuditLog;
 import com.proyecta.api_gestion.service.audit.SystemAuditLogService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import jakarta.servlet.FilterChain;
@@ -28,11 +28,11 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * Filtro de auditorÃ­a de peticiones HTTP.
+ * Filtro de auditoría de peticiones HTTP.
  *
  * Intercepta TODAS las peticiones (a diferencia de AOP, no depende del
- * paquete de controllers) de forma asÃ­ncrona, registrando el usuario, rol,
- * recurso, mÃ©todo, cÃ³digo de estado y duraciÃ³n en la tabla system_audit_log.
+ * paquete de controllers) de forma asíncrona, registrando el usuario, rol,
+ * recurso, método, código de estado y duración en la tabla system_audit_log.
  */
 @Component
 public class SystemAuditFilter extends OncePerRequestFilter {
@@ -148,7 +148,7 @@ private String captureRequestBody(HttpServletRequest request) {
     private String captureResponseBody(org.springframework.web.util.ContentCachingResponseWrapper response) {
         try {
             byte[] body = response.getContentAsByteArray();
-            if (body != null && body.length > 0) {
+            if (body.length > 0) {
                 String bodyStr = new String(body, StandardCharsets.UTF_8);
                 if (bodyStr.length() > 4000) {
                     bodyStr = bodyStr.substring(0, 4000) + "...[truncado]";
@@ -259,13 +259,14 @@ private void registrar(HttpServletRequest request,
         };
     }
 
+    private static final Pattern RECURSO_SEGMENT = Pattern.compile("[A-Za-z0-9\\-]+");
     private String extractRecurso(HttpServletRequest request) {
         String uri = request.getRequestURI();
         if (uri == null || uri.isBlank()) return null;
         String[] segments = uri.split("/");
         for (int i = segments.length - 1; i >= 0; i--) {
             String seg = segments[i];
-            if (seg.length() > 3 && seg.length() < 50 && seg.matches("[A-Za-z0-9\\-]+")) {
+            if (seg.length() > 3 && seg.length() < 50 && RECURSO_SEGMENT.matcher(seg).matches()) {
                 return seg;
             }
         }
@@ -323,7 +324,6 @@ private String buildDetalle(HttpServletRequest request, int codigoEstado) {
 
     private String resolveUserRole(Authentication authentication) {
         if (authentication == null) return USUARIO_SISTEMA;
-        if (authentication.getAuthorities() == null) return "unknown";
         for (var auth : authentication.getAuthorities()) {
             String authority = auth.getAuthority();
             if (authority != null && authority.startsWith("ROLE_")) {
@@ -342,16 +342,15 @@ private String extractDetailedError(Exception ex) {
             rootCause = rootCause.getCause();
         }
 
-        if (ex instanceof org.hibernate.exception.ConstraintViolationException cve) {
-            sb.append("Constraint Violation: ");
-            sb.append(cve.getConstraintName());
-            sb.append(" - ").append(cve.getMessage());
-        } else if (ex instanceof org.springframework.dao.DataIntegrityViolationException dive) {
-            sb.append("Data Integrity: ");
-            sb.append(dive.getMessage());
-        } else {
-            sb.append("Exception: ").append(ex.getClass().getName()).append(": ").append(ex.getMessage());
-        }
+        String detalle = switch (ex) {
+            case org.hibernate.exception.ConstraintViolationException cve ->
+                    "Constraint Violation: " + cve.getConstraintName() + " - " + cve.getMessage();
+            case org.springframework.dao.DataIntegrityViolationException dive ->
+                    "Data Integrity: " + dive.getMessage();
+            default ->
+                    "Exception: " + ex.getClass().getName() + ": " + ex.getMessage();
+        };
+        sb.append(detalle);
 
         if (rootCause != ex && rootCause.getMessage() != null) {
             sb.append("\n\nCausa raiz: ").append(rootCause.getClass().getSimpleName()).append(": ").append(rootCause.getMessage());
@@ -378,48 +377,63 @@ private String extractDetailedError(Exception ex) {
 
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-
-            String title = root.has("title") ? root.get("title").asText() : null;
-            String detail = root.has("detail") ? root.get("detail").asText() : null;
-            String type = root.has("type") ? root.get("type").asText() : null;
-            JsonNode errors = root.get("errors");
-
-            if (title != null) {
-                sb.append("\nTipo de error: ").append(title);
-            }
-            if (detail != null) {
-                sb.append("\nDetalle: ").append(detail);
-            }
-            if (type != null) {
-                sb.append("\nCategoria: ").append(type);
-            }
-            if (errors != null && errors.isObject()) {
-                sb.append("\n\nCampos con error:");
-                errors.fields().forEachRemaining(field -> {
-                    sb.append(PREFIJO_ERROR_ITEM).append(field.getKey()).append(": ");
-                    if (field.getValue().isArray()) {
-                        field.getValue().forEach(v -> sb.append(v.asText()).append(" "));
-                    } else {
-                        sb.append(field.getValue().asText());
-                    }
-                });
-            } else if (errors != null && errors.isArray()) {
-                sb.append("\n\nErrores de validacion:");
-                errors.forEach(err -> {
-                    if (err.isObject()) {
-                        String field = err.has("field") ? err.get("field").asText() : "";
-                        String message = err.has("message") ? err.get("message").asText() : err.asText();
-                        sb.append(PREFIJO_ERROR_ITEM).append(field).append(": ").append(message);
-                    } else {
-                        sb.append(PREFIJO_ERROR_ITEM).append(err.asText());
-                    }
-                });
-            }
+            appendErrorDetails(sb, root);
         } catch (Exception _) {
             sb.append("\nRespuesta: ").append(responseBody);
         }
 
         return sb.toString();
+    }
+
+    private void appendErrorDetails(StringBuilder sb, JsonNode root) {
+        String title = root.has("title") ? root.get("title").asText() : null;
+        String detail = root.has("detail") ? root.get("detail").asText() : null;
+        String type = root.has("type") ? root.get("type").asText() : null;
+        JsonNode errors = root.get("errors");
+
+        if (title != null) {
+            sb.append("\nTipo de error: ").append(title);
+        }
+        if (detail != null) {
+            sb.append("\nDetalle: ").append(detail);
+        }
+        if (type != null) {
+            sb.append("\nCategoria: ").append(type);
+        }
+        appendErrors(sb, errors);
+    }
+
+    private void appendErrors(StringBuilder sb, JsonNode errors) {
+        if (errors != null && errors.isObject()) {
+            appendErrorObjectFields(sb, errors);
+        } else if (errors != null && errors.isArray()) {
+            appendValidationItems(sb, errors);
+        }
+    }
+
+    private void appendErrorObjectFields(StringBuilder sb, JsonNode errors) {
+        sb.append("\n\nCampos con error:");
+        errors.fields().forEachRemaining(field -> {
+            sb.append(PREFIJO_ERROR_ITEM).append(field.getKey()).append(": ");
+            if (field.getValue().isArray()) {
+                field.getValue().forEach(v -> sb.append(v.asText()).append(" "));
+            } else {
+                sb.append(field.getValue().asText());
+            }
+        });
+    }
+
+    private void appendValidationItems(StringBuilder sb, JsonNode errors) {
+        sb.append("\n\nErrores de validacion:");
+        errors.forEach(err -> {
+            if (err.isObject()) {
+                String field = err.has("field") ? err.get("field").asText() : "";
+                String message = err.has("message") ? err.get("message").asText() : err.asText();
+                sb.append(PREFIJO_ERROR_ITEM).append(field).append(": ").append(message);
+            } else {
+                sb.append(PREFIJO_ERROR_ITEM).append(err.asText());
+            }
+        });
     }
 
     private String getHttpStatusDescription(int code) {
@@ -530,5 +544,4 @@ private String extractDetailedError(Exception ex) {
         }
     }
 }
-
 

@@ -3,12 +3,14 @@ package com.proyecta.api_gestion.service.impl;
 import com.proyecta.api_gestion.dto.project.*;
 import com.proyecta.api_gestion.dto.proyecto.CambioFechaRequest;
 import com.proyecta.api_gestion.dto.proyecto.CambioFechaResponse;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.ForbiddenException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.*;
-import com.proyecta.api_gestion.model.enums.EstadoEntregable;
-import com.proyecta.api_gestion.repository.*;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.*;
+import com.proyecta.api_gestion.domain.model.config.EstadoEntregableConfig;
+import com.proyecta.api_gestion.domain.model.enums.EstadoEntregable;
+import com.proyecta.api_gestion.application.port.out.persistence.*;
+import com.proyecta.api_gestion.application.port.out.persistence.config.EstadoEntregableConfigRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectHierarchyService;
@@ -27,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,18 +41,19 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private static final Logger log = LoggerFactory.getLogger(ProjectHierarchyServiceImpl.class);
 
-    private final ProyectoRepository proyectoRepository;
-    private final FaseRepository faseRepository;
-    private final HitoRepository hitoRepository;
-    private final EntregableRepository entregableRepository;
-    private final SystemParameterRepository systemParameterRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final FaseRepositoryPort faseRepositoryPort;
+    private final HitoRepositoryPort hitoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
+    private final SystemParameterRepositoryPort systemParameterRepositoryPort;
     private final IProgressCalculator avanceCalculatorService;
-    private final EntregableCambioFechaRepository cambioFechaRepository;
-    private final EntregableCambioDescripcionRepository cambioDescripcionRepository;
+    private final EntregableCambioFechaRepositoryPort cambioFechaRepositoryPort;
+    private final EntregableCambioDescripcionRepositoryPort cambioDescripcionRepositoryPort;
     private final IStorageProvider storageProvider;
     private final KeycloakIdentityExtractor identityExtractor;
     private final NotificationOrchestratorService notificationOrchestrator;
     private final NotificationEventPublisherPort notificationPublisher;
+    private final EstadoEntregableConfigRepositoryPort estadoEntregableConfigRepositoryPort;
 
     private static final String DIAS_POR_VENCER_PARAM = "dias_por_vencer";
     private static final int DIAS_POR_VENCER_DEFAULT = 7;
@@ -60,36 +64,43 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     private static final String HITO_NO_ENCONTRADO = "Hito no encontrado";
     private static final String ENTREGABLE_NO_ENCONTRADO = "Entregable no encontrado: ";
 
-    public ProjectHierarchyServiceImpl(ProyectoRepository proyectoRepository,
-                                        FaseRepository faseRepository,
-                                        HitoRepository hitoRepository,
-                                        EntregableRepository entregableRepository,
-                                        SystemParameterRepository systemParameterRepository,
+    public ProjectHierarchyServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                        FaseRepositoryPort faseRepositoryPort,
+                                        HitoRepositoryPort hitoRepositoryPort,
+                                        EntregableRepositoryPort entregableRepositoryPort,
+                                        SystemParameterRepositoryPort systemParameterRepositoryPort,
                                         IProgressCalculator avanceCalculatorService,
-                                        EntregableCambioFechaRepository cambioFechaRepository,
-                                        EntregableCambioDescripcionRepository cambioDescripcionRepository,
+                                        EntregableCambioFechaRepositoryPort cambioFechaRepositoryPort,
+                                        EntregableCambioDescripcionRepositoryPort cambioDescripcionRepositoryPort,
                                         IStorageProvider storageProvider,
                                         KeycloakIdentityExtractor identityExtractor,
                                         NotificationOrchestratorService notificationOrchestrator,
-                                        NotificationEventPublisherPort notificationPublisher) {
-        this.proyectoRepository = proyectoRepository;
-        this.faseRepository = faseRepository;
-        this.hitoRepository = hitoRepository;
-        this.entregableRepository = entregableRepository;
-        this.systemParameterRepository = systemParameterRepository;
+                                        NotificationEventPublisherPort notificationPublisher,
+                                        EstadoEntregableConfigRepositoryPort estadoEntregableConfigRepositoryPort) {
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.faseRepositoryPort = faseRepositoryPort;
+        this.hitoRepositoryPort = hitoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
+        this.systemParameterRepositoryPort = systemParameterRepositoryPort;
         this.avanceCalculatorService = avanceCalculatorService;
-        this.cambioFechaRepository = cambioFechaRepository;
-        this.cambioDescripcionRepository = cambioDescripcionRepository;
+        this.cambioFechaRepositoryPort = cambioFechaRepositoryPort;
+        this.cambioDescripcionRepositoryPort = cambioDescripcionRepositoryPort;
         this.storageProvider = storageProvider;
         this.identityExtractor = identityExtractor;
         this.notificationOrchestrator = notificationOrchestrator;
         this.notificationPublisher = notificationPublisher;
+        this.estadoEntregableConfigRepositoryPort = estadoEntregableConfigRepositoryPort;
+    }
+
+    private EstadoEntregableConfig estadoEntregableConfig(String codigo) {
+        return estadoEntregableConfigRepositoryPort.findByCodigo(codigo)
+                .orElseThrow(() -> new IllegalStateException("Estado de entregable no configurado: " + codigo));
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Fase agregarFase(String proyectoId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado"));
         if (proyecto.esEstadoTerminal()) {
             throw new ForbiddenException("No se puede modificar la estructura de un proyecto cerrado.");
@@ -98,12 +109,12 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         validarFaseConHitos(dto);
         validarPonderacionAlAgregarFase(proyectoId, dto.ponderacion());
         Fase fase = new Fase();
-        int faseCount = faseRepository.findByProyectoId(proyectoId).size() + 1;
+        int faseCount = faseRepositoryPort.findByProyectoId(proyectoId).size() + 1;
         fase.setNombre(String.format("F%02d", faseCount));
         fase.setDescripcion(dto.descripcion());
         fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         fase.setProyecto(proyecto);
-        Fase guardada = faseRepository.save(fase);
+        Fase guardada = faseRepositoryPort.save(fase);
         for (com.proyecta.api_gestion.dto.proyecto.HitoDTO hitoDto : dto.hitos()) {
             crearHitoConEntregables(guardada, hitoDto);
         }
@@ -115,7 +126,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Fase editarFase(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.FaseDTO dto, Authentication authentication) {
-        Fase fase = faseRepository.findById(faseId)
+        Fase fase = faseRepositoryPort.findById(faseId)
                 .orElseThrow(() -> new ResourceNotFoundException(FASE_NO_ENCONTRADA));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
@@ -126,7 +137,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         validarPonderacionAlEditarFase(proyectoId, fase, dto.ponderacion());
         fase.setDescripcion(dto.descripcion());
         fase.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
-        Fase actualizada = faseRepository.save(fase);
+        Fase actualizada = faseRepositoryPort.save(fase);
         avanceCalculatorService.calcularYActualizarAvanceProyecto(proyectoId);
         notificarEstructura(fase.getProyecto(), actorUsername, "FASE_EDITADA", actualizada.getNombre(), null, null);
         return actualizada;
@@ -135,7 +146,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public void eliminarFase(String proyectoId, Integer faseId, Authentication authentication) {
-        Fase fase = faseRepository.findById(faseId)
+        Fase fase = faseRepositoryPort.findById(faseId)
                 .orElseThrow(() -> new ResourceNotFoundException(FASE_NO_ENCONTRADA));
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
         throw new BadRequestException("No se permite eliminar fases ya creadas. Solo se pueden modificar sus textos y ponderacion.");
@@ -144,7 +155,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Hito agregarHito(String proyectoId, Integer faseId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
-        Fase fase = faseRepository.findById(faseId)
+        Fase fase = faseRepositoryPort.findById(faseId)
                 .orElseThrow(() -> new ResourceNotFoundException(FASE_NO_ENCONTRADA));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, fase.getProyecto().getId());
@@ -162,7 +173,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Hito editarHito(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.HitoDTO dto, Authentication authentication) {
-        Hito hito = hitoRepository.findById(hitoId)
+        Hito hito = hitoRepositoryPort.findById(hitoId)
                 .orElseThrow(() -> new ResourceNotFoundException(HITO_NO_ENCONTRADO));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
@@ -174,7 +185,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         validarPonderacionAlEditarHito(faseId, hito, dto.ponderacion());
         hito.setDescripcion(dto.descripcion());
         hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
-        Hito actualizado = hitoRepository.save(hito);
+        Hito actualizado = hitoRepositoryPort.save(hito);
         avanceCalculatorService.calcularYActualizarAvanceFase(hito.getFase().getId());
         notificarEstructura(hito.getFase().getProyecto(), actorUsername, "HITO_EDITADO", hito.getFase().getNombre(), actualizado.getNombre(), null);
         return actualizado;
@@ -183,7 +194,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public void eliminarHito(String proyectoId, Integer faseId, Integer hitoId, Authentication authentication) {
-        Hito hito = hitoRepository.findById(hitoId)
+        Hito hito = hitoRepositoryPort.findById(hitoId)
                 .orElseThrow(() -> new ResourceNotFoundException(HITO_NO_ENCONTRADO));
         asegurarHitoPerteneceAFase(hito, faseId);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeHito(hito));
@@ -193,7 +204,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Entregable agregarEntregable(String proyectoId, Integer faseId, Integer hitoId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
-        Hito hito = hitoRepository.findById(hitoId)
+        Hito hito = hitoRepositoryPort.findById(hitoId)
                 .orElseThrow(() -> new ResourceNotFoundException(HITO_NO_ENCONTRADO));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarHitoPerteneceAFase(hito, faseId);
@@ -204,7 +215,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         validarEntregableNuevo(dto);
         validarPonderacionAlAgregarEntregable(hitoId, dto.ponderacion());
         Entregable entregable = new Entregable();
-        int eCount = entregableRepository.findByProyectoId(hito.getFase().getProyecto().getId()).size() + 1;
+        int eCount = entregableRepositoryPort.findByProyectoId(hito.getFase().getProyecto().getId()).size() + 1;
         entregable.setNombre(String.format("E%02d", eCount));
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         entregable.setFechaInicio(dto.fechaInicio());
@@ -212,7 +223,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         entregable.setDescripcion(dto.descripcion());
         entregable.setArchivoPdf(dto.archivoPdf());
         entregable.setHito(hito);
-        Entregable guardado = entregableRepository.save(entregable);
+        entregable.setEstadoConfig(estadoEntregableConfig("PENDIENTE"));
+        Entregable guardado = entregableRepositoryPort.save(entregable);
         avanceCalculatorService.calcularYActualizarAvanceHito(hitoId);
         notificarEstructura(hito.getFase().getProyecto(), actorUsername, "ENTREGABLE_CREADO", hito.getFase().getNombre(), hito.getNombre(), guardado.getNombre());
         return guardado;
@@ -221,7 +233,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Entregable editarEntregable(String proyectoId, Integer entregableId, com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication) {
-        Entregable entregable = entregableRepository.findById(entregableId)
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
         String actorUsername = identityExtractor.resolveUsername(authentication);
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
@@ -237,7 +249,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         }
         validarPonderacionAlEditarEntregable(entregable, dto.ponderacion());
         entregable.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
-        Entregable actualizado = entregableRepository.save(entregable);
+        Entregable actualizado = entregableRepositoryPort.save(entregable);
         avanceCalculatorService.calcularYActualizarAvanceHito(entregable.getHito().getId());
         notificarEstructura(entregable.getHito().getFase().getProyecto(), actorUsername, "ENTREGABLE_EDITADO", entregable.getHito().getFase().getNombre(), entregable.getHito().getNombre(), actualizado.getNombre());
         return actualizado;
@@ -246,7 +258,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public void eliminarEntregable(String proyectoId, Integer entregableId, Authentication authentication) {
-        Entregable entregable = entregableRepository.findById(entregableId)
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado"));
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         throw new BadRequestException("No se permite eliminar entregables ya creados. Solo se pueden modificar sus textos y ponderacion.");
@@ -281,7 +293,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private void validarArchivoRetroactivo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
-        java.time.LocalDate hoy = java.time.LocalDate.now();
+        java.time.LocalDate hoy = java.time.LocalDate.now(ZoneId.systemDefault());
         if (dto.fechaLimite() != null && dto.fechaLimite().isBefore(hoy)
                 && (dto.archivoPdf() == null || dto.archivoPdf().isBlank())) {
             throw new BadRequestException(
@@ -323,7 +335,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private void validarPonderacionAlAgregarFase(String proyectoId, Integer ponderacion) {
-        double total = faseRepository.findByProyectoId(proyectoId).stream()
+        double total = faseRepositoryPort.findByProyectoId(proyectoId).stream()
                 .mapToDouble(fase -> toDouble(fase.getPonderacion()))
                 .sum() + ponderacion;
         validarNoSupera100(total, "La suma de fases del proyecto no puede superar 100%.");
@@ -333,7 +345,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         double actual = toDouble(fase.getPonderacion());
         if (nuevaPonderacion <= actual) return;
 
-        double total = faseRepository.findByProyectoId(proyectoId).stream()
+        double total = faseRepositoryPort.findByProyectoId(proyectoId).stream()
                 .filter(item -> !item.getId().equals(fase.getId()))
                 .mapToDouble(item -> toDouble(item.getPonderacion()))
                 .sum() + nuevaPonderacion;
@@ -341,7 +353,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private void validarPonderacionAlAgregarHito(Integer faseId, Integer ponderacion) {
-        double total = hitoRepository.findByFaseId(faseId).stream()
+        double total = hitoRepositoryPort.findByFaseId(faseId).stream()
                 .mapToDouble(hito -> toDouble(hito.getPonderacion()))
                 .sum() + ponderacion;
         validarNoSupera100(total, "La suma de hitos de una fase no puede superar 100%.");
@@ -351,7 +363,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         double actual = toDouble(hito.getPonderacion());
         if (nuevaPonderacion <= actual) return;
 
-        double total = hitoRepository.findByFaseId(faseId).stream()
+        double total = hitoRepositoryPort.findByFaseId(faseId).stream()
                 .filter(item -> !item.getId().equals(hito.getId()))
                 .mapToDouble(item -> toDouble(item.getPonderacion()))
                 .sum() + nuevaPonderacion;
@@ -359,7 +371,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private void validarPonderacionAlAgregarEntregable(Integer hitoId, Integer ponderacion) {
-        double total = entregableRepository.findByHitoId(hitoId).stream()
+        double total = entregableRepositoryPort.findByHitoId(hitoId).stream()
                 .mapToDouble(entregable -> toDouble(entregable.getPonderacion()))
                 .sum() + ponderacion;
         validarNoSupera100(total, "La suma de entregables de un hito no puede superar 100%.");
@@ -370,7 +382,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         if (nuevaPonderacion <= actual) return;
 
         Integer hitoId = entregable.getHito().getId();
-        double total = entregableRepository.findByHitoId(hitoId).stream()
+        double total = entregableRepositoryPort.findByHitoId(hitoId).stream()
                 .filter(item -> !item.getId().equals(entregable.getId()))
                 .mapToDouble(item -> toDouble(item.getPonderacion()))
                 .sum() + nuevaPonderacion;
@@ -391,15 +403,15 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         String proyectoId = fase.getProyecto().getId();
 
         Hito hito = new Hito();
-        int hitoCount = hitoRepository.findByProyectoId(proyectoId).size() + 1;
+        int hitoCount = hitoRepositoryPort.findByProyectoId(proyectoId).size() + 1;
         hito.setNombre(String.format("H%02d", hitoCount));
         hito.setDescripcion(dto.descripcion());
         hito.setPonderacion(java.math.BigDecimal.valueOf(dto.ponderacion()));
         hito.setFase(fase);
-        hito = hitoRepository.save(hito);
+        hito = hitoRepositoryPort.save(hito);
 
         for (com.proyecta.api_gestion.dto.proyecto.EntregableDTO entregableDto : dto.entregables()) {
-            int eCount = entregableRepository.findByHitoId(hito.getId()).size() + 1;
+            int eCount = entregableRepositoryPort.findByHitoId(hito.getId()).size() + 1;
             Entregable e = new Entregable();
             e.setNombre(String.format("E%02d", eCount));
             e.setPonderacion(java.math.BigDecimal.valueOf(entregableDto.ponderacion()));
@@ -408,7 +420,8 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             e.setDescripcion(entregableDto.descripcion());
             e.setArchivoPdf(entregableDto.archivoPdf());
             e.setHito(hito);
-            entregableRepository.save(e);
+            e.setEstadoConfig(estadoEntregableConfig("PENDIENTE"));
+            entregableRepositoryPort.save(e);
             hito.getEntregables().add(e);
         }
         return hito;
@@ -442,10 +455,10 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     @Override
     public ProjectHierarchyDTO getProjectHierarchy(String proyectoId) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 
-        List<Fase> fases = faseRepository.findByProyectoId(proyectoId).stream()
+        List<Fase> fases = faseRepositoryPort.findByProyectoId(proyectoId).stream()
                 .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
                 .toList();
         List<FaseHierarchyDTO> fasesDTO = new ArrayList<>();
@@ -459,7 +472,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private FaseHierarchyDTO buildFaseDTO(Fase fase) {
-        List<Hito> hitos = hitoRepository.findByFaseId(fase.getId()).stream()
+        List<Hito> hitos = hitoRepositoryPort.findByFaseId(fase.getId()).stream()
                 .sorted(ProjectHierarchyOrdering.HITOS_BY_ORDEN)
                 .toList();
         List<HitoHierarchyDTO> hitosDTO = new ArrayList<>();
@@ -481,7 +494,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private HitoHierarchyDTO buildHitoDTO(Hito hito) {
-        List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId()).stream()
+        List<Entregable> entregables = entregableRepositoryPort.findByHitoId(hito.getId()).stream()
                 .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                 .toList();
         List<EntregableHierarchyDTO> entregablesDTO = new ArrayList<>();
@@ -503,7 +516,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private EntregableHierarchyDTO buildEntregableDTO(Entregable entregable) {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZoneId.systemDefault());
         LocalDate fechaLimite = entregable.getFechaLimite();
         LocalDate fechaEntregaReal = entregable.getFechaEntregaEfectiva();
 
@@ -522,7 +535,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                 diasDiferencia
         );
         dto.setObservacionRevision(entregable.getObservacionRevision());
-        dto.setTieneHistorialCambiosFecha(cambioFechaRepository.existsByEntregableId(entregable.getId()));
+        dto.setTieneHistorialCambiosFecha(cambioFechaRepositoryPort.existsByEntregableId(entregable.getId()));
         return dto;
     }
 
@@ -539,7 +552,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             return "Rechazado";
         }
 
-        if (entregable.getConforme()) {
+        if (Boolean.TRUE.equals(entregable.getConforme())) {
             return "Conforme";
         }
 
@@ -574,7 +587,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     }
 
     private int obtenerDiasPorVencer() {
-        Optional<SystemParameter> paramOpt = systemParameterRepository.findByKey(DIAS_POR_VENCER_PARAM);
+        Optional<SystemParameter> paramOpt = systemParameterRepositoryPort.findByKey(DIAS_POR_VENCER_PARAM);
         if (paramOpt.isPresent()) {
             try {
                 return Integer.parseInt(paramOpt.get().getValue());
@@ -587,11 +600,11 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     @Override
     public List<EntregableHierarchyDTO> listarEntregablesProyecto(String proyectoId) {
-        List<Entregable> entregables = entregableRepository.findByProyectoId(proyectoId);
+        List<Entregable> entregables = entregableRepositoryPort.findByProyectoId(proyectoId);
         return entregables.stream()
                 .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
                 .map(this::buildEntregableDTO)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
     }
 
     // -----------------------------------------------------------------------
@@ -605,7 +618,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
                                               MultipartFile evidencia,
                                               Authentication authentication) {
 
-        Entregable entregable = entregableRepository.findById(entregableId)
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException(ENTREGABLE_NO_ENCONTRADO + entregableId));
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
@@ -644,7 +657,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
         // Actualizar fecha limite
         entregable.setFechaLimite(fechaNueva);
-        entregableRepository.save(entregable);
+        entregableRepositoryPort.save(entregable);
 
         // Registrar auditoria
         String username = identityExtractor.resolveUsername(authentication);
@@ -661,14 +674,14 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         auditoria.setNombreOriginal(evidencia.getOriginalFilename());
         auditoria.setUsuario(username);
         auditoria.setUsuarioRol(rol);
-        cambioFechaRepository.save(auditoria);
+        cambioFechaRepositoryPort.save(auditoria);
 
         // Recalcular avance
         avanceCalculatorService.calcularYActualizarAvanceHito(entregable.getHito().getId());
 
         // Notificar
         try {
-            Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+            Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId).orElse(null);
             List<String> recipients = ProjectNotificationRecipients.resolve(proyecto);
             notificationOrchestrator.dispatch(new NotificationContext(
                     NotificationEventType.ENTREGABLE_FECHA_CAMBIADA,
@@ -693,9 +706,9 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<CambioFechaResponse> obtenerHistorialFechas(Integer entregableId) {
-        entregableRepository.findById(entregableId)
+        entregableRepositoryPort.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException(ENTREGABLE_NO_ENCONTRADO + entregableId));
-        return cambioFechaRepository.findByEntregableIdOrderByCreadoEnDesc(entregableId).stream()
+        return cambioFechaRepositoryPort.findByEntregableIdOrderByCreadoEnDesc(entregableId).stream()
                 .map(this::toCambioFechaResponse)
                 .toList();
     }
@@ -703,7 +716,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public boolean tieneHistorialCambiosFecha(Integer entregableId) {
-        return cambioFechaRepository.existsByEntregableId(entregableId);
+        return cambioFechaRepositoryPort.existsByEntregableId(entregableId);
     }
 
     // -----------------------------------------------------------------------
@@ -775,7 +788,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
             MultipartFile evidencia,
             Authentication authentication) {
 
-        Entregable entregable = entregableRepository.findById(entregableId)
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
                 .orElseThrow(() -> new ResourceNotFoundException(ENTREGABLE_NO_ENCONTRADO + entregableId));
         asegurarPerteneceAlProyecto(proyectoId, proyectoIdDeEntregable(entregable));
         if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
@@ -811,7 +824,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
         // Actualizar descripcion del entregable
         entregable.setDescripcion(descripcionNueva);
-        entregableRepository.save(entregable);
+        entregableRepositoryPort.save(entregable);
 
         // Registrar auditoria
         String username = identityExtractor.resolveUsername(authentication);
@@ -828,7 +841,7 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
         auditoria.setNombreOriginal(evidencia.getOriginalFilename());
         auditoria.setUsuario(username);
         auditoria.setUsuarioRol(rol);
-        cambioDescripcionRepository.save(auditoria);
+        cambioDescripcionRepositoryPort.save(auditoria);
 
         return new com.proyecta.api_gestion.dto.proyecto.CambioDescripcionResponse(
                 auditoria.getId(),

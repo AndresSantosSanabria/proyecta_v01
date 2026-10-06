@@ -1,0 +1,49 @@
+package com.proyecta.api_gestion.adapter.out.persistence.security;
+
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuarioProyecto;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
+
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
+public interface SeguridadUsuarioProyectoRepository extends JpaRepository<SeguridadUsuarioProyecto, Long>, SeguridadUsuarioProyectoRepositoryPort {
+    boolean existsByUsuarioUsernameIgnoreCaseAndProyectoIdIgnoreCaseAndActivoTrue(String username, String proyectoId);
+
+    @Query("""
+        SELECT up FROM SeguridadUsuarioProyecto up
+        JOIN FETCH up.usuario u
+        WHERE LOWER(u.username) = LOWER(:username)
+        ORDER BY up.proyectoId ASC, up.cargo ASC
+    """)
+    List<SeguridadUsuarioProyecto> findByUsername(@Param("username") String username);
+
+    Optional<SeguridadUsuarioProyecto> findByUsuarioUsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(String username, String proyectoId, String cargo);
+
+    @Query("""
+        SELECT up FROM SeguridadUsuarioProyecto up
+        JOIN FETCH up.usuario u
+        WHERE LOWER(up.proyectoId) = LOWER(:proyectoId)
+          AND up.activo = true
+          AND (
+            LOWER(up.cargo) IN ('director_proyecto', 'director de proyecto', 'director_pro', 'lider_tecnico', 'lider tecnico', 'director_tecnico', 'director tecnico')
+            OR LOWER(up.cargo) LIKE '%director%proyecto%'
+            OR LOWER(up.cargo) LIKE '%director%tecnico%'
+            OR LOWER(up.cargo) LIKE '%lider%tecnico%'
+          )
+        ORDER BY up.fechaAsignacion DESC
+    """)
+    List<SeguridadUsuarioProyecto> findActiveDirectorAssignmentsByProyectoId(@Param("proyectoId") String proyectoId);
+
+    @Query("""
+        SELECT DISTINCT up.proyectoId
+        FROM SeguridadUsuarioProyecto up
+        WHERE LOWER(up.usuario.username) = LOWER(:username)
+          AND up.activo = true
+        ORDER BY up.proyectoId ASC
+    """)
+    List<String> findProyectoIdsByUsername(@Param("username") String username);
+}
+

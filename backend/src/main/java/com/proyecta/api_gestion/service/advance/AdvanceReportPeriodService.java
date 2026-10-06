@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.advance;
 
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.enums.ViabilidadEstado;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import org.slf4j.Logger;
@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -98,7 +99,7 @@ public class AdvanceReportPeriodService {
     public LocalDate startOfPeriod(LocalDate date) {
         int periodMonths = getPeriodMonths();
         if (periodMonths == 12) {
-            return LocalDate.of(date.getYear(), 1, 1);
+            return LocalDate.of(date.getYear(), Month.JANUARY, 1);
         }
         int monthIndex = ((date.getMonthValue() - 1) / periodMonths) * periodMonths;
         return LocalDate.of(date.getYear(), monthIndex + 1, 1);
@@ -107,7 +108,7 @@ public class AdvanceReportPeriodService {
     public LocalDate endOfPeriod(LocalDate date) {
         int periodMonths = getPeriodMonths();
         if (periodMonths == 12) {
-            return LocalDate.of(date.getYear(), 12, 31);
+            return LocalDate.of(date.getYear(), Month.DECEMBER, 31);
         }
         int monthIndex = ((date.getMonthValue() - 1) / periodMonths) * periodMonths + periodMonths;
         int year = date.getYear();

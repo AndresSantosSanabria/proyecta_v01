@@ -1,8 +1,8 @@
 package com.proyecta.api_gestion.service;
 
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.PublicEvidenceAccess;
-import com.proyecta.api_gestion.repository.PublicEvidenceAccessRepository;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.PublicEvidenceAccess;
+import com.proyecta.api_gestion.application.port.out.persistence.PublicEvidenceAccessRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -17,15 +17,15 @@ public class PublicEvidenceAccessService {
     private static final Logger log = LoggerFactory.getLogger(PublicEvidenceAccessService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private final PublicEvidenceAccessRepository repository;
+    private final PublicEvidenceAccessRepositoryPort repository;
 
-    public PublicEvidenceAccessService(PublicEvidenceAccessRepository repository) {
+    public PublicEvidenceAccessService(PublicEvidenceAccessRepositoryPort repository) {
         this.repository = repository;
     }
 
     @Transactional
     public String getOrCreateToken(Entregable entregable, String username) {
-        var existing = repository.findByEntregable_IdAndActivoTrue(entregable.getId());
+        var existing = repository.findByEntregableIdAndActivoTrue(entregable.getId());
         if (existing.isPresent()) {
             return existing.get().getToken();
         }
@@ -44,7 +44,7 @@ public class PublicEvidenceAccessService {
     @Transactional(readOnly = true)
     public Entregable resolveByToken(String token) {
         var access = repository.findByTokenAndActivoTrueWithEntregable(token)
-                .orElseThrow(() -> new com.proyecta.api_gestion.exception.ResourceNotFoundException(
+                .orElseThrow(() -> new com.proyecta.api_gestion.domain.exception.ResourceNotFoundException(
                         "Evidencia no encontrada o enlace expirado."));
         return access.getEntregable();
     }

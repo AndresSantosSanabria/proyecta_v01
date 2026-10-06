@@ -1,27 +1,23 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.proyecto.*;
-import com.proyecta.api_gestion.dto.config.FuragPreguntaDTO;
-import com.proyecta.api_gestion.dto.config.FuragPreguntaRespuestaDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.*;
-import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
-import com.proyecta.api_gestion.model.config.MatrizRiesgo;
-import com.proyecta.api_gestion.model.enums.*;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.FuragRespuestaRepository;
-import com.proyecta.api_gestion.repository.DocumentoProyectoVersionRepository;
-import com.proyecta.api_gestion.repository.DocumentoPreWizardRevisionRepository;
-import com.proyecta.api_gestion.repository.RiesgoRepository;
-import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
-import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.*;
+import com.proyecta.api_gestion.domain.model.config.EstrategiaPetiConfig;
+import com.proyecta.api_gestion.domain.model.config.EstadoProyectoConfig;
+import com.proyecta.api_gestion.domain.model.enums.*;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoProyectoVersionRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoPreWizardRevisionRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.config.EstadoProyectoConfigRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoProyectoVersionEstado;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuarioProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.config.PetiCatalogService;
@@ -32,12 +28,12 @@ import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipien
 import com.proyecta.api_gestion.service.security.dynamic.SecurityCatalogCacheService;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import com.proyecta.api_gestion.service.support.FuragSupport;
+import com.proyecta.api_gestion.service.support.ProjectStructureSupport;
+import com.proyecta.api_gestion.service.support.RiesgoInicialSupport;
 import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
-import jakarta.persistence.criteria.Predicate;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
+import com.proyecta.api_gestion.domain.value.PageQuery;
+import com.proyecta.api_gestion.domain.value.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
@@ -46,8 +42,8 @@ import org.hibernate.Hibernate;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -63,83 +59,65 @@ public class ProyectoServiceImpl implements ProyectoService {
     private static final String KEY_PROJECT_NAME = "projectName";
     private static final String KEY_STATE = "state";
     private static final String KEY_RECIPIENTS = "recipients";
-    private static final String FURAG_INFRAESTRUCTURA_DATOS = "infraestructuraDatos";
-    private static final String FURAG_INTEROPERABILIDAD = "interoperabilidad";
-    private static final String FURAG_DIGITALIZACION_AUTOMATIZACION = "digitalizacionAutomatizacion";
-    private static final String FURAG_CONTRATACION_PUBLICA = "contratacionPublica";
-    private static final String FURAG_SERVICIOS_NUBE = "serviciosNube";
-    private static final String FURAG_SANDBOX = "sandbox";
-    private static final String FURAG_TECNOLOGIAS_EMERGENTES = "tecnologiasEmergentes";
 
-    private final ProyectoRepository proyectoRepository;
-    private final FuragRespuestaRepository furagRespuestaRepository;
-    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
-    private final SeguridadUsuarioRepository seguridadUsuarioRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final FuragSupport furagSupport;
+    private final SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort;
+    private final SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort;
     private final SecurityCatalogCacheService securityCatalogCacheService;
     private final PetiCatalogService petiCatalogService;
     private final IProgressCalculator progressCalculator;
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
-    private final DocumentoProyectoVersionRepository documentoVersionRepository;
-    private final DocumentoPreWizardRevisionRepository preWizardRevisionRepository;
-    private final RiesgoRepository riesgoRepository;
-    private final MatrizRiesgoRepository matrizRiesgoRepository;
+    private final DocumentoProyectoVersionRepositoryPort documentoVersionRepositoryPort;
+    private final DocumentoPreWizardRevisionRepositoryPort preWizardRevisionRepositoryPort;
+    private final RiesgoInicialSupport riesgoInicialSupport;
+    private final EstadoProyectoConfigRepositoryPort estadoProyectoConfigRepositoryPort;
+    private final ProjectStructureSupport projectStructureSupport;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-    public ProyectoServiceImpl(ProyectoRepository proyectoRepository,
-                               FuragRespuestaRepository furagRespuestaRepository,
-                               SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
-                               SeguridadUsuarioRepository seguridadUsuarioRepository,
+    public ProyectoServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                               FuragSupport furagSupport,
+                               SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort,
+                               SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort,
                                SecurityCatalogCacheService securityCatalogCacheService,
                                PetiCatalogService petiCatalogService,
                                IProgressCalculator progressCalculator,
                                NotificationEventPublisherPort notificationPublisher,
                                KeycloakIdentityExtractor identityExtractor,
-                               DocumentoProyectoVersionRepository documentoVersionRepository,
-                               DocumentoPreWizardRevisionRepository preWizardRevisionRepository,
-                               RiesgoRepository riesgoRepository,
-                               MatrizRiesgoRepository matrizRiesgoRepository,
+                               DocumentoProyectoVersionRepositoryPort documentoVersionRepositoryPort,
+                               DocumentoPreWizardRevisionRepositoryPort preWizardRevisionRepositoryPort,
+                               RiesgoInicialSupport riesgoInicialSupport,
+                               EstadoProyectoConfigRepositoryPort estadoProyectoConfigRepositoryPort,
+                               ProjectStructureSupport projectStructureSupport,
                                com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
-        this.proyectoRepository = proyectoRepository;
-        this.furagRespuestaRepository = furagRespuestaRepository;
-        this.usuarioProyectoRepository = usuarioProyectoRepository;
-        this.seguridadUsuarioRepository = seguridadUsuarioRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.furagSupport = furagSupport;
+        this.usuarioProyectoRepositoryPort = usuarioProyectoRepositoryPort;
+        this.seguridadUsuarioRepositoryPort = seguridadUsuarioRepositoryPort;
         this.securityCatalogCacheService = securityCatalogCacheService;
         this.petiCatalogService = petiCatalogService;
         this.progressCalculator = progressCalculator;
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
-        this.documentoVersionRepository = documentoVersionRepository;
-        this.preWizardRevisionRepository = preWizardRevisionRepository;
-        this.riesgoRepository = riesgoRepository;
-        this.matrizRiesgoRepository = matrizRiesgoRepository;
+        this.documentoVersionRepositoryPort = documentoVersionRepositoryPort;
+        this.preWizardRevisionRepositoryPort = preWizardRevisionRepositoryPort;
+        this.riesgoInicialSupport = riesgoInicialSupport;
+        this.estadoProyectoConfigRepositoryPort = estadoProyectoConfigRepositoryPort;
+        this.projectStructureSupport = projectStructureSupport;
         this.objectMapper = objectMapper;
+    }
+
+    private EstadoProyectoConfig estadoProyectoConfig(String codigo) {
+        return estadoProyectoConfigRepositoryPort.findByCodigo(codigo)
+                .orElseThrow(() -> new IllegalStateException("Estado de proyecto no configurado: " + codigo));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProyectoListDTO> listarProyectos(String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti, Pageable pageable) {
-        Specification<Proyecto> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            if (nombre != null && !nombre.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("nombre")), "%" + nombre.toLowerCase() + "%"));
-            }
-            if (codigo != null && !codigo.isBlank()) {
-                predicates.add(cb.equal(root.get("id"), normalizeProjectId(codigo)));
-            }
-            if (dependencia != null && !dependencia.isBlank()) {
-                predicates.add(cb.equal(root.get("dependencia"), dependencia));
-            }
-            if (estado != null) {
-                predicates.add(cb.equal(root.get("estado"), estado));
-            }
-            if (peti != null) {
-                predicates.add(cb.equal(root.get("peti"), peti));
-            }
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        return proyectoRepository.findAll(spec, pageable).map(this::mapToListDto);
+    public PageResult<ProyectoListDTO> listarProyectos(String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti, PageQuery query) {
+        return proyectoRepositoryPort.listarProyectos(nombre, normalizeProjectId(codigo), dependencia, estado, peti, query)
+                .map(this::mapToListDto);
     }
 
     @Override
@@ -149,7 +127,7 @@ public class ProyectoServiceImpl implements ProyectoService {
             return List.of();
         }
 
-        List<String> proyectoIds = usuarioProyectoRepository.findProyectoIdsByUsername(username).stream()
+        List<String> proyectoIds = usuarioProyectoRepositoryPort.findProyectoIdsByUsername(username).stream()
                 .map(this::normalizeProjectId)
                 .filter(value -> value != null && !value.isBlank())
                 .distinct()
@@ -159,8 +137,7 @@ public class ProyectoServiceImpl implements ProyectoService {
             return List.of();
         }
 
-        Specification<Proyecto> spec = (root, query, cb) -> root.get("id").in(proyectoIds);
-        return proyectoRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "id")).stream()
+        return proyectoRepositoryPort.findByIdsOrdenadoPorIdDesc(proyectoIds).stream()
                 .map(this::mapToListDto)
                 .toList();
     }
@@ -168,7 +145,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional(readOnly = true)
     public List<SeguridadUsuarioDTO> listarDirectoresAsignables() {
-        return seguridadUsuarioRepository.findAssignableProjectDirectors().stream()
+        return seguridadUsuarioRepositoryPort.findAssignableProjectDirectors().stream()
                 .map(this::mapToSeguridadUsuarioDto)
                 .toList();
     }
@@ -177,7 +154,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional(readOnly = true)
     public ProyectoResponseDTO obtenerPorId(String id) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         initializeLazyCollections(proyecto);
         return mapToResponseDto(proyecto);
@@ -191,7 +168,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (!codigo.matches("[A-Z0-9][A-Z0-9_-]*")) {
             throw new BadRequestException("El codigo del proyecto solo puede contener letras, numeros, guiones y guiones bajos");
         }
-        if (proyectoRepository.existsById(codigo)) {
+        if (proyectoRepositoryPort.existsById(codigo)) {
             if (esCodigoAutomatico(codigo)) {
                 codigo = generarCodigo();
             } else {
@@ -199,7 +176,7 @@ public class ProyectoServiceImpl implements ProyectoService {
             }
         }
 
-        SeguridadUsuario director = seguridadUsuarioRepository.findById(dto.directorUsuarioId())
+        SeguridadUsuario director = seguridadUsuarioRepositoryPort.findById(dto.directorUsuarioId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario Director no encontrado con id: " + dto.directorUsuarioId()));
         validarUsuarioDirector(director);
 
@@ -211,9 +188,9 @@ public class ProyectoServiceImpl implements ProyectoService {
         proyecto.setCorreoDirector(director.getCorreo());
         proyecto.setDirectorUsuario(director);
         proyecto.setAvanceTotal(BigDecimal.ZERO);
-        proyecto.marcarRegistroInicialPendiente(gestorUsername);
+        proyecto.marcarRegistroInicialPendiente(gestorUsername, estadoProyectoConfig("PENDIENTE_COMPLETAR"));
 
-        Proyecto guardado = proyectoRepository.save(proyecto);
+        Proyecto guardado = proyectoRepositoryPort.save(proyecto);
         asignarDirectorProyecto(guardado, director);
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_INITIAL_REGISTERED,
@@ -238,13 +215,13 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional
     public ProyectoCompletionStatusDTO obtenerEstadoCompletitud(String id, String username) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         boolean directorAsignado = esDirectorAsignado(proyecto, username);
         if (proyecto.requiereCompletitudDirector() && directorAsignado) {
             proyecto.registrarPrimerIngresoDirector();
-            proyecto = proyectoRepository.save(proyecto);
+            proyecto = proyectoRepositoryPort.save(proyecto);
         }
 
         boolean requiereCompletitud = proyecto.requiereCompletitudDirector();
@@ -252,91 +229,23 @@ public class ProyectoServiceImpl implements ProyectoService {
 
         final List<String> preWizardTypes = List.of(
                 "VIABILIZACION", "PLAN_COMUNICACIONES", "MATRIZ_RIESGOS_VIABILIDAD");
-        Map<String, DocumentoPreWizardRevision> revisionesPorTipo = preWizardRevisionRepository
-                .findByProyectoId(normalizedId)
-                .stream()
-                .collect(Collectors.toMap(
-                        DocumentoPreWizardRevision::getTipoDocumento,
-                        r -> r,
-                        (a, b) -> a
-                ));
+        PreWizardResumen preWizard = construirResumenPreWizard(normalizedId, preWizardTypes);
 
-        List<DocumentoPreWizardRevisionDTO> documentosPreWizard = new ArrayList<>();
-        boolean todosAprobado = true;
-        boolean algunoDevuelto = false;
-        for (String tipo : preWizardTypes) {
-            DocumentoPreWizardRevision revision = revisionesPorTipo.get(tipo);
-            if (revision != null) {
-                documentosPreWizard.add(new DocumentoPreWizardRevisionDTO(
-                        revision.getTipoDocumento(),
-                        revision.getEstado().name(),
-                        revision.getObservacion(),
-                        revision.getRevisadoPor(),
-                        revision.getRevisadoEn()
-                ));
-                if (revision.getEstado() == DocumentoPreWizardEstado.APROBADO) {
-                    // keep counting
-                } else {
-                    todosAprobado = false;
-                }
-                if (revision.getEstado() == DocumentoPreWizardEstado.DEVUELTO) {
-                    algunoDevuelto = true;
-                }
-            } else {
-                todosAprobado = false;
-                documentosPreWizard.add(new DocumentoPreWizardRevisionDTO(
-                        tipo,
-                        DocumentoPreWizardEstado.PENDIENTE.name(),
-                        null,
-                        null,
-                        null
-                ));
-            }
-        }
-
-        String viabilidadEstado;
         boolean confirmada = proyecto.viabilidadAprobada()
                 && Boolean.TRUE.equals(proyecto.getDocumentosVerificados());
-        if (confirmada && todosAprobado && documentosCargados) {
-            viabilidadEstado = ViabilidadEstado.APROBADA.name();
-        } else if (algunoDevuelto) {
-            viabilidadEstado = ViabilidadEstado.DEVUELTA.name();
-        } else if (documentosCargados) {
-            viabilidadEstado = ViabilidadEstado.CARGADA.name();
-        } else {
-            viabilidadEstado = ViabilidadEstado.PENDIENTE.name();
-        }
+        String viabilidadEstado = resolverViabilidadEstado(
+                confirmada, preWizard.todosAprobado(), documentosCargados, preWizard.algunoDevuelto());
 
-        boolean documentosVerificados = confirmada
-                && todosAprobado && documentosCargados;
-        boolean puedeCargarViabilidad = requiereCompletitud && directorAsignado
-                && (ViabilidadEstado.PENDIENTE.name().equals(viabilidadEstado)
-                    || ViabilidadEstado.DEVUELTA.name().equals(viabilidadEstado));
-        boolean puedeCompletarWizard = requiereCompletitud && directorAsignado && documentosVerificados;
-        boolean puedeCompletar = puedeCompletarWizard;
+        FlagsCompletitud flags = resolverFlagsCompletitud(
+                requiereCompletitud, directorAsignado, confirmada, preWizard.todosAprobado(),
+                documentosCargados, viabilidadEstado);
+        boolean puedeCompletar = flags.puedeCompletarWizard();
 
         boolean plazoVencido = proyecto.plazoCompletarVencido();
 
-        String mensaje;
-        if (!requiereCompletitud) {
-            mensaje = "El proyecto ya tiene su informacion inicial completa.";
-        } else if (Boolean.TRUE.equals(proyecto.getCierreForzoso())) {
-            mensaje = "El proyecto fue cerrado forzosamente por el Gestor.";
-        } else if (ViabilidadEstado.DEVUELTA.name().equals(viabilidadEstado)) {
-            mensaje = "Algunos documentos fueron devueltos con observaciones. El Director debe subsanar.";
-        } else if (puedeCargarViabilidad) {
-            mensaje = "El Director debe cargar los 3 documentos (Viabilidad, Plan de Comunicaciones y Matriz de Riesgos de Viabilidad).";
-        } else if (documentosCargados && !documentosVerificados) {
-            mensaje = "Los documentos estan cargados y pendientes de verificacion por parte del Gestor.";
-        } else if (documentosVerificados) {
-            if (plazoVencido) {
-                mensaje = "El plazo de 30 dias para completar el proyecto ha vencido. El Gestor puede realizar el cierre forzoso.";
-            } else {
-                mensaje = "Documentos verificados. El Director debe completar la informacion del proyecto dentro de 30 dias.";
-            }
-        } else {
-            mensaje = "El Director asignado debe completar la informacion inicial antes de acceder a los modulos operativos.";
-        }
+        String mensaje = resolverMensajeCompletitud(
+                proyecto, requiereCompletitud, viabilidadEstado, flags.puedeCargarViabilidad(),
+                documentosCargados, flags.documentosVerificados(), plazoVencido);
 
         return new ProyectoCompletionStatusDTO(
                 proyecto.getId(),
@@ -350,22 +259,118 @@ public class ProyectoServiceImpl implements ProyectoService {
                 proyecto.getViabilidadObservaciones(),
                 ViabilidadEstado.APROBADA.name().equals(viabilidadEstado),
                 documentosCargados,
-                documentosVerificados,
-                puedeCargarViabilidad,
-                puedeCompletarWizard,
+                flags.documentosVerificados(),
+                flags.puedeCargarViabilidad(),
+                flags.puedeCompletarWizard(),
                 proyecto.getFechaLimiteCompletar(),
                 plazoVencido,
                 Boolean.TRUE.equals(proyecto.getCierreForzoso()),
                 mensaje,
-                documentosPreWizard
+                preWizard.documentos()
         );
+    }
+
+    private record PreWizardResumen(List<DocumentoPreWizardRevisionDTO> documentos, boolean todosAprobado, boolean algunoDevuelto) {
+    }
+
+    private record FlagsCompletitud(boolean documentosVerificados, boolean puedeCargarViabilidad, boolean puedeCompletarWizard) {
+    }
+
+    private PreWizardResumen construirResumenPreWizard(String normalizedId, List<String> preWizardTypes) {
+        Map<String, DocumentoPreWizardRevision> revisionesPorTipo = preWizardRevisionRepositoryPort
+                .findByProyectoId(normalizedId)
+                .stream()
+                .collect(Collectors.toMap(
+                        DocumentoPreWizardRevision::getTipoDocumento,
+                        r -> r,
+                        (a, b) -> a
+                ));
+
+        List<DocumentoPreWizardRevisionDTO> documentosPreWizard = new ArrayList<>();
+        boolean todosAprobado = true;
+        boolean algunoDevuelto = false;
+        for (String tipo : preWizardTypes) {
+            DocumentoPreWizardRevision revision = revisionesPorTipo.get(tipo);
+            if (revision == null) {
+                todosAprobado = false;
+                documentosPreWizard.add(new DocumentoPreWizardRevisionDTO(
+                        tipo,
+                        DocumentoPreWizardEstado.PENDIENTE.name(),
+                        null,
+                        null,
+                        null
+                ));
+                continue;
+            }
+            documentosPreWizard.add(new DocumentoPreWizardRevisionDTO(
+                    revision.getTipoDocumento(),
+                    revision.getEstado().name(),
+                    revision.getObservacion(),
+                    revision.getRevisadoPor(),
+                    revision.getRevisadoEn()
+            ));
+            if (revision.getEstado() != DocumentoPreWizardEstado.APROBADO) {
+                todosAprobado = false;
+            }
+            if (revision.getEstado() == DocumentoPreWizardEstado.DEVUELTO) {
+                algunoDevuelto = true;
+            }
+        }
+        return new PreWizardResumen(documentosPreWizard, todosAprobado, algunoDevuelto);
+    }
+
+    private String resolverViabilidadEstado(boolean confirmada, boolean todosAprobado, boolean documentosCargados, boolean algunoDevuelto) {
+        if (confirmada && todosAprobado && documentosCargados) {
+            return ViabilidadEstado.APROBADA.name();
+        }
+        if (algunoDevuelto) {
+            return ViabilidadEstado.DEVUELTA.name();
+        }
+        if (documentosCargados) {
+            return ViabilidadEstado.CARGADA.name();
+        }
+        return ViabilidadEstado.PENDIENTE.name();
+    }
+
+    private FlagsCompletitud resolverFlagsCompletitud(boolean requiereCompletitud, boolean directorAsignado, boolean confirmada, boolean todosAprobado, boolean documentosCargados, String viabilidadEstado) {
+        boolean documentosVerificados = confirmada && todosAprobado && documentosCargados;
+        boolean puedeCargarViabilidad = requiereCompletitud && directorAsignado
+                && (ViabilidadEstado.PENDIENTE.name().equals(viabilidadEstado)
+                    || ViabilidadEstado.DEVUELTA.name().equals(viabilidadEstado));
+        boolean puedeCompletarWizard = requiereCompletitud && directorAsignado && documentosVerificados;
+        return new FlagsCompletitud(documentosVerificados, puedeCargarViabilidad, puedeCompletarWizard);
+    }
+
+    private String resolverMensajeCompletitud(Proyecto proyecto, boolean requiereCompletitud, String viabilidadEstado, boolean puedeCargarViabilidad, boolean documentosCargados, boolean documentosVerificados, boolean plazoVencido) {
+        if (!requiereCompletitud) {
+            return "El proyecto ya tiene su informacion inicial completa.";
+        }
+        if (Boolean.TRUE.equals(proyecto.getCierreForzoso())) {
+            return "El proyecto fue cerrado forzosamente por el Gestor.";
+        }
+        if (ViabilidadEstado.DEVUELTA.name().equals(viabilidadEstado)) {
+            return "Algunos documentos fueron devueltos con observaciones. El Director debe subsanar.";
+        }
+        if (puedeCargarViabilidad) {
+            return "El Director debe cargar los 3 documentos (Viabilidad, Plan de Comunicaciones y Matriz de Riesgos de Viabilidad).";
+        }
+        if (documentosCargados && !documentosVerificados) {
+            return "Los documentos estan cargados y pendientes de verificacion por parte del Gestor.";
+        }
+        if (documentosVerificados) {
+            if (plazoVencido) {
+                return "El plazo de 30 dias para completar el proyecto ha vencido. El Gestor puede realizar el cierre forzoso.";
+            }
+            return "Documentos verificados. El Director debe completar la informacion del proyecto dentro de 30 dias.";
+        }
+        return "El Director asignado debe completar la informacion inicial antes de acceder a los modulos operativos.";
     }
 
     @Override
     @Transactional
     public ProyectoResponseDTO completarInformacionInicial(String id, ProyectoCompletarInformacionDTO dto, String username) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
@@ -374,7 +379,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (!tieneAccesoCompletitud(proyecto, username)) {
             throw new BadRequestException("Solo el Director asignado o un Gestor puede completar la informacion inicial del proyecto.");
         }
-        boolean existePlan = documentoVersionRepository
+        boolean existePlan = documentoVersionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoAndEstado(
                         normalizedId, "PLAN_COMUNICACIONES", DocumentoProyectoVersionEstado.ACTUAL)
                 .isPresent();
@@ -384,11 +389,12 @@ public class ProyectoServiceImpl implements ProyectoService {
         }
 
         aplicarInformacionComplementaria(proyecto, dto);
-        proyecto.completarInformacionInicialPorDirector();
+        proyecto.completarInformacionInicialPorDirector(
+                estadoProyectoConfig(proyecto.calcularEstadoCompletitudInicial().name()));
 
-        Proyecto guardado = proyectoRepository.save(proyecto);
-        sincronizarRespuestasFurag(guardado);
-        crearRiesgosIniciales(guardado, dto.riesgosIniciales());
+        Proyecto guardado = proyectoRepositoryPort.save(proyecto);
+        furagSupport.sincronizarRespuestasFurag(guardado);
+        riesgoInicialSupport.crearRiesgosIniciales(guardado, dto.riesgosIniciales());
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_INITIAL_COMPLETED,
                 guardado.getId(),
@@ -398,7 +404,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                         KEY_STATE, guardado.getEstadoCodigo(),
                         KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(guardado)
                 )));
-        return proyectoRepository.findById(guardado.getId()).map(p -> {
+        return proyectoRepositoryPort.findById(guardado.getId()).map(p -> {
             initializeLazyCollections(p);
             return mapToResponseDto(p);
         }).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado tras completar información: " + guardado.getId()));
@@ -408,36 +414,68 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional
     public ProyectoResponseDTO actualizarProyecto(String id, ProyectoUpdateDTO dto, Authentication authentication) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         String actorUsername = identityExtractor.resolveUsername(authentication);
 
+        aplicarCamposPrincipales(proyecto, dto);
+        aplicarObjetivosEspecificos(proyecto, dto);
+        aplicarCamposDetalle(proyecto, dto);
+        aplicarCamposPeti(proyecto, dto);
+        aplicarFuragYListas(proyecto, dto);
+
+        Proyecto actualizado = proyectoRepositoryPort.save(proyecto);
+        furagSupport.sincronizarRespuestasFurag(actualizado);
+        notificarCambioProyecto(actualizado, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
+                KEY_PROJECT_NAME, actualizado.getNombre(),
+                KEY_STATE, actualizado.getEstadoCodigo()
+        ));
+        return proyectoRepositoryPort.findById(actualizado.getId()).map(p -> {
+            initializeLazyCollections(p);
+            return mapToResponseDto(p);
+        }).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado tras actualización: " + actualizado.getId()));
+    }
+
+    private void aplicarCamposPrincipales(Proyecto proyecto, ProyectoUpdateDTO dto) {
         if (dto.nombre() != null) proyecto.setNombre(dto.nombre());
         if (dto.dependencia() != null) proyecto.setDependencia(dto.dependencia());
         if (dto.director() != null) proyecto.setDirector(dto.director());
         if (dto.correoDirector() != null) proyecto.setCorreoDirector(dto.correoDirector());
         if (dto.objetivoGeneral() != null) proyecto.setObjetivoGeneral(dto.objetivoGeneral());
-        if (dto.objetivosEspecificos() != null) {
-            proyecto.getObjetivosEspecificos().clear();
-            dto.objetivosEspecificos().stream()
-                    .map(this::trimToNull)
-                    .filter(value -> value != null && !value.isBlank())
-                    .map(desc -> {
-                        ObjetivoEspecifico obj = new ObjetivoEspecifico();
-                        obj.setDescripcion(desc);
-                        obj.setProyecto(proyecto);
-                        return obj;
-                    })
-                    .forEach(proyecto.getObjetivosEspecificos()::add);
+    }
+
+    private void aplicarObjetivosEspecificos(Proyecto proyecto, ProyectoUpdateDTO dto) {
+        if (dto.objetivosEspecificos() == null) {
+            return;
         }
+        proyecto.getObjetivosEspecificos().clear();
+        dto.objetivosEspecificos().stream()
+                .map(this::trimToNull)
+                .filter(value -> value != null && !value.isBlank())
+                .map(desc -> {
+                    ObjetivoEspecifico obj = new ObjetivoEspecifico();
+                    obj.setDescripcion(desc);
+                    obj.setProyecto(proyecto);
+                    return obj;
+                })
+                .forEach(proyecto.getObjetivosEspecificos()::add);
+    }
+
+    private void aplicarCamposDetalle(Proyecto proyecto, ProyectoUpdateDTO dto) {
         if (dto.alcanceDetallado() != null) proyecto.setAlcanceDetallado(dto.alcanceDetallado());
         if (dto.presupuestoEstimado() != null) proyecto.setPresupuestoEstimado(dto.presupuestoEstimado());
         if (dto.fechaInicio() != null) proyecto.setFechaInicio(dto.fechaInicio());
+    }
+
+    private void aplicarCamposPeti(Proyecto proyecto, ProyectoUpdateDTO dto) {
         if (dto.peti() != null) proyecto.setPeti(dto.peti());
         if (dto.vigenciaPeti() != null) proyecto.setVigenciaPeti(dto.vigenciaPeti());
         if (dto.estrategiaPeti() != null) aplicarEstrategiaPeti(proyecto, dto.estrategiaPeti());
         if (dto.tienePlanComunicaciones() != null) proyecto.setTienePlanComunicaciones(dto.tienePlanComunicaciones());
-        if (dto.furag() != null) proyecto.setFurag(buildFurag(dto.furag()));
+    }
+
+    private void aplicarFuragYListas(Proyecto proyecto, ProyectoUpdateDTO dto) {
+        if (dto.furag() != null) proyecto.setFurag(furagSupport.buildFurag(dto.furag()));
         if (dto.equipoTrabajo() != null) {
             proyecto.getEquipoTrabajo().clear();
             dto.equipoTrabajo().stream()
@@ -464,30 +502,19 @@ public class ProyectoServiceImpl implements ProyectoService {
             int[] entIdx = {0};
             int[] faseIdx = {0};
             dto.fases().stream()
-                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, faseIdx[0], hitoIdx, entIdx); })
+                    .map(faseDto -> { faseIdx[0]++; return projectStructureSupport.buildFase(faseDto, proyecto, faseIdx[0], hitoIdx, entIdx); })
                     .forEach(proyecto.getFases()::add);
         }
-
-        Proyecto actualizado = proyectoRepository.save(proyecto);
-        sincronizarRespuestasFurag(actualizado);
-        notificarCambioProyecto(actualizado, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
-                KEY_PROJECT_NAME, actualizado.getNombre(),
-                KEY_STATE, actualizado.getEstadoCodigo()
-        ));
-        return proyectoRepository.findById(actualizado.getId()).map(p -> {
-            initializeLazyCollections(p);
-            return mapToResponseDto(p);
-        }).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado tras actualización: " + actualizado.getId()));
     }
 
     @Override
     @Transactional
     public void eliminarProyecto(String id, Authentication authentication) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
         String actorUsername = identityExtractor.resolveUsername(authentication);
-        proyectoRepository.delete(proyecto);
+        proyectoRepositoryPort.delete(proyecto);
         notificarCambioProyecto(proyecto, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
                 KEY_PROJECT_NAME, proyecto.getNombre(),
                 KEY_STATE, proyecto.getEstadoCodigo(),
@@ -499,26 +526,78 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional(readOnly = true)
     public ProyectoResumenDTO obtenerResumen(String id) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto p = proyectoRepository.findById(normalizedId)
+        Proyecto p = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         long totalFases = p.getFases().size();
-        long totalHitos = 0;
-        long totalEntregables = 0;
-        long entregablesConformes = 0;
-        List<String> entregables = new ArrayList<>();
-
         boolean puedeCerrar = !p.esEstadoTerminal();
-        String patrocinadorNombre = p.getPatrocinador() != null ? p.getPatrocinador().getNombre() : null;
-        String patrocinadorCargo = p.getPatrocinador() != null ? p.getPatrocinador().getCargo() : null;
-        String patrocinadorEntidad = p.getPatrocinador() != null ? p.getPatrocinador().getEntidad() : null;
+        PatrocinadorInfo patrocinador = resolverPatrocinadorInfo(p);
+        DirectorInfo director = resolverDirectorInfo(p);
+        ResumenFases resumenFases = contarResumenFases(p);
+
+        if (resumenFases.totalEntregables() == 0 || resumenFases.entregablesConformes() < resumenFases.totalEntregables()) {
+            puedeCerrar = false;
+        }
+
+        return new ProyectoResumenDTO(
+                p.getId(),
+                p.getNombre(),
+                p.getDependencia(),
+                director.nombre(),
+                director.cargo(),
+                director.entidad(),
+                patrocinador.nombre(),
+                patrocinador.cargo(),
+                patrocinador.entidad(),
+                p.getFechaInicio(),
+                p.getObjetivoGeneral(),
+                extraerObjetivosEspecificos(p),
+                p.getAvanceTotal(),
+                p.getEstadoCodigo(),
+                totalFases,
+                resumenFases.totalHitos(),
+                resumenFases.entregablesConformes(),
+                resumenFases.totalEntregables(),
+                puedeCerrar,
+                resumenFases.entregables(),
+                Boolean.TRUE.equals(p.getCierreSolicitado()),
+                p.getCierreEstado(),
+                p.getCierreObservaciones(),
+                p.getCierreBorradorJson()
+        );
+    }
+
+    private record PatrocinadorInfo(String nombre, String cargo, String entidad) {
+    }
+
+    private record DirectorInfo(String nombre, String cargo, String entidad) {
+    }
+
+    private record ResumenFases(long totalHitos, long totalEntregables, long entregablesConformes, List<String> entregables) {
+    }
+
+    private PatrocinadorInfo resolverPatrocinadorInfo(Proyecto p) {
+        return new PatrocinadorInfo(
+                p.getPatrocinador() != null ? p.getPatrocinador().getNombre() : null,
+                p.getPatrocinador() != null ? p.getPatrocinador().getCargo() : null,
+                p.getPatrocinador() != null ? p.getPatrocinador().getEntidad() : null);
+    }
+
+    private DirectorInfo resolverDirectorInfo(Proyecto p) {
         SeguridadUsuarioProyecto directorAsignado = findDirectorAsignado(p);
         String directorNombre = directorNameFromAssignment(directorAsignado);
         String directorCargo = directorNombre != null ? directorAsignado.getCargo() : null;
         String directorEntidad = directorNombre != null && directorAsignado.getUsuario() != null
                 ? directorAsignado.getUsuario().getDependencia()
                 : null;
+        return new DirectorInfo(directorNombre, directorCargo, directorEntidad);
+    }
 
+    private ResumenFases contarResumenFases(Proyecto p) {
+        long totalHitos = 0;
+        long totalEntregables = 0;
+        long entregablesConformes = 0;
+        List<String> entregables = new ArrayList<>();
         for (Fase f : p.getFases()) {
             totalHitos += f.getHitos().size();
             for (Hito h : f.getHitos()) {
@@ -531,56 +610,30 @@ public class ProyectoServiceImpl implements ProyectoService {
                 }
             }
         }
+        return new ResumenFases(totalHitos, totalEntregables, entregablesConformes, entregables);
+    }
 
-        if (totalEntregables == 0 || entregablesConformes < totalEntregables) {
-            puedeCerrar = false;
-        }
-
-        return new ProyectoResumenDTO(
-                p.getId(),
-                p.getNombre(),
-                p.getDependencia(),
-                directorNombre,
-                directorCargo,
-                directorEntidad,
-                patrocinadorNombre,
-                patrocinadorCargo,
-                patrocinadorEntidad,
-                p.getFechaInicio(),
-                p.getObjetivoGeneral(),
-                p.getObjetivosEspecificos() == null ? List.of() : p.getObjetivosEspecificos().stream()
-                        .map(ObjetivoEspecifico::getDescripcion)
-                        .filter(value -> value != null && !value.isBlank())
-                        .toList(),
-                p.getAvanceTotal(),
-                p.getEstadoCodigo(),
-                totalFases,
-                totalHitos,
-                entregablesConformes,
-                totalEntregables,
-                puedeCerrar,
-                entregables,
-                Boolean.TRUE.equals(p.getCierreSolicitado()),
-                p.getCierreEstado(),
-                p.getCierreObservaciones(),
-                p.getCierreBorradorJson()
-        );
+    private List<String> extraerObjetivosEspecificos(Proyecto p) {
+        return p.getObjetivosEspecificos() == null ? List.of() : p.getObjetivosEspecificos().stream()
+                .map(ObjetivoEspecifico::getDescripcion)
+                .filter(value -> value != null && !value.isBlank())
+                .toList();
     }
 
     @Override
     @Transactional
     public void cerrarProyecto(String id) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         BigDecimal avanceActual = progressCalculator.calcularYActualizarAvanceProyecto(normalizedId);
         proyecto.setAvanceTotal(avanceActual);
 
-        // Uso de la lÃ³gica rica del dominio
-        proyecto.cerrar();
+        // Uso de la lógica rica del dominio
+        proyecto.cerrar(estadoProyectoConfig("CERRADO"));
 
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_CLOSED,
                 proyecto.getId(),
@@ -595,17 +648,17 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional(readOnly = true)
     public DashboardDTO obtenerDashboard() {
-        LocalDate hoy = LocalDate.now();
-        int diasUmbral = proyectoRepository.getDiasUmbralProximo().orElse(8);
+        LocalDate hoy = LocalDate.now(ZoneId.systemDefault());
+        int diasUmbral = proyectoRepositoryPort.getDiasUmbralProximo().orElse(8);
         LocalDate umbral = hoy.plusDays(diasUmbral);
 
         return new DashboardDTO(
-                proyectoRepository.countTotal(),
-                proyectoRepository.countActivos(),
-                proyectoRepository.countCerrados(),
-                proyectoRepository.getAvancePromedio(),
-                proyectoRepository.countEntregablesAtrasados(hoy),
-                proyectoRepository.countEntregablesProximosAVencer(hoy, umbral),
+                proyectoRepositoryPort.countTotal(),
+                proyectoRepositoryPort.countActivos(),
+                proyectoRepositoryPort.countCerrados(),
+                proyectoRepositoryPort.getAvancePromedio(),
+                proyectoRepositoryPort.countEntregablesAtrasados(hoy),
+                proyectoRepositoryPort.countEntregablesProximosAVencer(hoy, umbral),
                 diasUmbral
         );
     }
@@ -614,18 +667,11 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional(readOnly = true)
     public Furag obtenerFurag(String id) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
-        Furag reconstructed = reconstruirFuragDesdeRespuestas(normalizedId);
+        Furag reconstructed = furagSupport.reconstruirFuragDesdeRespuestas(normalizedId);
         if (reconstructed != null) {
-            reconstructed.setDetalle(buildFuragDetalle(reconstructed));
             return reconstructed;
-        }
-        Furag furag = proyecto.getFurag();
-        if (furag != null) {
-            furag.setRespuestas(buildFuragRespuestasMap(furag));
-            furag.setDetalle(buildFuragDetalle(furag));
-            return furag;
         }
         return new Furag();
     }
@@ -633,7 +679,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Override
     @Transactional
     public void recalcularAvances() {
-        List<Proyecto> proyectos = proyectoRepository.findAll();
+        List<Proyecto> proyectos = proyectoRepositoryPort.findAll();
         for (Proyecto proyecto : proyectos) {
             progressCalculator.calcularYActualizarAvanceProyecto(proyecto.getId());
         }
@@ -643,16 +689,16 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional
     public void actualizarFurag(String id, Furag furag) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
-        validarFuragCompleto(furag, furag.getRespuestas());
+        furagSupport.validarFuragCompleto(furag, furag.getRespuestas());
         proyecto.setFurag(furag);
-        Proyecto guardado = proyectoRepository.save(proyecto);
-        sincronizarRespuestasFurag(guardado);
+        Proyecto guardado = proyectoRepositoryPort.save(proyecto);
+        furagSupport.sincronizarRespuestasFurag(guardado);
     }
 
     private void aplicarInformacionComplementaria(Proyecto proyecto, ProyectoCompletarInformacionDTO dto) {
-        validarPonderaciones(dto.fases());
+        projectStructureSupport.validarPonderaciones(dto.fases());
 
         proyecto.setDependencia(dto.dependencia().trim());
         proyecto.setFechaInicio(dto.fechaInicio());
@@ -668,7 +714,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                         .filter(d -> d != null && !d.isBlank())
                         .findFirst()
                         .orElse(null) : null));
-        proyecto.setFurag(buildFurag(dto.furag()));
+        proyecto.setFurag(furagSupport.buildFurag(dto.furag()));
 
         proyecto.getObjetivosEspecificos().clear();
         if (dto.objetivosEspecificos() != null) {
@@ -704,82 +750,8 @@ public class ProyectoServiceImpl implements ProyectoService {
             final int[] hitoIdx = {0};
             final int[] entIdx = {0};
             dto.fases().stream()
-                    .map(faseDto -> { faseIdx[0]++; return buildFase(faseDto, proyecto, faseIdx[0], hitoIdx, entIdx); })
+                    .map(faseDto -> { faseIdx[0]++; return projectStructureSupport.buildFase(faseDto, proyecto, faseIdx[0], hitoIdx, entIdx); })
                     .forEach(proyecto.getFases()::add);
-        }
-    }
-
-    private void crearRiesgosIniciales(Proyecto proyecto, List<RiesgoCompletitudDTO> riesgos) {
-        if (riesgos == null || riesgos.isEmpty()) {
-            return;
-        }
-        for (RiesgoCompletitudDTO dto : riesgos) {
-            Riesgo riesgo = new Riesgo();
-            riesgo.setProyecto(proyecto);
-            riesgo.setDescripcion(dto.descripcion().trim());
-            riesgo.setProbabilidad(dto.probabilidad());
-            riesgo.setImpacto(dto.impacto());
-            riesgo.setTipoRiesgo(dto.tipoRiesgo() != null ? dto.tipoRiesgo() : TipoRiesgo.GENERAL);
-            riesgo.setNivel(parseNivelRiesgo(calcularNivelRiesgo(dto.probabilidad(), dto.impacto())));
-            riesgo.setTratamiento(dto.tratamiento() != null ? dto.tratamiento().trim() : null);
-            riesgo.setEntidadResponsable(dto.entidadResponsable() != null ? dto.entidadResponsable().trim() : null);
-            riesgo.setAccionesMitigacion(null);
-            riesgo.setFechaAccion(null);
-            riesgo.setEstado(EstadoRiesgo.PENDIENTE);
-
-            Riesgo saved = riesgoRepository.save(riesgo);
-            saved.setCodigo("R" + String.format("%02d", saved.getId()));
-            riesgoRepository.save(saved);
-        }
-    }
-
-    private String calcularNivelRiesgo(Probabilidad prob, Impacto imp) {
-        String probabilidad = prob == null ? null : prob.name();
-        String impacto = imp == null ? null : imp.name();
-        if (probabilidad == null || impacto == null) {
-            throw new BadRequestException("La probabilidad e impacto son obligatorios para calcular el nivel de riesgo.");
-        }
-        return matrizRiesgoRepository.findByProbabilidadIgnoreCaseAndImpactoIgnoreCase(probabilidad, impacto)
-                .map(MatrizRiesgo::getNivelResultante)
-                .orElseGet(() -> {
-                    int p = escalaProbabilidad(probabilidad);
-                    int i = escalaImpacto(impacto);
-                    int score = p + i;
-                    if (score >= 2 && score <= 4) return "BAJO";
-                    if (score >= 5 && score <= 6) return "MODERADO";
-                    if (score >= 7 && score <= 8) return "ALTO";
-                    if (score >= 9) return "EXTREMO";
-                    return "BAJO";
-                });
-    }
-
-    private int escalaProbabilidad(String probabilidad) {
-        return switch (probabilidad.toUpperCase()) {
-            case "UNO" -> 1;
-            case "DOS" -> 2;
-            case "TRES" -> 3;
-            case "CUATRO" -> 4;
-            case "CINCO" -> 5;
-            default -> 0;
-        };
-    }
-
-    private int escalaImpacto(String impacto) {
-        return switch (impacto.toUpperCase()) {
-            case "UNO" -> 1;
-            case "DOS" -> 2;
-            case "TRES" -> 3;
-            case "CUATRO" -> 4;
-            case "CINCO" -> 5;
-            default -> 0;
-        };
-    }
-
-    private NivelRiesgo parseNivelRiesgo(String nivel) {
-        try {
-            return NivelRiesgo.valueOf(nivel);
-        } catch (IllegalArgumentException _) {
-            return NivelRiesgo.BAJO;
         }
     }
 
@@ -794,278 +766,6 @@ public class ProyectoServiceImpl implements ProyectoService {
         pat.setProcesoSigc(dto.procesoSigc());
         pat.setProcedimiento(dto.procedimientoSigc());
         return pat;
-    }
-
-    private Furag buildFurag(FuragDTO dto) {
-        if (dto == null || dto.respuestas() == null || dto.respuestas().isEmpty()) {
-            return null;
-        }
-
-        Map<String, RespuestaFurag> respuestas = normalizeFuragResponses(dto.respuestas());
-        Furag furag = new Furag();
-        furag.setRespuestas(respuestas);
-        furag.setInfraestructuraDatos(resolveFuragAnswer(respuestas, FURAG_INFRAESTRUCTURA_DATOS));
-        furag.setInteroperabilidad(resolveFuragAnswer(respuestas, FURAG_INTEROPERABILIDAD));
-        furag.setDigitalizacionAutomatizacion(resolveFuragAnswer(respuestas, FURAG_DIGITALIZACION_AUTOMATIZACION));
-        furag.setContratacionPublica(resolveFuragAnswer(respuestas, FURAG_CONTRATACION_PUBLICA));
-        furag.setServiciosNube(resolveFuragAnswer(respuestas, FURAG_SERVICIOS_NUBE));
-        furag.setSandbox(resolveFuragAnswer(respuestas, FURAG_SANDBOX));
-        furag.setTecnologiasEmergentes(resolveFuragAnswer(respuestas, FURAG_TECNOLOGIAS_EMERGENTES));
-        furag.setDetalle(buildFuragDetalle(furag));
-        validarFuragCompleto(furag, respuestas);
-        return furag;
-    }
-
-    private List<FuragPreguntaRespuestaDTO> buildFuragDetalle(Furag furag) {
-        Map<String, RespuestaFurag> respuestas = buildFuragRespuestasMap(furag);
-        Map<String, String> labels = new LinkedHashMap<>();
-        petiCatalogService.getFuragPreguntas().forEach(pregunta -> {
-            String normalizedKey = canonicalizeFuragKey(pregunta.key());
-            if (normalizedKey != null) {
-                labels.put(normalizedKey, pregunta.label());
-            }
-            if (pregunta.label() != null) {
-                labels.putIfAbsent(trimToNull(pregunta.label()), pregunta.label());
-            }
-        });
-        List<FuragPreguntaRespuestaDTO> detalle = new ArrayList<>();
-        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
-            String key = canonicalizeFuragKey(entry.getKey());
-            String label = labels.getOrDefault(key, entry.getKey());
-            String technicalKey = key != null ? key : entry.getKey();
-            detalle.add(new FuragPreguntaRespuestaDTO(technicalKey, label, entry.getValue()));
-        }
-        return detalle;
-    }
-
-    private Map<String, RespuestaFurag> normalizeFuragResponses(Map<String, RespuestaFurag> respuestas) {
-        Map<String, RespuestaFurag> normalized = new LinkedHashMap<>();
-        if (respuestas == null) {
-            return normalized;
-        }
-        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
-            String key = trimToNull(entry.getKey());
-            if (key == null || entry.getValue() == null) {
-                continue;
-            }
-            normalized.put(key, entry.getValue());
-        }
-        return normalized;
-    }
-
-    private RespuestaFurag resolveFuragAnswer(Map<String, RespuestaFurag> respuestas, String canonicalKey) {
-        if (respuestas == null || respuestas.isEmpty() || canonicalKey == null) {
-            return null;
-        }
-        if (respuestas.containsKey(canonicalKey)) {
-            return respuestas.get(canonicalKey);
-        }
-        String canonicalLabel = petiCatalogService.getFuragPreguntas().stream()
-                .filter(pregunta -> canonicalKey.equals(canonicalizeFuragKey(pregunta.key())) || canonicalKey.equals(pregunta.key()))
-                .map(FuragPreguntaDTO::label)
-                .findFirst()
-                .orElse(null);
-        if (canonicalLabel != null && respuestas.containsKey(canonicalLabel)) {
-            return respuestas.get(canonicalLabel);
-        }
-        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
-            String key = canonicalizeFuragKey(entry.getKey());
-            if (canonicalKey.equals(key)) {
-                return entry.getValue();
-            }
-            if (canonicalLabel != null && canonicalLabel.equalsIgnoreCase(entry.getKey())) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
-    private String canonicalizeFuragKey(String key) {
-        if (key == null) {
-            return null;
-        }
-        String cleaned = key.trim();
-        if (cleaned.isBlank()) {
-            return null;
-        }
-        String normalized = cleaned.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
-        if (normalized.isBlank()) {
-            return null;
-        }
-        if (normalized.equals("infraestructuradedatos") || normalized.equals("usoinfraestructuradedatos")) return FURAG_INFRAESTRUCTURA_DATOS;
-        if (normalized.contains("infraestructura") && normalized.contains("dato")) return FURAG_INFRAESTRUCTURA_DATOS;
-        if (normalized.contains(FURAG_INTEROPERABILIDAD)) return FURAG_INTEROPERABILIDAD;
-        if (normalized.equals("digitalizacionautomatizacion") || (normalized.contains("digitalizacion") && normalized.contains("automatizacion"))) return FURAG_DIGITALIZACION_AUTOMATIZACION;
-        if (normalized.equals("contratacionpublica") || (normalized.contains("contratacion") && normalized.contains("publica"))) return FURAG_CONTRATACION_PUBLICA;
-        if (normalized.equals("serviciosnube") || (normalized.contains("servicios") && normalized.contains("nube"))) return FURAG_SERVICIOS_NUBE;
-        if (normalized.equals(FURAG_SANDBOX) || normalized.contains(FURAG_SANDBOX)) return FURAG_SANDBOX;
-        if (normalized.equals("tecnologiasemergentes") || (normalized.contains("tecnologias") && normalized.contains("emergentes"))) return FURAG_TECNOLOGIAS_EMERGENTES;
-        if (normalized.equals("elpepe")) return "elPepe";
-        if (normalized.equals("sanpepe")) return "sanPepe";
-        return cleaned;
-    }
-
-    private Map<String, RespuestaFurag> buildFuragRespuestasMap(Furag furag) {
-        Map<String, RespuestaFurag> map = new LinkedHashMap<>();
-        if (furag == null) {
-            return map;
-        }
-        Map<String, RespuestaFurag> dynamic = furag.getRespuestas();
-        if (dynamic != null && !dynamic.isEmpty()) {
-            map.putAll(normalizeFuragResponses(dynamic));
-            return map;
-        }
-        if (furag.getInfraestructuraDatos() != null) map.put(FURAG_INFRAESTRUCTURA_DATOS, furag.getInfraestructuraDatos());
-        if (furag.getInteroperabilidad() != null) map.put(FURAG_INTEROPERABILIDAD, furag.getInteroperabilidad());
-        if (furag.getDigitalizacionAutomatizacion() != null) map.put(FURAG_DIGITALIZACION_AUTOMATIZACION, furag.getDigitalizacionAutomatizacion());
-        if (furag.getContratacionPublica() != null) map.put(FURAG_CONTRATACION_PUBLICA, furag.getContratacionPublica());
-        if (furag.getServiciosNube() != null) map.put(FURAG_SERVICIOS_NUBE, furag.getServiciosNube());
-        if (furag.getSandbox() != null) map.put(FURAG_SANDBOX, furag.getSandbox());
-        if (furag.getTecnologiasEmergentes() != null) map.put(FURAG_TECNOLOGIAS_EMERGENTES, furag.getTecnologiasEmergentes());
-        return map;
-    }
-
-    private void validarFuragCompleto(Furag furag, Map<String, RespuestaFurag> respuestas) {
-        if (furag == null) {
-            throw new BadRequestException("FURAG es obligatorio y no puede ser nulo.");
-        }
-        List<String> camposFaltantes = new ArrayList<>();
-        if (respuestas == null || respuestas.isEmpty()) {
-            camposFaltantes.add("respuestas");
-        } else {
-            for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
-                if (entry.getValue() == null) {
-                    camposFaltantes.add(entry.getKey());
-                }
-            }
-        }
-        if (!camposFaltantes.isEmpty()) {
-            throw new BadRequestException("FURAG incompleto. No se pudieron resolver estos campos: " + String.join(", ", camposFaltantes));
-        }
-    }
-
-    private void sincronizarRespuestasFurag(Proyecto proyecto) {
-        if (proyecto == null || proyecto.getId() == null) {
-            return;
-        }
-
-        furagRespuestaRepository.deleteByProyecto_Id(proyecto.getId());
-
-        Furag furag = proyecto.getFurag();
-        if (furag == null) {
-            return;
-        }
-
-        Map<String, RespuestaFurag> respuestas = buildFuragRespuestasMap(furag);
-        if (respuestas.isEmpty()) {
-            return;
-        }
-
-        Map<String, String> labels = petiCatalogService.getFuragPreguntas().stream()
-                .collect(Collectors.toMap(FuragPreguntaDTO::key, FuragPreguntaDTO::label, (a, b) -> a, LinkedHashMap::new));
-
-        List<FuragRespuesta> items = new ArrayList<>();
-        for (Map.Entry<String, RespuestaFurag> entry : respuestas.entrySet()) {
-            String pregunta = labels.getOrDefault(canonicalizeFuragKey(entry.getKey()), entry.getKey());
-            items.add(buildFuragRespuesta(proyecto, entry.getKey(), pregunta, entry.getValue()));
-        }
-        furagRespuestaRepository.saveAll(items);
-    }
-
-    private FuragRespuesta buildFuragRespuesta(Proyecto proyecto, String codigo, String pregunta, RespuestaFurag respuesta) {
-        FuragRespuesta item = new FuragRespuesta();
-        item.setProyecto(proyecto);
-        item.setCodigoPregunta(codigo);
-        item.setPregunta(pregunta);
-        item.setRespuesta(respuesta);
-        item.setObligatoria(true);
-        return item;
-    }
-
-    private Furag reconstruirFuragDesdeRespuestas(String proyectoId) {
-        List<FuragRespuesta> respuestas = furagRespuestaRepository.findByProyecto_IdOrderByCodigoPreguntaAsc(proyectoId);
-        if (respuestas == null || respuestas.isEmpty()) {
-            return null;
-        }
-
-        Furag furag = new Furag();
-        Map<String, RespuestaFurag> dynamic = new LinkedHashMap<>();
-        for (FuragRespuesta respuesta : respuestas) {
-            aplicarRespuestaFurag(furag, dynamic, respuesta);
-        }
-
-        furag.setRespuestas(dynamic);
-        furag.setDetalle(buildFuragDetalle(furag));
-        return dynamic.isEmpty() ? null : furag;
-    }
-
-    private void aplicarRespuestaFurag(Furag furag, Map<String, RespuestaFurag> dynamic, FuragRespuesta respuesta) {
-        if (respuesta == null) {
-            return;
-        }
-        String key = trimToNull(respuesta.getCodigoPregunta());
-        if (key == null) {
-            key = trimToNull(respuesta.getPregunta());
-        }
-        if (key == null || respuesta.getRespuesta() == null) {
-            return;
-        }
-        dynamic.put(key, respuesta.getRespuesta());
-        String canonicalKey = canonicalizeFuragKey(key);
-        switch (canonicalKey) {
-            case FURAG_INFRAESTRUCTURA_DATOS -> furag.setInfraestructuraDatos(respuesta.getRespuesta());
-            case FURAG_INTEROPERABILIDAD -> furag.setInteroperabilidad(respuesta.getRespuesta());
-            case FURAG_DIGITALIZACION_AUTOMATIZACION -> furag.setDigitalizacionAutomatizacion(respuesta.getRespuesta());
-            case FURAG_CONTRATACION_PUBLICA -> furag.setContratacionPublica(respuesta.getRespuesta());
-            case FURAG_SERVICIOS_NUBE -> furag.setServiciosNube(respuesta.getRespuesta());
-            case FURAG_SANDBOX -> furag.setSandbox(respuesta.getRespuesta());
-            case FURAG_TECNOLOGIAS_EMERGENTES -> furag.setTecnologiasEmergentes(respuesta.getRespuesta());
-            default -> {
-                // Preguntas nuevas quedan disponibles en el mapa dinamico.
-            }
-        }
-    }
-
-    private Fase buildFase(FaseDTO fDto, Proyecto proyecto, int faseNumero, int[] hitoIdx, int[] entIdx) {
-        Fase fase = new Fase();
-        fase.setNombre(String.format("F%02d", faseNumero));
-        fase.setDescripcion(fDto.descripcion());
-        fase.setPonderacion(BigDecimal.valueOf(fDto.ponderacion()));
-        fase.setProyecto(proyecto);
-
-        List<Hito> hitos = fDto.hitos().stream()
-                .map(hDto -> { hitoIdx[0]++; return buildHito(hDto, fase, hitoIdx[0], entIdx); })
-                .collect(Collectors.toList());
-        fase.setHitos(hitos);
-        return fase;
-    }
-
-    private Hito buildHito(HitoDTO hDto, Fase fase, int hitoNumero, int[] entIdx) {
-        Hito hito = new Hito();
-        hito.setNombre(String.format("H%02d", hitoNumero));
-        hito.setDescripcion(hDto.descripcion());
-        hito.setPonderacion(BigDecimal.valueOf(hDto.ponderacion()));
-        hito.setFase(fase);
-
-        List<Entregable> entregables = hDto.entregables().stream()
-                .map(eDto -> { entIdx[0]++; return buildEntregable(eDto, hito, entIdx[0]); })
-                .collect(Collectors.toList());
-        hito.setEntregables(entregables);
-        return hito;
-    }
-
-    private Entregable buildEntregable(EntregableDTO eDto, Hito hito, int entNumero) {
-        validarFechasEntregableNuevo(eDto);
-        Entregable ent = new Entregable();
-        ent.setNombre(String.format("E%02d", entNumero));
-        ent.setDescripcion(eDto.descripcion());
-        ent.setPonderacion(BigDecimal.valueOf(eDto.ponderacion()));
-        ent.setFechaInicio(eDto.fechaInicio());
-        ent.setFechaLimite(eDto.fechaLimite());
-        ent.setRetroactivo(eDto.fechaLimite() != null && eDto.fechaLimite().isBefore(LocalDate.now()));
-        ent.setArchivoPdf(eDto.archivoPdf());
-        ent.setHito(hito);
-        return ent;
     }
 
     private void validarUsuarioDirector(SeguridadUsuario usuario) {
@@ -1085,8 +785,8 @@ public class ProyectoServiceImpl implements ProyectoService {
     }
 
     private void asignarDirectorProyecto(Proyecto proyecto, SeguridadUsuario director) {
-        SeguridadUsuarioProyecto asignacion = usuarioProyectoRepository
-                .findByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(
+        SeguridadUsuarioProyecto asignacion = usuarioProyectoRepositoryPort
+                .findByUsuarioUsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(
                         director.getUsername(),
                         proyecto.getId(),
                         "DIRECTOR_PROYECTO"
@@ -1096,7 +796,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         asignacion.setProyectoId(proyecto.getId());
         asignacion.setCargo("DIRECTOR_PROYECTO");
         asignacion.setActivo(true);
-        usuarioProyectoRepository.save(asignacion);
+        usuarioProyectoRepositoryPort.save(asignacion);
         securityCatalogCacheService.evictAll();
     }
 
@@ -1104,7 +804,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (proyecto == null || proyecto.getId() == null || username == null || username.isBlank()) {
             return false;
         }
-        return usuarioProyectoRepository.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
+        return usuarioProyectoRepositoryPort.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
                 .map(SeguridadUsuarioProyecto::getUsuario)
                 .filter(usuario -> usuario != null && usuario.getUsername() != null)
                 .anyMatch(usuario -> usuario.getUsername().equalsIgnoreCase(username));
@@ -1114,7 +814,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (username == null || username.isBlank()) {
             return false;
         }
-        SeguridadUsuario usuario = seguridadUsuarioRepository.findByUsernameIgnoreCase(username).orElse(null);
+        SeguridadUsuario usuario = seguridadUsuarioRepositoryPort.findByUsernameIgnoreCase(username).orElse(null);
         if (usuario == null) {
             return false;
         }
@@ -1163,8 +863,8 @@ public class ProyectoServiceImpl implements ProyectoService {
     }
 
     private synchronized String generarCodigo() {
-        String yearPrefix = PROJECT_CODE_PREFIX + java.time.Year.now().getValue() + "-";
-        int maxConsecutivo = proyectoRepository.findAll().stream()
+        String yearPrefix = PROJECT_CODE_PREFIX + java.time.Year.now(java.time.ZoneId.systemDefault()).getValue() + "-";
+        int maxConsecutivo = proyectoRepositoryPort.findAll().stream()
                 .map(Proyecto::getId)
                 .filter(id -> id != null && id.startsWith(yearPrefix))
                 .mapToInt(this::extractConsecutivoCodigoProyecto)
@@ -1175,7 +875,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         int siguiente = maxConsecutivo + 1;
         do {
             codigo = String.format("%s%03d", yearPrefix, siguiente++);
-        } while (proyectoRepository.existsById(codigo));
+        } while (proyectoRepositoryPort.existsById(codigo));
 
         return codigo;
     }
@@ -1202,70 +902,6 @@ public class ProyectoServiceImpl implements ProyectoService {
         return codigo != null && codigo.matches(PROJECT_CODE_REGEX);
     }
 
-    private void validarPonderaciones(List<FaseDTO> fases) {
-        if (fases == null || fases.isEmpty()) {
-            return;
-        }
-
-        int sumFases = 0;
-        for (FaseDTO fase : fases) {
-            if (fase.ponderacion() == null || fase.ponderacion() < 1 || fase.ponderacion() > 100) {
-                throw new BadRequestException("La ponderacion de la fase debe estar entre 1 y 100");
-            }
-            sumFases += fase.ponderacion();
-        }
-        if (sumFases != 100) {
-            throw new BadRequestException("La suma de ponderaciones de las fases debe ser exactamente 100");
-        }
-
-        for (FaseDTO fase : fases) {
-            if (fase.hitos() == null || fase.hitos().isEmpty()) {
-                throw new BadRequestException("Una fase debe tener al menos un hito");
-            }
-
-            int sumHitos = 0;
-            for (HitoDTO hito : fase.hitos()) {
-                if (hito.ponderacion() == null || hito.ponderacion() < 1 || hito.ponderacion() > 100) {
-                    throw new BadRequestException("La ponderacion del hito debe estar entre 1 y 100");
-                }
-                sumHitos += hito.ponderacion();
-            }
-            if (sumHitos != 100) {
-                throw new BadRequestException("La suma de ponderaciones de hitos en una fase debe ser exactamente 100");
-            }
-
-            for (HitoDTO hito : fase.hitos()) {
-                if (hito.entregables() == null || hito.entregables().isEmpty()) {
-                    throw new BadRequestException("Un hito debe tener al menos un entregable");
-                }
-
-                int sumEntregables = 0;
-                for (EntregableDTO entregable : hito.entregables()) {
-                    if (entregable.ponderacion() == null || entregable.ponderacion() < 1 || entregable.ponderacion() > 100) {
-                        throw new BadRequestException("La ponderacion del entregable debe estar entre 1 y 100");
-                    }
-                    validarFechasEntregableNuevo(entregable);
-                    sumEntregables += entregable.ponderacion();
-                }
-                if (sumEntregables != 100) {
-                    throw new BadRequestException("La suma de ponderaciones de entregables en un hito debe ser exactamente 100");
-                }
-            }
-        }
-    }
-
-    private void validarFechasEntregableNuevo(EntregableDTO entregable) {
-        if (entregable.fechaInicio() == null) {
-            throw new BadRequestException("La fecha de inicio del entregable es obligatoria");
-        }
-        if (entregable.fechaLimite() == null) {
-            throw new BadRequestException("La fecha limite del entregable es obligatoria");
-        }
-        if (entregable.fechaLimite().isBefore(entregable.fechaInicio())) {
-            throw new BadRequestException("La fecha limite del entregable debe ser mayor o igual a la fecha de inicio del entregable");
-        }
-    }
-
     private ProyectoListDTO mapToListDto(Proyecto p) {
         ConteoEntregables conteo = contarEntregables(p);
 
@@ -1283,7 +919,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 (int) conteo.total(),
                 (int) conteo.conformes(),
                 (int) conteo.atrasados(),
-                p.getFurag() != null ? buildFuragDetalle(p.getFurag()) : List.of(),
+                furagSupport.furagDetalleDe(p),
                 Boolean.TRUE.equals(p.getCierreForzoso()),
                 p.getCierreObservaciones(),
                 p.getCierreForzosoPor(),
@@ -1298,7 +934,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         long total = 0;
         long conformes = 0;
         long atrasados = 0;
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZoneId.systemDefault());
         for (Fase f : p.getFases()) {
             for (Hito h : f.getHitos()) {
                 for (Entregable e : h.getEntregables()) {
@@ -1318,26 +954,13 @@ public class ProyectoServiceImpl implements ProyectoService {
     private void aplicarEstrategiaPeti(Proyecto proyecto, String estrategiaPeti) {
         EstrategiaPetiConfig config = petiCatalogService.resolveEstrategiaConfig(estrategiaPeti);
         proyecto.setEstrategiaPetiConfig(config);
-        proyecto.setEstrategiaPeti(config != null ? parseLegacyEstrategiaPeti(config.getCodigo()) : null);
-    }
-
-    private EstrategiaPeti parseLegacyEstrategiaPeti(String codigo) {
-        if (codigo == null || codigo.isBlank()) {
-            return null;
-        }
-
-        try {
-            return EstrategiaPeti.valueOf(codigo.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException _) {
-            return null;
-        }
     }
 
     private String resolveEstrategiaPetiCodigo(Proyecto proyecto) {
         if (proyecto.getEstrategiaPetiConfig() != null) {
             return proyecto.getEstrategiaPetiConfig().getCodigo();
         }
-        return proyecto.getEstrategiaPeti() != null ? proyecto.getEstrategiaPeti().name() : null;
+        return null;
     }
 
     private void initializeLazyCollections(Proyecto p) {
@@ -1377,7 +1000,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getPatrocinador() != null ? new PatrocinadorDTO(p.getPatrocinador().getNombre(), p.getPatrocinador().getCargo(), p.getPatrocinador().getProcesoSigc(), p.getPatrocinador().getProcedimiento()) : null,
                 p.getEquipoTrabajo().stream().map(m -> new EquipoTrabajoDTO(m.getNombre(), m.getCargo(), m.getRol(), m.getDependencia(), m.getTelefono(), m.getCorreo())).toList(),
                 p.getStakeholders().stream().map(s -> new StakeholderDTO(s.getRol(), s.getDescripcion(), s.getInteres(), s.getImpacto())).toList(),
-                p.getFurag() != null ? buildFuragDto(p.getFurag()) : null,
+                furagSupport.furagDtoDe(p),
                 p.getFases().stream()
                         .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
                         .map(f -> new FaseResponseDTO(
@@ -1396,12 +1019,6 @@ public class ProyectoServiceImpl implements ProyectoService {
         );
     }
 
-    private FuragDTO buildFuragDto(Furag furag) {
-        FuragDTO dto = new FuragDTO(buildFuragRespuestasMap(furag));
-        dto.setDetalle(buildFuragDetalle(furag));
-        return dto;
-    }
-
     private String firstNonBlank(String... values) {
         if (values == null) {
             return null;
@@ -1418,7 +1035,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         if (proyecto == null || proyecto.getId() == null) {
             return null;
         }
-        return usuarioProyectoRepository.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
+        return usuarioProyectoRepositoryPort.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
                 .filter(assignment -> assignment.getUsuario() != null)
                 .findFirst()
                 .orElse(null);
@@ -1482,7 +1099,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional
     public CompletitudBorradorDTO guardarBorradorCompletitud(String id, CompletitudBorradorDTO dto, String username) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
@@ -1495,7 +1112,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         try {
             String borradorJson = objectMapper.writeValueAsString(dto);
             proyecto.setCompletitudBorradorJson(borradorJson);
-            proyectoRepository.save(proyecto);
+            proyectoRepositoryPort.save(proyecto);
 
             return dto;
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -1507,7 +1124,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional(readOnly = true)
     public CompletitudBorradorDTO obtenerBorradorCompletitud(String id, String username) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
@@ -1538,7 +1155,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional
     public ProyectoResponseDTO completarFaseCompletitud(String id, Integer fase, String username) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (!proyecto.requiereCompletitudDirector()) {
@@ -1563,8 +1180,8 @@ public class ProyectoServiceImpl implements ProyectoService {
             fasesCompletadas.put(String.valueOf(fase), true);
             proyecto.setCompletitudFasesCompletadas(objectMapper.writeValueAsString(fasesCompletadas));
 
-            proyectoRepository.save(proyecto);
-            return proyectoRepository.findById(proyecto.getId()).map(p -> {
+            proyectoRepositoryPort.save(proyecto);
+            return proyectoRepositoryPort.findById(proyecto.getId()).map(p -> {
                 initializeLazyCollections(p);
                 return mapToResponseDto(p);
             }).orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado tras completar fase: " + proyecto.getId()));
@@ -1580,7 +1197,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     @Transactional
     public void cerrarForzoso(String id, String gestorUsername, String comentario) {
         final String normalizedId = normalizeProjectId(id);
-        Proyecto proyecto = proyectoRepository.findById(normalizedId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + normalizedId));
 
         if (proyecto.esEstadoTerminal()) {
@@ -1590,8 +1207,8 @@ public class ProyectoServiceImpl implements ProyectoService {
             throw new BadRequestException("El comentario es obligatorio para el cierre forzoso.");
         }
 
-        proyecto.cerrarForzoso(gestorUsername, comentario);
-        proyectoRepository.save(proyecto);
+        proyecto.cerrarForzoso(gestorUsername, comentario, estadoProyectoConfig("CERRADO_FORZOSO"));
+        proyectoRepositoryPort.save(proyecto);
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.PROJECT_CLOSED,
@@ -1606,4 +1223,5 @@ public class ProyectoServiceImpl implements ProyectoService {
                 )));
     }
 }
+
 

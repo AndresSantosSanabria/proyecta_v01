@@ -1,11 +1,11 @@
 package com.proyecta.api_gestion.service.seed;
 
-import com.proyecta.api_gestion.model.security.SeguridadPermiso;
-import com.proyecta.api_gestion.model.security.SeguridadRol;
-import com.proyecta.api_gestion.model.security.SeguridadRolPermiso;
-import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadRolRepository;
+import com.proyecta.api_gestion.domain.model.security.SeguridadPermiso;
+import com.proyecta.api_gestion.domain.model.security.SeguridadRol;
+import com.proyecta.api_gestion.domain.model.security.SeguridadRolPermiso;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadPermisoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadRolPermisoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadRolRepositoryPort;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityCatalogCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -194,19 +194,19 @@ public class SecurityCatalogSeeder {
                     PERM_SIDEBAR_PROYECTOS, PERM_PROYECTO_VER)
     );
 
-    private final SeguridadRolRepository rolRepository;
-    private final SeguridadPermisoRepository permisoRepository;
-    private final SeguridadRolPermisoRepository rolPermisoRepository;
+    private final SeguridadRolRepositoryPort rolRepositoryPort;
+    private final SeguridadPermisoRepositoryPort permisoRepositoryPort;
+    private final SeguridadRolPermisoRepositoryPort rolPermisoRepositoryPort;
     private final SecurityCatalogCacheService catalogCacheService;
 
     public SecurityCatalogSeeder(
-            SeguridadRolRepository rolRepository,
-            SeguridadPermisoRepository permisoRepository,
-            SeguridadRolPermisoRepository rolPermisoRepository,
+            SeguridadRolRepositoryPort rolRepositoryPort,
+            SeguridadPermisoRepositoryPort permisoRepositoryPort,
+            SeguridadRolPermisoRepositoryPort rolPermisoRepositoryPort,
             SecurityCatalogCacheService catalogCacheService) {
-        this.rolRepository = rolRepository;
-        this.permisoRepository = permisoRepository;
-        this.rolPermisoRepository = rolPermisoRepository;
+        this.rolRepositoryPort = rolRepositoryPort;
+        this.permisoRepositoryPort = permisoRepositoryPort;
+        this.rolPermisoRepositoryPort = rolPermisoRepositoryPort;
         this.catalogCacheService = catalogCacheService;
     }
 
@@ -214,35 +214,35 @@ public class SecurityCatalogSeeder {
         logger.info("Cargando catálogo de seguridad...");
 
         for (RoleSeed roleSeed : ROLES) {
-            SeguridadRol rol = rolRepository.findByCodigoIgnoreCase(roleSeed.codigo())
+            SeguridadRol rol = rolRepositoryPort.findByCodigoIgnoreCase(roleSeed.codigo())
                     .orElseGet(SeguridadRol::new);
             rol.setCodigo(roleSeed.codigo());
             rol.setNombre(roleSeed.nombre());
             rol.setDescripcion(roleSeed.descripcion());
             rol.setTransversal(roleSeed.transversal());
             rol.setActivo(true);
-            rolRepository.save(rol);
+            rolRepositoryPort.save(rol);
         }
 
         for (PermissionSeed permissionSeed : PERMISSIONS) {
-            SeguridadPermiso permiso = permisoRepository.findByCodigoIgnoreCase(permissionSeed.codigo())
+            SeguridadPermiso permiso = permisoRepositoryPort.findByCodigoIgnoreCase(permissionSeed.codigo())
                     .orElseGet(SeguridadPermiso::new);
             permiso.setCodigo(permissionSeed.codigo());
             permiso.setNombre(permissionSeed.nombre());
             permiso.setDescripcion(permissionSeed.descripcion());
             permiso.setActivo(true);
-            permisoRepository.save(permiso);
+            permisoRepositoryPort.save(permiso);
         }
 
         for (Map.Entry<String, List<String>> entry : ROLE_PERMISSIONS.entrySet()) {
-            SeguridadRol rol = rolRepository.findByCodigoIgnoreCase(entry.getKey())
+            SeguridadRol rol = rolRepositoryPort.findByCodigoIgnoreCase(entry.getKey())
                     .orElseThrow(() -> new IllegalStateException("Rol de seguridad no encontrado: " + entry.getKey()));
 
             for (String permissionCode : entry.getValue()) {
-                SeguridadPermiso permiso = permisoRepository.findByCodigoIgnoreCase(permissionCode)
+                SeguridadPermiso permiso = permisoRepositoryPort.findByCodigoIgnoreCase(permissionCode)
                         .orElseThrow(() -> new IllegalStateException("Permiso de seguridad no encontrado: " + permissionCode));
 
-                boolean exists = rolPermisoRepository.findAll().stream().anyMatch(rp ->
+                boolean exists = rolPermisoRepositoryPort.findAll().stream().anyMatch(rp ->
                         rp.getRol() != null
                                 && rp.getPermiso() != null
                                 && rp.getRol().getCodigo() != null
@@ -258,7 +258,7 @@ public class SecurityCatalogSeeder {
                 relation.setRol(rol);
                 relation.setPermiso(permiso);
                 relation.setActivo(true);
-                rolPermisoRepository.save(relation);
+                rolPermisoRepositoryPort.save(relation);
             }
         }
 

@@ -5,19 +5,19 @@ import com.proyecta.api_gestion.dto.cronograma.CronogramaUploadResponseDTO;
 import com.proyecta.api_gestion.dto.cronograma.EntregableGanttDTO;
 import com.proyecta.api_gestion.dto.cronograma.FaseGanttDTO;
 import com.proyecta.api_gestion.dto.cronograma.HitoGanttDTO;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.ForbiddenException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.Fase;
-import com.proyecta.api_gestion.model.Hito;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
-import com.proyecta.api_gestion.repository.EntregableRepository;
-import com.proyecta.api_gestion.repository.FaseRepository;
-import com.proyecta.api_gestion.repository.HitoRepository;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Fase;
+import com.proyecta.api_gestion.domain.model.Hito;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.FaseRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.HitoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.CronogramaService;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,26 +43,26 @@ public class CronogramaServiceImpl implements CronogramaService {
 
     private static final String PROYECTO_NO_ENCONTRADO = "Proyecto no encontrado: ";
 
-    private final ProyectoRepository proyectoRepository;
-    private final FaseRepository faseRepository;
-    private final HitoRepository hitoRepository;
-    private final EntregableRepository entregableRepository;
-    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final FaseRepositoryPort faseRepositoryPort;
+    private final HitoRepositoryPort hitoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
+    private final SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort;
     private final FileStorageServiceImpl fileStorageService;
     private final NotificationEventPublisherPort notificationPublisher;
 
-    public CronogramaServiceImpl(ProyectoRepository proyectoRepository,
-                                 FaseRepository faseRepository,
-                                 HitoRepository hitoRepository,
-                                 EntregableRepository entregableRepository,
-                                 SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+    public CronogramaServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                 FaseRepositoryPort faseRepositoryPort,
+                                 HitoRepositoryPort hitoRepositoryPort,
+                                 EntregableRepositoryPort entregableRepositoryPort,
+                                 SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort,
                                  FileStorageServiceImpl fileStorageService,
                                  NotificationEventPublisherPort notificationPublisher) {
-        this.proyectoRepository = proyectoRepository;
-        this.faseRepository = faseRepository;
-        this.hitoRepository = hitoRepository;
-        this.entregableRepository = entregableRepository;
-        this.usuarioProyectoRepository = usuarioProyectoRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.faseRepositoryPort = faseRepositoryPort;
+        this.hitoRepositoryPort = hitoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
+        this.usuarioProyectoRepositoryPort = usuarioProyectoRepositoryPort;
         this.fileStorageService = fileStorageService;
         this.notificationPublisher = notificationPublisher;
     }
@@ -70,10 +71,10 @@ public class CronogramaServiceImpl implements CronogramaService {
     @Transactional(readOnly = true)
     public CronogramaResponseDTO obtenerCronograma(String projectId) {
         final String normalizedProjectId = normalizeProjectId(projectId);
-        Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedProjectId)
                 .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
 
-        List<Fase> fases = faseRepository.findByProyectoId(normalizedProjectId).stream()
+        List<Fase> fases = faseRepositoryPort.findByProyectoId(normalizedProjectId).stream()
                 .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
                 .toList();
         List<FaseGanttDTO> vistaGantt = new ArrayList<>();
@@ -81,14 +82,14 @@ public class CronogramaServiceImpl implements CronogramaService {
         int totalHitos = 0;
 
         for (Fase fase : fases) {
-            List<Hito> hitos = hitoRepository.findByFaseId(fase.getId());
+            List<Hito> hitos = hitoRepositoryPort.findByFaseId(fase.getId());
             hitos.sort(ProjectHierarchyOrdering.HITOS_BY_ORDEN);
             
             List<HitoGanttDTO> hitosGantt = new ArrayList<>();
 
             for (Hito hito : hitos) {
                 totalHitos++;
-                List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId());
+                List<Entregable> entregables = entregableRepositoryPort.findByHitoId(hito.getId());
                 entregables.sort(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN);
                 List<EntregableGanttDTO> entregablesGantt = entregables.stream()
                         .map(entregable -> new EntregableGanttDTO(
@@ -150,7 +151,7 @@ public class CronogramaServiceImpl implements CronogramaService {
         return new CronogramaResponseDTO(
                 proyecto.getId(),
                 nombreArchivo,
-                LocalDate.now(), // La fecha de carga no se guarda por defecto en Proyecto, retornamos la actual
+                LocalDate.now(ZoneId.systemDefault()), // La fecha de carga no se guarda por defecto en Proyecto, retornamos la actual
                 resolveDirectorAsignado(proyecto),
                 fases.size(),
                 totalHitos,
@@ -165,7 +166,7 @@ public class CronogramaServiceImpl implements CronogramaService {
     @Transactional
     public CronogramaUploadResponseDTO cargarCronograma(String projectId, MultipartFile file) {
         final String normalizedProjectId = normalizeProjectId(projectId);
-        Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedProjectId)
                 .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
 
         if (EstadoProyecto.CERRADO.equals(proyecto.getEstado()) || EstadoProyecto.CERRADO_FORZOSO.equals(proyecto.getEstado())) {
@@ -184,7 +185,7 @@ public class CronogramaServiceImpl implements CronogramaService {
         String storedPath = fileStorageService.storeFile(file, "cronogramas", fileName);
 
         proyecto.setCronogramaPdf(storedPath);
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
 
         if (!proyecto.requiereCompletitudDirector()) {
             var recipients = ProjectNotificationRecipients.resolve(proyecto);
@@ -205,7 +206,7 @@ public class CronogramaServiceImpl implements CronogramaService {
         return new CronogramaUploadResponseDTO(
                 proyecto.getId(),
                 file.getOriginalFilename(),
-                LocalDate.now(),
+                LocalDate.now(ZoneId.systemDefault()),
                 "/api/v1/proyectos/" + proyecto.getId() + "/cronograma/descargar"
         );
     }
@@ -214,7 +215,7 @@ public class CronogramaServiceImpl implements CronogramaService {
     @Transactional(readOnly = true)
     public Resource descargarCronograma(String projectId) {
         final String normalizedProjectId = normalizeProjectId(projectId);
-        Proyecto proyecto = proyectoRepository.findById(normalizedProjectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedProjectId)
                 .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
 
         if (proyecto.getCronogramaPdf() == null) {
@@ -236,7 +237,7 @@ public class CronogramaServiceImpl implements CronogramaService {
         if (proyecto == null || proyecto.getId() == null) {
             return null;
         }
-        return usuarioProyectoRepository.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
+        return usuarioProyectoRepositoryPort.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
                 .filter(assignment -> assignment.getUsuario() != null)
                 .findFirst()
                 .map(assignment -> firstNonBlank(

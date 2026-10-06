@@ -29,7 +29,11 @@ public class ActaCierreDocxGenerator {
                                    com.proyecta.api_gestion.config.PublicUrlProperties publicUrlProperties) {
         this.urlSigner = urlSigner;
         String base = publicUrlProperties.getBase();
-        this.publicUrlBase = (base == null) ? "" : base.replaceAll("/+$", "");
+        String normalized = (base == null) ? "" : base;
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        this.publicUrlBase = normalized;
     }
 
     public byte[] build(ActaCierrePdfGenerator.ActaCierrePdfData data) {
@@ -162,9 +166,9 @@ public class ActaCierreDocxGenerator {
     private void fillTransfer(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
         XWPFTable table = bodyTable(doc, 8);
 
-        String[] actividades = safe(data.transferenciaActividad()).split("\n---\n");
-        String[] fechas = safe(data.transferenciaFecha()).split(";");
-        String[] evidencias = safe(data.transferenciaUbicacionEvidencia()).split(";");
+        String[] actividades = splitTransferValues(data.transferenciaActividad(), "\n---\n");
+        String[] fechas = splitTransferValues(data.transferenciaFecha(), ";");
+        String[] evidencias = splitTransferValues(data.transferenciaUbicacionEvidencia(), ";");
 
         String baseUrl = publicUrlBase + "/api/v1/public/cierre-evidencia/";
 
@@ -193,6 +197,10 @@ public class ActaCierreDocxGenerator {
             setCellTextPreservingStyle(table.getRow(nextRow).getCell(2), "");
             nextRow++;
         }
+    }
+
+    private static String[] splitTransferValues(String raw, String separator) {
+        return (raw == null ? "" : raw).split(separator);
     }
 
     private void fillApproval(XWPFDocument doc, ActaCierrePdfGenerator.ActaCierrePdfData data) {
@@ -232,6 +240,13 @@ public class ActaCierreDocxGenerator {
         }
     }
 
+    private void renderPlainRun(XWPFParagraph paragraph, StyleConfig style, String text) {
+        XWPFRun run = paragraph.createRun();
+        if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
+        if (style.fontSize != null) run.setFontSize(style.fontSize);
+        run.setText(text);
+    }
+
     private void setCellHyperlink(XWPFTableCell cell, String url) {
         if (cell == null) return;
 
@@ -247,10 +262,7 @@ public class ActaCierreDocxGenerator {
         paragraph.setAlignment(ParagraphAlignment.CENTER);
 
         if (url == null || url.isBlank()) {
-            XWPFRun run = paragraph.createRun();
-            if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
-            if (style.fontSize != null) run.setFontSize(style.fontSize);
-            run.setText(NO_REGISTRADO);
+            renderPlainRun(paragraph, style, NO_REGISTRADO);
             return;
         }
 
@@ -295,10 +307,7 @@ public class ActaCierreDocxGenerator {
 
         } catch (Exception _) {
             // Fallback: plain text if hyperlink creation fails
-            XWPFRun run = paragraph.createRun();
-            if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
-            if (style.fontSize != null) run.setFontSize(style.fontSize);
-            run.setText(url);
+            renderPlainRun(paragraph, style, url);
         }
     }
 
@@ -326,11 +335,7 @@ public class ActaCierreDocxGenerator {
         String[] lines = safeText.split("\n");
         for (int i = 0; i < lines.length; i++) {
             XWPFRun run = paragraph.createRun();
-            if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
-            if (style.fontSize != null) run.setFontSize(style.fontSize);
-            if (style.bold != null) run.setBold(style.bold);
-            if (style.color != null) run.setColor(style.color);
-            if (style.italic != null) run.setItalic(style.italic);
+            applyStyle(run, style);
             
             run.setText(lines[i]);
             if (i < lines.length - 1) {
@@ -341,6 +346,14 @@ public class ActaCierreDocxGenerator {
         if (style.alignment != null) {
             paragraph.setAlignment(style.alignment);
         }
+    }
+
+    private void applyStyle(XWPFRun run, StyleConfig style) {
+        if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
+        if (style.fontSize != null) run.setFontSize(style.fontSize);
+        if (style.bold != null) run.setBold(style.bold);
+        if (style.color != null) run.setColor(style.color);
+        if (style.italic != null) run.setItalic(style.italic);
     }
 
     private static class StyleConfig {
@@ -397,11 +410,7 @@ public class ActaCierreDocxGenerator {
         }
         
         XWPFRun run = paragraph.createRun();
-        if (style.fontFamily != null) run.setFontFamily(style.fontFamily);
-        if (style.fontSize != null) run.setFontSize(style.fontSize);
-        if (style.bold != null) run.setBold(style.bold);
-        if (style.color != null) run.setColor(style.color);
-        if (style.italic != null) run.setItalic(style.italic);
+        applyStyle(run, style);
         
         run.setText(fullText.replace(placeholder, replacement));
     }

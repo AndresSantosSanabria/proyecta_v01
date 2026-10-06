@@ -1,12 +1,12 @@
 package com.proyecta.api_gestion.service.notification;
 
 import com.proyecta.api_gestion.config.FrontendUrlProperties;
-import com.proyecta.api_gestion.model.notification.NotificationAudit;
-import com.proyecta.api_gestion.model.notification.NotificationTemplate;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.notification.NotificationAuditRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.notification.NotificationAudit;
+import com.proyecta.api_gestion.domain.model.notification.NotificationTemplate;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.NotificationAuditRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import org.slf4j.Logger;
@@ -80,12 +80,12 @@ public class NotificationOrchestratorService {
     private final NotificationTemplateRendererPort renderer;
     private final NotificationSenderPort sender;
     private final InAppNotificationService inAppService;
-    private final SeguridadUsuarioRepository usuarioRepository;
-    private final NotificationAuditRepository auditRepository;
+    private final SeguridadUsuarioRepositoryPort usuarioRepositoryPort;
+    private final NotificationAuditRepositoryPort auditRepositoryPort;
     private final NotificationMailDispatchTracker mailDispatchTracker;
     private final NotificationActorResolver actorResolver;
     private final FrontendUrlProperties frontendUrlProperties;
-    private final ProyectoRepository proyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
     private final SystemParameterService systemParameterService;
 
     public NotificationOrchestratorService(NotificationRecipientResolverPort recipientResolver,
@@ -94,12 +94,12 @@ public class NotificationOrchestratorService {
                                            NotificationTemplateRendererPort renderer,
                                            NotificationSenderPort sender,
                                            InAppNotificationService inAppService,
-                                           SeguridadUsuarioRepository usuarioRepository,
-                                           NotificationAuditRepository auditRepository,
+                                           SeguridadUsuarioRepositoryPort usuarioRepositoryPort,
+                                           NotificationAuditRepositoryPort auditRepositoryPort,
                                            NotificationMailDispatchTracker mailDispatchTracker,
                                            NotificationActorResolver actorResolver,
                                            FrontendUrlProperties frontendUrlProperties,
-                                           ProyectoRepository proyectoRepository,
+                                           ProyectoRepositoryPort proyectoRepositoryPort,
                                            SystemParameterService systemParameterService) {
         this.recipientResolver = recipientResolver;
         this.templateService = templateService;
@@ -107,12 +107,12 @@ public class NotificationOrchestratorService {
         this.renderer = renderer;
         this.sender = sender;
         this.inAppService = inAppService;
-        this.usuarioRepository = usuarioRepository;
-        this.auditRepository = auditRepository;
+        this.usuarioRepositoryPort = usuarioRepositoryPort;
+        this.auditRepositoryPort = auditRepositoryPort;
         this.mailDispatchTracker = mailDispatchTracker;
         this.actorResolver = actorResolver;
         this.frontendUrlProperties = frontendUrlProperties;
-        this.proyectoRepository = proyectoRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
         this.systemParameterService = systemParameterService;
     }
 
@@ -127,32 +127,9 @@ public class NotificationOrchestratorService {
                 return;
             }
 
-            Map<String, Object> model = context.attributes() == null ? new HashMap<>() : new HashMap<>(context.attributes());
-            model.putIfAbsent("eventCode", context.eventType().name());
-            model.putIfAbsent("projectId", context.projectId());
-
-            if (!model.containsKey("state") && context.projectId() != null && !context.projectId().isBlank()) {
-                proyectoRepository.findById(context.projectId())
-                        .ifPresent(p -> {
-                            String stateCode = p.getEstadoCodigo();
-                            model.putIfAbsent("state", stateCode != null ? stateCode : String.valueOf(p.getEstado()));
-                        });
-            }
-
-            String resolvedActorName = resolveActorDisplayName(context.actorUsername());
-            model.putIfAbsent("actorUsername", resolvedActorName);
-
-            resolveActorNameInModel(model, "requester");
-            resolveActorNameInModel(model, "approver");
-            resolveActorNameInModel(model, "rejector");
-            resolveActorNameInModel(model, "sentBy");
-            resolveActorNameInModel(model, "assignedUsername");
-
-            String targetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
-            String absoluteTargetUrl = buildAbsoluteUrl(targetUrl);
-            model.putIfAbsent("targetUrl", absoluteTargetUrl != null ? absoluteTargetUrl : "");
-
-            applyPreWizardConfigurableMessages(context.eventType().name(), model);
+            PreparedModel prepared = prepareModel(context);
+            Map<String, Object> model = prepared.model();
+            String absoluteTargetUrl = prepared.absoluteTargetUrl();
 
             var message = renderer.render(template, model);
             String title = String.valueOf(model.getOrDefault("title", message.subject()));
@@ -160,82 +137,147 @@ public class NotificationOrchestratorService {
 
             List<String> contextualRecipients = recipientResolver.resolveRecipients(context);
             Set<String> finalRecipients = new HashSet<>();
+            addContextualRecipients(finalRecipients, contextualRecipients, actorIdentifiers);
 
-            for (String recipient : contextualRecipients) {
-                if (recipient != null && !recipient.isBlank()) {
-                    if (actorResolver.isActor(recipient, actorIdentifiers)) {
-                        log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", recipient);
-                    } else {
-                        finalRecipients.add(recipient);
-                    }
-                }
-            }
-
-            List<SeguridadUsuario> globalRecipients = usuarioRepository.findByRecibirNotificacionesGlobalesTrue();
-            for (SeguridadUsuario user : globalRecipients) {
-                if (user != null) {
-                    if (actorResolver.isActor(user.getUsername(), actorIdentifiers)
-                            || actorResolver.isActor(user.getCorreo(), actorIdentifiers)
-                            || actorResolver.isActor(user.getNombre(), actorIdentifiers)) {
-                        log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", user.getUsername());
-                    } else {
-                        finalRecipients.add(user.getUsername());
-                        log.info("[Notification] Añadido Admin: {} (Regla 3 - Flag Global)", user.getUsername());
-                    }
-                }
-            }
+            List<SeguridadUsuario> globalRecipients = usuarioRepositoryPort.findByRecibirNotificacionesGlobalesTrue();
+            addGlobalRecipients(finalRecipients, globalRecipients, actorIdentifiers);
 
             log.debug("[Notification] Dispatching event {} to {} final recipients", context.eventType(), finalRecipients.size());
 
             String relativeTargetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
 
             for (String recipient : finalRecipients) {
-                try {
-                    inAppService.create(recipient, title, toInAppPlainText(message.body(), absoluteTargetUrl),
-                            context.eventType().name(), template.getSeverity(), context.projectId(), relativeTargetUrl);
-                    auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "IN_APP", "SENT", null));
-                } catch (Exception ex) {
-                    log.warn("[Notification] In-app creation failed for recipient {} - {}", recipient, ex.getMessage());
-                    auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, "IN_APP", "FAILED", ex.getMessage()));
-                }
-
-                try {
-                    SeguridadUsuario resolvedRecipient = usuarioRepository.findByUsernameIgnoreCase(recipient)
-                            .or(() -> usuarioRepository.findByCorreoIgnoreCase(recipient))
-                            .orElse(null);
-                    String emailAddress = resolveEmailAddress(resolvedRecipient, recipient);
-
-                    boolean globalNotificationsEnabled = resolvedRecipient != null
-                            && Boolean.TRUE.equals(resolvedRecipient.getRecibirNotificacionesGlobales());
-                    boolean emailAllowed = globalNotificationsEnabled
-                            || preferenceService.isEnabled(recipient, context.eventType().name(), context.projectId());
-
-                    if (!emailAllowed) {
-                        log.info("[Notification] Email omitido para {}: Preferencias apagadas", recipient);
-                        mailDispatchTracker.skipped(recipient, message.subject(), "Preferencias de correo desactivadas");
-                        continue;
-                    }
-
-                    NotificationMessage threadedMessage = message;
-                    if (context.projectId() != null && !context.projectId().isBlank()) {
-                        String projectName = String.valueOf(model.getOrDefault("projectName", context.projectId()));
-                        threadedMessage = message.withThread(context.projectId(), projectName);
-                    }
-                    var result = sender.send(emailAddress, threadedMessage);
-                    if (result.success()) {
-                        log.debug("[Notification] Email sent to {}", emailAddress);
-                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, result.status().name(), null));
-                    } else {
-                        auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, result.status().name(), result.errorMessage()));
-                    }
-                } catch (Exception ex) {
-                    log.warn("[Notification] Email send failed for recipient {} - {}", recipient, ex.getMessage());
-                    mailDispatchTracker.failed(recipient, message.subject(), ex.getMessage());
-                    auditRepository.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, "FAILED", ex.getMessage()));
-                }
+                createInAppNotification(recipient, title, message, context, template,
+                        absoluteTargetUrl, relativeTargetUrl);
+                sendEmailNotification(recipient, message, context, model);
             }
         } finally {
             MDC.clear();
+        }
+    }
+
+    private record PreparedModel(Map<String, Object> model, String absoluteTargetUrl) {
+    }
+
+    private PreparedModel prepareModel(NotificationContext context) {
+        Map<String, Object> model = context.attributes() == null ? new HashMap<>() : new HashMap<>(context.attributes());
+        model.putIfAbsent("eventCode", context.eventType().name());
+        model.putIfAbsent("projectId", context.projectId());
+
+        if (!model.containsKey("state") && context.projectId() != null && !context.projectId().isBlank()) {
+            proyectoRepositoryPort.findById(context.projectId())
+                    .ifPresent(p -> {
+                        String stateCode = p.getEstadoCodigo();
+                        model.putIfAbsent("state", stateCode != null ? stateCode : String.valueOf(p.getEstado()));
+                    });
+        }
+
+        String resolvedActorName = resolveActorDisplayName(context.actorUsername());
+        model.putIfAbsent("actorUsername", resolvedActorName);
+
+        resolveActorNameInModel(model, "requester");
+        resolveActorNameInModel(model, "approver");
+        resolveActorNameInModel(model, "rejector");
+        resolveActorNameInModel(model, "sentBy");
+        resolveActorNameInModel(model, "assignedUsername");
+
+        String targetUrl = resolveTargetUrl(context.eventType().name(), context.projectId());
+        String absoluteTargetUrl = buildAbsoluteUrl(targetUrl);
+        model.putIfAbsent("targetUrl", absoluteTargetUrl != null ? absoluteTargetUrl : "");
+
+        applyPreWizardConfigurableMessages(context.eventType().name(), model);
+        return new PreparedModel(model, absoluteTargetUrl);
+    }
+
+    private void addContextualRecipients(Set<String> finalRecipients, List<String> contextualRecipients,
+                                         Set<String> actorIdentifiers) {
+        for (String recipient : contextualRecipients) {
+            if (recipient == null || recipient.isBlank()) {
+                continue;
+            }
+            if (actorResolver.isActor(recipient, actorIdentifiers)) {
+                log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", recipient);
+            } else {
+                finalRecipients.add(recipient);
+            }
+        }
+    }
+
+    private void addGlobalRecipients(Set<String> finalRecipients, List<SeguridadUsuario> globalRecipients,
+                                     Set<String> actorIdentifiers) {
+        for (SeguridadUsuario user : globalRecipients) {
+            if (user == null) {
+                continue;
+            }
+            if (actorResolver.isActor(user.getUsername(), actorIdentifiers)
+                    || actorResolver.isActor(user.getCorreo(), actorIdentifiers)
+                    || actorResolver.isActor(user.getNombre(), actorIdentifiers)) {
+                log.info("[Notification] Omitido: {} (Regla 2 - Actor Original)", user.getUsername());
+            } else {
+                finalRecipients.add(user.getUsername());
+                log.info("[Notification] Añadido Admin: {} (Regla 3 - Flag Global)", user.getUsername());
+            }
+        }
+    }
+
+    private void createInAppNotification(String recipient, String title, NotificationMessage message,
+                                         NotificationContext context, NotificationTemplate template,
+                                         String absoluteTargetUrl, String relativeTargetUrl) {
+        try {
+            inAppService.create(recipient, title, toInAppPlainText(message.body(), absoluteTargetUrl),
+                    context.eventType().name(), template.getSeverity(), context.projectId(), relativeTargetUrl);
+            auditRepositoryPort.save(new NotificationAudit(context.eventType().name(), recipient, "IN_APP", "SENT", null));
+        } catch (Exception ex) {
+            log.warn("[Notification] In-app creation failed for recipient {} - {}", recipient, ex.getMessage());
+            auditRepositoryPort.save(new NotificationAudit(context.eventType().name(), recipient, "IN_APP", "FAILED", ex.getMessage()));
+        }
+    }
+
+    private void sendEmailNotification(String recipient, NotificationMessage message,
+                                       NotificationContext context, Map<String, Object> model) {
+        try {
+            SeguridadUsuario resolvedRecipient = usuarioRepositoryPort.findByUsernameIgnoreCase(recipient)
+                    .or(() -> usuarioRepositoryPort.findByCorreoIgnoreCase(recipient))
+                    .orElse(null);
+            String emailAddress = resolveEmailAddress(resolvedRecipient, recipient);
+
+            boolean globalNotificationsEnabled = resolvedRecipient != null
+                    && Boolean.TRUE.equals(resolvedRecipient.getRecibirNotificacionesGlobales());
+            boolean emailAllowed = globalNotificationsEnabled
+                    || preferenceService.isEnabled(recipient, context.eventType().name(), context.projectId());
+
+            if (!emailAllowed) {
+                log.info("[Notification] Email omitido para {}: Preferencias apagadas", recipient);
+                mailDispatchTracker.skipped(recipient, message.subject(), "Preferencias de correo desactivadas");
+                return;
+            }
+
+            NotificationMessage threadedMessage = buildThreadedMessage(message, context, model);
+            var result = sender.send(emailAddress, threadedMessage);
+            recordEmailResult(recipient, emailAddress, context, result);
+        } catch (Exception ex) {
+            log.warn("[Notification] Email send failed for recipient {} - {}", recipient, ex.getMessage());
+            mailDispatchTracker.failed(recipient, message.subject(), ex.getMessage());
+            auditRepositoryPort.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, "FAILED", ex.getMessage()));
+        }
+    }
+
+    private NotificationMessage buildThreadedMessage(NotificationMessage message, NotificationContext context,
+                                                     Map<String, Object> model) {
+        if (context.projectId() != null && !context.projectId().isBlank()) {
+            String projectName = String.valueOf(model.getOrDefault("projectName", context.projectId()));
+            return message.withThread(context.projectId(), projectName);
+        }
+        return message;
+    }
+
+    private void recordEmailResult(String recipient, String emailAddress, NotificationContext context,
+                                   NotificationSendResult result) {
+        if (result.success()) {
+            log.debug("[Notification] Email sent to {}", emailAddress);
+            auditRepositoryPort.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, result.status().name(), null));
+        } else {
+            auditRepositoryPort.save(new NotificationAudit(context.eventType().name(), recipient, CHANNEL_EMAIL, result.status().name(), result.errorMessage()));
         }
     }
 
@@ -297,7 +339,7 @@ public class NotificationOrchestratorService {
         if (username == null || username.isBlank()) {
             return username;
         }
-        return usuarioRepository.findByUsernameIgnoreCase(username)
+        return usuarioRepositoryPort.findByUsernameIgnoreCase(username)
                 .map(SeguridadUsuario::getNombre)
                 .filter(nombre -> nombre != null && !nombre.isBlank())
                 .orElse(username);

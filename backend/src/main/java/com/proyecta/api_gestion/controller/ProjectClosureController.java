@@ -82,7 +82,8 @@ public class ProjectClosureController implements IProjectClosureController {
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<Resource> descargarActaCierre(@PathVariable String id) {
         Resource resource = closureService.descargarActaCierre(id);
-        String fileName = resource.getFilename() != null ? resource.getFilename() : "acta-cierre.docx";
+        String filename = resource.getFilename();
+        String fileName = filename != null ? filename : "acta-cierre.docx";
         String contentType;
         if (fileName.toLowerCase().endsWith(".pdf")) {
             contentType = "application/pdf";
@@ -104,18 +105,19 @@ public class ProjectClosureController implements IProjectClosureController {
             @RequestPart("evidencia") MultipartFile evidencia) {
 
         if (evidencia == null || evidencia.isEmpty()) {
-            throw new com.proyecta.api_gestion.exception.BadRequestException("Debe seleccionar un archivo de evidencia.");
+            throw new com.proyecta.api_gestion.domain.exception.BadRequestException("Debe seleccionar un archivo de evidencia.");
         }
         String contentType = evidencia.getContentType();
         if (contentType == null || !contentType.equals("application/pdf")) {
-            throw new com.proyecta.api_gestion.exception.BadRequestException("Solo se permiten archivos PDF como evidencia.");
+            throw new com.proyecta.api_gestion.domain.exception.BadRequestException("Solo se permiten archivos PDF como evidencia.");
         }
         if (!com.proyecta.api_gestion.infrastructure.UploadMimeSanitizer.esPdfValido(evidencia)) {
             // CWE-434: el Content-Type lo declara el cliente; se exige la firma real %PDF-.
-            throw new com.proyecta.api_gestion.exception.BadRequestException("El archivo cargado no es un PDF valido.");
+            throw new com.proyecta.api_gestion.domain.exception.BadRequestException("El archivo cargado no es un PDF valido.");
         }
 
-        String originalName = evidencia.getOriginalFilename() != null ? evidencia.getOriginalFilename() : "evidencia.pdf";
+        String uploadedName = evidencia.getOriginalFilename();
+        String originalName = uploadedName != null ? uploadedName : "evidencia.pdf";
         String safeName = originalName.replaceAll("[^a-zA-Z0-9._-]", "_");
         String uniqueName = UUID.randomUUID().toString() + "_" + safeName;
 

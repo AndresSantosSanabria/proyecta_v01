@@ -1,9 +1,9 @@
 package com.proyecta.api_gestion.dto.risk;
 
-import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
-import com.proyecta.api_gestion.model.enums.Impacto;
-import com.proyecta.api_gestion.model.enums.Probabilidad;
-import com.proyecta.api_gestion.model.enums.TipoRiesgo;
+import com.proyecta.api_gestion.domain.model.enums.EstadoRiesgo;
+import com.proyecta.api_gestion.domain.model.enums.Impacto;
+import com.proyecta.api_gestion.domain.model.enums.Probabilidad;
+import com.proyecta.api_gestion.domain.model.enums.TipoRiesgo;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 

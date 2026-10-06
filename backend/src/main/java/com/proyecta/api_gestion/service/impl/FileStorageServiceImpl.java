@@ -1,8 +1,8 @@
 package com.proyecta.api_gestion.service.impl;
 
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.InternalErrorException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.InternalErrorException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;

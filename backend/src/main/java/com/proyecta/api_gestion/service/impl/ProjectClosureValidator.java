@@ -1,16 +1,16 @@
 package com.proyecta.api_gestion.service.impl;
 
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.Fase;
-import com.proyecta.api_gestion.model.Hito;
-import com.proyecta.api_gestion.model.ObjetivoEspecifico;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.repository.EntregableRepository;
-import com.proyecta.api_gestion.repository.FaseRepository;
-import com.proyecta.api_gestion.repository.HitoRepository;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Fase;
+import com.proyecta.api_gestion.domain.model.Hito;
+import com.proyecta.api_gestion.domain.model.ObjetivoEspecifico;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.FaseRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.HitoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProyectoBeneficioImpactoService;
 import org.springframework.stereotype.Component;
@@ -20,41 +20,61 @@ import java.util.List;
 @Component
 public class ProjectClosureValidator {
 
-    private final FaseRepository faseRepository;
-    private final HitoRepository hitoRepository;
-    private final EntregableRepository entregableRepository;
+    private final FaseRepositoryPort faseRepositoryPort;
+    private final HitoRepositoryPort hitoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
     private final IStorageProvider storageProvider;
-    private final ProyectoRepository proyectoRepository;
-    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort;
     private final ProyectoBeneficioImpactoService beneficioImpactoService;
 
-    public ProjectClosureValidator(FaseRepository faseRepository,
-                                   HitoRepository hitoRepository,
-                                   EntregableRepository entregableRepository,
+    public ProjectClosureValidator(FaseRepositoryPort faseRepositoryPort,
+                                   HitoRepositoryPort hitoRepositoryPort,
+                                   EntregableRepositoryPort entregableRepositoryPort,
                                    IStorageProvider storageProvider,
-                                   ProyectoRepository proyectoRepository,
-                                   SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+                                   ProyectoRepositoryPort proyectoRepositoryPort,
+                                   SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort,
                                    ProyectoBeneficioImpactoService beneficioImpactoService) {
-        this.faseRepository = faseRepository;
-        this.hitoRepository = hitoRepository;
-        this.entregableRepository = entregableRepository;
+        this.faseRepositoryPort = faseRepositoryPort;
+        this.hitoRepositoryPort = hitoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
         this.storageProvider = storageProvider;
-        this.proyectoRepository = proyectoRepository;
-        this.usuarioProyectoRepository = usuarioProyectoRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.usuarioProyectoRepositoryPort = usuarioProyectoRepositoryPort;
         this.beneficioImpactoService = beneficioImpactoService;
     }
 
     public void validarCierre(String proyectoId) {
-        List<Fase> fases = faseRepository.findByProyectoId(proyectoId);
+        List<Fase> fases = faseRepositoryPort.findByProyectoId(proyectoId);
+        TotalesEntregables totales = contarEntregables(fases);
 
+        if (totales.total() == 0) {
+            throw new BadRequestException("Validacion fallida: el proyecto no tiene entregables registrados.");
+        }
+
+        if (totales.conformes() < totales.total()) {
+            throw new BadRequestException("Validacion fallida: todos los entregables deben estar aprobados antes de solicitar el cierre.");
+        }
+
+        if (totales.sinArchivo() > 0) {
+            throw new BadRequestException("Validacion fallida: existen " + totales.sinArchivo() + " entregables sin archivo fisico cargado.");
+        }
+
+        beneficioImpactoService.validarDiligenciado(proyectoId);
+    }
+
+    private record TotalesEntregables(long total, long sinArchivo, long conformes) {
+    }
+
+    private TotalesEntregables contarEntregables(List<Fase> fases) {
         long totalEntregables = 0;
         long entregablesSinArchivo = 0;
         long entregablesConformes = 0;
 
         for (Fase fase : fases) {
-            List<Hito> hitos = hitoRepository.findByFaseId(fase.getId());
+            List<Hito> hitos = hitoRepositoryPort.findByFaseId(fase.getId());
             for (Hito hito : hitos) {
-                List<Entregable> entregables = entregableRepository.findByHitoId(hito.getId());
+                List<Entregable> entregables = entregableRepositoryPort.findByHitoId(hito.getId());
                 for (Entregable entregable : entregables) {
                     totalEntregables++;
                     if (!storageProvider.fileExists("evidencias", entregable.getArchivoPdf())) {
@@ -66,24 +86,11 @@ public class ProjectClosureValidator {
                 }
             }
         }
-
-        if (totalEntregables == 0) {
-            throw new BadRequestException("Validacion fallida: el proyecto no tiene entregables registrados.");
-        }
-
-        if (entregablesConformes < totalEntregables) {
-            throw new BadRequestException("Validacion fallida: todos los entregables deben estar aprobados antes de solicitar el cierre.");
-        }
-
-        if (entregablesSinArchivo > 0) {
-            throw new BadRequestException("Validacion fallida: existen " + entregablesSinArchivo + " entregables sin archivo fisico cargado.");
-        }
-
-        beneficioImpactoService.validarDiligenciado(proyectoId);
+        return new TotalesEntregables(totalEntregables, entregablesSinArchivo, entregablesConformes);
     }
 
     public void validarDatosActa(String proyectoId) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new BadRequestException("Proyecto no encontrado para validar acta: " + proyectoId));
 
         if (proyecto.getFechaInicio() == null) {
@@ -106,7 +113,7 @@ public class ProjectClosureValidator {
             throw new BadRequestException("Validacion fallida: el proyecto no tiene patrocinador completo para el acta.");
         }
 
-        var directorAsignado = usuarioProyectoRepository
+        var directorAsignado = usuarioProyectoRepositoryPort
                 .findActiveDirectorAssignmentsByProyectoId(proyectoId)
                 .stream()
                 .findFirst()

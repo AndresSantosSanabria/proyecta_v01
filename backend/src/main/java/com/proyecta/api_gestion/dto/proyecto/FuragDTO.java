@@ -2,7 +2,7 @@ package com.proyecta.api_gestion.dto.proyecto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.proyecta.api_gestion.dto.config.FuragPreguntaRespuestaDTO;
-import com.proyecta.api_gestion.model.enums.RespuestaFurag;
+import com.proyecta.api_gestion.domain.model.enums.RespuestaFurag;
 
 import java.util.LinkedHashMap;
 import java.util.List;

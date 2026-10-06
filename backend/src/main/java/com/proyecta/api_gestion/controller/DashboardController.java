@@ -2,7 +2,7 @@ package com.proyecta.api_gestion.controller;
 
 import com.proyecta.api_gestion.controller.interfaces.IDashboardController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
+import com.proyecta.api_gestion.application.readmodel.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
 import io.swagger.v3.oas.annotations.media.Content;

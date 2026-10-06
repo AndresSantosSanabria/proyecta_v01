@@ -2,13 +2,12 @@ package com.proyecta.api_gestion.controller.interfaces;
 
 import com.proyecta.api_gestion.dto.proyecto.*;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +24,9 @@ public interface IProyectoController {
             @RequestParam(required = false) String dependencia,
             @RequestParam(required = false) EstadoProyecto estado,
             @RequestParam(required = false) Boolean peti,
-            Pageable pageable);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "sort", required = false) List<String> sort);
 
     @Operation(summary = "EP-PROY-01B · Listar mis proyectos", description = "Retorna los proyectos asignados al usuario autenticado.")
     @GetMapping("/mis-proyectos")
@@ -75,11 +76,11 @@ public interface IProyectoController {
 
     @Operation(summary = "EP-PROY-09 · Obtener FURAG", description = "Obtener respuestas FURAG del proyecto.")
     @GetMapping("/{id}/furag")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Furag>> obtenerFurag(@PathVariable String id);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.domain.model.Furag>> obtenerFurag(@PathVariable String id);
 
     @Operation(summary = "EP-PROY-10 · Actualizar FURAG", description = "Actualizar respuestas FURAG del proyecto.")
     @PutMapping("/{id}/furag")
-    ResponseEntity<Void> actualizarFurag(@PathVariable String id, @RequestBody @jakarta.validation.Valid com.proyecta.api_gestion.model.Furag furag);
+    ResponseEntity<Void> actualizarFurag(@PathVariable String id, @RequestBody @jakarta.validation.Valid com.proyecta.api_gestion.domain.model.Furag furag);
 
     @Operation(summary = "EP-PROY-12 · Guardar borrador completitud", description = "Guardar borrador de completitud por fase para que el Director pueda continuar despues.")
     @PatchMapping("/{id}/completitud-borrador")

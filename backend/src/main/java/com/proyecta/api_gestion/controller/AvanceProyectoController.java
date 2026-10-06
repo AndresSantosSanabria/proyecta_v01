@@ -8,12 +8,12 @@ import com.proyecta.api_gestion.dto.avance.DocumentoSubsanacionRequest;
 import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.DocumentoVersion;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.enums.DocumentoVersionEstado;
-import com.proyecta.api_gestion.repository.DocumentoVersionRepository;
-import com.proyecta.api_gestion.repository.EntregableRepository;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.DocumentoVersion;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoVersionEstado;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoVersionRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,17 +37,17 @@ import java.util.List;
 public class AvanceProyectoController implements IAvanceProyectoController {
 
     private final ProyectoAvanceService proyectoAvanceService;
-    private final EntregableRepository entregableRepository;
-    private final DocumentoVersionRepository documentoVersionRepository;
+    private final EntregableRepositoryPort entregableRepositoryPort;
+    private final DocumentoVersionRepositoryPort documentoVersionRepositoryPort;
     private final IStorageProvider storageProvider;
 
     public AvanceProyectoController(ProyectoAvanceService proyectoAvanceService,
-                                    EntregableRepository entregableRepository,
-                                    DocumentoVersionRepository documentoVersionRepository,
+                                    EntregableRepositoryPort entregableRepositoryPort,
+                                    DocumentoVersionRepositoryPort documentoVersionRepositoryPort,
                                     IStorageProvider storageProvider) {
         this.proyectoAvanceService = proyectoAvanceService;
-        this.entregableRepository = entregableRepository;
-        this.documentoVersionRepository = documentoVersionRepository;
+        this.entregableRepositoryPort = entregableRepositoryPort;
+        this.documentoVersionRepositoryPort = documentoVersionRepositoryPort;
         this.storageProvider = storageProvider;
     }
 
@@ -182,7 +182,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
     public ResponseEntity<Resource> descargarEvidencia(
             @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001") @PathVariable String proyectoId,
             @Parameter(description = "Identificador del entregable") @PathVariable Integer entregableId) {
-        Entregable entregable = entregableRepository.findByIdAndProyectoIdWithHierarchy(entregableId, proyectoId)
+        Entregable entregable = entregableRepositoryPort.findByIdAndProyectoIdWithHierarchy(entregableId, proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entregable no encontrado en el proyecto solicitado: " + entregableId));
 
         if (entregable.getArchivoPdf() == null) {
@@ -217,7 +217,7 @@ public class AvanceProyectoController implements IAvanceProyectoController {
     }
 
     private String nombreEvidenciaActual(Entregable entregable) {
-        return documentoVersionRepository.findFirstByEntregableIdAndEstadoOrderByNumeroVersionDesc(
+        return documentoVersionRepositoryPort.findFirstByEntregableIdAndEstadoOrderByNumeroVersionDesc(
                         entregable.getId(),
                         DocumentoVersionEstado.ACTUAL
                 )

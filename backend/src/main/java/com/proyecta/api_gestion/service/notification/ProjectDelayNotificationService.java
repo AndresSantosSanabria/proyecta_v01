@@ -1,15 +1,16 @@
 package com.proyecta.api_gestion.service.notification;
 
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.notification.InAppNotificationRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.InAppNotificationRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -18,15 +19,15 @@ public class ProjectDelayNotificationService {
 
     private static final String EVENT_CODE = NotificationEventType.PROJECT_DELAYED.name();
 
-    private final SeguridadUsuarioRepository usuarioRepository;
-    private final InAppNotificationRepository inAppNotificationRepository;
+    private final SeguridadUsuarioRepositoryPort usuarioRepositoryPort;
+    private final InAppNotificationRepositoryPort inAppNotificationRepositoryPort;
     private final NotificationEventPublisherPort notificationPublisher;
 
-    public ProjectDelayNotificationService(SeguridadUsuarioRepository usuarioRepository,
-                                           InAppNotificationRepository inAppNotificationRepository,
+    public ProjectDelayNotificationService(SeguridadUsuarioRepositoryPort usuarioRepositoryPort,
+                                           InAppNotificationRepositoryPort inAppNotificationRepositoryPort,
                                            NotificationEventPublisherPort notificationPublisher) {
-        this.usuarioRepository = usuarioRepository;
-        this.inAppNotificationRepository = inAppNotificationRepository;
+        this.usuarioRepositoryPort = usuarioRepositoryPort;
+        this.inAppNotificationRepositoryPort = inAppNotificationRepositoryPort;
         this.notificationPublisher = notificationPublisher;
     }
 
@@ -50,15 +51,15 @@ public class ProjectDelayNotificationService {
             return;
         }
 
-        SeguridadUsuario recipient = usuarioRepository.findByUsernameIgnoreCase(director)
-                .or(() -> usuarioRepository.findByCorreoIgnoreCase(director))
+        SeguridadUsuario recipient = usuarioRepositoryPort.findByUsernameIgnoreCase(director)
+                .or(() -> usuarioRepositoryPort.findByCorreoIgnoreCase(director))
                 .orElse(null);
         if (recipient == null) {
             return;
         }
 
-        LocalDateTime dayStart = LocalDate.now().atStartOfDay();
-        boolean alreadyNotified = inAppNotificationRepository.existsByRecipient_IdAndEventCodeAndSourceEntityIdAndCreatedAtAfter(
+        LocalDateTime dayStart = LocalDate.now(ZoneId.systemDefault()).atStartOfDay();
+        boolean alreadyNotified = inAppNotificationRepositoryPort.existsByRecipientIdAndEventCodeAndSourceEntityIdAndCreatedAtAfter(
                 recipient.getId(),
                 EVENT_CODE,
                 proyecto.getId(),

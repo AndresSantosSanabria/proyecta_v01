@@ -1,5 +1,6 @@
 package com.proyecta.api_gestion.controller;
 
+import com.proyecta.api_gestion.domain.value.AuditLogFilter;
 import com.proyecta.api_gestion.dto.audit.AuditLogPageResponse;
 import com.proyecta.api_gestion.dto.audit.AuditLogStatsDTO;
 import com.proyecta.api_gestion.dto.audit.SystemAuditLogDTO;
@@ -49,8 +50,9 @@ public class AuditController {
             @Parameter(description = "Tamaño de la página") @RequestParam(defaultValue = "20") int size) {
 
         AuditLogPageResponse result = auditLogService.listarConFiltros(
-                accion, estado, usuarioId, modulo, metodoHttp,
-                codigoEstado, search, desde, hasta, page, size);
+                new AuditLogFilter(accion, estado, usuarioId, modulo, metodoHttp,
+                        codigoEstado, search, desde, hasta),
+                page, size);
 
         return ResponseEntity.ok(ApiResponse.success(result, "Logs de auditoria listados correctamente"));
     }

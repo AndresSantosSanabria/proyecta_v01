@@ -3,11 +3,12 @@ package com.proyecta.api_gestion.service.config;
 import com.proyecta.api_gestion.dto.config.CatalogOptionDTO;
 import com.proyecta.api_gestion.dto.config.FuragPreguntaDTO;
 import com.proyecta.api_gestion.dto.config.PetiCatalogDTO;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.model.config.EstrategiaPetiConfig;
-import com.proyecta.api_gestion.model.config.ListaParametricaConfig;
-import com.proyecta.api_gestion.repository.config.EstrategiaPetiConfigRepository;
-import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.model.config.EstrategiaPetiConfig;
+import com.proyecta.api_gestion.domain.model.config.ListaParametricaConfig;
+import com.proyecta.api_gestion.application.port.out.persistence.config.EstrategiaPetiConfigRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.config.ListaParametricaConfigRepositoryPort;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,25 +37,34 @@ public class PetiCatalogService {
     );
 
     private final SystemParameterService systemParameterService;
-    private final EstrategiaPetiConfigRepository estrategiaRepository;
-    private final ListaParametricaConfigRepository listaParametricaRepository;
+    private final EstrategiaPetiConfigRepositoryPort estrategiaRepositoryPort;
+    private final ListaParametricaConfigRepositoryPort listaParametricaRepositoryPort;
+
+    /** Proxy transaccional de esta misma bean; null en tests unitarios sin contexto Spring. */
+    private final PetiCatalogService self;
+
+    private PetiCatalogService selfProxy() {
+        return self != null ? self : this;
+    }
 
     public PetiCatalogService(SystemParameterService systemParameterService,
-                              EstrategiaPetiConfigRepository estrategiaRepository,
-                              ListaParametricaConfigRepository listaParametricaRepository) {
+                              EstrategiaPetiConfigRepositoryPort estrategiaRepositoryPort,
+                              ListaParametricaConfigRepositoryPort listaParametricaRepositoryPort,
+                              @Lazy PetiCatalogService self) {
         this.systemParameterService = systemParameterService;
-        this.estrategiaRepository = estrategiaRepository;
-        this.listaParametricaRepository = listaParametricaRepository;
+        this.estrategiaRepositoryPort = estrategiaRepositoryPort;
+        this.listaParametricaRepositoryPort = listaParametricaRepositoryPort;
+        this.self = self;
     }
 
     @Transactional(readOnly = true)
     public PetiCatalogDTO getCatalog() {
-        return new PetiCatalogDTO(getVigencias(), getEstrategias(), getFuragPreguntas());
+        return new PetiCatalogDTO(selfProxy().getVigencias(), selfProxy().getEstrategias(), selfProxy().getFuragPreguntas());
     }
 
     @Transactional(readOnly = true)
     public List<FuragPreguntaDTO> getFuragPreguntas() {
-        List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("FURAG_PREGUNTAS");
+        List<ListaParametricaConfig> items = listaParametricaRepositoryPort.findByListaClaveAndActivoTrueOrderByOrdenAsc("FURAG_PREGUNTAS");
         if (!items.isEmpty()) {
             return items.stream()
                     .map(item -> {
@@ -71,7 +81,7 @@ public class PetiCatalogService {
 
     @Transactional(readOnly = true)
     public List<String> getVigencias() {
-        List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("VIGENCIA_PETI");
+        List<ListaParametricaConfig> items = listaParametricaRepositoryPort.findByListaClaveAndActivoTrueOrderByOrdenAsc("VIGENCIA_PETI");
         if (!items.isEmpty()) {
             return items.stream().map(ListaParametricaConfig::getItemCodigo).toList();
         }
@@ -80,7 +90,7 @@ public class PetiCatalogService {
 
     @Transactional(readOnly = true)
     public List<CatalogOptionDTO> getEstrategias() {
-        List<ListaParametricaConfig> items = listaParametricaRepository.findByListaClaveAndActivoTrueOrderByOrdenAsc("ESTRATEGIA_PETI");
+        List<ListaParametricaConfig> items = listaParametricaRepositoryPort.findByListaClaveAndActivoTrueOrderByOrdenAsc("ESTRATEGIA_PETI");
         if (!items.isEmpty()) {
             return items.stream()
                     .map(item -> new CatalogOptionDTO(item.getItemCodigo(), item.getItemNombre()))
@@ -93,7 +103,7 @@ public class PetiCatalogService {
             return fromParameter;
         }
 
-        List<CatalogOptionDTO> fromTable = estrategiaRepository.findByActivoTrueOrderByOrdenAsc().stream()
+        List<CatalogOptionDTO> fromTable = estrategiaRepositoryPort.findByActivoTrueOrderByOrdenAsc().stream()
                 .map(item -> new CatalogOptionDTO(item.getCodigo(), item.getNombre()))
                 .toList();
 
@@ -112,7 +122,7 @@ public class PetiCatalogService {
             throw new BadRequestException("La estrategia PETI no esta configurada: " + code);
         }
 
-        EstrategiaPetiConfig existing = estrategiaRepository.findByCodigo(code).orElse(null);
+        EstrategiaPetiConfig existing = estrategiaRepositoryPort.findByCodigo(code).orElse(null);
         if (existing != null) {
             boolean changed = false;
             if (!configuredOption.label().equals(existing.getNombre())) {
@@ -123,20 +133,20 @@ public class PetiCatalogService {
                 existing.setActivo(true);
                 changed = true;
             }
-            return changed ? estrategiaRepository.save(existing) : existing;
+            return changed ? estrategiaRepositoryPort.save(existing) : existing;
         }
 
         EstrategiaPetiConfig created = new EstrategiaPetiConfig();
         created.setCodigo(code);
         created.setNombre(configuredOption.label());
         created.setDescripcion("Estrategia PETI configurada desde parametros del sistema");
-        created.setOrden((int) estrategiaRepository.count() + 1);
+        created.setOrden((int) estrategiaRepositoryPort.count() + 1);
         created.setActivo(true);
-        return estrategiaRepository.save(created);
+        return estrategiaRepositoryPort.save(created);
     }
 
     private CatalogOptionDTO findConfiguredStrategy(String code) {
-        return getEstrategias().stream()
+        return selfProxy().getEstrategias().stream()
                 .filter(option -> code.equals(normalizeCode(option.value())))
                 .findFirst()
                 .orElse(null);
@@ -158,8 +168,8 @@ public class PetiCatalogService {
 
     private CatalogOptionDTO parseStrategy(String raw) {
         String[] parts = raw.split("[:=]", 2);
-        String label = parts.length > 1 ? trimToNull(parts[1]) : trimToNull(raw);
-        String code = parts.length > 1 ? normalizeCode(parts[0]) : normalizeCode(label);
+        String label = trimToNull(parts.length > 1 ? parts[1] : raw);
+        String code = normalizeCode(parts.length > 1 ? parts[0] : label);
         return new CatalogOptionDTO(code, label != null ? label : code);
     }
 
@@ -173,7 +183,10 @@ public class PetiCatalogService {
                 .replaceAll("\\p{M}", "");
         String code = withoutAccents.toUpperCase(Locale.ROOT)
                 .replaceAll("[^A-Z0-9]+", "_")
-                .replaceAll("^_+|_+$", "");
+                .replaceAll("^_+", "");
+        while (code.endsWith("_")) {
+            code = code.substring(0, code.length() - 1);
+        }
         return code.isBlank() ? null : code;
     }
 

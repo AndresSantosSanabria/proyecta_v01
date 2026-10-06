@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.advance;
 
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 /**
  * Job diario que escanea proyectos elegibles (estado iniciado, viabilidad aprobada,
@@ -21,15 +22,15 @@ public class AdvanceReportReminderScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(AdvanceReportReminderScheduler.class);
 
-    private final ProyectoRepository proyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
     private final AdvanceReportNotificationService notificationService;
     private final AdvanceReportPeriodService periodService;
 
     public AdvanceReportReminderScheduler(
-            ProyectoRepository proyectoRepository,
+            ProyectoRepositoryPort proyectoRepositoryPort,
             AdvanceReportNotificationService notificationService,
             AdvanceReportPeriodService periodService) {
-        this.proyectoRepository = proyectoRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
         this.notificationService = notificationService;
         this.periodService = periodService;
     }
@@ -37,7 +38,7 @@ public class AdvanceReportReminderScheduler {
     @Scheduled(cron = "${notifications.advance-report.cron:0 0 7 * * *}")
     @Transactional
     public void scanAndNotifyPendingReports() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         String periodo = periodService.currentPeriodo(today);
 
         if (!periodService.isEnabled()) {
@@ -47,7 +48,7 @@ public class AdvanceReportReminderScheduler {
 
         log.info("▶ Evaluando informes de avance para periodo {}", periodo);
 
-        var proyectos = proyectoRepository.findAll().stream()
+        var proyectos = proyectoRepositoryPort.findAll().stream()
                 .filter(p -> periodService.esElegible(p, today))
                 .toList();
 

@@ -11,28 +11,27 @@ import com.proyecta.api_gestion.dto.proyecto.ProyectoResponseDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoResumenDTO;
 import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
-import com.proyecta.api_gestion.model.Furag;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.domain.model.Furag;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
 import com.proyecta.api_gestion.service.interfaces.ProyectoService;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springdoc.core.annotations.ParameterObject;
+import com.proyecta.api_gestion.adapter.in.web.PageSupport;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -56,9 +55,12 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
     public ResponseEntity<ApiResponse<Page<ProyectoListDTO>>> listarProyectos(
             String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti,
-            @ParameterObject @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<ProyectoListDTO> page = proyectoService.listarProyectos(nombre, codigo, dependencia, estado, peti, pageable);
-        return ResponseEntity.ok(ApiResponse.success(page, "Proyectos listados con éxito"));
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "sort", required = false) List<String> sort) {
+        Page<ProyectoListDTO> resultado = PageSupport.toPage(proyectoService.listarProyectos(
+                nombre, codigo, dependencia, estado, peti, PageSupport.fromParams(page, size, sort, 20)));
+        return ResponseEntity.ok(ApiResponse.success(resultado, "Proyectos listados con Ǹxito"));
     }
 
     @Override
@@ -71,6 +73,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
+    @GetMapping("/{id}")
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable("id") String id) {
         return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerPorId(id), "Detalle del proyecto obtenido"));
@@ -111,6 +114,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
+    @GetMapping("/{id}/completion-status")
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoCompletionStatusDTO>> obtenerEstadoCompletitud(
             @PathVariable("id") String id,
@@ -123,6 +127,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
+    @PutMapping("/{id}/completar-informacion")
     @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarInformacionInicial(
             @PathVariable("id") String id,
@@ -136,6 +141,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
     }
 
     @Override
+    @PutMapping("/{id}")
     @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
             @PathVariable("id") String id,

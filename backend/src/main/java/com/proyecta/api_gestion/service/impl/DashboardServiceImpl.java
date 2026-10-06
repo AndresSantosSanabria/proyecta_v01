@@ -1,9 +1,9 @@
 package com.proyecta.api_gestion.service.impl;
 
-import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
+import com.proyecta.api_gestion.application.readmodel.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
-import com.proyecta.api_gestion.repository.EntregableRepository;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import com.proyecta.api_gestion.service.interfaces.DashboardService;
@@ -12,40 +12,41 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 @org.springframework.transaction.annotation.Transactional(readOnly = true)
 public class DashboardServiceImpl implements DashboardService {
 
-    private final ProyectoRepository proyectoRepository;
-    private final EntregableRepository entregableRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
     private final SystemParameterService systemParameterService;
 
-    public DashboardServiceImpl(ProyectoRepository proyectoRepository,
-                                EntregableRepository entregableRepository,
+    public DashboardServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                EntregableRepositoryPort entregableRepositoryPort,
                                 SystemParameterService systemParameterService) {
-        this.proyectoRepository = proyectoRepository;
-        this.entregableRepository = entregableRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
         this.systemParameterService = systemParameterService;
     }
 
     @Override
     public DashboardSummaryDTO getSummary() {
-        long activos = proyectoRepository.countActivos();
-        long cerrados = proyectoRepository.countCerrados();
-        long total = proyectoRepository.countTotal();
+        long activos = proyectoRepositoryPort.countActivos();
+        long cerrados = proyectoRepositoryPort.countCerrados();
+        long total = proyectoRepositoryPort.countTotal();
 
-        BigDecimal avgAvance = proyectoRepository.getAvancePromedio();
+        BigDecimal avgAvance = proyectoRepositoryPort.getAvancePromedio();
         int avancePromedio = 0;
         if (avgAvance != null) {
             avancePromedio = avgAvance.setScale(0, RoundingMode.HALF_UP).intValue();
         }
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZoneId.systemDefault());
 
-        BigDecimal sumaConforme = entregableRepository.sumPonderacionConformeActivos();
-        BigDecimal sumaEsperada = entregableRepository.sumPonderacionEsperadaActivos(hoy);
+        BigDecimal sumaConforme = entregableRepositoryPort.sumPonderacionConformeActivos();
+        BigDecimal sumaEsperada = entregableRepositoryPort.sumPonderacionEsperadaActivos(hoy);
         if (sumaConforme == null) sumaConforme = BigDecimal.ZERO;
         if (sumaEsperada == null) sumaEsperada = BigDecimal.ZERO;
 
@@ -54,28 +55,29 @@ public class DashboardServiceImpl implements DashboardService {
             tendencia = (sumaConforme.compareTo(sumaEsperada) >= 0) ? "positiva" : "negativa";
         }
 
-        long totalAtrasados = entregableRepository.countAtrasadosTotal(hoy);
+        long totalAtrasados = entregableRepositoryPort.countAtrasadosTotal(hoy);
         int ventana = systemParameterService.getInt(SystemParameterKeys.DASHBOARD_VENTANA_VENCIMIENTO_DIAS, 7);
-        long proximos = entregableRepository.countProximosActivos(hoy, hoy.plusDays(ventana));
+        long proximos = entregableRepositoryPort.countProximosActivos(hoy, hoy.plusDays(ventana));
 
-        return new DashboardSummaryDTO(
-                total,
-                activos,
-                cerrados,
-                avancePromedio,
-                tendencia,
-                totalAtrasados,
-                proximos,
-                ventana);
+        DashboardSummaryDTO resumen = new DashboardSummaryDTO();
+        resumen.setTotalProyectos(total);
+        resumen.setActivos(activos);
+        resumen.setCerrados(cerrados);
+        resumen.setAvancePromedio(avancePromedio);
+        resumen.setAvanceTendencia(tendencia);
+        resumen.setEntregablesAtrasados(totalAtrasados);
+        resumen.setProximosAVencer(proximos);
+        resumen.setDiasVentanaVencimiento(ventana);
+        return resumen;
     }
 
     @Override
     public List<DashboardProjectSummaryDTO> getProjectSummary() {
-        return proyectoRepository.getDashboardProjectSummary(LocalDate.now());
+        return proyectoRepositoryPort.getDashboardProjectSummary(LocalDate.now(ZoneId.systemDefault()));
     }
 
     @Override
-    public List<com.proyecta.api_gestion.dto.dashboard.ProjectsByDependenciaDTO> getProjectsByDependencia() {
-        return proyectoRepository.getProjectsByDependencia();
+    public List<com.proyecta.api_gestion.application.readmodel.ProjectsByDependenciaDTO> getProjectsByDependencia() {
+        return proyectoRepositoryPort.getProjectsByDependencia();
     }
 }

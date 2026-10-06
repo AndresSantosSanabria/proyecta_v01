@@ -7,12 +7,14 @@ import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtract
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.proyecta.api_gestion.adapter.in.web.PageSupport;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/notificaciones")
@@ -35,10 +37,14 @@ public class InAppNotificationController {
     public ResponseEntity<ApiResponse<Page<InAppNotificationDTO>>> list(
             Authentication authentication,
             @Parameter(description = "Filtra por estado leído (true/false)") @RequestParam(required = false) Boolean leido,
-            @Parameter(description = "Filtra por código del evento de notificación") @RequestParam(required = false) String eventCode,
-            Pageable pageable) {
+            @Parameter(description = "Filtra por código del evento de notificación")             @RequestParam(required = false) String eventCode,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "sort", required = false) List<String> sort) {
         String username = identityExtractor.resolveUsername(authentication);
-        return ResponseEntity.ok(ApiResponse.success(service.list(username, leido, eventCode, pageable), "Notificaciones consultadas correctamente"));
+        return ResponseEntity.ok(ApiResponse.success(
+                PageSupport.toPage(service.list(username, leido, eventCode, PageSupport.fromParams(page, size, sort, 20))),
+                "Notificaciones consultadas correctamente"));
     }
 
     @Operation(summary = "Contar notificaciones no leídas")

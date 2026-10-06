@@ -3,14 +3,14 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.dto.advance.AdvanceReportStatusDTO;
 import com.proyecta.api_gestion.dto.advance.AdvanceReportVersionDTO;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.advance.AdvanceReportUpload;
-import com.proyecta.api_gestion.model.advance.AdvanceReportVersion;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.advance.AdvanceReportUploadRepository;
-import com.proyecta.api_gestion.repository.advance.AdvanceReportVersionRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.advance.AdvanceReportUpload;
+import com.proyecta.api_gestion.domain.model.advance.AdvanceReportVersion;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.advance.AdvanceReportUploadRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.advance.AdvanceReportVersionRepositoryPort;
 import com.proyecta.api_gestion.service.advance.AdvanceReportNotificationService;
 import com.proyecta.api_gestion.service.advance.AdvanceReportPeriodService;
 import com.proyecta.api_gestion.service.advance.AdvanceReportRuleEvaluator;
@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -38,6 +39,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 @RestController
@@ -50,22 +52,23 @@ public class AdvanceReportController {
     private final AdvanceReportRuleEvaluator ruleEvaluator;
     private final AdvanceReportNotificationService notificationService;
     private final AdvanceReportPeriodService periodService;
-    private final ProyectoRepository proyectoRepository;
-    private final AdvanceReportUploadRepository uploadRepository;
-    private final AdvanceReportVersionRepository versionRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final AdvanceReportUploadRepositoryPort uploadRepositoryPort;
+    private final AdvanceReportVersionRepositoryPort versionRepositoryPort;
     private final SystemParameterService systemParameterService;
     private final KeycloakIdentityExtractor identityExtractor;
     private final FileStorageServiceImpl fileStorageService;
     private final ProyectoSecurity proyectoSecurity;
     private final LocalUserAuthorizationService localUserAuthorizationService;
 
+    @Autowired
     public AdvanceReportController(
             AdvanceReportRuleEvaluator ruleEvaluator,
             AdvanceReportNotificationService notificationService,
             AdvanceReportPeriodService periodService,
-            ProyectoRepository proyectoRepository,
-            AdvanceReportUploadRepository uploadRepository,
-            AdvanceReportVersionRepository versionRepository,
+            ProyectoRepositoryPort proyectoRepositoryPort,
+            AdvanceReportUploadRepositoryPort uploadRepositoryPort,
+            AdvanceReportVersionRepositoryPort versionRepositoryPort,
             SystemParameterService systemParameterService,
             KeycloakIdentityExtractor identityExtractor,
             FileStorageServiceImpl fileStorageService,
@@ -74,9 +77,9 @@ public class AdvanceReportController {
         this.ruleEvaluator = ruleEvaluator;
         this.notificationService = notificationService;
         this.periodService = periodService;
-        this.proyectoRepository = proyectoRepository;
-        this.uploadRepository = uploadRepository;
-        this.versionRepository = versionRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.uploadRepositoryPort = uploadRepositoryPort;
+        this.versionRepositoryPort = versionRepositoryPort;
         this.systemParameterService = systemParameterService;
         this.identityExtractor = identityExtractor;
         this.fileStorageService = fileStorageService;
@@ -99,19 +102,19 @@ public class AdvanceReportController {
 
         String pid = projectId.trim().toUpperCase();
         String periodoDef = (periodo == null || periodo.isBlank())
-                ? periodService.currentPeriodo(LocalDate.now())
+                ? periodService.currentPeriodo(LocalDate.now(ZoneId.systemDefault()))
                 : periodo.trim();
 
-        AdvanceReportUpload upload = uploadRepository.findByProjectIdAndPeriodo(pid, periodoDef)
+        AdvanceReportUpload upload = uploadRepositoryPort.findByProjectIdAndPeriodo(pid, periodoDef)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe informe de avance cargado para el periodo " + periodoDef + "."));
 
         AdvanceReportVersion versionEntity;
         if (version != null) {
-            versionEntity = versionRepository.findByUploadIdAndNumeroVersion(upload.getId(), version)
+            versionEntity = versionRepositoryPort.findByUploadIdAndNumeroVersion(upload.getId(), version)
                     .orElseThrow(() -> new ResourceNotFoundException("No existe la versión " + version + " del informe."));
         } else {
-            versionEntity = versionRepository.findByUploadIdAndEstado(upload.getId(), AdvanceReportVersion.ESTADO_ACTUAL)
-                    .or(() -> versionRepository.findByUploadIdOrderByNumeroVersionDesc(upload.getId()).stream().findFirst())
+            versionEntity = versionRepositoryPort.findByUploadIdAndEstado(upload.getId(), AdvanceReportVersion.ESTADO_ACTUAL)
+                    .or(() -> versionRepositoryPort.findByUploadIdOrderByNumeroVersionDesc(upload.getId()).stream().findFirst())
                     .orElseThrow(() -> new ResourceNotFoundException("El informe de avance no tiene versiones cargadas."));
         }
 
@@ -133,10 +136,10 @@ public class AdvanceReportController {
             @Parameter(description = "Identificador del proyecto") @PathVariable String projectId,
             Authentication authentication) {
 
-        Proyecto proyecto = proyectoRepository.findById(projectId.trim().toUpperCase())
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId.trim().toUpperCase())
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         LocalDate dueDate = ruleEvaluator.getDueDate();
         String periodo = periodService.currentPeriodo(today);
         AdvanceReportUpload upload = notificationService.getUpload(proyecto.getId(), periodo);
@@ -157,13 +160,13 @@ public class AdvanceReportController {
 
         String pid = projectId.trim().toUpperCase();
         String periodoDef = (periodo == null || periodo.isBlank())
-                ? periodService.currentPeriodo(LocalDate.now())
+                ? periodService.currentPeriodo(LocalDate.now(ZoneId.systemDefault()))
                 : periodo.trim();
 
-        AdvanceReportUpload upload = uploadRepository.findByProjectIdAndPeriodo(pid, periodoDef)
+        AdvanceReportUpload upload = uploadRepositoryPort.findByProjectIdAndPeriodo(pid, periodoDef)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe informe de avance para el periodo " + periodoDef + "."));
 
-        List<AdvanceReportVersionDTO> versions = versionRepository
+        List<AdvanceReportVersionDTO> versions = versionRepositoryPort
                 .findByUploadIdOrderByNumeroVersionDesc(upload.getId()).stream()
                 .map(v -> new AdvanceReportVersionDTO(
                         v.getNumeroVersion(), v.getFileName(), v.getFileSize(), v.getMimeType(),
@@ -188,11 +191,11 @@ public class AdvanceReportController {
             return ResponseEntity.ok(ApiResponse.success(List.of(), "Proyectos con informe pendiente"));
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         String periodo = periodService.currentPeriodo(today);
         LocalDate dueDate = ruleEvaluator.getDueDate();
 
-        List<AdvanceReportStatusDTO> pending = proyectoRepository.findAll().stream()
+        List<AdvanceReportStatusDTO> pending = proyectoRepositoryPort.findAll().stream()
                 .filter(p -> periodService.esElegible(p, today))
                 .filter(p -> proyectoSecurity.canAccessQuietly("PROYECTO:VER", p.getId(), authentication))
                 .filter(p -> !notificationService.isUploaded(p.getId(), periodo))
@@ -262,18 +265,18 @@ public class AdvanceReportController {
             Authentication authentication) {
 
         String pid = projectId.trim().toUpperCase();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         String periodo = periodService.currentPeriodo(today);
-        AdvanceReportUpload upload = uploadRepository.findByProjectIdAndPeriodo(pid, periodo)
+        AdvanceReportUpload upload = uploadRepositoryPort.findByProjectIdAndPeriodo(pid, periodo)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe informe de avance para el periodo actual."));
 
         String actorVerify = identityExtractor.resolveUsername(authentication);
         upload.setEstado("VERIFICADO");
         upload.setVerifiedBy(actorVerify);
-        upload.setVerifiedAt(LocalDateTime.now());
-        uploadRepository.save(upload);
+        upload.setVerifiedAt(LocalDateTime.now(ZoneId.systemDefault()));
+        uploadRepositoryPort.save(upload);
 
-        Proyecto proyecto = proyectoRepository.findById(pid).orElse(null);
+        Proyecto proyecto = proyectoRepositoryPort.findById(pid).orElse(null);
         notificationService.notificarInformeVerificado(proyecto, periodo, actorVerify);
 
         return ResponseEntity.ok(ApiResponse.success("Informe verificado exitosamente."));
@@ -296,19 +299,19 @@ public class AdvanceReportController {
         }
 
         String pid = projectId.trim().toUpperCase();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         String periodo = periodService.currentPeriodo(today);
-        AdvanceReportUpload upload = uploadRepository.findByProjectIdAndPeriodo(pid, periodo)
+        AdvanceReportUpload upload = uploadRepositoryPort.findByProjectIdAndPeriodo(pid, periodo)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe informe de avance para el periodo actual."));
 
         String actorReturn = identityExtractor.resolveUsername(authentication);
         upload.setEstado("DEVUELTO");
         upload.setObservaciones(observaciones.trim());
         upload.setReturnedBy(actorReturn);
-        upload.setReturnedAt(LocalDateTime.now());
-        uploadRepository.save(upload);
+        upload.setReturnedAt(LocalDateTime.now(ZoneId.systemDefault()));
+        uploadRepositoryPort.save(upload);
 
-        Proyecto proyecto = proyectoRepository.findById(pid).orElse(null);
+        Proyecto proyecto = proyectoRepositoryPort.findById(pid).orElse(null);
         notificationService.notificarInformeDevuelto(proyecto, periodo, observaciones.trim(), actorReturn);
 
         return ResponseEntity.ok(ApiResponse.success("Informe devuelto al director."));
@@ -327,10 +330,10 @@ public class AdvanceReportController {
             Authentication authentication) {
 
         String pid = projectId.trim().toUpperCase();
-        Proyecto proyecto = proyectoRepository.findById(pid)
+        Proyecto proyecto = proyectoRepositoryPort.findById(pid)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + projectId));
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         String periodo = periodService.currentPeriodo(today);
         String username = identityExtractor.resolveUsername(authentication);
 
@@ -360,10 +363,10 @@ public class AdvanceReportController {
             validarPdfReal(file);
         }
 
-        AdvanceReportUpload upload = uploadRepository.findByProjectIdAndPeriodo(pid, periodo).orElse(null);
+        AdvanceReportUpload upload = uploadRepositoryPort.findByProjectIdAndPeriodo(pid, periodo).orElse(null);
         boolean esNuevaCabecera = upload == null;
 
-        int siguienteVersion = esNuevaCabecera ? 1 : versionRepository.findMaxNumeroVersion(upload.getId()) + 1;
+        int siguienteVersion = esNuevaCabecera ? 1 : versionRepositoryPort.findMaxNumeroVersion(upload.getId()) + 1;
         // CWE-22/CWE-73: base de nombre sin ruta ni caracteres de separacion.
         String safeBaseName = originalFilename
                 .substring(0, originalFilename.lastIndexOf('.') > 0 ? originalFilename.lastIndexOf('.') : originalFilename.length())
@@ -374,26 +377,26 @@ public class AdvanceReportController {
         if (esNuevaCabecera) {
             upload = new AdvanceReportUpload(pid, periodo, originalFilename, filePath, file.getSize(), username);
             upload.setSubidoRol(resolveRol(authentication));
-            upload = uploadRepository.save(upload);
+            upload = uploadRepositoryPort.save(upload);
         }
 
-        versionRepository.findByUploadIdAndEstado(upload.getId(), AdvanceReportVersion.ESTADO_ACTUAL)
+        versionRepositoryPort.findByUploadIdAndEstado(upload.getId(), AdvanceReportVersion.ESTADO_ACTUAL)
                 .ifPresent(actual -> {
                     actual.setEstado(AdvanceReportVersion.ESTADO_HISTORICA);
-                    versionRepository.save(actual);
+                    versionRepositoryPort.save(actual);
                 });
 
         AdvanceReportVersion version = new AdvanceReportVersion(
                 upload.getId(), pid, periodo, siguienteVersion,
                 originalFilename, filePath, file.getSize(), file.getContentType(),
                 username, resolveRol(authentication));
-        versionRepository.save(version);
+        versionRepositoryPort.save(version);
 
         upload.setFileName(originalFilename);
         upload.setFilePath(filePath);
         upload.setFileSize(file.getSize());
         upload.setUploadedBy(username);
-        upload.setUploadedAt(LocalDateTime.now());
+        upload.setUploadedAt(LocalDateTime.now(ZoneId.systemDefault()));
         upload.setSubidoRol(resolveRol(authentication));
         upload.setEstado("PENDIENTE");
         upload.setObservaciones(null);
@@ -401,7 +404,7 @@ public class AdvanceReportController {
         upload.setVerifiedAt(null);
         upload.setReturnedBy(null);
         upload.setReturnedAt(null);
-        upload = uploadRepository.save(upload);
+        upload = uploadRepositoryPort.save(upload);
 
         log.info("Informe de avance cargado: proyecto {} periodo {} version {} archivo {} por {}",
                 pid, periodo, siguienteVersion, originalFilename, username);
@@ -481,11 +484,11 @@ public class AdvanceReportController {
                 default -> true;
             };
             if (!valid) {
-                throw new com.proyecta.api_gestion.exception.BadRequestException(
+                throw new com.proyecta.api_gestion.domain.exception.BadRequestException(
                         "El contenido del archivo no corresponde a la extension declarada (." + extension + ").");
             }
         } catch (java.io.IOException _) {
-            throw new com.proyecta.api_gestion.exception.BadRequestException(
+            throw new com.proyecta.api_gestion.domain.exception.BadRequestException(
                     "No se pudo validar el contenido del archivo.");
         }
     }

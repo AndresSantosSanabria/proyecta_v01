@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.controller.interfaces;
 import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.report.*;
+import com.proyecta.api_gestion.application.readmodel.ProyectoReporteResumenDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

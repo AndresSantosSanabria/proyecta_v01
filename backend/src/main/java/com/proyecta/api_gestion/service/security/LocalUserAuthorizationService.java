@@ -1,29 +1,28 @@
 package com.proyecta.api_gestion.service.security;
 
-import com.proyecta.api_gestion.exception.ForbiddenException;
-import com.proyecta.api_gestion.exception.UnauthorizedException;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.exception.UnauthorizedException;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Service("localUserAuthorization")
 public class LocalUserAuthorizationService {
 
-    private final SeguridadUsuarioRepository seguridadUsuarioRepository;
+    private final SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort;
     private final KeycloakIdentityExtractor identityExtractor;
 
     public LocalUserAuthorizationService(
-            SeguridadUsuarioRepository seguridadUsuarioRepository,
-            KeycloakIdentityExtractor identityExtractor,
-            @Value("${gob.security.admin-emails:}") String adminEmails) {
-        this.seguridadUsuarioRepository = seguridadUsuarioRepository;
+            SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort,
+            KeycloakIdentityExtractor identityExtractor) {
+        this.seguridadUsuarioRepositoryPort = seguridadUsuarioRepositoryPort;
         this.identityExtractor = identityExtractor;
     }
 
@@ -35,6 +34,9 @@ public class LocalUserAuthorizationService {
         return usuario;
     }
 
+    // S3516: la denegacion se realiza lanzando ForbiddenException; solo retorna
+    // true cuando el acceso esta permitido (contrato usado por SpEL de @PreAuthorize).
+    @SuppressWarnings("java:S3516")
     public boolean hasBaseAccess(Authentication authentication) {
         if (hasAdminAuthority(authentication)) {
             return true;
@@ -61,8 +63,8 @@ public class LocalUserAuthorizationService {
 
     public SeguridadUsuario validateAndTouch(Authentication authentication) {
         SeguridadUsuario usuario = requireLocalUser(authentication);
-        usuario.setUltimoAcceso(LocalDateTime.now());
-        return seguridadUsuarioRepository.save(usuario);
+        usuario.setUltimoAcceso(LocalDateTime.now(ZoneId.systemDefault()));
+        return seguridadUsuarioRepositoryPort.save(usuario);
     }
 
     private SeguridadUsuario resolveLocalUser(Authentication authentication) {
@@ -91,7 +93,7 @@ public class LocalUserAuthorizationService {
         }
 
         if (shouldSave) {
-            usuario = seguridadUsuarioRepository.save(usuario);
+            usuario = seguridadUsuarioRepositoryPort.save(usuario);
         }
 
         return usuario;
@@ -99,17 +101,17 @@ public class LocalUserAuthorizationService {
 
     private SeguridadUsuario findExistingUser(String keycloakSub, String email, String username) {
         if (keycloakSub != null) {
-            var bySub = seguridadUsuarioRepository.findByKeycloakSubIgnoreCase(keycloakSub);
+            var bySub = seguridadUsuarioRepositoryPort.findByKeycloakSubIgnoreCase(keycloakSub);
             if (bySub.isPresent()) return bySub.get();
         }
 
         if (email != null) {
-            var byEmail = seguridadUsuarioRepository.findByCorreoIgnoreCase(email);
+            var byEmail = seguridadUsuarioRepositoryPort.findByCorreoIgnoreCase(email);
             if (byEmail.isPresent()) return byEmail.get();
         }
 
         if (username != null && !username.equalsIgnoreCase(email)) {
-            var byUsername = seguridadUsuarioRepository.findByUsernameIgnoreCase(username);
+            var byUsername = seguridadUsuarioRepositoryPort.findByUsernameIgnoreCase(username);
             if (byUsername.isPresent()) return byUsername.get();
         }
 

@@ -7,21 +7,21 @@ import com.proyecta.api_gestion.dto.risk.RiesgoRequestDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoResponseDTO;
 import com.proyecta.api_gestion.dto.risk.RiesgoSolucionAdjuntoDTO;
 import com.proyecta.api_gestion.config.PublicUrlProperties;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.ForbiddenException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.Riesgo;
-import com.proyecta.api_gestion.model.RiesgoSolucionAdjunto;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
-import com.proyecta.api_gestion.model.enums.EstadoRiesgo;
-import com.proyecta.api_gestion.model.enums.Impacto;
-import com.proyecta.api_gestion.model.enums.NivelRiesgo;
-import com.proyecta.api_gestion.model.enums.Probabilidad;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.RiesgoRepository;
-import com.proyecta.api_gestion.repository.RiesgoSolucionAdjuntoRepository;
-import com.proyecta.api_gestion.repository.config.MatrizRiesgoRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.Riesgo;
+import com.proyecta.api_gestion.domain.model.RiesgoSolucionAdjunto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoRiesgo;
+import com.proyecta.api_gestion.domain.model.enums.Impacto;
+import com.proyecta.api_gestion.domain.model.enums.NivelRiesgo;
+import com.proyecta.api_gestion.domain.model.enums.Probabilidad;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.RiesgoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.RiesgoSolucionAdjuntoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.config.MatrizRiesgoRepositoryPort;
 import com.proyecta.api_gestion.service.IRiesgoService;
 import com.proyecta.api_gestion.service.PublicEvidenceUrlSigner;
 import com.proyecta.api_gestion.service.report.RiesgoExcelExporter;
@@ -30,6 +30,7 @@ import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
 import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
+import com.proyecta.api_gestion.service.support.PdfFileSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.core.io.ByteArrayResource;
@@ -41,8 +42,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -97,44 +96,48 @@ public class RiesgoServiceImpl implements IRiesgoService {
             new MatrixRule(NIVEL_CINCO, NIVEL_CINCO, NIVEL_EXTREMO, COLOR_EXTREMO)
     );
 
-    private final RiesgoRepository riesgoRepository;
-    private final ProyectoRepository proyectoRepository;
-    private final MatrizRiesgoRepository matrizRiesgoRepository;
-    private final RiesgoSolucionAdjuntoRepository solucionRepository;
+    private final RiesgoRepositoryPort riesgoRepositoryPort;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final MatrizRiesgoRepositoryPort matrizRiesgoRepositoryPort;
+    private final RiesgoSolucionAdjuntoRepositoryPort solucionRepositoryPort;
     private final IStorageProvider storageProvider;
     private final NotificationEventPublisherPort notificationPublisher;
     private final RiesgoExcelExporter riesgoExcelExporter;
     private final String publicUrlBase;
     private final PublicEvidenceUrlSigner urlSigner;
 
-    public RiesgoServiceImpl(RiesgoRepository riesgoRepository,
-                             ProyectoRepository proyectoRepository,
-                             MatrizRiesgoRepository matrizRiesgoRepository,
-                             RiesgoSolucionAdjuntoRepository solucionRepository,
+    public RiesgoServiceImpl(RiesgoRepositoryPort riesgoRepositoryPort,
+                             ProyectoRepositoryPort proyectoRepositoryPort,
+                             MatrizRiesgoRepositoryPort matrizRiesgoRepositoryPort,
+                             RiesgoSolucionAdjuntoRepositoryPort solucionRepositoryPort,
                              IStorageProvider storageProvider,
                              NotificationEventPublisherPort notificationPublisher,
                              RiesgoExcelExporter riesgoExcelExporter,
                              PublicUrlProperties publicUrlProperties,
                              PublicEvidenceUrlSigner urlSigner) {
-        this.riesgoRepository = riesgoRepository;
-        this.proyectoRepository = proyectoRepository;
-        this.matrizRiesgoRepository = matrizRiesgoRepository;
-        this.solucionRepository = solucionRepository;
+        this.riesgoRepositoryPort = riesgoRepositoryPort;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.matrizRiesgoRepositoryPort = matrizRiesgoRepositoryPort;
+        this.solucionRepositoryPort = solucionRepositoryPort;
         this.storageProvider = storageProvider;
         this.notificationPublisher = notificationPublisher;
         this.riesgoExcelExporter = riesgoExcelExporter;
         this.urlSigner = urlSigner;
         String base = publicUrlProperties.getBase();
-        this.publicUrlBase = (base == null) ? "" : base.replaceAll("/+$", "");
+        String normalized = (base == null) ? "" : base;
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        this.publicUrlBase = normalized;
     }
 
     @Override
     @Transactional(readOnly = true)
     public RiesgoListResponseDTO getRisksByProject(String projectId) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con ID: " + projectId));
 
-        List<RiesgoResponseDTO> riesgos = riesgoRepository.findByProyectoId(projectId).stream()
+        List<RiesgoResponseDTO> riesgos = riesgoRepositoryPort.findByProyectoId(projectId).stream()
                 .map(this::convertToResponseDto)
                 .toList();
 
@@ -144,7 +147,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     @Override
     @Transactional(readOnly = true)
     public List<MatrizRiesgoDTO> getRiskMatrix() {
-        List<MatrizRiesgoDTO> catalogo = matrizRiesgoRepository.findAllByOrderByIdAsc().stream()
+        List<MatrizRiesgoDTO> catalogo = matrizRiesgoRepositoryPort.findAllByOrderByIdAsc().stream()
                 .map(rule -> new MatrizRiesgoDTO(rule.getProbabilidad(), rule.getImpacto(), rule.getNivelResultante(), rule.getColor()))
                 .toList();
 
@@ -171,9 +174,9 @@ public class RiesgoServiceImpl implements IRiesgoService {
         riesgo.setCreatedBy(resolvedUser);
         log.info("[createRisk] createdBy seteado: '{}' para riesgo en proyecto {}", resolvedUser, projectId);
 
-        Riesgo savedRisk = riesgoRepository.save(riesgo);
+        Riesgo savedRisk = riesgoRepositoryPort.save(riesgo);
         savedRisk.setCodigo("R" + String.format("%02d", savedRisk.getId()));
-        riesgoRepository.save(savedRisk);
+        riesgoRepositoryPort.save(savedRisk);
         var riskRecipients = ProjectNotificationRecipients.resolve(proyecto);
         if (!riskRecipients.isEmpty()) {
             notificationPublisher.publish(new NotificationContext(
@@ -199,7 +202,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     @Override
     @Transactional
     public RiesgoResponseDTO updateRisk(String projectId, Integer riesgoId, RiesgoRequestDTO requestDto) {
-        Riesgo riesgo = riesgoRepository.findById(riesgoId)
+        Riesgo riesgo = riesgoRepositoryPort.findById(riesgoId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_RIESGO_NO_ENCONTRADO + riesgoId));
 
         if (!riesgo.getProyecto().getId().equals(projectId)) {
@@ -211,7 +214,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
         }
 
         aplicarRequest(riesgo, requestDto, riesgo.getProyecto());
-        Riesgo saved = riesgoRepository.save(riesgo);
+        Riesgo saved = riesgoRepositoryPort.save(riesgo);
         var updateRecipients = ProjectNotificationRecipients.resolve(saved.getProyecto());
         if (!updateRecipients.isEmpty()) {
             notificationPublisher.publish(new NotificationContext(
@@ -231,7 +234,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     @Override
     @Transactional
     public void deleteRisk(String projectId, Integer riesgoId) {
-        Riesgo riesgo = riesgoRepository.findById(riesgoId)
+        Riesgo riesgo = riesgoRepositoryPort.findById(riesgoId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_RIESGO_NO_ENCONTRADO + riesgoId));
 
         if (!riesgo.getProyecto().getId().equals(projectId)) {
@@ -244,7 +247,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
 
         String riskCode = riesgo.getCodigo() != null ? riesgo.getCodigo() : String.valueOf(riesgo.getId());
         Proyecto proyectoRiesgo = riesgo.getProyecto();
-        riesgoRepository.delete(riesgo);
+        riesgoRepositoryPort.delete(riesgo);
 
         var deleteRecipients = ProjectNotificationRecipients.resolve(proyectoRiesgo);
         if (!deleteRecipients.isEmpty()) {
@@ -264,7 +267,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     @Transactional(readOnly = true)
     public List<RiesgoSolucionAdjuntoDTO> listarSoluciones(String projectId, Integer riesgoId) {
         Riesgo riesgo = cargarRiesgoDelProyecto(projectId, riesgoId);
-        return solucionRepository.findByRiesgo_IdOrderByFechaCargaAsc(riesgo.getId()).stream()
+        return solucionRepositoryPort.findByRiesgoIdOrderByFechaCargaAsc(riesgo.getId()).stream()
                 .map(this::toSolutionDto)
                 .toList();
     }
@@ -281,55 +284,15 @@ public class RiesgoServiceImpl implements IRiesgoService {
             throw new BadRequestException("Debes seleccionar al menos un PDF de solución.");
         }
 
-        List<RiesgoSolucionAdjuntoDTO> resultado = new ArrayList<>();
-        for (int i = 0; i < archivos.length; i++) {
-            MultipartFile archivo = archivos[i];
-            validarPdf(archivo);
-            String nombreOriginal = storageProvider.sanitizeFileName(archivo.getOriginalFilename());
-            String nombreBase = generarNombreBaseSolucion(riesgo.getId(), i);
-            String nombreAlmacenado = storageProvider.storeFile(archivo, "riesgos-soluciones", nombreBase);
-
-            RiesgoSolucionAdjunto adjunto = new RiesgoSolucionAdjunto();
-            adjunto.setRiesgo(riesgo);
-            adjunto.setNombreOriginal(nombreOriginal);
-            adjunto.setNombreAlmacenado(nombreAlmacenado);
-            adjunto.setRutaAlmacenamiento("riesgos-soluciones");
-            adjunto.setMimeType(detectMimeType(archivo));
-            adjunto.setTamanoBytes(archivo.getSize());
-            RiesgoSolucionAdjunto guardado = solucionRepository.save(adjunto);
-            resultado.add(toSolutionDto(guardado));
-        }
-
-        boolean cambioATratado = false;
-        if (riesgo.getEstado() == null || riesgo.getEstado() == EstadoRiesgo.PENDIENTE) {
-            riesgo.setEstado(EstadoRiesgo.TRATADO);
-            riesgoRepository.save(riesgo);
-            cambioATratado = true;
-        }
-
-        if (cambioATratado) {
-            var treatedRecipients = ProjectNotificationRecipients.resolve(riesgo.getProyecto());
-            if (treatedRecipients != null && !treatedRecipients.isEmpty()) {
-                notificationPublisher.publish(new NotificationContext(
-                        NotificationEventType.RISK_TREATED,
-                        projectId,
-                        ACTOR_SYSTEM,
-                        java.util.Map.of(
-                                RISK_CODE, riesgo.getCodigo() != null ? riesgo.getCodigo() : String.valueOf(riesgo.getId()),
-                                RISK_LEVEL, riesgo.getNivel() != null ? riesgo.getNivel() : "",
-                                PROJECT_NAME, riesgo.getProyecto().getNombre() != null ? riesgo.getProyecto().getNombre() : "",
-                                RECIPIENTS, treatedRecipients
-                        )));
-            }
-        }
-
+        List<RiesgoSolucionAdjuntoDTO> resultado = guardarArchivosSolucion(riesgo, archivos);
+        marcarTratadoYNotificar(projectId, riesgo);
         return resultado;
     }
 
     @Override
     @Transactional(readOnly = true)
     public Resource descargarSolucion(String projectId, Integer riesgoId, Long solucionId) {
-        RiesgoSolucionAdjunto adjunto = solucionRepository.findById(solucionId)
+        RiesgoSolucionAdjunto adjunto = solucionRepositoryPort.findById(solucionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Adjunto de solución no encontrado: " + solucionId));
         if (adjunto.getRiesgo() == null || adjunto.getRiesgo().getId() == null || !adjunto.getRiesgo().getId().equals(riesgoId)) {
             throw new ForbiddenException("El adjunto no pertenece al riesgo solicitado.");
@@ -343,7 +306,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     @Override
     @Transactional(readOnly = true)
     public Resource descargarMatrizExcel(String projectId) {
-        List<Riesgo> riesgos = riesgoRepository.findByProyectoId(projectId);
+        List<Riesgo> riesgos = riesgoRepositoryPort.findByProyectoId(projectId);
         byte[] bytes = riesgoExcelExporter.buildProjectRiskMatrix(projectId, riesgos);
         return new ByteArrayResource(bytes);
     }
@@ -385,37 +348,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     }
 
     private RiesgoResponseDTO convertToResponseDto(Riesgo riesgo) {
-        List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO> tratamientosDtos = new ArrayList<>();
-        if (riesgo.getTratamientos() != null) {
-            for (var tratamiento : riesgo.getTratamientos()) {
-                List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO> adjuntosDtos = new ArrayList<>();
-                if (tratamiento.getAdjuntos() != null) {
-                    for (var adjunto : tratamiento.getAdjuntos()) {
-                        Long tId = tratamiento.getId();
-                        Long aId = adjunto.getId();
-                        String projectId = riesgo.getProyecto() != null ? riesgo.getProyecto().getId() : null;
-                        adjuntosDtos.add(new com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO(
-                                aId,
-                                adjunto.getNombreOriginal(),
-                                adjunto.getNombreAlmacenado(),
-                                adjunto.getMimeType(),
-                                adjunto.getTamanoBytes(),
-                                projectId != null
-                                        ? "/api/v1/proyectos/" + projectId + "/riesgos/" + riesgo.getId() + "/tratamientos/" + tId + "/adjuntos/" + aId + "/descargar"
-                                        : null,
-                                adjunto.getFechaCarga()
-                        ));
-                    }
-                }
-                tratamientosDtos.add(new com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO(
-                        tratamiento.getId(),
-                        tratamiento.getIteracion(),
-                        tratamiento.getComentario(),
-                        tratamiento.getFechaCreacion(),
-                        adjuntosDtos
-                ));
-            }
-        }
+        List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO> tratamientosDtos = convertirTratamientos(riesgo);
         return new RiesgoResponseDTO(
                 riesgo.getId(),
                 riesgo.getCodigo(),
@@ -464,8 +397,8 @@ public class RiesgoServiceImpl implements IRiesgoService {
             throw new BadRequestException("La probabilidad e impacto son obligatorios para calcular el nivel de riesgo.");
         }
 
-        return matrizRiesgoRepository.findByProbabilidadIgnoreCaseAndImpactoIgnoreCase(probabilidad, impacto)
-                .map(com.proyecta.api_gestion.model.config.MatrizRiesgo::getNivelResultante)
+        return matrizRiesgoRepositoryPort.findByProbabilidadIgnoreCaseAndImpactoIgnoreCase(probabilidad, impacto)
+                .map(com.proyecta.api_gestion.domain.model.config.MatrizRiesgo::getNivelResultante)
                 .orElseGet(() -> MATRIX_RULES.stream()
                         .filter(rule -> rule.probabilidad().equalsIgnoreCase(probabilidad) && rule.impacto().equalsIgnoreCase(impacto))
                         .map(MatrixRule::nivel)
@@ -526,7 +459,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     }
 
     private Riesgo cargarRiesgoDelProyecto(String projectId, Integer riesgoId) {
-        Riesgo riesgo = riesgoRepository.findById(riesgoId)
+        Riesgo riesgo = riesgoRepositoryPort.findById(riesgoId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_RIESGO_NO_ENCONTRADO + riesgoId));
         if (riesgo.getProyecto() == null || !riesgo.getProyecto().getId().equals(projectId)) {
             throw new ForbiddenException("El riesgo no pertenece al proyecto especificado.");
@@ -535,22 +468,10 @@ public class RiesgoServiceImpl implements IRiesgoService {
     }
 
     private void validarPdf(MultipartFile archivo) {
-        if (archivo == null || archivo.isEmpty()) {
-            throw new BadRequestException("Cada archivo de solución debe ser un PDF válido.");
-        }
-        String contentType = archivo.getContentType();
-        if (contentType != null && !contentType.equalsIgnoreCase("application/pdf")) {
-            throw new BadRequestException("Solo se permiten archivos PDF para las soluciones.");
-        }
-        try (var is = archivo.getInputStream()) {
-            byte[] encabezado = is.readNBytes(5);
-            String firma = new String(encabezado, StandardCharsets.US_ASCII);
-            if (!firma.startsWith("%PDF-")) {
-                throw new BadRequestException("El archivo cargado no es un PDF vǭlido.");
-            }
-        } catch (IOException _) {
-            throw new BadRequestException("No fue posible validar el archivo PDF cargado.");
-        }
+        PdfFileSupport.validarPdf(archivo,
+                "Cada archivo de solución debe ser un PDF válido.",
+                "Solo se permiten archivos PDF para las soluciones.",
+                "El archivo cargado no es un PDF vǭlido.");
     }
 
     private String generarNombreBaseSolucion(Integer riesgoId, int indice) {
@@ -566,7 +487,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
     }
 
     private Proyecto cargarProyecto(String projectId) {
-        return proyectoRepository.findById(projectId)
+        return proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con ID: " + projectId));
     }
 
@@ -584,7 +505,7 @@ public class RiesgoServiceImpl implements IRiesgoService {
             return USUARIO_DESCONOCIDO;
         }
         Object principal = authentication.getPrincipal();
-        log.debug("[resolveUsername] principal class={}, name={}", principal.getClass().getName(), authentication.getName());
+        log.debug("[resolveUsername] principal class={}, name={}", principal == null ? "null" : principal.getClass().getName(), authentication.getName());
         if (principal instanceof Jwt jwt) {
             String username = jwt.getClaimAsString("preferred_username");
             if (username != null && !username.isBlank()) {
@@ -607,6 +528,104 @@ public class RiesgoServiceImpl implements IRiesgoService {
         String name = authentication.getName();
         log.debug("[resolveUsername] resolved from authentication.getName(): {}", name);
         return name != null && !name.isBlank() ? name : USUARIO_DESCONOCIDO;
+    }
+
+    private List<RiesgoSolucionAdjuntoDTO> guardarArchivosSolucion(Riesgo riesgo, MultipartFile[] archivos) {
+        List<RiesgoSolucionAdjuntoDTO> resultado = new ArrayList<>();
+        for (int i = 0; i < archivos.length; i++) {
+            MultipartFile archivo = archivos[i];
+            validarPdf(archivo);
+            String nombreOriginal = storageProvider.sanitizeFileName(archivo.getOriginalFilename());
+            String nombreBase = generarNombreBaseSolucion(riesgo.getId(), i);
+            String nombreAlmacenado = storageProvider.storeFile(archivo, "riesgos-soluciones", nombreBase);
+
+            RiesgoSolucionAdjunto adjunto = new RiesgoSolucionAdjunto();
+            adjunto.setRiesgo(riesgo);
+            adjunto.setNombreOriginal(nombreOriginal);
+            adjunto.setNombreAlmacenado(nombreAlmacenado);
+            adjunto.setRutaAlmacenamiento("riesgos-soluciones");
+            adjunto.setMimeType(detectMimeType(archivo));
+            adjunto.setTamanoBytes(archivo.getSize());
+            RiesgoSolucionAdjunto guardado = solucionRepositoryPort.save(adjunto);
+            resultado.add(toSolutionDto(guardado));
+        }
+        return resultado;
+    }
+
+    private void marcarTratadoYNotificar(String projectId, Riesgo riesgo) {
+        boolean cambioATratado = false;
+        if (riesgo.getEstado() == null || riesgo.getEstado() == EstadoRiesgo.PENDIENTE) {
+            riesgo.setEstado(EstadoRiesgo.TRATADO);
+            riesgoRepositoryPort.save(riesgo);
+            cambioATratado = true;
+        }
+
+        if (cambioATratado) {
+            publicarNotificacionTratado(projectId, riesgo);
+        }
+    }
+
+    private void publicarNotificacionTratado(String projectId, Riesgo riesgo) {
+        var treatedRecipients = ProjectNotificationRecipients.resolve(riesgo.getProyecto());
+        if (treatedRecipients != null && !treatedRecipients.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.RISK_TREATED,
+                    projectId,
+                    ACTOR_SYSTEM,
+                    java.util.Map.of(
+                            RISK_CODE, riesgo.getCodigo() != null ? riesgo.getCodigo() : String.valueOf(riesgo.getId()),
+                            RISK_LEVEL, riesgo.getNivel() != null ? riesgo.getNivel() : "",
+                            PROJECT_NAME, riesgo.getProyecto().getNombre() != null ? riesgo.getProyecto().getNombre() : "",
+                            RECIPIENTS, treatedRecipients
+                    )));
+        }
+    }
+
+    private List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO> convertirTratamientos(Riesgo riesgo) {
+        List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO> tratamientosDtos = new ArrayList<>();
+        if (riesgo.getTratamientos() != null) {
+            for (var tratamiento : riesgo.getTratamientos()) {
+                tratamientosDtos.add(new com.proyecta.api_gestion.dto.risk.RiesgoTratamientoDTO(
+                        tratamiento.getId(),
+                        tratamiento.getIteracion(),
+                        tratamiento.getComentario(),
+                        tratamiento.getFechaCreacion(),
+                        convertirAdjuntos(riesgo, tratamiento)
+                ));
+            }
+        }
+        return tratamientosDtos;
+    }
+
+    private List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO> convertirAdjuntos(
+            Riesgo riesgo, com.proyecta.api_gestion.domain.model.RiesgoTratamiento tratamiento) {
+        List<com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO> adjuntosDtos = new ArrayList<>();
+        if (tratamiento.getAdjuntos() != null) {
+            for (var adjunto : tratamiento.getAdjuntos()) {
+                adjuntosDtos.add(construirAdjuntoDto(riesgo, tratamiento, adjunto));
+            }
+        }
+        return adjuntosDtos;
+    }
+
+    private com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO construirAdjuntoDto(
+            Riesgo riesgo,
+            com.proyecta.api_gestion.domain.model.RiesgoTratamiento tratamiento,
+            com.proyecta.api_gestion.domain.model.RiesgoTratamientoAdjunto adjunto) {
+        Long tId = tratamiento.getId();
+        Long aId = adjunto.getId();
+        String projectId = riesgo.getProyecto() != null ? riesgo.getProyecto().getId() : null;
+        return new com.proyecta.api_gestion.dto.risk.RiesgoTratamientoAdjuntoDTO(
+                aId,
+                adjunto.getNombreOriginal(),
+                adjunto.getNombreAlmacenado(),
+                adjunto.getMimeType(),
+                adjunto.getTamanoBytes(),
+                projectId != null
+                        ? "/api/v1/proyectos/" + projectId + "/riesgos/" + riesgo.getId() + "/tratamientos/" + tId + "/adjuntos/" + aId + "/descargar"
+                        : null,
+                adjunto.getFechaCarga()
+        );
     }
 
     private record MatrixRule(String probabilidad, String impacto, String nivel, String color) {}

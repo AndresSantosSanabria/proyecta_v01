@@ -1,20 +1,42 @@
 package com.proyecta.api_gestion.service.config;
 
 import com.proyecta.api_gestion.dto.config.ListaParametricaItemDTO;
-import com.proyecta.api_gestion.model.config.ListaParametricaConfig;
-import com.proyecta.api_gestion.repository.config.ListaParametricaConfigRepository;
+import com.proyecta.api_gestion.domain.model.config.ListaParametricaConfig;
+import com.proyecta.api_gestion.application.port.out.persistence.config.ListaParametricaConfigRepositoryPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class ListaParametricaService {
 
-    private final ListaParametricaConfigRepository repository;
+    private static final Pattern COMILLAS_DOBLES_INICIO = Pattern.compile("^\"+");
+    private static final Pattern COMILLAS_DOBLES_FIN = Pattern.compile("\"+$");
+    private static final Pattern COMILLAS_SINGLES_INICIO = Pattern.compile("^'+");
+    private static final Pattern COMILLAS_SINGLES_FIN = Pattern.compile("'+$");
+    private static final Pattern ESPACIOS = Pattern.compile("\\s+");
 
-    public ListaParametricaService(ListaParametricaConfigRepository repository) {
+    private final ListaParametricaConfigRepositoryPort repository;
+
+    public ListaParametricaService(ListaParametricaConfigRepositoryPort repository) {
         this.repository = repository;
+    }
+
+    private static String limpiarValor(String valor) {
+        if (valor == null) {
+            return "";
+        }
+        String nombre = valor.trim();
+        nombre = COMILLAS_DOBLES_INICIO.matcher(nombre).replaceAll("");
+        nombre = COMILLAS_DOBLES_FIN.matcher(nombre).replaceAll("");
+        nombre = COMILLAS_SINGLES_INICIO.matcher(nombre).replaceAll("");
+        return COMILLAS_SINGLES_FIN.matcher(nombre).replaceAll("");
+    }
+
+    private static String normalizarCodigo(String nombre) {
+        return ESPACIOS.matcher(nombre.toUpperCase()).replaceAll("_");
     }
 
     @Transactional(readOnly = true)
@@ -38,10 +60,10 @@ public class ListaParametricaService {
         List<ListaParametricaConfig> existentes = repository.findByListaClaveOrderByOrdenAsc(listaClave);
 
         for (int i = 0; i < valores.size(); i++) {
-            String nombre = valores.get(i).trim().replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", "");
+            String nombre = limpiarValor(valores.get(i));
             if (nombre.isEmpty()) continue;
 
-            String codigo = nombre.toUpperCase().replaceAll("\\s+", "_");
+            String codigo = normalizarCodigo(nombre);
             if (codigo.length() > 190) {
                 codigo = codigo.substring(0, 190);
             }
@@ -64,10 +86,10 @@ public class ListaParametricaService {
         }
 
         java.util.Set<String> nuevosCodigos = valores.stream()
-                .map(v -> v.trim().replaceAll("^\"+|\"+$", "").replaceAll("^'+|'+$", ""))
+                .map(ListaParametricaService::limpiarValor)
                 .filter(v -> !v.isEmpty())
                 .map(v -> {
-                    String c = v.toUpperCase().replaceAll("\\s+", "_");
+                    String c = normalizarCodigo(v);
                     return c.length() > 190 ? c.substring(0, 190) : c;
                 })
                 .collect(java.util.stream.Collectors.toSet());

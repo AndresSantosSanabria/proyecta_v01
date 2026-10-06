@@ -7,7 +7,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 
 @Configuration
 public class DatabaseRetryConfig implements BeanPostProcessor {
@@ -19,27 +18,33 @@ public class DatabaseRetryConfig implements BeanPostProcessor {
             int maxRetries = 20;
             int retries = 0;
             long waitInterval = 3000; // 3 seconds
+            boolean connected = false;
 
-            while (retries < maxRetries) {
-                try (Connection _ = dataSource.getConnection()) {
+            while (!connected && retries < maxRetries) {
+                try (var _ = dataSource.getConnection()) {
                     logger.info("Database connection is ready.");
-                    break;
+                    connected = true;
                 } catch (Exception e) {
                     retries++;
-                    logger.warn("Database not ready yet (Attempt {}/{}). Retrying in {} ms... ({})", 
+                    logger.warn("Database not ready yet (Attempt {}/{}). Retrying in {} ms... ({})",
                             retries, maxRetries, waitInterval, e.getMessage());
                     if (retries >= maxRetries) {
                         logger.error("Failed to connect to the database after {} attempts.", maxRetries);
                     } else {
-                        try {
-                            Thread.sleep(waitInterval);
-                        } catch (InterruptedException _) {
-                            Thread.currentThread().interrupt();
-                        }
+                        sleepQuietly(waitInterval);
                     }
                 }
             }
         }
         return bean;
     }
+
+    private void sleepQuietly(long waitInterval) {
+        try {
+            Thread.sleep(waitInterval);
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+        }
+    }
 }
+

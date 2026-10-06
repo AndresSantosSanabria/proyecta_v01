@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.dto.analytics.AnalyticsPortfolioDTO;
+import java.util.regex.Pattern;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -30,12 +31,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public final class AnalyticsPdfGenerator {
 
@@ -66,15 +66,9 @@ public final class AnalyticsPdfGenerator {
     private static final Color COLOR_MUTED = new Color(58, 58, 58);
     private static final Color COLOR_TITLE = new Color(20, 65, 93);
     private static final Color COLOR_SECTION = new Color(25, 85, 61);
-    private static final Color COLOR_TABLE_HEAD = new Color(238, 242, 247);
-    private static final Color COLOR_TABLE_BORDER = new Color(201, 210, 220);
-    private static final Color COLOR_ROW_ALT = new Color(248, 250, 252);
     private static final Color COLOR_CARD_BLUE = new Color(232, 243, 255);
-    private static final Color COLOR_CARD_GREEN = new Color(235, 249, 239);
     private static final Color COLOR_CARD_YELLOW = new Color(255, 248, 225);
-    private static final Color COLOR_CARD_RED = new Color(255, 236, 236);
     private static final Color COLOR_WATERMARK = new Color(188, 196, 205);
-    private static final Color COLOR_BANNER = new Color(250, 252, 255);
     private static final Color COLOR_FOOTER = new Color(122, 133, 146);
     private static final Color COLOR_LINE = new Color(223, 229, 237);
 
@@ -98,7 +92,7 @@ public final class AnalyticsPdfGenerator {
     private static final class PdfRenderer {
         private final PDDocument document;
         private final AnalyticsPortfolioDTO data;
-        private final String generatedOn = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        private final String generatedOn = LocalDate.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         private final PDExtendedGraphicsState watermarkState = new PDExtendedGraphicsState();
         private final PDImageXObject headerLogo;
         private final PDImageXObject footerLogo;
@@ -158,44 +152,18 @@ public final class AnalyticsPdfGenerator {
         }
 
         private void drawFirstPageHeader() throws IOException {
-            float bandHeight = 186f;
-            drawRoundedCard(LEFT, cursorY - bandHeight, CONTENT_WIDTH, bandHeight, COLOR_BANNER, COLOR_LINE);
-
-            float leftBlockX = LEFT + 12f;
-            float logoWidth = 118f;
-            float logoHeight = 34f;
-            float stampWidth = 146f;
-            float stampX = PAGE_WIDTH - RIGHT - stampWidth;
-
-            if (headerLogo != null) {
-                drawImage(headerLogo, leftBlockX, cursorY - 16f, logoWidth, logoHeight);
-                drawText("Sistema integral de seguimiento institucional", FONT_REGULAR, 8.2f, COLOR_MUTED, leftBlockX + 4f, cursorY - 56f);
-            } else {
-                drawText("GOBERNACION DE CUNDINAMARCA", FONT_BOLD, 8.8f, COLOR_SECTION, leftBlockX, cursorY - 18f);
-                drawText("Sistema integral de seguimiento institucional", FONT_REGULAR, 8.2f, COLOR_MUTED, leftBlockX + 4f, cursorY - 34f);
-            }
-
-            float boxY = cursorY - 92f;
-            drawRoundedCard(stampX, boxY, stampWidth, 50f, Color.WHITE, COLOR_LINE);
-            drawText("Fecha del reporte", FONT_BOLD, 8.4f, COLOR_MUTED, stampX + 10f, boxY + 34f);
-            drawText(generatedOn, FONT_BOLD, 10.7f, COLOR_TEXT, stampX + 10f, boxY + 19f);
-            drawText("Documento oficial", FONT_BOLD, 8.2f, COLOR_MUTED, stampX + 10f, boxY + 6f);
-
-            float titleZoneY = cursorY - 74f;
-            float titleZoneX = LEFT + 18f;
-            float titleZoneWidth = CONTENT_WIDTH - 36f;
-            drawLine(LEFT + 18f, titleZoneY + 14f, PAGE_WIDTH - RIGHT - 18f, titleZoneY + 14f, COLOR_LINE, 0.5f);
+            PdfReportShared.HeaderLayout header = PdfReportShared.drawFirstPageHeaderBase(cs, cursorY, headerLogo, generatedOn, FONT_REGULAR, FONT_BOLD, COLOR_TEXT, COLOR_MUTED, this::drawText);
 
             String titleText = "ANALITICA DEL PORTAFOLIO";
-            List<String> wrappedTitle = wrapText(titleText, FONT_BOLD, 15.2f, titleZoneWidth);
-            drawWrappedCentered(wrappedTitle, FONT_BOLD, 15.2f, COLOR_TITLE, titleZoneX, titleZoneY, titleZoneWidth, 17f);
+            List<String> wrappedTitle = wrapText(titleText, FONT_BOLD, 15.2f, header.titleZoneWidth());
+            drawWrappedCentered(wrappedTitle, FONT_BOLD, 15.2f, COLOR_TITLE, header.titleZoneX(), header.titleZoneY(), header.titleZoneWidth(), 17f);
 
             if (data.corte() != null) {
                 drawText("Corte: " + data.corte().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                        FONT_REGULAR, 9f, COLOR_MUTED, titleZoneX, titleZoneY - 42f);
+                        FONT_REGULAR, 9f, COLOR_MUTED, header.titleZoneX(), header.titleZoneY() - 42f);
             }
 
-            cursorY -= bandHeight + 14f;
+            cursorY -= header.bandHeight() + 14f;
             drawLine(LEFT, cursorY, PAGE_WIDTH - RIGHT, cursorY, COLOR_LINE, 0.8f);
             cursorY -= 18f;
         }
@@ -559,38 +527,13 @@ public final class AnalyticsPdfGenerator {
 
         private void drawTableHeader(List<String> headers, float[] widths, float rowHeight) throws IOException {
             ensureSpace(rowHeight + 6f);
-            float x = LEFT;
-            float y = cursorY;
-            drawFilledRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, COLOR_TABLE_HEAD);
-            drawRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, COLOR_TABLE_BORDER, 0.7f);
-            for (int i = 0; i < headers.size(); i++) {
-                float colWidth = CONTENT_WIDTH * widths[i];
-                if (i > 0) {
-                    drawVerticalLine(x, y, y - rowHeight, COLOR_TABLE_BORDER, 0.5f);
-                }
-                drawText(headers.get(i), FONT_BOLD, 8.2f, COLOR_MUTED, x + 4f, y - 15f);
-                x += colWidth;
-            }
+            PdfReportShared.drawTableHeader(cs, cursorY, headers, widths, rowHeight, 8.2f, false, FONT_BOLD, COLOR_TEXT, COLOR_MUTED, this::drawText);
             cursorY -= rowHeight;
         }
 
         private void drawTableRow(List<String> row, float[] widths, float rowHeight, float fontSize, int rowIndex) throws IOException {
             ensureSpace(rowHeight + 4f);
-            float x = LEFT;
-            float y = cursorY;
-            Color rowFill = rowIndex % 2 == 0 ? Color.WHITE : COLOR_ROW_ALT;
-            drawFilledRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, rowFill);
-            drawRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, COLOR_TABLE_BORDER, 0.6f);
-            for (int i = 0; i < widths.length; i++) {
-                float colWidth = CONTENT_WIDTH * widths[i];
-                if (i > 0) {
-                    drawVerticalLine(x, y, y - rowHeight, COLOR_TABLE_BORDER, 0.5f);
-                }
-                String value = i < row.size() ? row.get(i) : "";
-                List<String> wrapped = wrapText(value, FONT_REGULAR, fontSize, colWidth - 8f);
-                drawWrapped(wrapped, FONT_REGULAR, fontSize, COLOR_TEXT, x + 4f, y - 11f, fontSize + 2f);
-                x += colWidth;
-            }
+            PdfReportShared.drawTableRow(cs, cursorY, row, widths, rowHeight, fontSize, rowIndex, FONT_REGULAR, COLOR_TEXT, this::drawText, this::wrapText);
             cursorY -= rowHeight;
         }
 
@@ -636,15 +579,6 @@ public final class AnalyticsPdfGenerator {
             cs.setStrokingColor(COLOR_TEXT);
         }
 
-        private void drawVerticalLine(float x, float yTop, float yBottom, Color stroke, float lineWidth) throws IOException {
-            cs.setStrokingColor(stroke);
-            cs.setLineWidth(lineWidth);
-            cs.moveTo(x, yTop);
-            cs.lineTo(x, yBottom);
-            cs.stroke();
-            cs.setStrokingColor(COLOR_TEXT);
-        }
-
         private void drawText(String text, PDFont font, float size, Color color, float x, float y) throws IOException {
             cs.beginText();
             cs.setNonStrokingColor(color);
@@ -655,22 +589,9 @@ public final class AnalyticsPdfGenerator {
             cs.setNonStrokingColor(COLOR_TEXT);
         }
 
-        private void drawWrapped(List<String> lines, PDFont font, float size, Color color, float x, float y, float leading) throws IOException {
-            float currentY = y;
-            for (String line : lines) {
-                drawText(line, font, size, color, x, currentY);
-                currentY -= leading;
-            }
-        }
-
+        @SuppressWarnings("java:S107")
         private void drawWrappedCentered(List<String> lines, PDFont font, float size, Color color, float x, float y, float width, float leading) throws IOException {
-            float currentY = y;
-            for (String line : lines) {
-                float lineWidth = stringWidth(font, size, line);
-                float centeredX = x + Math.max(0f, (width - lineWidth) / 2f);
-                drawText(line, font, size, color, centeredX, currentY);
-                currentY -= leading;
-            }
+            PdfReportShared.drawWrappedCentered(lines, font, size, color, x, y, width, leading, this::drawText, this::stringWidth);
         }
 
         private void drawRoundedCard(float x, float y, float width, float height, Color fill, Color stroke) throws IOException {
@@ -693,11 +614,6 @@ public final class AnalyticsPdfGenerator {
             cs.setStrokingColor(COLOR_TEXT);
         }
 
-        private void drawImage(PDImageXObject image, float x, float yTop, float width, float height) throws IOException {
-            if (image == null) return;
-            cs.drawImage(image, x, yTop - height, width, height);
-        }
-
         private void closeContent() throws IOException {
             if (cs != null) {
                 drawFooter();
@@ -709,30 +625,13 @@ public final class AnalyticsPdfGenerator {
         private void drawFooter() throws IOException {
             if (cs == null) return;
             cs.saveGraphicsState();
-            float lineY = BOTTOM + 20f;
-            drawLine(LEFT, lineY, PAGE_WIDTH - RIGHT, lineY, COLOR_LINE, 0.7f);
-
-            float blockY = BOTTOM + 22f;
-            if (footerLogo != null) {
-                float logoWidth = 108f;
-                float logoHeight = 16f;
-                float logoX = PAGE_WIDTH - RIGHT - logoWidth;
-                drawImage(footerLogo, logoX, blockY + logoHeight, logoWidth, logoHeight);
-            } else {
-                float logoX = PAGE_WIDTH - RIGHT - 120f;
-                drawText("Transformacion Digital", FONT_BOLD, 13f, COLOR_TITLE, logoX, blockY + 16f);
-            }
-
-            float textX = LEFT + 8f;
-            drawText("Calle 26 #51-53 Bogota D.C.", FONT_REGULAR, 8.8f, COLOR_TEXT, textX, blockY + 18f);
-            drawText("Sede Administrativa - Torre Central Piso 7.", FONT_REGULAR, 8.8f, COLOR_TEXT, textX, blockY + 6f);
-            drawText("Codigo Postal: 111321 - Telefono: 7491513", FONT_REGULAR, 8.8f, COLOR_TEXT, textX, blockY - 6f);
-            drawText("www.cundinamarca.gov.co", FONT_REGULAR, 8.2f, COLOR_MUTED, textX, blockY - 18f);
+            PdfReportShared.drawFooterBlock(cs, footerLogo, FONT_REGULAR, FONT_BOLD, COLOR_TEXT, COLOR_MUTED, this::drawText);
 
             drawText("Reporte institucional | Pagina " + pageNumber, FONT_OBLIQUE, 8.2f, COLOR_FOOTER, LEFT, BOTTOM);
             cs.restoreGraphicsState();
         }
 
+        private static final Pattern WHITESPACE = Pattern.compile("\\s+");
         private List<String> wrapText(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
             String normalized = text == null ? "" : text.trim();
             if (normalized.isEmpty()) return List.of("");
@@ -740,24 +639,10 @@ public final class AnalyticsPdfGenerator {
             List<String> result = new ArrayList<>();
             String[] paragraphs = normalized.split("\\r?\\n");
             for (String paragraph : paragraphs) {
-                String[] words = paragraph.split("\\s+");
                 StringBuilder current = new StringBuilder();
-                for (String word : words) {
+                for (String word : WHITESPACE.split(paragraph)) {
                     if (word.isBlank()) continue;
-                    String trial = current.isEmpty() ? word : current + " " + word;
-                    if (stringWidth(font, fontSize, trial) <= maxWidth) {
-                        current = new StringBuilder(trial);
-                    } else {
-                        if (!current.isEmpty()) {
-                            result.add(current.toString());
-                        }
-                        if (stringWidth(font, fontSize, word) <= maxWidth) {
-                            current = new StringBuilder(word);
-                        } else {
-                            result.addAll(splitLongWord(word, font, fontSize, maxWidth));
-                            current = new StringBuilder();
-                        }
-                    }
+                    PdfTextWrap.appendWordTrial(word, current, result, maxWidth, s -> stringWidth(font, fontSize, s));
                 }
                 if (!current.isEmpty()) {
                     result.add(current.toString());
@@ -766,34 +651,12 @@ public final class AnalyticsPdfGenerator {
             return result.isEmpty() ? List.of("") : result;
         }
 
-        private List<String> splitLongWord(String word, PDFont font, float fontSize, float maxWidth) throws IOException {
-            List<String> parts = new ArrayList<>();
-            StringBuilder current = new StringBuilder();
-            for (char c : word.toCharArray()) {
-                String trial = current + String.valueOf(c);
-                if (stringWidth(font, fontSize, trial) <= maxWidth || current.isEmpty()) {
-                    current.append(c);
-                } else {
-                    parts.add(current.toString());
-                    current = new StringBuilder().append(c);
-                }
-            }
-            if (!current.isEmpty()) parts.add(current.toString());
-            return parts;
-        }
-
         private float stringWidth(PDFont font, float size, String value) throws IOException {
-            return font.getStringWidth(sanitize(value)) / 1000f * size;
+            return PdfReportShared.stringWidth(font, size, value, PdfRenderer::sanitize);
         }
 
         private Color accentColor(String accent) {
-            if (accent == null) return Color.WHITE;
-            return switch (accent.trim().toLowerCase(Locale.ROOT)) {
-                case "green", "success" -> COLOR_CARD_GREEN;
-                case "yellow", "warn", "warning" -> COLOR_CARD_YELLOW;
-                case "red", "danger" -> COLOR_CARD_RED;
-                default -> COLOR_CARD_BLUE;
-            };
+            return PdfReportShared.accentColor(accent, COLOR_CARD_BLUE);
         }
 
         private PDImageXObject loadImage(PDDocument doc, String path) {
@@ -805,27 +668,18 @@ public final class AnalyticsPdfGenerator {
                 return null;
             }
         }
-    }
 
-    private static String sanitize(String value) {
-        if (value == null) return "";
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .replace("ñ", "n").replace("Ñ", "N");
-        StringBuilder ascii = new StringBuilder();
-        for (char c : normalized.toCharArray()) {
-            if (c >= 32 && c <= 126) ascii.append(c);
-            else if (Character.isWhitespace(c)) ascii.append(' ');
+        private static String sanitize(String value) {
+            return PdfReportShared.sanitize(value, "ñ", "n", "Ñ", "N");
         }
-        return ascii.toString();
-    }
 
-    private static String nz(String value) {
-        return value == null ? "" : value;
-    }
+        private static String nz(String value) {
+            return value == null ? "" : value;
+        }
 
-    private static String fmtPct(BigDecimal value) {
-        if (value == null) return "0%";
-        return value.setScale(1, RoundingMode.HALF_UP).toString() + "%";
+        private static String fmtPct(BigDecimal value) {
+            if (value == null) return "0%";
+            return value.setScale(1, RoundingMode.HALF_UP).toString() + "%";
+        }
     }
 }

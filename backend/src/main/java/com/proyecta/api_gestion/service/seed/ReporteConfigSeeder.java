@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.seed;
 
-import com.proyecta.api_gestion.model.ReporteConfig;
-import com.proyecta.api_gestion.repository.ReporteConfigRepository;
+import com.proyecta.api_gestion.domain.model.ReporteConfig;
+import com.proyecta.api_gestion.application.port.out.persistence.ReporteConfigRepositoryPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,10 +19,10 @@ import java.util.Set;
 public class ReporteConfigSeeder {
 
     private static final Logger logger = LoggerFactory.getLogger(ReporteConfigSeeder.class);
-    private final ReporteConfigRepository reporteConfigRepository;
+    private final ReporteConfigRepositoryPort reporteConfigRepositoryPort;
 
-    public ReporteConfigSeeder(ReporteConfigRepository reporteConfigRepository) {
-        this.reporteConfigRepository = reporteConfigRepository;
+    public ReporteConfigSeeder(ReporteConfigRepositoryPort reporteConfigRepositoryPort) {
+        this.reporteConfigRepositoryPort = reporteConfigRepositoryPort;
     }
 
     public void seedReporteConfigs() {
@@ -67,10 +67,10 @@ public class ReporteConfigSeeder {
         ));
 
         Set<String> permitidos = deseados.keySet();
-        reporteConfigRepository.findAll().forEach(config -> {
+        reporteConfigRepositoryPort.findAll().forEach(config -> {
             if (!permitidos.contains(config.getId()) && Boolean.TRUE.equals(config.getActivo())) {
                 config.setActivo(false);
-                reporteConfigRepository.save(config);
+                reporteConfigRepositoryPort.save(config);
             }
         });
 
@@ -80,7 +80,7 @@ public class ReporteConfigSeeder {
     }
 
     private void upsertReporte(ReporteConfig deseado) {
-        ReporteConfig reporte = reporteConfigRepository.findById(deseado.getId())
+        ReporteConfig reporte = reporteConfigRepositoryPort.findById(deseado.getId())
                 .map(actual -> {
                     actual.setNombre(deseado.getNombre());
                     actual.setDescripcion(deseado.getDescripcion());
@@ -99,7 +99,7 @@ public class ReporteConfigSeeder {
                     return nuevo;
                 });
 
-        reporteConfigRepository.save(reporte);
+        reporteConfigRepositoryPort.save(reporte);
         logger.debug("Reporte configurado: {}", reporte.getId());
     }
 }

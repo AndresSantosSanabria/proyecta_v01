@@ -2,16 +2,16 @@ package com.proyecta.api_gestion.service.security.dynamic;
 
 import com.proyecta.api_gestion.dto.security.PermisoUsuarioMatrixDTO;
 import com.proyecta.api_gestion.dto.security.PermisoUsuarioMatrixUpdateRequest;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.security.SeguridadPermiso;
-import com.proyecta.api_gestion.model.security.SeguridadRolPermiso;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.model.security.SeguridadUsuarioPermiso;
-import com.proyecta.api_gestion.repository.security.SeguridadPermisoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadRolPermisoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioPermisoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.security.SeguridadPermiso;
+import com.proyecta.api_gestion.domain.model.security.SeguridadRolPermiso;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuarioPermiso;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadPermisoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadRolPermisoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioPermisoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,36 +27,36 @@ public class PermisoUsuarioService {
     private static final Logger logger = LoggerFactory.getLogger(PermisoUsuarioService.class);
     private static final String USUARIO_NO_ENCONTRADO = "Usuario no encontrado: ";
 
-    private final SeguridadUsuarioRepository usuarioRepository;
-    private final SeguridadPermisoRepository permisoRepository;
-    private final SeguridadRolPermisoRepository rolPermisoRepository;
-    private final SeguridadUsuarioPermisoRepository usuarioPermisoRepository;
+    private final SeguridadUsuarioRepositoryPort usuarioRepositoryPort;
+    private final SeguridadPermisoRepositoryPort permisoRepositoryPort;
+    private final SeguridadRolPermisoRepositoryPort rolPermisoRepositoryPort;
+    private final SeguridadUsuarioPermisoRepositoryPort usuarioPermisoRepositoryPort;
     private final SecurityCatalogCacheService catalogCacheService;
 
     @PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
 
     public PermisoUsuarioService(
-            SeguridadUsuarioRepository usuarioRepository,
-            SeguridadPermisoRepository permisoRepository,
-            SeguridadRolPermisoRepository rolPermisoRepository,
-            SeguridadUsuarioPermisoRepository usuarioPermisoRepository,
+            SeguridadUsuarioRepositoryPort usuarioRepositoryPort,
+            SeguridadPermisoRepositoryPort permisoRepositoryPort,
+            SeguridadRolPermisoRepositoryPort rolPermisoRepositoryPort,
+            SeguridadUsuarioPermisoRepositoryPort usuarioPermisoRepositoryPort,
             SecurityCatalogCacheService catalogCacheService) {
-        this.usuarioRepository = usuarioRepository;
-        this.permisoRepository = permisoRepository;
-        this.rolPermisoRepository = rolPermisoRepository;
-        this.usuarioPermisoRepository = usuarioPermisoRepository;
+        this.usuarioRepositoryPort = usuarioRepositoryPort;
+        this.permisoRepositoryPort = permisoRepositoryPort;
+        this.rolPermisoRepositoryPort = rolPermisoRepositoryPort;
+        this.usuarioPermisoRepositoryPort = usuarioPermisoRepositoryPort;
         this.catalogCacheService = catalogCacheService;
     }
 
     public PermisoUsuarioMatrixDTO getMatrix(Long usuarioId) {
-        SeguridadUsuario usuario = usuarioRepository.findById(usuarioId)
+        SeguridadUsuario usuario = usuarioRepositoryPort.findById(usuarioId)
                 .orElseThrow(() -> new ResourceNotFoundException(USUARIO_NO_ENCONTRADO + usuarioId));
 
         Set<Long> rolePermisoIds = getRolePermissionIds(usuario.getRolCodigo());
         Map<Long, SeguridadUsuarioPermiso> userOverrides = getUserOverridesMap(usuarioId);
 
-        List<SeguridadPermiso> allPermissions = permisoRepository.findAllByActivoTrueOrderByCodigoAsc();
+        List<SeguridadPermiso> allPermissions = permisoRepositoryPort.findAllByActivoTrueOrderByCodigoAsc();
 
         List<PermisoUsuarioMatrixDTO.PermisoItemDTO> items = allPermissions.stream()
                 .map(permiso -> {
@@ -106,7 +106,7 @@ public class PermisoUsuarioService {
             throw new BadRequestException("El ID del usuario es obligatorio.");
         }
 
-        SeguridadUsuario usuario = usuarioRepository.findById(request.usuarioId())
+        SeguridadUsuario usuario = usuarioRepositoryPort.findById(request.usuarioId())
                 .orElseThrow(() -> new ResourceNotFoundException(USUARIO_NO_ENCONTRADO + request.usuarioId()));
 
         Set<Long> rolePermisoIds = getRolePermissionIds(usuario.getRolCodigo());
@@ -117,7 +117,7 @@ public class PermisoUsuarioService {
         entityManager.flush();
         entityManager.clear();
 
-        usuario = usuarioRepository.findById(request.usuarioId())
+        usuario = usuarioRepositoryPort.findById(request.usuarioId())
                 .orElseThrow(() -> new ResourceNotFoundException(USUARIO_NO_ENCONTRADO + request.usuarioId()));
 
         if (request.permisos() == null || request.permisos().isEmpty()) {
@@ -127,7 +127,7 @@ public class PermisoUsuarioService {
 
         List<SeguridadUsuarioPermiso> overrides = new ArrayList<>();
         for (PermisoUsuarioMatrixUpdateRequest.PermisoUpdateItem item : request.permisos()) {
-            SeguridadPermiso permiso = permisoRepository.findById(item.permisoId())
+            SeguridadPermiso permiso = permisoRepositoryPort.findById(item.permisoId())
                     .orElseThrow(() -> new BadRequestException("Permiso no encontrado: " + item.permisoId()));
 
             boolean fromRole = rolePermisoIds.contains(permiso.getId());
@@ -143,7 +143,7 @@ public class PermisoUsuarioService {
         }
 
         if (!overrides.isEmpty()) {
-            usuarioPermisoRepository.saveAll(overrides);
+            usuarioPermisoRepositoryPort.saveAll(overrides);
         }
 
         catalogCacheService.evictAll();
@@ -152,7 +152,7 @@ public class PermisoUsuarioService {
     }
 
     public Set<String> getEffectivePermissions(String username) {
-        SeguridadUsuario usuario = usuarioRepository.findByUsernameIgnoreCase(username).orElse(null);
+        SeguridadUsuario usuario = usuarioRepositoryPort.findByUsernameIgnoreCase(username).orElse(null);
         if (usuario == null) {
             return Set.of();
         }
@@ -160,8 +160,8 @@ public class PermisoUsuarioService {
         Set<String> rolePermissions = usuario.getRolCodigo() == null
                 ? Set.of()
                 : catalogCacheService.getPermissionsForRoles(Set.of(usuario.getRolCodigo().toLowerCase()));
-        Set<String> grantedOverrides = usuarioPermisoRepository.findGrantedPermissionCodesByUsuarioId(usuario.getId());
-        Set<String> deniedOverrides = usuarioPermisoRepository.findDeniedPermissionCodesByUsuarioId(usuario.getId());
+        Set<String> grantedOverrides = usuarioPermisoRepositoryPort.findGrantedPermissionCodesByUsuarioId(usuario.getId());
+        Set<String> deniedOverrides = usuarioPermisoRepositoryPort.findDeniedPermissionCodesByUsuarioId(usuario.getId());
 
         Set<String> effective = new LinkedHashSet<>(rolePermissions);
         effective.addAll(grantedOverrides);
@@ -174,7 +174,7 @@ public class PermisoUsuarioService {
         if (rolCodigo == null || rolCodigo.isBlank()) {
             return Set.of();
         }
-        return rolPermisoRepository.findActiveByRoleCodes(Set.of(rolCodigo.trim().toLowerCase())).stream()
+        return rolPermisoRepositoryPort.findActiveByRoleCodes(Set.of(rolCodigo.trim().toLowerCase())).stream()
                 .map(SeguridadRolPermiso::getPermiso)
                 .filter(p -> p != null && Boolean.TRUE.equals(p.getActivo()))
                 .map(SeguridadPermiso::getId)
@@ -182,7 +182,7 @@ public class PermisoUsuarioService {
     }
 
     private Map<Long, SeguridadUsuarioPermiso> getUserOverridesMap(Long usuarioId) {
-        return usuarioPermisoRepository.findByUsuario_Id(usuarioId).stream()
+        return usuarioPermisoRepositoryPort.findByUsuarioId(usuarioId).stream()
                 .collect(Collectors.toMap(
                         up -> up.getPermiso().getId(),
                         up -> up,

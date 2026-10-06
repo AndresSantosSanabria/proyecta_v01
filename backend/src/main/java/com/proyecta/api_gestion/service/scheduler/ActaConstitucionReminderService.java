@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.scheduler;
 
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
 import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
 import com.proyecta.api_gestion.service.notification.NotificationEventType;
@@ -18,13 +18,13 @@ public class ActaConstitucionReminderService {
 
     private static final Logger log = LoggerFactory.getLogger(ActaConstitucionReminderService.class);
 
-    private final ProyectoRepository proyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
     private final NotificationEventPublisherPort notificationPublisher;
 
     public ActaConstitucionReminderService(
-            ProyectoRepository proyectoRepository,
+            ProyectoRepositoryPort proyectoRepositoryPort,
             NotificationEventPublisherPort notificationPublisher) {
-        this.proyectoRepository = proyectoRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
         this.notificationPublisher = notificationPublisher;
     }
 
@@ -32,7 +32,7 @@ public class ActaConstitucionReminderService {
     public void enviarRecordatoriosCompletarProyecto() {
         log.info("Iniciando envio de recordatorios mensuales para completar proyectos");
 
-        List<Proyecto> proyectosPendientes = proyectoRepository
+        List<Proyecto> proyectosPendientes = proyectoRepositoryPort
                 .findByDocumentosVerificadosTrueAndRequiereCompletitudDirectorTrueAndCierreForzosoFalse();
 
         for (Proyecto proyecto : proyectosPendientes) {
@@ -58,7 +58,7 @@ public class ActaConstitucionReminderService {
         }
 
         long diasRestantes = java.time.temporal.ChronoUnit.DAYS.between(
-                java.time.LocalDate.now(), proyecto.getFechaLimiteCompletar());
+                java.time.LocalDate.now(java.time.ZoneId.systemDefault()), proyecto.getFechaLimiteCompletar());
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.ACTA_CONSTITUCION_REMINDER,

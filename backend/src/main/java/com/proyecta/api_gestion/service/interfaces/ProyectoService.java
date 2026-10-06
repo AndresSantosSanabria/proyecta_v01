@@ -2,14 +2,14 @@ package com.proyecta.api_gestion.service.interfaces;
 
 import com.proyecta.api_gestion.dto.proyecto.*;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.domain.value.PageQuery;
+import com.proyecta.api_gestion.domain.value.PageResult;
 import org.springframework.security.core.Authentication;
 import java.util.List;
 
 public interface ProyectoService {
-    Page<ProyectoListDTO> listarProyectos(String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti, Pageable pageable);
+    PageResult<ProyectoListDTO> listarProyectos(String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti, PageQuery query);
     List<ProyectoListDTO> listarProyectosAsignados(String username);
     List<SeguridadUsuarioDTO> listarDirectoresAsignables();
     ProyectoResponseDTO obtenerPorId(String id);
@@ -25,8 +25,8 @@ public interface ProyectoService {
     void recalcularAvances();
     
     // FURAG
-    com.proyecta.api_gestion.model.Furag obtenerFurag(String id);
-    void actualizarFurag(String id, com.proyecta.api_gestion.model.Furag furag);
+    com.proyecta.api_gestion.domain.model.Furag obtenerFurag(String id);
+    void actualizarFurag(String id, com.proyecta.api_gestion.domain.model.Furag furag);
 
     // Completitud por fases (borrador)
     CompletitudBorradorDTO guardarBorradorCompletitud(String id, CompletitudBorradorDTO dto, String username);

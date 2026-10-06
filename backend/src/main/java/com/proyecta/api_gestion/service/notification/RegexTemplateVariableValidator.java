@@ -1,6 +1,6 @@
 package com.proyecta.api_gestion.service.notification;
 
-import com.proyecta.api_gestion.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;

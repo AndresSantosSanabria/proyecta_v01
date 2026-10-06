@@ -3,7 +3,7 @@ package com.proyecta.api_gestion.controller.interfaces;
 import com.proyecta.api_gestion.config.openapi.DashboardSwaggerConstants;
 import com.proyecta.api_gestion.config.openapi.StandardApiResponses;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
-import com.proyecta.api_gestion.dto.dashboard.DashboardProjectSummaryDTO;
+import com.proyecta.api_gestion.application.readmodel.DashboardProjectSummaryDTO;
 import com.proyecta.api_gestion.dto.dashboard.DashboardSummaryDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

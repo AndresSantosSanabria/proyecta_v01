@@ -36,8 +36,7 @@ public class DynamicJwtAuthoritiesConverter implements Converter<Jwt, Collection
             @Value("${gob.security.resource-client-ids}") String resourceClientIds,
             @Value("${gob.security.trusted-scopes:}") String trustedScopes,
             SecurityCatalogCacheService catalogCacheService,
-            KeycloakIdentityExtractor identityExtractor,
-            RoleAliasService roleAliasService) {
+            KeycloakIdentityExtractor identityExtractor) {
         this.resourceClientIds = List.of(resourceClientIds.split(",")).stream()
                 .map(String::trim)
                 .filter(value -> !value.isBlank())

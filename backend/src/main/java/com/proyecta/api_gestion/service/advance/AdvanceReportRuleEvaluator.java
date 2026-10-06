@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -116,7 +117,7 @@ public class AdvanceReportRuleEvaluator {
      * Retorna la fecha limite configurada, o null si no está configurada.
      */
     public LocalDate getDueDate() {
-        return resolveDueDate(LocalDate.now());
+        return resolveDueDate(LocalDate.now(ZoneId.systemDefault()));
     }
 
     /**

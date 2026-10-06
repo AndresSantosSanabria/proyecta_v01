@@ -3,14 +3,16 @@
 | Campo             | Valor                                  |
 | ----------------- | -------------------------------------- |
 | **Proyecto**      | api-gestion (Proyecta)                 |
-| **Versión**       | 1.1.0                                  |
-| **Fecha**         | 2026-09-29                             |
+| **Versión**       | 1.2.0                                  |
+| **Fecha**         | 2026-10-04                             |
 | **Autor**         | _[Nombre del autor]_                   |
 | **Revisor**       | _[Nombre del revisor]_                 |
 | **Estado**        | Borrador                               |
 | **Clasificación** | Interna                                |
 
 > **Nota de diagnóstico (v1.0.0).** La versión 1.0.0 era una **plantilla genérica** de ejemplo: describía un módulo ficticio de "Seguimiento del Ciclo de Vida Documental" (`DocumentLifecycleController`, estados `BORRADOR → … → ARCHIVADO`, endpoints `/documents/**`, rol `app_access`) que **no existe** en el código fuente. La versión 1.1.0 lo sustituye por la arquitectura verificable del sistema real, conservando el formato institucional.
+
+> **Nota v1.2.0 (2026-10-04).** Incorpora el estado de la **migración a arquitectura hexagonal + SOLID** ejecutada en las fases F0–F5 (ver [ADR-007](adr/ADR-007-arquitectura-hexagonal.md)): puertos de salida para los 51 repositorios, paginación de dominio (`PageQuery`/`PageResult`) con `PageSupport` en la frontera web, read-models en `application/readmodel`, 4 soportes SOLID extraídos de los services más grandes y **11 reglas ArchUnit** (`ArchitectureTest`) que fallan el build ante desviaciones. El contrato HTTP (endpoints + JSON) y el esquema Flyway V1/V2 **no cambian**.
 
 ---
 
@@ -45,9 +47,11 @@ graph TB
 
     subgraph API["API api-gestion — Spring Boot 4.0.5 / Java 25 — puerto 8082"]
         FILT["Cadena de filtros<br/>SecurityHeadersFilter · PublicEvidenceSecurityFilter<br/>BearerTokenAuthenticationFilter (JWT) · UserProvisioningFilter<br/>SystemAuditFilter"]
-        CTRL["29 controladores REST<br/>/api/v1/** — 172 endpoints"]
-        SVC["Capa de servicios<br/>proyectos · riesgos · documentos · notificaciones<br/>reportes · cierre · almacenamiento"]
-        JPA["Spring Data JPA / Hibernate"]
+        CTRL["Frontera web<br/>29 controllers REST (controller/) + adapter/in/web<br/>/api/v1/** — 172 endpoints · @PreAuthorize · PageSupport"]
+        SVC["Capa de aplicación (service/)<br/>19 services @Transactional · casos de uso (service/interfaces)<br/>soportes: FuragSupport · ProjectStructureSupport<br/>RiesgoInicialSupport · ExcelSheetSupport"]
+        PORTS["Puertos de salida (application/port/out)<br/>51 *RepositoryPort + storage/report/mail"]
+        DOM["Dominio (domain/)<br/>model · value (PageQuery/PageResult) · exception"]
+        JPA["Adaptadores de salida (adapter/out)<br/>Spring Data JPA / Hibernate"]
     end
 
     DB[("PostgreSQL<br/>esquema proyecta_db<br/>Flyway V1/V2")]
@@ -58,8 +62,10 @@ graph TB
     UI -->|"HTTP + Authorization: Bearer JWT"| FILT
     FILT --> CTRL
     CTRL --> SVC
-    SVC --> JPA
+    SVC --> PORTS
+    PORTS --> JPA
     JPA --> DB
+    SVC -.-> DOM
     SVC --> FS
     SVC -.->|"envío asíncrono"| SMTP
     API -.->|"validación de token (JWKS/issuer)"| KC
@@ -70,15 +76,58 @@ graph TB
 | Componente                   | Responsabilidad                                                                      | Referencia en código                                                                        |
 | ---------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
 | Cadena de filtros            | Cabeceras HTTP, rate limit/firma en rutas públicas, JWT, aprovisionamiento JIT y auditoría | `config/SecurityConfig.java`, `SecurityHeadersFilter`, `PublicEvidenceSecurityFilter`, `UserProvisioningFilter`, `SystemAuditFilter` |
-| Controladores REST           | Exposición de endpoints, validación de entrada y `@PreAuthorize`                      | `controller/` (29 clases) e interfaces en `controller/interfaces/` (12)                     |
-| Capa de servicios            | Lógica de negocio, permisos por proyecto, reportes y notificaciones                  | `service/impl/`, `service/notification/`, `service/report/`                                 |
+| Frontera web (controllers)   | Exposición de endpoints, validación de entrada, `@PreAuthorize` y traducción de paginación (`PageSupport`) | `controller/` (29 clases + 12 interfaces), `adapter/in/web/` (`GlobalExceptionHandler`, `PageSupport`) |
+| Capa de aplicación           | Casos de uso con `@Transactional`, permisos por proyecto, reportes y notificaciones  | `service/impl/` (19), `service/interfaces/` (15), `service/notification/`, `service/report/` |
+| Soportes SOLID               | Colaboradores con SRP extraídos de los services más grandes (Fase 5)                 | `service/support/` (`FuragSupport`, `ProjectStructureSupport`, `RiesgoInicialSupport`), `service/report/ExcelSheetSupport` |
+| Dominio                      | Modelo rico, valores (`PageQuery`/`PageResult`, `SortOrder`, `FileUpload`, `UserContext`) y excepciones | `domain/model/`, `domain/value/`, `domain/exception/` (85 clases)                            |
+| Puertos de salida            | Contratos de persistencia/infraestructura sin Spring Data (51 repositorios + storage/report/mail) | `application/port/out/persistence/` (51), `application/readmodel/` (5 read-models)          |
+| Adaptadores de salida        | Implementación de puertos: interfaces JPA espejo, correo, storage, reportes           | `adapter/out/persistence/` (51 interfaces JPA que `extend` su puerto)                       |
 | Seguridad y autorización     | Conversión de roles desde el JWT y verificación de permisos                           | `service/security/dynamic/`, `service/security/LocalUserAuthorizationService`              |
 | Manejo global de errores     | ProblemDetails RFC 9457 (400/403/404/413/422/500) y 401 propio                        | `exception/GlobalExceptionHandler.java`, `config/JwtAuthenticationEntryPoint.java`          |
-| Persistencia                 | Mapeo objeto-relacional y acceso a datos                                              | Spring Data JPA + Hibernate (`PostgreSQLDialect`, `ddl-auto=validate`)                      |
+| Persistencia                 | Mapeo objeto-relacional tras los puertos                                              | Spring Data JPA + Hibernate (`PostgreSQLDialect`, `ddl-auto=validate`)                      |
 | Migraciones de esquema       | Esquema base y datos semilla                                                          | `db/migration/V1__creacion_esquema_base.sql`, `V2__datos_semilla_parametros.sql`            |
 | Almacenamiento de archivos   | Guardado/descarga con validación de ruta y nombre                                     | `service/impl/FileStorageServiceImpl.java`                                                  |
 | Notificaciones               | Orquestación de eventos, plantillas, in-app y correo                                  | `service/notification/`                                                                     |
 | Documentación OpenAPI        | Definición global, esquemas de error y respuestas por operación                       | `config/openapi/OpenApiConfig.java`, `ErrorResponseOperationCustomizer.java`                |
+
+### 3.3 Arquitectura hexagonal y reglas verificables (ADR-007)
+
+La migración a arquitectura hexagonal con cumplimiento SOLID verificable se ejecutó en las fases **F0–F5** (2026-10). El mapa real de paquetes es:
+
+```
+com.proyecta.api_gestion/
+├── domain/            # núcleo: model/ (72 @Entity), enums/, exception/, value/ (PageQuery, PageResult, SortOrder, FileUpload, UserContext)
+├── application/
+│   ├── port/out/      # 51 puertos *RepositoryPort (+ storage/report/mail) — sin org.springframework.data ni jakarta.persistence
+│   └── readmodel/     # 5 read-models de proyección (EntregablePendienteDTO, ProyectoReporteResumenDTO, DashboardProjectSummaryDTO, …)
+├── adapter/
+│   ├── in/web/        # GlobalExceptionHandler y PageSupport (traducción PageQuery ↔ Page)
+│   └── out/           # 51 interfaces JPA espejo: interface XJpaRepository extends JpaRepository<..>, XPuerto {}
+├── controller/        # frontera web: 29 controllers + 12 interfaces (entrada PageQuery vía @RequestParam)
+├── service/           # casos de uso @Transactional (impl/ 19, interfaces/ 15) + support/ soportes SOLID
+├── dto/               # 120 DTOs de la frontera HTTP
+├── config/            # composition root (SecurityConfig, CORS, async, Flyway, OpenAPI, Jackson)
+└── infrastructure/    # utilidades transversales
+```
+
+**Cómo se paginar**: los controllers reciben `page`/`size`/`sort` como `@RequestParam` crudos y construyen `PageQuery` con `PageSupport.fromParams(...)` (replica el binding de Spring Data: página ≥ 0, `size` con default por endpoint y tope 2000, `?sort=campo,asc|desc` repetible); la respuesta se recompone como `Page<T>` de Spring (`PageSupport.toPage`) para **preservar el contrato JSON**. Los puertos y servicios solo conocen `PageQuery`/`PageResult` del dominio.
+
+**11 reglas ArchUnit** en `src/test/java/com/proyecta/api_gestion/architecture/ArchitectureTest.java`, ejecutadas en cada `mvn test`:
+
+| Regla | Verifica |
+| ----- | -------- |
+| **R1** | El dominio no depende de aplicación, adaptadores, DTOs ni Spring |
+| **R1b** | En dominio solo se toleran `@JdbcTypeCode`/`SqlTypes` de Hibernate (imprescindibles para mapear columnas `jsonb`) |
+| **R2** | La aplicación no depende de adaptadores ni de frameworks web |
+| **R3a** | Interfaces JPA y repositorios solo en `adapter/out` |
+| **R3b-i** | `org.springframework.data.domain` solo en adaptadores y frontera web |
+| **R3b-ii** | Los controllers de spring-data solo usan `Page` (respuesta); `Pageable`/`Sort` están prohibidos |
+| **R4a/R4b** | `adapter/in` y `adapter/out` no se conocen entre sí |
+| **R5** | Los controllers no dependen de repositorios ni de adaptadores de salida |
+| **R6** | Los DTOs viven en la frontera; `dto/` prohibido en dominio, aplicación y adaptadores de salida |
+| **R7** | Cada puerto tiene un único adaptador (mapa puerto → implementador construido en `init()`) |
+
+**Estado de la migración por fase**: F0 estructura de paquetes · F1 reglas R1/R2 + pureza de dominio · F2 puertos de salida (51) + traducción paginada `PageBridge` · F3 pureza de dominio (sin `domain→dto`), read-models en `application/readmodel` y R5–R7 · F4 eliminación de `Pageable` de la frontera (contrato JSON intacto) · F5 extracción SOLID de soportes (`ProyectoServiceImpl` 1713 → 1099 líneas, `ReporteServiceImpl` 1258 → 969). **Pendiente** respecto a ADR-007: mover `controller/` a `adapter/in/web`, crear `application/port/in` (casos de uso) y reubicar los DTOs de puerto en `application/port/in/dto`.
 
 ---
 
@@ -306,6 +355,13 @@ sequenceDiagram
 - **Decisión**: `SystemAuditFilter` intercepta todas las peticiones y persiste en `system_audit_log` (usuario, rol, recurso, método, código de estado, duración), con redacción de secretos.
 - **Consecuencias**: costo de E/S por petición, amortizado con escritura asíncrona.
 
+### ADR-007: Arquitectura hexagonal (ports & adapters) con reglas ArchUnit
+
+- **Estado**: Aprobado e **implementado (fases F0–F5, 2026-10-04)** — texto completo en [`docs/adr/ADR-007-arquitectura-hexagonal.md`](adr/ADR-007-arquitectura-hexagonal.md)
+- **Contexto**: `controller → service → repository` mezclaba responsabilidades: controllers que inyectaban repositorios, services-gigante (`ProyectoServiceImpl` 1713 L) y acoplamiento a tipos de Spring Web (`Pageable`, `Authentication`, `MultipartFile`) fuera de la capa web.
+- **Decisión**: dominio puro con paginación propia (`PageQuery`/`PageResult`), 51 puertos de salida implementados como interfaces JPA espejo, sin tipos de Spring Web en aplicación, y **11 reglas ArchUnit** (R1–R7 con exenciones R1b/R3b) que fallan el build ante desviaciones.
+- **Consecuencias**: el contrato HTTP y el esquema Flyway no cambian; los tests de arquitectura aceleran la detección de regresiones estructurales; quedan pendientes declarados en §3.3 (ubicación de `controller/`, `application/port/in` y DTOs de puerto).
+
 ---
 
 ## 8. Requisitos No Funcionales
@@ -316,7 +372,7 @@ sequenceDiagram
 | ---------------------- | -------------------------------------------------------------------- | -------------- |
 | Límite de subida       | 50 MB por archivo y 200 MB por petición (`413` al superarlos)        | Implementado   |
 | Codificación y formato | UTF-8 forzado, fechas ISO 8601, UUID RFC 4122                        | Implementado   |
-| Paginación             | `page` (0-indexed), `size` (default 10), `sort` (default `id,DESC`)  | Implementado   |
+| Paginación             | `page` (0-indexed), `size` (default `20` por endpoint, tope `2000`), `sort` opcional (`?sort=campo,asc\|desc`); interno: `PageQuery`/`PageResult` | Implementado   |
 | Apagado ordenado       | `server.shutdown=graceful` con timeout de 30 s                       | Implementado   |
 | Pool de conexiones     | HikariCP: máximo 15, mínimo inactivo 5, keepalive y validación       | Implementado   |
 | Hilos del servidor     | Tomcat: máximo 20 hilos, `accept-count` 100                          | Implementado   |
@@ -434,3 +490,4 @@ sequenceDiagram
 | ------- | ---------- | --------------- | ---------------------------------------------------------------- |
 | 1.0.0   | 2026-07-29 | _[Autor]_       | Creación inicial del documento (plantilla genérica de ejemplo)  |
 | 1.1.0   | 2026-09-29 | Equipo Proyecta | Actualización con arquitectura real del sistema                 |
+| 1.2.0   | 2026-10-04 | Equipo Proyecta | Migración hexagonal + SOLID (fases F0-F5): puertos de salida, paginación de dominio, read-models, soportes SOLID y 11 reglas ArchUnit (§3.3, ADR-007) |

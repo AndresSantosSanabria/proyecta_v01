@@ -16,13 +16,15 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Generador PDF institucional con layout por bloques, tablas y tarjetas.
@@ -53,16 +55,9 @@ public final class SimplePdfReportBuilder {
     private static final Color COLOR_LINE = new Color(223, 229, 237);
     private static final Color COLOR_TITLE = new Color(20, 65, 93);
     private static final Color COLOR_SECTION = new Color(25, 85, 61);
-    private static final Color COLOR_TABLE_HEAD = new Color(238, 242, 247);
-    private static final Color COLOR_TABLE_BORDER = new Color(201, 210, 220);
-    private static final Color COLOR_CARD_BLUE = new Color(232, 243, 255);
-    private static final Color COLOR_CARD_GREEN = new Color(235, 249, 239);
-    private static final Color COLOR_CARD_YELLOW = new Color(255, 248, 225);
-    private static final Color COLOR_CARD_RED = new Color(255, 236, 236);
     private static final Color COLOR_WATERMARK = new Color(188, 196, 205);
     private static final Color COLOR_FOOTER = new Color(122, 133, 146);
-    private static final Color COLOR_ROW_ALT = new Color(248, 250, 252);
-    private static final Color COLOR_BANNER = new Color(250, 252, 255);
+    private static final Pattern WIDTH_PART_PATTERN = Pattern.compile("\\d+(\\.\\d+)?");
 
     private SimplePdfReportBuilder() {
     }
@@ -91,35 +86,26 @@ public final class SimplePdfReportBuilder {
             return elements;
         }
 
-        for (int i = 0; i < lines.size(); i++) {
+        int i = 0;
+        while (i < lines.size()) {
             String raw = lines.get(i);
-            if (raw == null) {
-                continue;
+            if (raw != null) {
+                String line = raw.trim();
+                if (line.isEmpty()) {
+                    elements.add(new SpacerElement(8f));
+                } else if (line.equals("PAGEBREAK")) {
+                    elements.add(new PageBreakElement());
+                } else if (line.equals("HR")) {
+                    elements.add(new HorizontalRuleElement());
+                } else if (line.startsWith("TABLE|")) {
+                    TableBlock table = parseTable(line, lines, i);
+                    elements.add(table);
+                    i = table.endIndex();
+                } else {
+                    elements.add(parseSimple(line));
+                }
             }
-
-            String line = raw.trim();
-            if (line.isEmpty()) {
-                elements.add(new SpacerElement(8f));
-                continue;
-            }
-
-            if (line.equals("PAGEBREAK")) {
-                elements.add(new PageBreakElement());
-                continue;
-            }
-            if (line.equals("HR")) {
-                elements.add(new HorizontalRuleElement());
-                continue;
-            }
-
-            if (line.startsWith("TABLE|")) {
-                TableBlock table = parseTable(line, lines, i);
-                elements.add(table);
-                i = table.endIndex();
-                continue;
-            }
-
-            elements.add(parseSimple(line));
+            i++;
         }
 
         return elements;
@@ -159,27 +145,35 @@ public final class SimplePdfReportBuilder {
         int endIndex = startIndex;
         for (int i = startIndex + 1; i < lines.size(); i++) {
             String next = lines.get(i);
-            if (next == null) {
-                continue;
+            if (next != null) {
+                String trimmed = next.trim();
+                if (!trimmed.startsWith("ROW|")) {
+                    break;
+                }
+                String[] rowParts = trimmed.split("\\|", -1);
+                List<String> row = new ArrayList<>();
+                for (int j = 1; j < rowParts.length; j++) {
+                    row.add(sanitize(rowParts[j]));
+                }
+                rows.add(row);
+                endIndex = i;
             }
-            String trimmed = next.trim();
-            if (!trimmed.startsWith("ROW|")) {
-                break;
-            }
-            String[] rowParts = trimmed.split("\\|", -1);
-            List<String> row = new ArrayList<>();
-            for (int j = 1; j < rowParts.length; j++) {
-                row.add(sanitize(rowParts[j]));
-            }
-            rows.add(row);
-            endIndex = i;
         }
 
         return new TableBlock(headers, widths, rows, endIndex);
     }
 
     private static boolean looksLikeWidths(String value) {
-        return value != null && value.matches("\\d+(\\.\\d+)?(,\\d+(\\.\\d+)?)+");
+        String[] parts = value.split(",", -1);
+        if (parts.length < 2) {
+            return false;
+        }
+        for (String part : parts) {
+            if (!WIDTH_PART_PATTERN.matcher(part).matches()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static float[] parseWidths(String spec, int columns) {
@@ -230,22 +224,8 @@ public final class SimplePdfReportBuilder {
     }
 
     private static String sanitize(String value) {
-        if (value == null) {
-            return "";
-        }
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .replace("Ã±", "n")
-                .replace("Ã‘", "N");
-        StringBuilder ascii = new StringBuilder();
-        for (char c : normalized.toCharArray()) {
-            if (c >= 32 && c <= 126) {
-                ascii.append(c);
-            } else if (Character.isWhitespace(c)) {
-                ascii.append(' ');
-            }
-        }
-        return ascii.toString().replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)");
+        return PdfReportShared.sanitize(value, "ñ", "n", "Ñ", "N")
+                .replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)");
     }
 
     private sealed interface ReportElement permits HeaderLineElement, SectionElement, SubsectionElement,
@@ -279,6 +259,28 @@ public final class SimplePdfReportBuilder {
 
     private record TableBlock(List<String> headers, float[] widths, List<List<String>> rows, int endIndex)
             implements ReportElement {
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof TableBlock(List<String> otherHeaders, float[] otherWidths,
+                    List<List<String>> otherRows, int otherEndIndex))) return false;
+            return Objects.equals(headers, otherHeaders)
+                    && Arrays.equals(widths, otherWidths)
+                    && Objects.equals(rows, otherRows)
+                    && endIndex == otherEndIndex;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(headers, Arrays.hashCode(widths), rows, endIndex);
+        }
+
+        @Override
+        public String toString() {
+            return "TableBlock[headers=" + headers + ", widths=" + Arrays.toString(widths)
+                    + ", rows=" + rows + ", endIndex=" + endIndex + "]";
+        }
     }
 
     private record SpacerElement(float height) implements ReportElement {
@@ -293,7 +295,7 @@ public final class SimplePdfReportBuilder {
     private static final class PdfRenderer {
         private final PDDocument document;
         private final String title;
-        private final String generatedOn = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        private final String generatedOn = LocalDate.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         private final PDExtendedGraphicsState watermarkState = new PDExtendedGraphicsState();
         private final PDImageXObject headerLogo;
         private final PDImageXObject footerLogo;
@@ -334,63 +336,41 @@ public final class SimplePdfReportBuilder {
                 if (element instanceof PageBreakElement) {
                     flushBuffers();
                     startPage();
-                    continue;
-                }
-                if (element instanceof HeaderLineElement headerLine) {
+                } else if (element instanceof HeaderLineElement(String text)) {
                     flushBuffers();
-                    renderHeaderLine(headerLine.text());
-                    continue;
-                }
-                if (element instanceof SectionElement section) {
+                    renderHeaderLine(text);
+                } else if (element instanceof SectionElement(String text)) {
                     flushBuffers();
-                    renderSection(section.text());
-                    continue;
-                }
-                if (element instanceof SubsectionElement subsection) {
+                    renderSection(text);
+                } else if (element instanceof SubsectionElement(String text)) {
                     flushBuffers();
-                    renderSubsection(subsection.text());
-                    continue;
-                }
-                if (element instanceof ParagraphElement paragraph) {
+                    renderSubsection(text);
+                } else if (element instanceof ParagraphElement(String text)) {
                     flushBuffers();
-                    renderParagraph(paragraph.text(), FONT_REGULAR, 11f, COLOR_TEXT, 1.35f, 0f);
-                    continue;
-                }
-                if (element instanceof BulletElement bullet) {
+                    renderParagraph(text, FONT_REGULAR, 11f, COLOR_TEXT, 1.35f, 0f);
+                } else if (element instanceof BulletElement(String text)) {
                     flushBuffers();
-                    renderBullet(bullet.text());
-                    continue;
-                }
-                if (element instanceof KeyValueElement keyValue) {
+                    renderBullet(text);
+                } else if (element instanceof KeyValueElement keyValue) {
                     cardBufferIfNeeded();
                     checkBufferIfNeeded();
                     kvBuffer.add(keyValue);
-                    continue;
-                }
-                if (element instanceof CardElement card) {
+                } else if (element instanceof CardElement card) {
                     kvBufferIfNeeded();
                     checkBufferIfNeeded();
                     cardBuffer.add(card);
-                    continue;
-                }
-                if (element instanceof CheckElement check) {
+                } else if (element instanceof CheckElement check) {
                     kvBufferIfNeeded();
                     cardBufferIfNeeded();
                     checkBuffer.add(check);
-                    continue;
-                }
-                if (element instanceof TableBlock table) {
+                } else if (element instanceof TableBlock table) {
                     flushBuffers();
                     renderTable(table);
-                    continue;
-                }
-                if (element instanceof SpacerElement spacer) {
+                } else if (element instanceof SpacerElement(float height)) {
                     flushBuffers();
-                    ensureSpace(spacer.height());
-                    cursorY -= spacer.height();
-                    continue;
-                }
-                if (element instanceof HorizontalRuleElement) {
+                    ensureSpace(height);
+                    cursorY -= height;
+                } else if (element instanceof HorizontalRuleElement) {
                     flushBuffers();
                     drawHorizontalRule();
                 }
@@ -570,37 +550,11 @@ public final class SimplePdfReportBuilder {
         }
 
         private void drawFirstPageHeader() throws IOException {
-            float bandHeight = 186f;
-            drawRoundedCard(LEFT, cursorY - bandHeight, CONTENT_WIDTH, bandHeight, COLOR_BANNER, COLOR_LINE);
+            PdfReportShared.HeaderLayout header = PdfReportShared.drawFirstPageHeaderBase(content, cursorY, headerLogo, generatedOn, FONT_REGULAR, FONT_BOLD, COLOR_TEXT, COLOR_MUTED, this::drawText);
+            List<String> wrappedTitle = wrapText(title, FONT_BOLD, 15.2f, header.titleZoneWidth());
+            drawWrappedCentered(wrappedTitle, FONT_BOLD, 15.2f, COLOR_TITLE, header.titleZoneX(), header.titleZoneY(), header.titleZoneWidth(), 17f);
 
-            float leftBlockX = LEFT + 12f;
-            float logoWidth = 118f;
-            float logoHeight = 34f;
-            float stampWidth = 146f;
-            float stampX = PAGE_WIDTH - RIGHT - stampWidth;
-
-            if (headerLogo != null) {
-                drawImage(headerLogo, leftBlockX, cursorY - 16f, logoWidth, logoHeight);
-                drawText("Sistema integral de seguimiento institucional", FONT_REGULAR, 8.2f, COLOR_MUTED, leftBlockX + 4f, cursorY - 56f);
-            } else {
-                drawText("GOBERNACION DE CUNDINAMARCA", FONT_BOLD, 8.8f, COLOR_SECTION, leftBlockX, cursorY - 18f);
-                drawText("Sistema integral de seguimiento institucional", FONT_REGULAR, 8.2f, COLOR_MUTED, leftBlockX + 4f, cursorY - 34f);
-            }
-
-            float boxY = cursorY - 92f;
-            drawRoundedCard(stampX, boxY, stampWidth, 50f, Color.WHITE, COLOR_LINE);
-            drawText("Fecha del reporte", FONT_BOLD, 8.4f, COLOR_MUTED, stampX + 10f, boxY + 34f);
-            drawText(generatedOn, FONT_BOLD, 10.7f, COLOR_TEXT, stampX + 10f, boxY + 19f);
-            drawText("Documento oficial", FONT_BOLD, 8.2f, COLOR_MUTED, stampX + 10f, boxY + 6f);
-
-            float titleZoneY = cursorY - 74f;
-            float titleZoneX = LEFT + 18f;
-            float titleZoneWidth = CONTENT_WIDTH - 36f;
-            drawLine(LEFT + 18f, titleZoneY + 14f, PAGE_WIDTH - RIGHT - 18f, titleZoneY + 14f, COLOR_LINE, 0.5f);
-            List<String> wrappedTitle = wrapText(title, FONT_BOLD, 15.2f, titleZoneWidth);
-            drawWrappedCentered(wrappedTitle, FONT_BOLD, 15.2f, COLOR_TITLE, titleZoneX, titleZoneY, titleZoneWidth, 17f);
-
-            cursorY -= bandHeight + 14f;
+            cursorY -= header.bandHeight() + 14f;
             drawLine(LEFT, cursorY, PAGE_WIDTH - RIGHT, cursorY, COLOR_LINE, 0.8f);
             cursorY -= 18f;
         }
@@ -643,36 +597,13 @@ public final class SimplePdfReportBuilder {
 
         private void drawTableHeader(List<String> headers, float[] widths, float rowHeight) throws IOException {
             ensureSpace(rowHeight + 6f);
-            float x = LEFT;
-            float y = cursorY;
-            drawFilledRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, COLOR_TABLE_HEAD);
-            drawRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, COLOR_TABLE_BORDER, 0.7f);
-            for (int i = 0; i < headers.size(); i++) {
-                float colWidth = CONTENT_WIDTH * widths[i];
-                drawVerticalLine(x + colWidth, y, y - rowHeight, COLOR_TABLE_BORDER, 0.5f);
-                drawText(headers.get(i), FONT_BOLD, 8.8f, COLOR_MUTED, x + 4f, y - 15f);
-                x += colWidth;
-            }
+            PdfReportShared.drawTableHeader(content, cursorY, headers, widths, rowHeight, 8.8f, true, FONT_BOLD, COLOR_TEXT, COLOR_MUTED, this::drawText);
             cursorY -= rowHeight;
         }
 
         private void drawTableRow(List<String> row, float[] widths, float rowHeight, float fontSize, int rowIndex) throws IOException {
             ensureSpace(rowHeight + 4f);
-            float x = LEFT;
-            float y = cursorY;
-            Color rowFill = rowIndex % 2 == 0 ? Color.WHITE : COLOR_ROW_ALT;
-            drawFilledRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, rowFill);
-            drawRect(LEFT, y - rowHeight, CONTENT_WIDTH, rowHeight, COLOR_TABLE_BORDER, 0.6f);
-            for (int i = 0; i < widths.length; i++) {
-                float colWidth = CONTENT_WIDTH * widths[i];
-                if (i > 0) {
-                    drawVerticalLine(x, y, y - rowHeight, COLOR_TABLE_BORDER, 0.5f);
-                }
-                String value = i < row.size() ? row.get(i) : "";
-                List<String> wrapped = wrapText(value, FONT_REGULAR, fontSize, colWidth - 8f);
-                drawWrapped(wrapped, FONT_REGULAR, fontSize, COLOR_TEXT, x + 4f, y - 11f, fontSize + 2f);
-                x += colWidth;
-            }
+            PdfReportShared.drawTableRow(content, cursorY, row, widths, rowHeight, fontSize, rowIndex, FONT_REGULAR, COLOR_TEXT, this::drawText, this::wrapText);
             cursorY -= rowHeight;
         }
 
@@ -710,26 +641,12 @@ public final class SimplePdfReportBuilder {
             drawRect(x, y, width, height, stroke, 0.8f);
         }
 
-        private void drawImage(PDImageXObject image, float x, float yTop, float width, float height) throws IOException {
-            if (image == null) {
-                return;
-            }
-            content.drawImage(image, x, yTop - height, width, height);
-        }
-
         private void drawFilledRect(float x, float y, float width, float height, Color fill) throws IOException {
-            content.setNonStrokingColor(fill);
-            content.addRect(x, y, width, height);
-            content.fill();
-            content.setNonStrokingColor(COLOR_TEXT);
+            PdfReportShared.drawFilledRect(content, x, y, width, height, fill, COLOR_TEXT);
         }
 
         private void drawRect(float x, float y, float width, float height, Color stroke, float lineWidth) throws IOException {
-            content.setStrokingColor(stroke);
-            content.setLineWidth(lineWidth);
-            content.addRect(x, y, width, height);
-            content.stroke();
-            content.setStrokingColor(COLOR_TEXT);
+            PdfReportShared.drawRect(content, x, y, width, height, stroke, lineWidth, COLOR_TEXT);
         }
 
         private void drawLine(float x1, float y1, float x2, float y2, Color stroke, float lineWidth) throws IOException {
@@ -737,15 +654,6 @@ public final class SimplePdfReportBuilder {
             content.setLineWidth(lineWidth);
             content.moveTo(x1, y1);
             content.lineTo(x2, y2);
-            content.stroke();
-            content.setStrokingColor(COLOR_TEXT);
-        }
-
-        private void drawVerticalLine(float x, float yTop, float yBottom, Color stroke, float lineWidth) throws IOException {
-            content.setStrokingColor(stroke);
-            content.setLineWidth(lineWidth);
-            content.moveTo(x, yTop);
-            content.lineTo(x, yBottom);
             content.stroke();
             content.setStrokingColor(COLOR_TEXT);
         }
@@ -762,22 +670,13 @@ public final class SimplePdfReportBuilder {
 
         private void drawWrapped(List<String> lines, PDFont font, float size, Color color, float x, float y, float leading)
                 throws IOException {
-            float currentY = y;
-            for (String line : lines) {
-                drawText(line, font, size, color, x, currentY);
-                currentY -= leading;
-            }
+            PdfReportShared.drawWrapped(lines, font, size, color, x, y, leading, this::drawText);
         }
 
+        @SuppressWarnings("java:S107")
         private void drawWrappedCentered(List<String> lines, PDFont font, float size, Color color, float x, float y, float width, float leading)
                 throws IOException {
-            float currentY = y;
-            for (String line : lines) {
-                float lineWidth = stringWidth(font, size, line);
-                float centeredX = x + Math.max(0f, (width - lineWidth) / 2f);
-                drawText(line, font, size, color, centeredX, currentY);
-                currentY -= leading;
-            }
+            PdfReportShared.drawWrappedCentered(lines, font, size, color, x, y, width, leading, this::drawText, this::stringWidth);
         }
 
         private float computeRowHeight(List<String> row, float[] widths, float fontSize, float padding, float minHeight) throws IOException {
@@ -792,6 +691,7 @@ public final class SimplePdfReportBuilder {
             return maxHeight;
         }
 
+        private static final Pattern WHITESPACE = Pattern.compile("\\s+");
         private List<String> wrapText(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
             String normalized = text == null ? "" : text.trim();
             if (normalized.isEmpty()) {
@@ -800,71 +700,31 @@ public final class SimplePdfReportBuilder {
 
             List<String> result = new ArrayList<>();
             String[] paragraphs = normalized.split("\\r?\\n");
-            for (String paragraph : paragraphs) {
-                String[] words = paragraph.split("\\s+");
+            for (int p = 0; p < paragraphs.length; p++) {
+                String paragraph = paragraphs[p];
                 StringBuilder current = new StringBuilder();
-                for (String word : words) {
+                for (String word : WHITESPACE.split(paragraph)) {
                     if (word.isBlank()) {
                         continue;
                     }
-                    String trial = current.isEmpty() ? word : current + " " + word;
-                    if (stringWidth(font, fontSize, trial) <= maxWidth) {
-                        current = new StringBuilder(trial);
-                    } else {
-                        if (!current.isEmpty()) {
-                            result.add(current.toString());
-                        }
-                        if (stringWidth(font, fontSize, word) <= maxWidth) {
-                            current = new StringBuilder(word);
-                        } else {
-                            result.addAll(splitLongWord(word, font, fontSize, maxWidth));
-                            current = new StringBuilder();
-                        }
-                    }
+                    PdfTextWrap.appendWordTrial(word, current, result, maxWidth, s -> stringWidth(font, fontSize, s));
                 }
                 if (!current.isEmpty()) {
                     result.add(current.toString());
                 }
-                if (paragraph != paragraphs[paragraphs.length - 1]) {
+                if (p < paragraphs.length - 1) {
                     result.add("");
                 }
             }
             return result.isEmpty() ? List.of("") : result;
         }
 
-        private List<String> splitLongWord(String word, PDFont font, float fontSize, float maxWidth) throws IOException {
-            List<String> parts = new ArrayList<>();
-            StringBuilder current = new StringBuilder();
-            for (char c : word.toCharArray()) {
-                String trial = current + String.valueOf(c);
-                if (stringWidth(font, fontSize, trial) <= maxWidth || current.isEmpty()) {
-                    current.append(c);
-                } else {
-                    parts.add(current.toString());
-                    current = new StringBuilder().append(c);
-                }
-            }
-            if (!current.isEmpty()) {
-                parts.add(current.toString());
-            }
-            return parts;
-        }
-
         private float stringWidth(PDFont font, float size, String value) throws IOException {
-            return font.getStringWidth(sanitize(value)) / 1000f * size;
+            return PdfReportShared.stringWidth(font, size, value, SimplePdfReportBuilder::sanitize);
         }
 
         private Color accentColor(String accent) {
-            if (accent == null) {
-                return Color.WHITE;
-            }
-            return switch (accent.trim().toLowerCase(Locale.ROOT)) {
-                case "green", "success" -> COLOR_CARD_GREEN;
-                case "yellow", "warn", "warning" -> COLOR_CARD_YELLOW;
-                case "red", "danger" -> COLOR_CARD_RED;
-                case "blue", "info" -> COLOR_CARD_BLUE;
-                default -> Color.WHITE;
-            };
+            return PdfReportShared.accentColor(accent, Color.WHITE);
         }
 
         private void closeContent() throws IOException {
@@ -880,25 +740,7 @@ public final class SimplePdfReportBuilder {
                 return;
             }
             content.saveGraphicsState();
-            float lineY = BOTTOM + 20f;
-            drawLine(LEFT, lineY, PAGE_WIDTH - RIGHT, lineY, COLOR_LINE, 0.7f);
-
-            float blockY = BOTTOM + 22f;
-            if (footerLogo != null) {
-                float logoWidth = 108f;
-                float logoHeight = 16f;
-                float logoX = PAGE_WIDTH - RIGHT - logoWidth;
-                drawImage(footerLogo, logoX, blockY + logoHeight, logoWidth, logoHeight);
-            } else {
-                float logoX = PAGE_WIDTH - RIGHT - 120f;
-                drawText("Transformacion Digital", FONT_BOLD, 13f, COLOR_TITLE, logoX, blockY + 16f);
-            }
-
-            float textX = LEFT + 8f;
-            drawText("Calle 26 #51-53 Bogota D.C.", FONT_REGULAR, 8.8f, COLOR_TEXT, textX, blockY + 18f);
-            drawText("Sede Administrativa - Torre Central Piso 7.", FONT_REGULAR, 8.8f, COLOR_TEXT, textX, blockY + 6f);
-            drawText("Codigo Postal: 111321 - Telefono: 7491513", FONT_REGULAR, 8.8f, COLOR_TEXT, textX, blockY - 6f);
-            drawText("www.cundinamarca.gov.co", FONT_REGULAR, 8.2f, COLOR_MUTED, textX, blockY - 18f);
+            PdfReportShared.drawFooterBlock(content, footerLogo, FONT_REGULAR, FONT_BOLD, COLOR_TEXT, COLOR_MUTED, this::drawText);
 
             drawText("Reporte institucional | Pagina " + pageNumber, FONT_OBLIQUE, 8.2f, COLOR_FOOTER, LEFT, FOOTER_Y);
             content.restoreGraphicsState();

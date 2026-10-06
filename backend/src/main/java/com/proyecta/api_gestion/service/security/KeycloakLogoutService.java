@@ -1,6 +1,6 @@
 package com.proyecta.api_gestion.service.security;
 
-import com.proyecta.api_gestion.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

@@ -74,7 +74,10 @@ public class RoleAliasService {
                 .toLowerCase(Locale.ROOT)
                 .replaceFirst("^role[\\s_-]+", "")
                 .replaceAll("[^a-z0-9]+", "_")
-                .replaceAll("(?:^_+|_+$)", "");
+                .replaceAll("^_+", "");
+        while (cleaned.endsWith("_")) {
+            cleaned = cleaned.substring(0, cleaned.length() - 1);
+        }
         return cleaned.isBlank() ? null : cleaned;
     }
 }

@@ -69,11 +69,11 @@ public interface IProjectHierarchyController {
     // Entregables
     @Operation(summary = "EP-ENTR-02 · Agregar entregable")
     @PostMapping("/{id}/fases/{faseId}/hitos/{hitoId}/entregables")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> agregarEntregable(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.domain.model.Entregable>> agregarEntregable(@PathVariable String id, @PathVariable Integer faseId, @PathVariable Integer hitoId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
 
     @Operation(summary = "EP-ENTR-03 · Editar entregable")
     @PutMapping("/{id}/entregables/{entregableId}")
-    ResponseEntity<ApiResponse<com.proyecta.api_gestion.model.Entregable>> editarEntregable(@PathVariable String id, @PathVariable Integer entregableId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.domain.model.Entregable>> editarEntregable(@PathVariable String id, @PathVariable Integer entregableId, @RequestBody com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto, Authentication authentication);
 
     @Operation(summary = "EP-ENTR-06 · Cambiar fecha limite con justificacion y PDF de soporte",
                description = "Permite a Gestor/Admin modificar la fecha limite de un entregable. Requiere justificacion escrita y archivo PDF de soporte. El cambio queda registrado en historial de auditoria.")

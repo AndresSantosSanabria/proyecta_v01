@@ -1,12 +1,12 @@
 package com.proyecta.api_gestion.service.security.dynamic;
 
-import com.proyecta.api_gestion.exception.ForbiddenException;
-import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.model.Proyecto;
 
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +19,10 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 
+// S3516: metodos de autorizacion cuya denegacion se realiza lanzando
+// ForbiddenException; solo retornan true cuando el acceso esta permitido y el
+// boolean existe exclusivamente como expresion SpEL de @PreAuthorize.
+@SuppressWarnings("java:S3516")
 @Component("proyectoSecurity")
 public class ProyectoSecurity {
     private static final Logger logger = LoggerFactory.getLogger(ProyectoSecurity.class);
@@ -28,6 +32,8 @@ public class ProyectoSecurity {
     private static final String DIRECTOR_PROYECTO = "director_proyecto";
     private static final String PERMISO_PROYECTO_VER = "PROYECTO:VER";
     private static final String MSG_PROYECTO_NO_EXISTE = "El proyecto solicitado no existe.";
+    private static final String MSG_NO_ASIGNADO = "El usuario no esta asignado al proyecto solicitado.";
+    private static final String MSG_NO_ASIGNADO_TILDE = "El usuario no está asignado al proyecto solicitado.";
 
     private static final Set<String> EVIDENCE_REVIEW_ROLE_CODES = Set.of(GESTOR_TIC, GESTOR_PROYECTOS);
     private static final Set<String> DOCUMENT_HISTORY_ROLE_CODES = Set.of(GESTOR_PROYECTOS);
@@ -62,25 +68,35 @@ public class ProyectoSecurity {
     private final SecurityCatalogCacheService catalogCacheService;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final PermisoUsuarioService permisoUsuarioService;
-    private final SeguridadUsuarioRepository seguridadUsuarioRepository;
-    private final SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository;
-    private final ProyectoRepository proyectoRepository;
+    private final SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort;
+    private final SeguridadUsuarioProyectoRepositoryPort seguridadUsuarioProyectoRepositoryPort;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
 
     public ProyectoSecurity(
             KeycloakIdentityExtractor identityExtractor,
             SecurityCatalogCacheService catalogCacheService,
             LocalUserAuthorizationService localUserAuthorizationService,
             PermisoUsuarioService permisoUsuarioService,
-            SeguridadUsuarioRepository seguridadUsuarioRepository,
-            SeguridadUsuarioProyectoRepository seguridadUsuarioProyectoRepository,
-            ProyectoRepository proyectoRepository) {
+            SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort,
+            SeguridadUsuarioProyectoRepositoryPort seguridadUsuarioProyectoRepositoryPort,
+            ProyectoRepositoryPort proyectoRepositoryPort) {
         this.identityExtractor = identityExtractor;
         this.catalogCacheService = catalogCacheService;
         this.localUserAuthorizationService = localUserAuthorizationService;
         this.permisoUsuarioService = permisoUsuarioService;
-        this.seguridadUsuarioRepository = seguridadUsuarioRepository;
-        this.seguridadUsuarioProyectoRepository = seguridadUsuarioProyectoRepository;
-        this.proyectoRepository = proyectoRepository;
+        this.seguridadUsuarioRepositoryPort = seguridadUsuarioRepositoryPort;
+        this.seguridadUsuarioProyectoRepositoryPort = seguridadUsuarioProyectoRepositoryPort;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+    }
+
+    private void logCanAccess(String username, String normalizedPermission, String proyectoId, Set<String> roleCodes) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("canAccess: user='{}', perm='{}', project='{}', roles={}",
+                    com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(username),
+                    normalizedPermission,
+                    com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(proyectoId),
+                    roleCodes);
+        }
     }
 
     public boolean canAccess(String permissionCode, String proyectoId, Authentication authentication) {
@@ -99,13 +115,7 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        if (logger.isDebugEnabled()) {
-            logger.debug("canAccess: user='{}', perm='{}', project='{}', roles={}",
-                    com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(username),
-                    normalizedPermission,
-                    com.proyecta.api_gestion.infrastructure.LogSanitizer.clean(proyectoId),
-                    roleCodes);
-        }
+        logCanAccess(username, normalizedPermission, proyectoId, roleCodes);
         if (isDirectorOnly(roleCodes) && DIRECTOR_BLOCKED_PERMISSIONS.contains(normalizedPermission)) {
             throw new ForbiddenException("El Director de Proyecto solo puede cargar, reemplazar y subsanar evidencias de sus proyectos asignados.");
         }
@@ -114,7 +124,7 @@ public class ProyectoSecurity {
                 && proyectoId != null && !proyectoId.isBlank()
                 && !DIRECTOR_BLOCKED_PERMISSIONS.contains(normalizedPermission)
                 && (catalogCacheService.isAssignedToProject(username, proyectoId)
-                    || isProjectDirector(username, proyectoId, authentication))) {
+                    || isProjectDirector(username, proyectoId))) {
             return true;
         }
 
@@ -136,7 +146,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)
-                && !isProjectDirector(username, proyectoId, authentication)) {
+                && !isProjectDirector(username, proyectoId)) {
             logger.warn("ACCESS DENIED: user='{}', project='{}', roles={}, isDirectorOnly={}, perm='{}'",
                     username, proyectoId, roleCodes, isDirectorOnly(roleCodes), normalizedPermission);
             throw new ForbiddenException("El usuario no est\u00e1 asignado al proyecto solicitado.");
@@ -238,7 +248,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException(MSG_NO_ASIGNADO);
         }
 
         return true;
@@ -250,31 +260,9 @@ public class ProyectoSecurity {
      * Permitido solo para Administrador o Gestores (gestor_tic / gestor_proyectos).
      */
     public boolean canForceCloseExtraordinary(Authentication authentication) {
-        if (isAdmin(authentication)) {
-            return true;
-        }
-
-        String username = identityExtractor.resolveUsername(authentication);
-        if (username == null || username.isBlank()) {
-            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
-        }
-
-        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        boolean allowedRole = roleCodes.stream().anyMatch(EVIDENCE_REVIEW_ROLE_CODES::contains);
-        if (!allowedRole) {
-            throw new ForbiddenException("Solo el Administrador o un Gestor pueden realizar el cierre extraordinario del proyecto.");
-        }
-
-        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
-        boolean hasPermission = effectivePermissions.stream()
-                .map(this::normalize)
-                .anyMatch(PERMISO_PROYECTO_VER::equals);
-
-        if (!hasPermission) {
-            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: PROYECTO:VER");
-        }
-
-        return true;
+        return reviewGate(null, authentication, EVIDENCE_REVIEW_ROLE_CODES,
+                "Solo el Administrador o un Gestor pueden realizar el cierre extraordinario del proyecto.",
+                PERMISO_PROYECTO_VER, MSG_NO_ASIGNADO);
     }
 
     public boolean canViewBenefitImpact(String proyectoId, Authentication authentication) {
@@ -308,7 +296,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException(MSG_NO_ASIGNADO);
         }
 
         return true;
@@ -320,38 +308,9 @@ public class ProyectoSecurity {
      * El Director de Proyecto solo diligencia; la revision la hacen los Gestores.
      */
     public boolean canReviewBenefitImpact(String proyectoId, Authentication authentication) {
-        if (isAdmin(authentication)) {
-            return true;
-        }
-
-        String username = identityExtractor.resolveUsername(authentication);
-        if (username == null || username.isBlank()) {
-            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
-        }
-
-        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        boolean hasReviewerRole = roleCodes.stream().anyMatch(EVIDENCE_REVIEW_ROLE_CODES::contains);
-        if (!hasReviewerRole) {
-            throw new ForbiddenException("Solo un Gestor puede revisar la informacion de beneficio e impacto.");
-        }
-
-        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
-        boolean hasPermission = effectivePermissions.stream()
-                .map(this::normalize)
-                .anyMatch("BENEFICIO_IMPACTO:APROBAR"::equals);
-        if (!hasPermission) {
-            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: BENEFICIO_IMPACTO:APROBAR");
-        }
-
-        if (isTransversal(roleCodes) || proyectoId == null || proyectoId.isBlank()) {
-            return true;
-        }
-
-        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
-        }
-
-        return true;
+        return reviewGate(proyectoId, authentication, EVIDENCE_REVIEW_ROLE_CODES,
+                "Solo un Gestor puede revisar la informacion de beneficio e impacto.",
+                "BENEFICIO_IMPACTO:APROBAR", MSG_NO_ASIGNADO);
     }
 
     /**
@@ -427,7 +386,7 @@ public class ProyectoSecurity {
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
         if (isTransversal(roleCodes)) {
-            Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
+            Proyecto proyecto = proyectoRepositoryPort.findById(normalizeProjectId(proyectoId))
                     .orElseThrow(() -> new ForbiddenException(MSG_PROYECTO_NO_EXISTE));
             if (!proyecto.requiereCompletitudDirector()) {
                 throw new ForbiddenException("El proyecto no esta pendiente de completar.");
@@ -439,7 +398,7 @@ public class ProyectoSecurity {
             throw new ForbiddenException("Solo el Director de Proyecto asignado puede completar la informacion inicial.");
         }
 
-        Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizeProjectId(proyectoId))
                 .orElseThrow(() -> new ForbiddenException(MSG_PROYECTO_NO_EXISTE));
         if (!proyecto.requiereCompletitudDirector()) {
             throw new ForbiddenException("El proyecto no esta pendiente de completar.");
@@ -449,44 +408,9 @@ public class ProyectoSecurity {
     }
 
     public boolean canReviewEvidence(String proyectoId, Authentication authentication) {
-        if (isAdmin(authentication)) {
-            return true;
-        }
-
-        String username = identityExtractor.resolveUsername(authentication);
-        if (username == null || username.isBlank()) {
-            throw new ForbiddenException("No fue posible identificar el usuario autenticado.");
-        }
-
-        Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        boolean hasReviewerRole = roleCodes.stream().anyMatch(EVIDENCE_REVIEW_ROLE_CODES::contains);
-        if (!hasReviewerRole) {
-            throw new ForbiddenException("Solo el Gestor de Proyectos puede aprobar u observar evidencias.");
-        }
-
-        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
-        String normalizedPermission = normalize("ENTREGABLE:APROBAR");
-        boolean hasPermission = effectivePermissions.stream()
-                .map(this::normalize)
-                .anyMatch(normalizedPermission::equals);
-
-        if (!hasPermission) {
-            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: " + normalizedPermission);
-        }
-
-        if (isTransversal(roleCodes)) {
-            return true;
-        }
-
-        if (proyectoId == null || proyectoId.isBlank()) {
-            return true;
-        }
-
-        if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no estÃ¡ asignado al proyecto solicitado.");
-        }
-
-        return true;
+        return reviewGate(proyectoId, authentication, EVIDENCE_REVIEW_ROLE_CODES,
+                "Solo el Gestor de Proyectos puede aprobar u observar evidencias.",
+                "ENTREGABLE:APROBAR", MSG_NO_ASIGNADO_TILDE);
     }
 
     /**
@@ -513,8 +437,8 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)
-                && !isProjectDirector(username, proyectoId, authentication)) {
-            throw new ForbiddenException("El usuario no está asignado al proyecto solicitado.");
+                && !isProjectDirector(username, proyectoId)) {
+            throw new ForbiddenException(MSG_NO_ASIGNADO_TILDE);
         }
 
         return true;
@@ -527,6 +451,17 @@ public class ProyectoSecurity {
      * propio informe: evita auto-aprobacion.
      */
     public boolean canReviewAdvanceReport(String proyectoId, Authentication authentication) {
+        return reviewGate(proyectoId, authentication, EVIDENCE_REVIEW_ROLE_CODES,
+                "Solo un Gestor de Proyectos puede verificar o devolver informes de avance.",
+                "EVIDENCIA:APROBAR", MSG_NO_ASIGNADO);
+    }
+
+    /**
+     * Puerta de revision generica: admin incondicional, identidad obligatoria, rol
+     * permitido, permiso funcional y (si aplica) asignacion al proyecto.
+     */
+    private boolean reviewGate(String proyectoId, Authentication authentication, Set<String> allowedRoleCodes,
+                               String roleMessage, String permissionCode, String assignmentMessage) {
         if (isAdmin(authentication)) {
             return true;
         }
@@ -537,17 +472,16 @@ public class ProyectoSecurity {
         }
 
         Set<String> roleCodes = resolveEffectiveRoleCodes(authentication);
-        boolean allowedRole = roleCodes.stream().anyMatch(EVIDENCE_REVIEW_ROLE_CODES::contains);
+        boolean allowedRole = roleCodes.stream().anyMatch(allowedRoleCodes::contains);
         if (!allowedRole) {
-            throw new ForbiddenException("Solo un Gestor de Proyectos puede verificar o devolver informes de avance.");
+            throw new ForbiddenException(roleMessage);
         }
 
-        Set<String> effectivePermissions = permisoUsuarioService.getEffectivePermissions(username);
-        boolean hasPermission = effectivePermissions.stream()
+        boolean hasPermission = permisoUsuarioService.getEffectivePermissions(username).stream()
                 .map(this::normalize)
-                .anyMatch("EVIDENCIA:APROBAR"::equals);
+                .anyMatch(normalize(permissionCode)::equals);
         if (!hasPermission) {
-            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: EVIDENCIA:APROBAR");
+            throw new ForbiddenException("El usuario no posee el permiso funcional requerido: " + permissionCode);
         }
 
         if (isTransversal(roleCodes) || proyectoId == null || proyectoId.isBlank()) {
@@ -555,7 +489,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException(assignmentMessage);
         }
 
         return true;
@@ -582,7 +516,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException(MSG_NO_ASIGNADO);
         }
 
         assertOperationalProjectReady(proyectoId, authentication);
@@ -625,7 +559,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException(MSG_NO_ASIGNADO);
         }
 
         assertOperationalProjectReady(proyectoId, authentication);
@@ -690,7 +624,7 @@ public class ProyectoSecurity {
         }
 
         if (!catalogCacheService.isAssignedToProject(username, proyectoId)) {
-            throw new ForbiddenException("El usuario no esta asignado al proyecto solicitado.");
+            throw new ForbiddenException(MSG_NO_ASIGNADO);
         }
 
         assertOperationalProjectReady(proyectoId, authentication);
@@ -755,7 +689,7 @@ public class ProyectoSecurity {
         try {
             String username = identityExtractor.resolveUsername(authentication);
             if (username != null && !username.isBlank()) {
-                SeguridadUsuario segUsuario = seguridadUsuarioRepository.findByUsernameIgnoreCase(username).orElse(null);
+                SeguridadUsuario segUsuario = seguridadUsuarioRepositoryPort.findByUsernameIgnoreCase(username).orElse(null);
                 if (segUsuario != null && segUsuario.getRolCodigo() != null && !segUsuario.getRolCodigo().isBlank()) {
                     String securityRole = SecurityRoleCatalog.normalize(segUsuario.getRolCodigo());
                     if (securityRole != null && !securityRole.isBlank()) {
@@ -789,13 +723,13 @@ public class ProyectoSecurity {
      * Adicionalmente consulta la tabla usuario_proyecto buscando el cargo de director
      * como fallback para cubrir proyectos cuya asignacion se gestiona solo por esa tabla.
      */
-    private boolean isProjectDirector(String username, String proyectoId, Authentication authentication) {
+    private boolean isProjectDirector(String username, String proyectoId) {
         if (username == null || username.isBlank() || proyectoId == null || proyectoId.isBlank()) {
             return false;
         }
         try {
             // Consulta directa sobre campo director_usuario_id (sin lazy load).
-            if (proyectoRepository.existsDirectorByProyectoIdAndUsername(proyectoId.trim(), username.trim())) {
+            if (proyectoRepositoryPort.existsDirectorByProyectoIdAndUsername(proyectoId.trim(), username.trim())) {
                 logger.debug("isProjectDirector: user='{}' es director (via director_usuario_id) del proyecto '{}'",
                         username, proyectoId);
                 return true;
@@ -821,8 +755,8 @@ public class ProyectoSecurity {
     }
 
     private boolean usuarioProyectoHasDirectorCargo(String username, String proyectoId) {
-        return seguridadUsuarioProyectoRepository
-                .findByUsuario_UsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(
+        return seguridadUsuarioProyectoRepositoryPort
+                .findByUsuarioUsernameIgnoreCaseAndProyectoIdIgnoreCaseAndCargoIgnoreCase(
                         username.trim(), proyectoId.trim(), "DIRECTOR_PROYECTO")
                 .map(asignacion -> Boolean.TRUE.equals(asignacion.getActivo()))
                 .orElse(false);
@@ -852,7 +786,7 @@ public class ProyectoSecurity {
             return;
         }
 
-        Proyecto proyecto = proyectoRepository.findById(normalizeProjectId(proyectoId))
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizeProjectId(proyectoId))
                 .orElseThrow(() -> new ForbiddenException(MSG_PROYECTO_NO_EXISTE));
         if (proyecto.requiereCompletitudDirector()) {
             String normalized = normalize(permissionCode);

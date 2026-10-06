@@ -5,20 +5,21 @@ import com.proyecta.api_gestion.config.PublicUrlProperties;
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoRequest;
 import com.proyecta.api_gestion.dto.cierre.CierreProyectoResponse;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.ActaCierre;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.Fase;
-import com.proyecta.api_gestion.model.Hito;
-import com.proyecta.api_gestion.model.ObjetivoEspecifico;
-import com.proyecta.api_gestion.model.Patrocinador;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
-import com.proyecta.api_gestion.model.security.SeguridadUsuarioProyecto;
-import com.proyecta.api_gestion.repository.ActaCierreRepository;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.closure.ClosureAnswerRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioProyectoRepository;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.ActaCierre;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Fase;
+import com.proyecta.api_gestion.domain.model.Hito;
+import com.proyecta.api_gestion.domain.model.ObjetivoEspecifico;
+import com.proyecta.api_gestion.domain.model.Patrocinador;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.config.EstadoProyectoConfig;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuarioProyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.ActaCierreRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.closure.ClosureAnswerRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.config.EstadoProyectoConfigRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.interfaces.ProjectClosureService;
@@ -43,6 +44,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -62,9 +64,9 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private static final String KEY_PROJECT_NAME = "projectName";
     private static final String KEY_RECIPIENTS = "recipients";
 
-    private final ProyectoRepository proyectoRepository;
-    private final ActaCierreRepository actaCierreRepository;
-    private final SeguridadUsuarioProyectoRepository usuarioProyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final ActaCierreRepositoryPort actaCierreRepositoryPort;
+    private final SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort;
     private final IProgressCalculator progressCalculator;
     private final ProjectClosureValidator closureValidator;
     private final ProjectProgressMetricsService metricsService;
@@ -74,13 +76,14 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
     private final ClosureTemplateService templateService;
-    private final ClosureAnswerRepository closureAnswerRepository;
+    private final ClosureAnswerRepositoryPort closureAnswerRepositoryPort;
     private final PublicEvidenceAccessService publicEvidenceAccessService;
     private final PublicUrlProperties publicUrlProperties;
+    private final EstadoProyectoConfigRepositoryPort estadoProyectoConfigRepositoryPort;
 
-    public ProjectClosureServiceImpl(ProyectoRepository proyectoRepository,
-                                     ActaCierreRepository actaCierreRepository,
-                                     SeguridadUsuarioProyectoRepository usuarioProyectoRepository,
+    public ProjectClosureServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                     ActaCierreRepositoryPort actaCierreRepositoryPort,
+                                     SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort,
                                      IProgressCalculator progressCalculator,
                                      ProjectClosureValidator closureValidator,
                                      ProjectProgressMetricsService metricsService,
@@ -90,12 +93,13 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                                      NotificationEventPublisherPort notificationPublisher,
                                      KeycloakIdentityExtractor identityExtractor,
                                      ClosureTemplateService templateService,
-                                     ClosureAnswerRepository closureAnswerRepository,
+                                     ClosureAnswerRepositoryPort closureAnswerRepositoryPort,
                                      PublicEvidenceAccessService publicEvidenceAccessService,
-                                     PublicUrlProperties publicUrlProperties) {
-        this.proyectoRepository = proyectoRepository;
-        this.actaCierreRepository = actaCierreRepository;
-        this.usuarioProyectoRepository = usuarioProyectoRepository;
+                                     PublicUrlProperties publicUrlProperties,
+                                     EstadoProyectoConfigRepositoryPort estadoProyectoConfigRepositoryPort) {
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.actaCierreRepositoryPort = actaCierreRepositoryPort;
+        this.usuarioProyectoRepositoryPort = usuarioProyectoRepositoryPort;
         this.progressCalculator = progressCalculator;
         this.closureValidator = closureValidator;
         this.metricsService = metricsService;
@@ -105,15 +109,21 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
         this.templateService = templateService;
-        this.closureAnswerRepository = closureAnswerRepository;
+        this.closureAnswerRepositoryPort = closureAnswerRepositoryPort;
         this.publicEvidenceAccessService = publicEvidenceAccessService;
         this.publicUrlProperties = publicUrlProperties;
+        this.estadoProyectoConfigRepositoryPort = estadoProyectoConfigRepositoryPort;
+    }
+
+    private EstadoProyectoConfig estadoProyectoConfig(String codigo) {
+        return estadoProyectoConfigRepositoryPort.findByCodigo(codigo)
+                .orElseThrow(() -> new IllegalStateException("Estado de proyecto no configurado: " + codigo));
     }
 
     @Override
     @Transactional
     public CierreProyectoResponse cerrarProyecto(String projectId, CierreProyectoRequest request) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (proyecto.esEstadoTerminal()) {
@@ -129,7 +139,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             request = mergeRequestWithSavedAnswers(projectId, request);
         }
 
-        LocalDateTime fechaCierre = LocalDateTime.now();
+        LocalDateTime fechaCierre = LocalDateTime.now(ZoneId.systemDefault());
         LocalDate corteCalculo = fechaCierre.toLocalDate();
         LocalDate transferenciaFecha = corteCalculo;
 
@@ -142,7 +152,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             throw new IllegalStateException("No fue posible persistir el snapshot de avance del acta de cierre.", ex);
         }
 
-        SeguridadUsuarioProyecto directorAsignado = usuarioProyectoRepository
+        SeguridadUsuarioProyecto directorAsignado = usuarioProyectoRepositoryPort
                 .findActiveDirectorAssignmentsByProyectoId(projectId)
                 .stream()
                 .findFirst()
@@ -209,21 +219,13 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                     fechaCierre,
                     avanceFinal
             );
-            acta.setProgresoProgramadoFinal(snapshot.progresoProgramado());
-            acta.setProgresoEjecutadoFinal(snapshot.progresoEjecutado());
-            acta.setDiferenciaFinal(snapshot.diferencia());
-            acta.setEficaciaFinal(snapshot.eficacia());
-            acta.setEstadoFinal(snapshot.estado());
-            acta.setCorteCalculo(snapshot.corte());
-            acta.setSnapshotJson(snapshotJson);
-            acta.setArchivoDocx(storedFileName);
-            acta.setRutaArchivoDocx(rutaArchivo);
+            applyActaSnapshot(acta, snapshot, snapshotJson, storedFileName, rutaArchivo);
 
-            actaCierreRepository.save(acta);
+            actaCierreRepositoryPort.save(acta);
 
-            proyecto.cerrar();
+            proyecto.cerrar(estadoProyectoConfig("CERRADO"));
             proyecto.setAvanceTotal(avanceFinal);
-            proyectoRepository.save(proyecto);
+            proyectoRepositoryPort.save(proyecto);
             notificationPublisher.publish(new NotificationContext(
                     NotificationEventType.PROJECT_CLOSED,
                     projectId,
@@ -250,7 +252,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Override
     @Transactional
     public CierreProyectoResponse solicitarCierre(String projectId, CierreProyectoRequest request, Authentication authentication) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (proyecto.esEstadoTerminal()) {
@@ -271,7 +273,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         }
 
         String actorUsername = identityExtractor.resolveUsername(authentication);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         proyecto.setCierreSolicitado(true);
         proyecto.setCierreSolicitadoEn(now);
         proyecto.setCierreSolicitadoPor(actorUsername);
@@ -284,7 +286,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             throw new IllegalStateException("No fue posible guardar el borrador del acta de cierre", ex);
         }
         
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.CLOSURE_REQUESTED,
@@ -308,7 +310,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Override
     @Transactional
     public CierreProyectoResponse aprobarCierre(String projectId, Authentication authentication) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (!proyecto.cierrePendienteRevision()) {
@@ -316,10 +318,10 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         }
 
         String actorUsername = identityExtractor.resolveUsername(authentication);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         proyecto.setCierreEstado("APROBADO");
         proyecto.setCierreObservaciones(null);
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.CLOSURE_APPROVED,
@@ -343,7 +345,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Override
     @Transactional
     public CierreProyectoResponse rechazarCierre(String projectId, String observaciones, Authentication authentication) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (!proyecto.cierrePendienteRevision()) {
@@ -355,11 +357,11 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         }
 
         String actorUsername = identityExtractor.resolveUsername(authentication);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         proyecto.setCierreEstado("RECHAZADO");
         proyecto.setCierreObservaciones(observaciones.trim());
         proyecto.setCierreSolicitado(false);
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
 
         notificationPublisher.publish(new NotificationContext(
                 NotificationEventType.CLOSURE_REJECTED,
@@ -384,7 +386,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     @Override
     @Transactional
     public CierreProyectoResponse cierreExtraordinario(String projectId, CierreProyectoRequest request, Authentication authentication) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         if (proyecto.esEstadoTerminal()) {
@@ -399,130 +401,24 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             request = mergeRequestWithSavedAnswers(projectId, request);
         }
 
-        LocalDateTime fechaCierre = LocalDateTime.now();
+        LocalDateTime fechaCierre = LocalDateTime.now(ZoneId.systemDefault());
         LocalDate corteCalculo = fechaCierre.toLocalDate();
-        LocalDate transferenciaFecha = corteCalculo;
 
         BigDecimal avanceFinal = progressCalculator.calcularYActualizarAvanceProyecto(projectId);
         ProyectoAvanceResponseDTO snapshot = metricsService.construir(proyecto, corteCalculo);
-        String snapshotJson;
-        try {
-            snapshotJson = objectMapper.writeValueAsString(snapshot);
-        } catch (Exception ex) {
-            throw new IllegalStateException("No fue posible persistir el snapshot de avance del acta de cierre.", ex);
-        }
+        String snapshotJson = serializeSnapshot(snapshot);
 
-        SeguridadUsuarioProyecto directorAsignado = usuarioProyectoRepository
-                .findActiveDirectorAssignmentsByProyectoId(projectId)
-                .stream()
-                .findFirst()
-                .orElse(null);
-
-        String directorNombre = proyecto.getDirector();
-        String directorCargo = null;
-        String directorEntidad = proyecto.getDependencia();
-        if (directorAsignado != null) {
-            directorCargo = directorAsignado.getCargo();
-            if (directorAsignado.getUsuario() != null) {
-                directorNombre = directorAsignado.getUsuario().getNombre();
-                directorEntidad = firstNonBlank(directorAsignado.getUsuario().getDependencia(), proyecto.getDependencia());
-            }
-        }
-
-        Patrocinador patrocinador = proyecto.getPatrocinador();
-        String patrocinadorEntidad = patrocinador != null ? patrocinador.getEntidad() : null;
-
-        List<ObjetivoEspecifico> objetivosEspecificos = proyecto.getObjetivosEspecificos() == null
-                ? List.of()
-                : proyecto.getObjetivosEspecificos().stream()
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(ObjetivoEspecifico::getOrden, Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
-
-        List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
-        ActaCierrePdfGenerator.ActaCierrePdfData actaData = new ActaCierrePdfGenerator.ActaCierrePdfData(
-                proyecto.getId(),
-                proyecto.getNombre(),
-                patrocinador != null ? patrocinador.getNombre() : null,
-                patrocinador != null ? patrocinador.getCargo() : null,
-                patrocinadorEntidad,
-                directorNombre,
-                directorCargo,
-                directorEntidad,
-                formatDate(proyecto.getFechaInicio()),
-                formatDate(corteCalculo),
-                calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
-                proyecto.getObjetivoGeneral(),
-                objetivosEspecificos.stream()
-                        .map(ObjetivoEspecifico::getDescripcion)
-                        .filter(value -> value != null && !value.isBlank())
-                        .toList(),
-                request.resumenEjecutivo(),
-                request.leccionesPositivas(),
-                request.leccionesMejorar(),
-                request.recomendaciones(),
-                request.transferenciaActividad(),
-                formatDate(transferenciaFecha),
-                request.transferenciaUbicacionEvidencia(),
-                formatPercent(avanceFinal),
-                formatPercent(snapshot != null ? snapshot.progresoProgramado() : BigDecimal.ZERO),
-                formatPercent(snapshot != null ? snapshot.progresoEjecutado() : BigDecimal.ZERO),
-                formatPercent(snapshot != null ? snapshot.diferencia() : BigDecimal.ZERO),
-                formatRatio(snapshot != null ? snapshot.eficacia() : BigDecimal.ZERO),
-                snapshot != null ? snapshot.estado() : "SIN_DATOS",
-                entregables,
-                List.of(),
-                List.of()
-        );
+        ActaCierrePdfGenerator.ActaCierrePdfData actaData = buildActaDataExtraordinario(
+                projectId, proyecto, request, snapshot, corteCalculo, avanceFinal);
         byte[] docxBytes = docxGenerator.build(actaData);
         String nombreArchivo = buildActaFileName(projectId, fechaCierre, EXT_DOCX);
         String rutaArchivo = STORAGE_SUBDIR;
         String storedFileName = storageProvider.storeBytes(docxBytes, rutaArchivo, nombreArchivo);
 
         try {
-            actaCierreRepository.findByProyectoId(projectId)
-                    .ifPresent(actaCierreRepository::delete);
-
-            ActaCierre acta = new ActaCierre(
-                    proyecto,
-                    request.resumenEjecutivo() != null ? request.resumenEjecutivo() : "Cierre extraordinario sin resumen",
-                    fechaCierre,
-                    avanceFinal
-            );
-            if (snapshot != null) {
-                acta.setProgresoProgramadoFinal(snapshot.progresoProgramado());
-                acta.setProgresoEjecutadoFinal(snapshot.progresoEjecutado());
-                acta.setDiferenciaFinal(snapshot.diferencia());
-                acta.setEficaciaFinal(snapshot.eficacia());
-                acta.setEstadoFinal(snapshot.estado());
-                acta.setCorteCalculo(snapshot.corte());
-            }
-            acta.setSnapshotJson(snapshotJson);
-            acta.setArchivoDocx(storedFileName);
-            acta.setRutaArchivoDocx(rutaArchivo);
-
-            actaCierreRepository.save(acta);
-
-            proyecto.setAvanceTotal(avanceFinal);
-            proyecto.setEstado(EstadoProyecto.CERRADO_FORZOSO);
-            proyecto.setEstadoConfig(null);
-            proyecto.setCierreEstado("EXTRAORDINARIO");
-            proyecto.setCierreSolicitado(false);
-            proyecto.setCierreObservaciones("Cierre extraordinario realizado por " + actorUsername);
-            proyectoRepository.save(proyecto);
-
-            notificationPublisher.publish(new NotificationContext(
-                    NotificationEventType.PROJECT_CLOSED,
-                    projectId,
-                    actorUsername,
-                    java.util.Map.of(
-                            KEY_PROJECT_NAME, proyecto.getNombre(),
-                            "state", proyecto.getEstadoCodigo(),
-                            "extraordinaryClosure", "true",
-                            KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
-                    )));
+            guardarActaExtraordinaria(projectId, proyecto, request, snapshot, fechaCierre,
+                    avanceFinal, snapshotJson, storedFileName, rutaArchivo, actorUsername);
         } catch (RuntimeException ex) {
-            log.error("[CierreExtraordinario] Error executing extraordinary closure for project {}: {}", projectId, ex.getMessage(), ex);
             storageProvider.deleteFile(rutaArchivo, storedFileName);
             throw ex;
         }
@@ -544,7 +440,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
             return draftDocx;
         }
 
-        ActaCierre acta = actaCierreRepository.findByProyectoId(projectId).orElse(null);
+        ActaCierre acta = actaCierreRepositoryPort.findByProyectoId(projectId).orElse(null);
 
         if (acta != null) {
             if (acta.getArchivoDocx() != null && acta.getRutaArchivoDocx() != null) {
@@ -573,111 +469,36 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     }
 
     private Resource generarBorradorDocxSiExiste(String projectId) {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException(MSG_PROYECTO_NO_ENCONTRADO + projectId));
 
         CierreProyectoRequest request = buildRequestFromSavedAnswers(projectId);
 
-        LocalDate corteCalculo = LocalDate.now();
-        LocalDate transferenciaFecha = (request != null && request.transferenciaFecha() != null) 
-                ? request.transferenciaFecha() : corteCalculo;
+        LocalDate corteCalculo = LocalDate.now(ZoneId.systemDefault());
+        LocalDate transferenciaFecha = resolveTransferenciaFecha(request, corteCalculo);
 
-        SeguridadUsuarioProyecto directorAsignado = usuarioProyectoRepository
-                .findActiveDirectorAssignmentsByProyectoId(projectId)
-                .stream()
-                .findFirst()
-                .orElse(null);
-
+        DirectorInfo director = resolveDirectorBorrador(projectId, proyecto);
         Patrocinador patrocinador = proyecto.getPatrocinador();
-        String directorEntidad = null;
-        String directorCargo = null;
-        String directorNombre = proyecto.getDirector();
-        if (directorAsignado != null) {
-            directorCargo = directorAsignado.getCargo();
-            if (directorAsignado.getUsuario() != null) {
-                directorNombre = directorAsignado.getUsuario().getNombre();
-                directorEntidad = firstNonBlank(directorAsignado.getUsuario().getDependencia(), proyecto.getDependencia());
-            } else {
-                directorEntidad = proyecto.getDependencia();
-            }
-        }
         String patrocinadorEntidad = patrocinador != null ? patrocinador.getEntidad() : null;
 
-        List<ObjetivoEspecifico> objetivosEspecificos = proyecto.getObjetivosEspecificos() == null
-                ? List.of()
-                : proyecto.getObjetivosEspecificos().stream()
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(ObjetivoEspecifico::getOrden, Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
+        List<ObjetivoEspecifico> objetivosEspecificos = ordenarObjetivos(proyecto);
 
         List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
 
-        ProyectoAvanceResponseDTO snapshot = null;
-        try {
-            snapshot = metricsService.construir(proyecto, corteCalculo);
-        } catch (Exception e) {
-            log.warn("Error construyendo metricas en borrador: {}", e.getMessage());
-        }
-        
-        BigDecimal avanceTotal = proyecto.getAvanceTotal() != null ? proyecto.getAvanceTotal() : BigDecimal.ZERO;
-        BigDecimal pProg = snapshot != null ? snapshot.progresoProgramado() : BigDecimal.ZERO;
-        BigDecimal pEjec = snapshot != null ? snapshot.progresoEjecutado() : BigDecimal.ZERO;
-        BigDecimal diff = snapshot != null ? snapshot.diferencia() : BigDecimal.ZERO;
-        BigDecimal ef = snapshot != null ? snapshot.eficacia() : BigDecimal.ZERO;
-        String estado = snapshot != null ? snapshot.estado() : "SIN_DATOS";
+        ProyectoAvanceResponseDTO snapshot = construirSnapshotBorrador(proyecto, corteCalculo);
 
-        ActaCierrePdfGenerator.ActaCierrePdfData actaData = new ActaCierrePdfGenerator.ActaCierrePdfData(
-                proyecto.getId(),
-                proyecto.getNombre(),
-                patrocinador != null ? patrocinador.getNombre() : null,
-                patrocinador != null ? patrocinador.getCargo() : null,
-                patrocinadorEntidad,
-                directorNombre,
-                directorCargo,
-                directorEntidad,
-                formatDate(proyecto.getFechaInicio()),
-                formatDate(corteCalculo),
-                calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
-                proyecto.getObjetivoGeneral(),
-                objetivosEspecificos.stream()
-                        .map(ObjetivoEspecifico::getDescripcion)
-                        .filter(value -> value != null && !value.isBlank())
-                        .toList(),
-                request != null ? request.resumenEjecutivo() : null,
-                request != null ? request.leccionesPositivas() : null,
-                request != null ? request.leccionesMejorar() : null,
-                request != null ? request.recomendaciones() : null,
-                request != null ? request.transferenciaActividad() : null,
-                formatDate(transferenciaFecha),
-                request != null ? request.transferenciaUbicacionEvidencia() : null,
-                formatPercent(avanceTotal),
-                formatPercent(pProg),
-                formatPercent(pEjec),
-                formatPercent(diff),
-                formatRatio(ef),
-                estado,
-                entregables,
-                List.of(),
-                List.of()
-        );
+        ActaCierrePdfGenerator.ActaCierrePdfData actaData = buildActaDataBorrador(proyecto, request, patrocinador,
+                patrocinadorEntidad, director, objetivosEspecificos, entregables, snapshot, corteCalculo, transferenciaFecha);
 
-        try {
-            byte[] docxBytes = docxGenerator.build(actaData);
-            return new org.springframework.core.io.ByteArrayResource(docxBytes) {
-                @Override
-                public String getFilename() {
-                    return "acta_cierre_" + projectId + EXT_DOCX;
-                }
-            };
-        } catch (Exception ex) {
-            log.error("Error generando DOCX borrador: {}", ex.getMessage());
-            return null;
-        }
+        return buildResourceBorrador(actaData, projectId);
     }
 
     private String buildPublicEvidenceUrl(String token) {
         String base = publicUrlProperties.getBase();
-        String normalized = (base == null) ? "" : base.replaceAll("/+$", "");
+        String normalized = (base == null) ? "" : base;
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
         return normalized + "/api/v1/public/evidencia/" + token;
     }
 
@@ -685,40 +506,13 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         List<ActaCierrePdfGenerator.EntregableActaItem> entregables = new ArrayList<>();
 
         List<Fase> fases = proyecto.getFases() == null ? List.of() : proyecto.getFases();
-        fases.stream()
-                .filter(Objects::nonNull)
-                .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
-                .forEach(fase -> {
-                    List<Hito> hitos = fase.getHitos() == null ? List.of() : fase.getHitos();
-                    hitos.stream()
-                            .filter(Objects::nonNull)
-                            .sorted(ProjectHierarchyOrdering.HITOS_BY_ORDEN)
-                            .forEach(hito -> {
-                                List<Entregable> items = hito.getEntregables() == null ? List.of() : hito.getEntregables();
-                                items.stream()
-                                        .filter(Objects::nonNull)
-                                        .sorted(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)
-                                        .forEach(entregable -> {
-                                            String evidenciaUrl = "";
-                                            if (entregable.getArchivoPdf() != null && !entregable.getArchivoPdf().isBlank()) {
-                                                try {
-                                                    String token = publicEvidenceAccessService.getOrCreateToken(entregable, "system");
-                                                    evidenciaUrl = buildPublicEvidenceUrl(token);
-                                                } catch (Exception ex) {
-                                                    log.warn("No se pudo generar token de evidencia para entregable {}: {}", entregable.getId(), ex.getMessage());
-                                                }
-                                            }
-                                            entregables.add(new ActaCierrePdfGenerator.EntregableActaItem(
-                                                    entregable.getNombre(),
-                                                    formatDate(entregable.getFechaEntregaReal() != null ? entregable.getFechaEntregaReal() : entregable.getFechaLimite()),
-                                                    entregable.getArchivoPdf() != null ? "Si" : "No",
-                                                    evidenciaUrl,
-                                                    construirEstadoEntregable(entregable, corteCalculo),
-                                                    entregable.getDescripcion()
-                                            ));
-                                        });
-                            });
-                });
+        for (Fase fase : ordenarNoNulos(fases, ProjectHierarchyOrdering.FASES_BY_ORDEN)) {
+            for (Hito hito : ordenarNoNulos(fase.getHitos(), ProjectHierarchyOrdering.HITOS_BY_ORDEN)) {
+                for (Entregable entregable : ordenarNoNulos(hito.getEntregables(), ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN)) {
+                    entregables.add(construirItemEntregableActa(entregable, corteCalculo));
+                }
+            }
+        }
 
         return entregables;
     }
@@ -764,6 +558,382 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         return String.valueOf(Math.max(months, 0L));
     }
 
+    private String serializeSnapshot(ProyectoAvanceResponseDTO snapshot) {
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (Exception ex) {
+            throw new IllegalStateException("No fue posible persistir el snapshot de avance del acta de cierre.", ex);
+        }
+    }
+
+    private DirectorInfo resolveDirectorExtraordinario(String projectId, Proyecto proyecto) {
+        SeguridadUsuarioProyecto directorAsignado = usuarioProyectoRepositoryPort
+                .findActiveDirectorAssignmentsByProyectoId(projectId)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        String directorNombre = proyecto.getDirector();
+        String directorCargo = null;
+        String directorEntidad = proyecto.getDependencia();
+        if (directorAsignado != null) {
+            directorCargo = directorAsignado.getCargo();
+            if (directorAsignado.getUsuario() != null) {
+                directorNombre = directorAsignado.getUsuario().getNombre();
+                directorEntidad = firstNonBlank(directorAsignado.getUsuario().getDependencia(), proyecto.getDependencia());
+            }
+        }
+        return new DirectorInfo(directorNombre, directorCargo, directorEntidad);
+    }
+
+    private DirectorInfo resolveDirectorBorrador(String projectId, Proyecto proyecto) {
+        SeguridadUsuarioProyecto directorAsignado = usuarioProyectoRepositoryPort
+                .findActiveDirectorAssignmentsByProyectoId(projectId)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        String directorEntidad = null;
+        String directorCargo = null;
+        String directorNombre = proyecto.getDirector();
+        if (directorAsignado != null) {
+            directorCargo = directorAsignado.getCargo();
+            if (directorAsignado.getUsuario() != null) {
+                directorNombre = directorAsignado.getUsuario().getNombre();
+                directorEntidad = firstNonBlank(directorAsignado.getUsuario().getDependencia(), proyecto.getDependencia());
+            } else {
+                directorEntidad = proyecto.getDependencia();
+            }
+        }
+        return new DirectorInfo(directorNombre, directorCargo, directorEntidad);
+    }
+
+    private List<ObjetivoEspecifico> ordenarObjetivos(Proyecto proyecto) {
+        return proyecto.getObjetivosEspecificos() == null
+                ? List.of()
+                : proyecto.getObjetivosEspecificos().stream()
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(ObjetivoEspecifico::getOrden, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    private SnapshotFields formatSnapshotFields(ProyectoAvanceResponseDTO snapshot) {
+        if (snapshot == null) {
+            return new SnapshotFields(
+                    formatPercent(BigDecimal.ZERO),
+                    formatPercent(BigDecimal.ZERO),
+                    formatPercent(BigDecimal.ZERO),
+                    formatRatio(BigDecimal.ZERO),
+                    "SIN_DATOS");
+        }
+        return new SnapshotFields(
+                formatPercent(snapshot.progresoProgramado()),
+                formatPercent(snapshot.progresoEjecutado()),
+                formatPercent(snapshot.diferencia()),
+                formatRatio(snapshot.eficacia()),
+                snapshot.estado());
+    }
+
+    private RequestFields nullSafeRequestFields(CierreProyectoRequest request) {
+        if (request == null) {
+            return new RequestFields(null, null, null, null, null, null);
+        }
+        return new RequestFields(
+                request.resumenEjecutivo(),
+                request.leccionesPositivas(),
+                request.leccionesMejorar(),
+                request.recomendaciones(),
+                request.transferenciaActividad(),
+                request.transferenciaUbicacionEvidencia());
+    }
+
+    private void applyActaSnapshot(ActaCierre acta, ProyectoAvanceResponseDTO snapshot, String snapshotJson,
+                                   String storedFileName, String rutaArchivo) {
+        if (snapshot != null) {
+            acta.setProgresoProgramadoFinal(snapshot.progresoProgramado());
+            acta.setProgresoEjecutadoFinal(snapshot.progresoEjecutado());
+            acta.setDiferenciaFinal(snapshot.diferencia());
+            acta.setEficaciaFinal(snapshot.eficacia());
+            acta.setEstadoFinal(snapshot.estado());
+            acta.setCorteCalculo(snapshot.corte());
+        }
+        acta.setSnapshotJson(snapshotJson);
+        acta.setArchivoDocx(storedFileName);
+        acta.setRutaArchivoDocx(rutaArchivo);
+    }
+
+    @SuppressWarnings("java:S107")
+    private void guardarActaExtraordinaria(String projectId, Proyecto proyecto, CierreProyectoRequest request,
+                                           ProyectoAvanceResponseDTO snapshot, LocalDateTime fechaCierre,
+                                           BigDecimal avanceFinal, String snapshotJson, String storedFileName,
+                                           String rutaArchivo, String actorUsername) {
+        actaCierreRepositoryPort.findByProyectoId(projectId)
+                .ifPresent(actaCierreRepositoryPort::delete);
+
+        ActaCierre acta = new ActaCierre(
+                proyecto,
+                request.resumenEjecutivo() != null ? request.resumenEjecutivo() : "Cierre extraordinario sin resumen",
+                fechaCierre,
+                avanceFinal
+        );
+        applyActaSnapshot(acta, snapshot, snapshotJson, storedFileName, rutaArchivo);
+
+        actaCierreRepositoryPort.save(acta);
+
+        proyecto.setAvanceTotal(avanceFinal);
+        proyecto.setEstadoConfig(estadoProyectoConfig("CERRADO_FORZOSO"));
+        proyecto.setCierreEstado("EXTRAORDINARIO");
+        proyecto.setCierreSolicitado(false);
+        proyecto.setCierreObservaciones("Cierre extraordinario realizado por " + actorUsername);
+        proyectoRepositoryPort.save(proyecto);
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_CLOSED,
+                projectId,
+                actorUsername,
+                java.util.Map.of(
+                        KEY_PROJECT_NAME, proyecto.getNombre(),
+                        "state", proyecto.getEstadoCodigo(),
+                        "extraordinaryClosure", "true",
+                        KEY_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto)
+                )));
+    }
+
+    private ActaCierrePdfGenerator.ActaCierrePdfData buildActaDataExtraordinario(String projectId, Proyecto proyecto,
+            CierreProyectoRequest request, ProyectoAvanceResponseDTO snapshot, LocalDate corteCalculo, BigDecimal avanceFinal) {
+        DirectorInfo director = resolveDirectorExtraordinario(projectId, proyecto);
+
+        Patrocinador patrocinador = proyecto.getPatrocinador();
+        String patrocinadorEntidad = patrocinador != null ? patrocinador.getEntidad() : null;
+
+        List<ObjetivoEspecifico> objetivosEspecificos = ordenarObjetivos(proyecto);
+        List<ActaCierrePdfGenerator.EntregableActaItem> entregables = construirEntregablesActa(proyecto, corteCalculo);
+        SnapshotFields snapshotFields = formatSnapshotFields(snapshot);
+
+        return new ActaCierrePdfGenerator.ActaCierrePdfData(
+                proyecto.getId(),
+                proyecto.getNombre(),
+                patrocinador != null ? patrocinador.getNombre() : null,
+                patrocinador != null ? patrocinador.getCargo() : null,
+                patrocinadorEntidad,
+                director.nombre(),
+                director.cargo(),
+                director.entidad(),
+                formatDate(proyecto.getFechaInicio()),
+                formatDate(corteCalculo),
+                calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
+                proyecto.getObjetivoGeneral(),
+                objetivosEspecificos.stream()
+                        .map(ObjetivoEspecifico::getDescripcion)
+                        .filter(value -> value != null && !value.isBlank())
+                        .toList(),
+                request.resumenEjecutivo(),
+                request.leccionesPositivas(),
+                request.leccionesMejorar(),
+                request.recomendaciones(),
+                request.transferenciaActividad(),
+                formatDate(corteCalculo),
+                request.transferenciaUbicacionEvidencia(),
+                formatPercent(avanceFinal),
+                snapshotFields.progresoProgramado(),
+                snapshotFields.progresoEjecutado(),
+                snapshotFields.diferencia(),
+                snapshotFields.eficacia(),
+                snapshotFields.estado(),
+                entregables,
+                List.of(),
+                List.of()
+        );
+    }
+
+    @SuppressWarnings("java:S107")
+    private ActaCierrePdfGenerator.ActaCierrePdfData buildActaDataBorrador(Proyecto proyecto, CierreProyectoRequest request,
+            Patrocinador patrocinador, String patrocinadorEntidad, DirectorInfo director,
+            List<ObjetivoEspecifico> objetivosEspecificos, List<ActaCierrePdfGenerator.EntregableActaItem> entregables,
+            ProyectoAvanceResponseDTO snapshot, LocalDate corteCalculo, LocalDate transferenciaFecha) {
+        BigDecimal avanceTotal = proyecto.getAvanceTotal() != null ? proyecto.getAvanceTotal() : BigDecimal.ZERO;
+        SnapshotFields snapshotFields = formatSnapshotFields(snapshot);
+        RequestFields requestFields = nullSafeRequestFields(request);
+
+        return new ActaCierrePdfGenerator.ActaCierrePdfData(
+                proyecto.getId(),
+                proyecto.getNombre(),
+                patrocinador != null ? patrocinador.getNombre() : null,
+                patrocinador != null ? patrocinador.getCargo() : null,
+                patrocinadorEntidad,
+                director.nombre(),
+                director.cargo(),
+                director.entidad(),
+                formatDate(proyecto.getFechaInicio()),
+                formatDate(corteCalculo),
+                calculateDurationMonths(proyecto.getFechaInicio(), corteCalculo),
+                proyecto.getObjetivoGeneral(),
+                objetivosEspecificos.stream()
+                        .map(ObjetivoEspecifico::getDescripcion)
+                        .filter(value -> value != null && !value.isBlank())
+                        .toList(),
+                requestFields.resumenEjecutivo(),
+                requestFields.leccionesPositivas(),
+                requestFields.leccionesMejorar(),
+                requestFields.recomendaciones(),
+                requestFields.transferenciaActividad(),
+                formatDate(transferenciaFecha),
+                requestFields.transferenciaUbicacion(),
+                formatPercent(avanceTotal),
+                snapshotFields.progresoProgramado(),
+                snapshotFields.progresoEjecutado(),
+                snapshotFields.diferencia(),
+                snapshotFields.eficacia(),
+                snapshotFields.estado(),
+                entregables,
+                List.of(),
+                List.of()
+        );
+    }
+
+    private LocalDate resolveTransferenciaFecha(CierreProyectoRequest request, LocalDate corteCalculo) {
+        return (request != null && request.transferenciaFecha() != null)
+                ? request.transferenciaFecha() : corteCalculo;
+    }
+
+    private ProyectoAvanceResponseDTO construirSnapshotBorrador(Proyecto proyecto, LocalDate corteCalculo) {
+        try {
+            return metricsService.construir(proyecto, corteCalculo);
+        } catch (Exception e) {
+            log.warn("Error construyendo metricas en borrador: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private Resource buildResourceBorrador(ActaCierrePdfGenerator.ActaCierrePdfData actaData, String projectId) {
+        try {
+            byte[] docxBytes = docxGenerator.build(actaData);
+            return new org.springframework.core.io.ByteArrayResource(docxBytes) {
+                @Override
+                public String getFilename() {
+                    return "acta_cierre_" + projectId + EXT_DOCX;
+                }
+            };
+        } catch (Exception ex) {
+            log.error("Error generando DOCX borrador: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private <T> List<T> ordenarNoNulos(List<T> items, Comparator<T> comparator) {
+        List<T> source = items == null ? List.of() : items;
+        return source.stream()
+                .filter(Objects::nonNull)
+                .sorted(comparator)
+                .toList();
+    }
+
+    private String construirUrlEvidencia(Entregable entregable) {
+        if (entregable.getArchivoPdf() == null || entregable.getArchivoPdf().isBlank()) {
+            return "";
+        }
+        try {
+            String token = publicEvidenceAccessService.getOrCreateToken(entregable, "system");
+            return buildPublicEvidenceUrl(token);
+        } catch (Exception ex) {
+            log.warn("No se pudo generar token de evidencia para entregable {}: {}", entregable.getId(), ex.getMessage());
+            return "";
+        }
+    }
+
+    private ActaCierrePdfGenerator.EntregableActaItem construirItemEntregableActa(Entregable entregable, LocalDate corteCalculo) {
+        String evidenciaUrl = construirUrlEvidencia(entregable);
+        return new ActaCierrePdfGenerator.EntregableActaItem(
+                entregable.getNombre(),
+                formatDate(entregable.getFechaEntregaReal() != null ? entregable.getFechaEntregaReal() : entregable.getFechaLimite()),
+                entregable.getArchivoPdf() != null ? "Si" : "No",
+                evidenciaUrl,
+                construirEstadoEntregable(entregable, corteCalculo),
+                entregable.getDescripcion()
+        );
+    }
+
+    private TransferenciaFields parseTransferencia(String transferenciaRaw, String projectId) {
+        if (transferenciaRaw == null || !transferenciaRaw.startsWith("[")) {
+            return new TransferenciaFields(transferenciaRaw, null, "Evidencia en el sistema");
+        }
+
+        String transferenciaActividad = transferenciaRaw;
+        LocalDate transferenciaFecha = null;
+        String transferenciaUbicacion = "Evidencia en el sistema";
+
+        try {
+            com.fasterxml.jackson.databind.JsonNode entries = objectMapper.readTree(transferenciaRaw);
+            StringBuilder sb = new StringBuilder();
+            StringBuilder fechas = new StringBuilder();
+            StringBuilder evidencias = new StringBuilder();
+            for (com.fasterxml.jackson.databind.JsonNode entry : entries) {
+                TransferenciaEntry data = readTransferenciaEntry(entry);
+                acumularActividadTransferencia(data.act(), sb);
+                acumularFechaTransferencia(data.fecha(), fechas);
+                acumularEvidenciaTransferencia(data.evidencia(), data.storedName(), evidencias);
+            }
+            if (!sb.isEmpty()) transferenciaActividad = sb.toString();
+            if (!fechas.isEmpty()) {
+                transferenciaFecha = parseFechaTransferencia(fechas.toString(), projectId);
+            }
+            if (!evidencias.isEmpty()) transferenciaUbicacion = evidencias.toString();
+        } catch (Exception ex) {
+            // CWE-390: sin respuestas de cierre no se puede armar el resumen;
+            // el fallo se registra para que el borrador no quede vacio sin rastro.
+            log.warn("No se pudieron leer las respuestas de cierre del proyecto {}: {}",
+                    projectId, ex.toString());
+        }
+
+        return new TransferenciaFields(transferenciaActividad, transferenciaFecha, transferenciaUbicacion);
+    }
+
+    private TransferenciaEntry readTransferenciaEntry(com.fasterxml.jackson.databind.JsonNode entry) {
+        String act = entry.has("actividad") ? entry.get("actividad").asText("") : "";
+        String fecha = entry.has("fecha") ? entry.get("fecha").asText("") : "";
+        String evidencia = entry.has("evidenciaNombre") ? entry.get("evidenciaNombre").asText("") : "";
+        String storedName = entry.has("evidenciaStoredName") ? entry.get("evidenciaStoredName").asText("") : "";
+        return new TransferenciaEntry(act, fecha, evidencia, storedName);
+    }
+
+    private void acumularActividadTransferencia(String act, StringBuilder sb) {
+        if (act.isBlank()) {
+            return;
+        }
+        if (!sb.isEmpty()) {
+            sb.append("\n---\n");
+        }
+        sb.append(act);
+    }
+
+    private void acumularFechaTransferencia(String fecha, StringBuilder fechas) {
+        if (fecha.isBlank()) {
+            return;
+        }
+        if (!fechas.isEmpty()) {
+            fechas.append(";");
+        }
+        fechas.append(fecha);
+    }
+
+    private void acumularEvidenciaTransferencia(String evidencia, String storedName, StringBuilder evidencias) {
+        if (evidencia.isBlank()) {
+            return;
+        }
+        if (!evidencias.isEmpty()) {
+            evidencias.append(";");
+        }
+        evidencias.append(storedName.isEmpty() ? evidencia : storedName);
+    }
+
+    private void registrarRespuestasVacias(String projectId, String resumenEjecutivo, String leccionesPositivas,
+            String leccionesMejorar, String recomendaciones, String transferenciaActividad) {
+        if (resumenEjecutivo.isBlank() || leccionesPositivas.isBlank() || leccionesMejorar.isBlank()
+                || recomendaciones.isBlank() || (transferenciaActividad != null && transferenciaActividad.isBlank())) {
+            log.warn("El acta de cierre del proyecto {} tiene respuestas vacias en uno o mas campos obligatorios.", projectId);
+        }
+    }
+
     private String firstNonBlank(String first, String second) {
         if (first != null && !first.isBlank()) {
             return first;
@@ -775,8 +945,8 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
     }
 
     private CierreProyectoRequest buildRequestFromSavedAnswers(String projectId) {
-        List<com.proyecta.api_gestion.model.closure.ClosureAnswer> answers =
-                closureAnswerRepository.findByProyectoIdOrderByQuestion_OrdenAsc(projectId);
+        List<com.proyecta.api_gestion.domain.model.closure.ClosureAnswer> answers =
+                closureAnswerRepositoryPort.findByProyectoIdOrderByQuestionOrdenAsc(projectId);
 
         String resumenEjecutivo = findAnswerByOrderOrKeyword(answers, 1, "resumen");
         String leccionesPositivas = findAnswerByOrderOrKeyword(answers, 2, "positivo");
@@ -784,60 +954,19 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         String recomendaciones = findAnswerByOrderOrKeyword(answers, 4, "recomend");
         String transferenciaRaw = findAnswerByOrderOrKeyword(answers, 5, "transfer");
 
-        String transferenciaActividad = transferenciaRaw;
-        LocalDate transferenciaFecha = null;
-        String transferenciaUbicacion = "Evidencia en el sistema";
+        TransferenciaFields transferencia = parseTransferencia(transferenciaRaw, projectId);
 
-        try {
-            if (transferenciaRaw != null && transferenciaRaw.startsWith("[")) {
-                com.fasterxml.jackson.databind.JsonNode entries = objectMapper.readTree(transferenciaRaw);
-                StringBuilder sb = new StringBuilder();
-                StringBuilder fechas = new StringBuilder();
-                StringBuilder evidencias = new StringBuilder();
-                for (com.fasterxml.jackson.databind.JsonNode entry : entries) {
-                    String act = entry.has("actividad") ? entry.get("actividad").asText("") : "";
-                    String fecha = entry.has("fecha") ? entry.get("fecha").asText("") : "";
-                    String evidencia = entry.has("evidenciaNombre") ? entry.get("evidenciaNombre").asText("") : "";
-                    String storedName = entry.has("evidenciaStoredName") ? entry.get("evidenciaStoredName").asText("") : "";
-                    if (!act.isBlank()) {
-                        if (!sb.isEmpty()) sb.append("\n---\n");
-                        sb.append(act);
-                    }
-                    if (!fecha.isBlank()) {
-                        if (!fechas.isEmpty()) fechas.append(";");
-                        fechas.append(fecha);
-                    }
-                    if (!evidencia.isBlank()) {
-                        if (!evidencias.isEmpty()) evidencias.append(";");
-                        evidencias.append(storedName.isEmpty() ? evidencia : storedName);
-                    }
-                }
-                if (!sb.isEmpty()) transferenciaActividad = sb.toString();
-                if (!fechas.isEmpty()) {
-                    transferenciaFecha = parseFechaTransferencia(fechas.toString(), projectId);
-                }
-                if (!evidencias.isEmpty()) transferenciaUbicacion = evidencias.toString();
-            }
-        } catch (Exception ex) {
-            // CWE-390: sin respuestas de cierre no se puede armar el resumen;
-            // el fallo se registra para que el borrador no quede vacio sin rastro.
-            log.warn("No se pudieron leer las respuestas de cierre del proyecto {}: {}",
-                    projectId, ex.toString());
-        }
-
-        if (resumenEjecutivo.isBlank() || leccionesPositivas.isBlank() || leccionesMejorar.isBlank()
-                || recomendaciones.isBlank() || (transferenciaActividad != null && transferenciaActividad.isBlank())) {
-            log.warn("El acta de cierre del proyecto {} tiene respuestas vacias en uno o mas campos obligatorios.", projectId);
-        }
+        registrarRespuestasVacias(projectId, resumenEjecutivo, leccionesPositivas, leccionesMejorar,
+                recomendaciones, transferencia.actividad());
 
         return new CierreProyectoRequest(
                 resumenEjecutivo,
                 leccionesPositivas,
                 leccionesMejorar,
                 recomendaciones,
-                transferenciaActividad,
-                transferenciaFecha,
-                transferenciaUbicacion,
+                transferencia.actividad(),
+                transferencia.fecha(),
+                transferencia.ubicacion(),
                 null,
                 null
         );
@@ -869,7 +998,7 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
         );
     }
 
-    private String findAnswerByOrderOrKeyword(List<com.proyecta.api_gestion.model.closure.ClosureAnswer> answers, int order, String keyword) {
+    private String findAnswerByOrderOrKeyword(List<com.proyecta.api_gestion.domain.model.closure.ClosureAnswer> answers, int order, String keyword) {
         if (answers == null || answers.isEmpty()) {
             return "";
         }
@@ -893,7 +1022,25 @@ public class ProjectClosureServiceImpl implements ProjectClosureService {
                 .orElse("");
     }
 
-    private String safeAnswer(com.proyecta.api_gestion.model.closure.ClosureAnswer answer) {
+    private String safeAnswer(com.proyecta.api_gestion.domain.model.closure.ClosureAnswer answer) {
         return answer == null || answer.getRespuesta() == null ? "" : answer.getRespuesta().trim();
     }
+
+    private record DirectorInfo(String nombre, String cargo, String entidad) {
+    }
+
+    private record SnapshotFields(String progresoProgramado, String progresoEjecutado, String diferencia,
+                                  String eficacia, String estado) {
+    }
+
+    private record RequestFields(String resumenEjecutivo, String leccionesPositivas, String leccionesMejorar,
+                                 String recomendaciones, String transferenciaActividad, String transferenciaUbicacion) {
+    }
+
+    private record TransferenciaFields(String actividad, LocalDate fecha, String ubicacion) {
+    }
+
+    private record TransferenciaEntry(String act, String fecha, String evidencia, String storedName) {
+    }
 }
+

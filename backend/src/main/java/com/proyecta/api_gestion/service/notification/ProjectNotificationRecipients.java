@@ -1,6 +1,6 @@
 package com.proyecta.api_gestion.service.notification;
 
-import com.proyecta.api_gestion.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.Proyecto;
 
 import java.util.ArrayList;
 import java.util.List;

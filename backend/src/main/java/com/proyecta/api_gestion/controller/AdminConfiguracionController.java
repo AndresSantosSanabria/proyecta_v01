@@ -14,8 +14,8 @@ import com.proyecta.api_gestion.service.security.dynamic.SecurityAdministrationS
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.proyecta.api_gestion.adapter.in.web.PageSupport;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -53,10 +53,13 @@ public class AdminConfiguracionController {
             @Parameter(description = "Texto de búsqueda por nombre o correo") @RequestParam(required = false) String search,
             @Parameter(description = "Filtra por código de rol") @RequestParam(required = false) String rol,
             Authentication authentication,
-            Pageable pageable) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "sort", required = false) List<String> sort) {
         securityAdministrationService.sincronizarUsuarioAutenticado(authentication);
         return ResponseEntity.ok(ApiResponse.success(
-                securityAdministrationService.listarUsuarios(search, rol, pageable),
+                PageSupport.toPage(securityAdministrationService.listarUsuarios(
+                        search, rol, PageSupport.fromParams(page, size, sort, 20))),
                 "Usuarios listados correctamente"));
     }
 

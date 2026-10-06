@@ -21,10 +21,7 @@ import java.time.LocalDate;
       "tieneHistorialCambiosFecha": false
     }
     """)
-public class EntregableHierarchyDTO {
-    private Integer id;
-    private Short numero;
-    private String nombre;
+public class EntregableHierarchyDTO extends HierarchyItemDTO {
     private BigDecimal ponderacion;
     private Boolean conforme;
     private LocalDate fechaInicio;
@@ -36,11 +33,10 @@ public class EntregableHierarchyDTO {
 
     public EntregableHierarchyDTO() {}
 
+    @SuppressWarnings("java:S107")
     public EntregableHierarchyDTO(Integer id, Short numero, String nombre, BigDecimal ponderacion,
                                    Boolean conforme, LocalDate fechaInicio, LocalDate fechaEntrega, String estado, Integer diasDiferencia) {
-        this.id = id;
-        this.numero = numero;
-        this.nombre = nombre;
+        super(id, numero, nombre);
         this.ponderacion = ponderacion;
         this.conforme = conforme;
         this.fechaInicio = fechaInicio;
@@ -50,12 +46,6 @@ public class EntregableHierarchyDTO {
     }
 
     // Getters and Setters
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-    public Short getNumero() { return numero; }
-    public void setNumero(Short numero) { this.numero = numero; }
-    public String getNombre() { return nombre; }
-    public void setNombre(String nombre) { this.nombre = nombre; }
     public BigDecimal getPonderacion() { return ponderacion; }
     public void setPonderacion(BigDecimal ponderacion) { this.ponderacion = ponderacion; }
     public Boolean getConforme() { return conforme; }

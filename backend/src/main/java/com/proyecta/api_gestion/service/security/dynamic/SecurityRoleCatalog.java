@@ -54,13 +54,7 @@ public final class SecurityRoleCatalog {
             return ROLE_VISUALIZADOR;
         }
 
-        String cleaned = value.trim();
-        String lower = Normalizer.normalize(cleaned, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toLowerCase()
-                .replaceFirst("^role[\\s_-]+", "")
-                .replaceAll("[^a-z0-9]+", "_")
-                .replaceAll("^_+|_+$", "");
+        String lower = sanitize(value);
 
         if (lower.contains(ROLE_ADMIN)) {
             return ROLE_ADMIN;
@@ -75,8 +69,28 @@ public final class SecurityRoleCatalog {
     }
 
     public static boolean isProtected(String code) {
-        String normalized = normalize(code);
-        return normalized != null && PROTECTED_ROLE_CODES.contains(normalized);
+        if (code == null || code.trim().isBlank()) {
+            return true;
+        }
+        String lower = sanitize(code);
+        if (lower.contains(ROLE_ADMIN)) {
+            return true;
+        }
+        String mapped = ROLE_ALIASES.getOrDefault(lower, lower);
+        return PROTECTED_ROLE_CODES.contains(mapped);
+    }
+
+    private static String sanitize(String value) {
+        String lower = Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase()
+                .replaceFirst("^role[\\s_-]+", "")
+                .replaceAll("[^a-z0-9]+", "_")
+                .replaceAll("^_+", "");
+        while (lower.endsWith("_")) {
+            lower = lower.substring(0, lower.length() - 1);
+        }
+        return lower;
     }
 
     public static boolean isTransversal(String code) {

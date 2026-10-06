@@ -1,6 +1,6 @@
 package com.proyecta.api_gestion.dto.proyecto;
 
-import com.proyecta.api_gestion.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(example = """

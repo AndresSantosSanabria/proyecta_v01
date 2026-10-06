@@ -4,15 +4,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.proyecta.api_gestion.model.Patrocinador;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.ObjetivoEspecifico;
+import com.proyecta.api_gestion.domain.model.Patrocinador;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.ObjetivoEspecifico;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Objects;
@@ -45,6 +46,7 @@ public class TemplateResolver {
     }
 
     public Map<Long, String> extractMissingQuestions(String templateJson, Proyecto proyecto, Map<Long, String> answerMap) {
+        if (proyecto == null) return Map.of();
         try {
             JsonNode root = objectMapper.readTree(templateJson);
             JsonNode secciones = root.get(SECCIONES_KEY);
@@ -52,31 +54,41 @@ public class TemplateResolver {
 
             Map<Long, String> missing = new HashMap<>();
             for (JsonNode seccion : secciones) {
-                if (!TIPO_FORMULARIO.equals(seccion.path(TIPO_SECCION_KEY).asText(TIPO_FORMULARIO))) {
-                    continue;
-                }
-                JsonNode campos = seccion.get("campos");
-                if (campos == null || !campos.isArray()) continue;
-                for (JsonNode campo : campos) {
-                    if (!campo.has(QUESTION_ID_KEY) || campo.get(QUESTION_ID_KEY).isNull()) {
-                        continue;
-                    }
-                    Long questionId = campo.get(QUESTION_ID_KEY).asLong();
-                    if (answerMap.containsKey(questionId) && answerMap.get(questionId) != null && !answerMap.get(questionId).isBlank()) {
-                        continue;
-                    }
-                    String fieldId = campo.path("id").asText("");
-                    if (!fieldId.isBlank() && resolveProjectValue(fieldId, proyecto) != null && !resolveProjectValue(fieldId, proyecto).isBlank()) {
-                        continue;
-                    }
-                    String label = campo.path("label").asText("");
-                    missing.put(questionId, label);
-                }
+                collectMissingFromSeccion(seccion, proyecto, answerMap, missing);
             }
             return missing;
         } catch (JsonProcessingException _) {
             return Map.of();
         }
+    }
+
+    private void collectMissingFromSeccion(JsonNode seccion, Proyecto proyecto, Map<Long, String> answerMap, Map<Long, String> missing) {
+        boolean esFormulario = TIPO_FORMULARIO.equals(seccion.path(TIPO_SECCION_KEY).asText(TIPO_FORMULARIO));
+        JsonNode campos = seccion.get("campos");
+        if (!esFormulario || campos == null || !campos.isArray()) return;
+        for (JsonNode campo : campos) {
+            collectMissingFromCampo(campo, proyecto, answerMap, missing);
+        }
+    }
+
+    private void collectMissingFromCampo(JsonNode campo, Proyecto proyecto, Map<Long, String> answerMap, Map<Long, String> missing) {
+        if (!campo.has(QUESTION_ID_KEY) || campo.get(QUESTION_ID_KEY).isNull()) return;
+        Long questionId = campo.get(QUESTION_ID_KEY).asLong();
+        if (isAnswered(questionId, answerMap)) return;
+        String fieldId = campo.path("id").asText("");
+        String projectValue = resolveProjectValue(fieldId, proyecto);
+        if (isAvailableInProject(fieldId, projectValue)) return;
+        missing.put(questionId, campo.path("label").asText(""));
+    }
+
+    private boolean isAnswered(Long questionId, Map<Long, String> answerMap) {
+        return answerMap.containsKey(questionId)
+                && answerMap.get(questionId) != null
+                && !answerMap.get(questionId).isBlank();
+    }
+
+    private boolean isAvailableInProject(String fieldId, String projectValue) {
+        return !fieldId.isBlank() && projectValue != null && !projectValue.isBlank();
     }
 
     private String resolveTemplate(String templateJson, Map<String, Object> projectValues, Map<Long, String> answerMap) {
@@ -86,40 +98,7 @@ public class TemplateResolver {
             if (secciones == null || !secciones.isArray()) return templateJson;
 
             for (JsonNode seccion : secciones) {
-                if (!seccion.isObject()) {
-                    continue;
-                }
-                ObjectNode sectionNode = (ObjectNode) seccion;
-                String tipo = seccion.has(TIPO_SECCION_KEY) ? seccion.get(TIPO_SECCION_KEY).asText() : TIPO_FORMULARIO;
-                if (!TIPO_FORMULARIO.equals(tipo) && !"tabla".equals(tipo)) {
-                    continue;
-                }
-                if (TIPO_FORMULARIO.equals(tipo)) {
-                    JsonNode campos = seccion.get("campos");
-                    if (campos == null || !campos.isArray()) continue;
-                    for (JsonNode campo : campos) {
-                        if (!campo.isObject()) {
-                            continue;
-                        }
-                        ObjectNode fieldNode = (ObjectNode) campo;
-                        String fieldId = campo.path("id").asText("");
-                        if (!fieldId.isBlank() && projectValues.containsKey(fieldId)) {
-                            Object value = projectValues.get(fieldId);
-                            if (value != null && !String.valueOf(value).isBlank()) {
-                                fieldNode.put("resolvedValue", String.valueOf(value));
-                                fieldNode.put("readonly", true);
-                            }
-                        }
-                        if (campo.has(QUESTION_ID_KEY) && !campo.get(QUESTION_ID_KEY).isNull()) {
-                            Long questionId = campo.get(QUESTION_ID_KEY).asLong();
-                            String answer = answerMap.getOrDefault(questionId, "");
-                            if (answer != null && !answer.isBlank()) {
-                                fieldNode.put("resolvedValue", answer);
-                            }
-                        }
-                    }
-                }
-                sectionNode.put(ORDEN_KEY, seccion.path(ORDEN_KEY).asInt(Integer.MAX_VALUE));
+                processSeccion(seccion, projectValues, answerMap);
             }
 
             sortSections(root);
@@ -128,6 +107,52 @@ public class TemplateResolver {
             log.error("Error resolviendo plantilla: {}", e.getMessage());
             return templateJson;
         }
+    }
+
+    private void processSeccion(JsonNode seccion, Map<String, Object> projectValues, Map<Long, String> answerMap) {
+        if (!seccion.isObject()) return;
+        ObjectNode sectionNode = (ObjectNode) seccion;
+        String tipo = seccion.has(TIPO_SECCION_KEY) ? seccion.get(TIPO_SECCION_KEY).asText() : TIPO_FORMULARIO;
+        boolean esProcesable = TIPO_FORMULARIO.equals(tipo) || "tabla".equals(tipo);
+        if (!esProcesable) return;
+        boolean camposValidos = processCampos(seccion, tipo, projectValues, answerMap);
+        if (camposValidos) {
+            sectionNode.put(ORDEN_KEY, seccion.path(ORDEN_KEY).asInt(Integer.MAX_VALUE));
+        }
+    }
+
+    private boolean processCampos(JsonNode seccion, String tipo, Map<String, Object> projectValues, Map<Long, String> answerMap) {
+        if (!TIPO_FORMULARIO.equals(tipo)) return true;
+        JsonNode campos = seccion.get("campos");
+        if (campos == null || !campos.isArray()) return false;
+        for (JsonNode campo : campos) {
+            processCampo(campo, projectValues, answerMap);
+        }
+        return true;
+    }
+
+    private void processCampo(JsonNode campo, Map<String, Object> projectValues, Map<Long, String> answerMap) {
+        if (!campo.isObject()) return;
+        ObjectNode fieldNode = (ObjectNode) campo;
+        String fieldId = campo.path("id").asText("");
+        applyProjectValue(fieldNode, fieldId, projectValues);
+        applyAnswer(campo, fieldNode, answerMap);
+    }
+
+    private void applyProjectValue(ObjectNode fieldNode, String fieldId, Map<String, Object> projectValues) {
+        if (fieldId.isBlank() || !projectValues.containsKey(fieldId)) return;
+        Object value = projectValues.get(fieldId);
+        if (value == null || String.valueOf(value).isBlank()) return;
+        fieldNode.put("resolvedValue", String.valueOf(value));
+        fieldNode.put("readonly", true);
+    }
+
+    private void applyAnswer(JsonNode campo, ObjectNode fieldNode, Map<Long, String> answerMap) {
+        if (!campo.has(QUESTION_ID_KEY) || campo.get(QUESTION_ID_KEY).isNull()) return;
+        Long questionId = campo.get(QUESTION_ID_KEY).asLong();
+        String answer = answerMap.getOrDefault(questionId, "");
+        if (answer == null || answer.isBlank()) return;
+        fieldNode.put("resolvedValue", answer);
     }
 
     private void sortSections(JsonNode root) {
@@ -159,8 +184,8 @@ public class TemplateResolver {
         values.put("presupuesto_estimado", proyecto.getPresupuestoEstimado() != null ? proyecto.getPresupuestoEstimado().toPlainString() : null);
         values.put("avance_total", projectNumber(proyecto.getAvanceTotal()));
         values.put("estado", proyecto.getEstadoCodigo());
-        values.put("fecha_cierre", formatDate(LocalDate.now()));
-        values.put("duracion_meses", calculateDurationMonths(proyecto.getFechaInicio(), LocalDate.now()));
+        values.put("fecha_cierre", formatDate(LocalDate.now(ZoneId.systemDefault())));
+        values.put("duracion_meses", calculateDurationMonths(proyecto.getFechaInicio(), LocalDate.now(ZoneId.systemDefault())));
         return values;
     }
 
@@ -183,8 +208,8 @@ public class TemplateResolver {
             case "presupuesto_estimado" -> proyecto.getPresupuestoEstimado() != null ? proyecto.getPresupuestoEstimado().toPlainString() : null;
             case "avance_total" -> projectNumber(proyecto.getAvanceTotal());
             case "estado" -> proyecto.getEstadoCodigo();
-            case "fecha_cierre" -> formatDate(LocalDate.now());
-            case "duracion_meses" -> calculateDurationMonths(proyecto.getFechaInicio(), LocalDate.now());
+            case "fecha_cierre" -> formatDate(LocalDate.now(ZoneId.systemDefault()));
+            case "duracion_meses" -> calculateDurationMonths(proyecto.getFechaInicio(), LocalDate.now(ZoneId.systemDefault()));
             default -> null;
         };
     }

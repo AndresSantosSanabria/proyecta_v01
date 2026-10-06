@@ -11,17 +11,17 @@ import com.proyecta.api_gestion.dto.notification.NotificationTemplatePreviewRequ
 import com.proyecta.api_gestion.dto.notification.NotificationTemplatePreviewResponse;
 import com.proyecta.api_gestion.dto.notification.NotificationTemplateUpdateRequest;
 import com.proyecta.api_gestion.dto.notification.NotificationTestSendRequest;
-import com.proyecta.api_gestion.model.notification.NotificationAudit;
-import com.proyecta.api_gestion.model.notification.NotificationEventCatalog;
-import com.proyecta.api_gestion.model.notification.NotificationMailDispatchLog;
-import com.proyecta.api_gestion.model.notification.NotificationPreference;
-import com.proyecta.api_gestion.model.notification.NotificationTemplate;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.notification.NotificationAuditRepository;
-import com.proyecta.api_gestion.repository.notification.NotificationEventCatalogRepository;
-import com.proyecta.api_gestion.repository.notification.NotificationMailDispatchLogRepository;
-import com.proyecta.api_gestion.repository.notification.NotificationTemplateRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.notification.NotificationAudit;
+import com.proyecta.api_gestion.domain.model.notification.NotificationEventCatalog;
+import com.proyecta.api_gestion.domain.model.notification.NotificationMailDispatchLog;
+import com.proyecta.api_gestion.domain.model.notification.NotificationPreference;
+import com.proyecta.api_gestion.domain.model.notification.NotificationTemplate;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.NotificationAuditRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.NotificationEventCatalogRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.NotificationMailDispatchLogRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.NotificationTemplateRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.notification.NotificationPreferenceService;
 import com.proyecta.api_gestion.service.notification.NotificationSenderPort;
 import com.proyecta.api_gestion.service.notification.NotificationTemplateRenderer;
@@ -33,11 +33,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.proyecta.api_gestion.domain.value.PageQuery;
+import com.proyecta.api_gestion.domain.value.PageResult;
+import com.proyecta.api_gestion.domain.value.SortOrder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -77,17 +77,17 @@ public class NotificationAdminController {
     private static final String CHANNEL_EMAIL = "EMAIL";
     private static final String CHANNEL_IN_APP = "IN_APP";
 
-    private final NotificationEventCatalogRepository eventCatalogRepository;
+    private final NotificationEventCatalogRepositoryPort eventCatalogRepositoryPort;
     private final NotificationTemplateService templateService;
     private final NotificationPreferenceService preferenceService;
     private final NotificationTemplateRenderer renderer;
     private final NotificationSenderPort notificationSender;
-    private final SeguridadUsuarioRepository usuarioRepository;
+    private final SeguridadUsuarioRepositoryPort usuarioRepositoryPort;
     private final KeycloakIdentityExtractor identityExtractor;
     private final JavaMailSender javaMailSender;
-    private final NotificationMailDispatchLogRepository mailDispatchLogRepository;
-    private final NotificationAuditRepository auditRepository;
-    private final NotificationTemplateRepository templateRepository;
+    private final NotificationMailDispatchLogRepositoryPort mailDispatchLogRepositoryPort;
+    private final NotificationAuditRepositoryPort auditRepositoryPort;
+    private final NotificationTemplateRepositoryPort templateRepositoryPort;
 
     @Value("${mail.notifications.enabled:true}")
     private boolean notificationsEnabled;
@@ -101,34 +101,35 @@ public class NotificationAdminController {
     @Value("${spring.mail.username:}")
     private String smtpUsername;
 
-    public NotificationAdminController(NotificationEventCatalogRepository eventCatalogRepository,
+    @Autowired
+    public NotificationAdminController(NotificationEventCatalogRepositoryPort eventCatalogRepositoryPort,
                                        NotificationTemplateService templateService,
                                        NotificationPreferenceService preferenceService,
                                        NotificationTemplateRenderer renderer,
                                        NotificationSenderPort notificationSender,
-                                       SeguridadUsuarioRepository usuarioRepository,
+                                       SeguridadUsuarioRepositoryPort usuarioRepositoryPort,
                                        KeycloakIdentityExtractor identityExtractor,
                                        JavaMailSender javaMailSender,
-                                       NotificationMailDispatchLogRepository mailDispatchLogRepository,
-                                       NotificationAuditRepository auditRepository,
-                                       NotificationTemplateRepository templateRepository) {
-        this.eventCatalogRepository = eventCatalogRepository;
+                                       NotificationMailDispatchLogRepositoryPort mailDispatchLogRepositoryPort,
+                                       NotificationAuditRepositoryPort auditRepositoryPort,
+                                       NotificationTemplateRepositoryPort templateRepositoryPort) {
+        this.eventCatalogRepositoryPort = eventCatalogRepositoryPort;
         this.templateService = templateService;
         this.preferenceService = preferenceService;
         this.renderer = renderer;
         this.notificationSender = notificationSender;
-        this.usuarioRepository = usuarioRepository;
+        this.usuarioRepositoryPort = usuarioRepositoryPort;
         this.identityExtractor = identityExtractor;
         this.javaMailSender = javaMailSender;
-        this.mailDispatchLogRepository = mailDispatchLogRepository;
-        this.auditRepository = auditRepository;
-        this.templateRepository = templateRepository;
+        this.mailDispatchLogRepositoryPort = mailDispatchLogRepositoryPort;
+        this.auditRepositoryPort = auditRepositoryPort;
+        this.templateRepositoryPort = templateRepositoryPort;
     }
 
     @Operation(summary = "Listar el catálogo de eventos de notificación")
     @GetMapping("/eventos")
     public ResponseEntity<ApiResponse<List<NotificationEventCatalogDTO>>> listEvents() {
-        var data = eventCatalogRepository.findAll().stream().map(event ->
+        var data = eventCatalogRepositoryPort.findAll().stream().map(event ->
                 new NotificationEventCatalogDTO(event.getCode(), event.getName(), event.getDescription(), event.getCategory(), event.getDefaultEnabled(), event.getActive(), event.getRequiresProjectContext())
         ).toList();
         return ResponseEntity.ok(ApiResponse.success(data, "Eventos de notificacion listados correctamente"));
@@ -138,7 +139,7 @@ public class NotificationAdminController {
     @GetMapping("/plantillas")
     public ResponseEntity<ApiResponse<List<NotificationTemplateDTO>>> listTemplates() {
 
-        Map<String, NotificationEventCatalog> eventMap = eventCatalogRepository.findAll().stream()
+        Map<String, NotificationEventCatalog> eventMap = eventCatalogRepositoryPort.findAll().stream()
                 .collect(Collectors.toMap(NotificationEventCatalog::getCode, e -> e));
 
         List<NotificationTemplateDTO> data = templateService.listAll().stream()
@@ -168,7 +169,7 @@ public class NotificationAdminController {
         template.setBodyTemplate(request.bodyTemplate());
         template.setTargetRoles(request.targetRoles());
         var saved = templateService.upsert(template, identityExtractor.resolveUsername(authentication));
-        var event = eventCatalogRepository.findById(saved.getEventCode()).orElse(null);
+        var event = eventCatalogRepositoryPort.findById(saved.getEventCode()).orElse(null);
         return ResponseEntity.ok(ApiResponse.success(toDto(saved, event), "Plantilla guardada correctamente"));
     }
 
@@ -215,7 +216,7 @@ public class NotificationAdminController {
                                                                      Authentication authentication) {
         try {
             String username = identityExtractor.resolveUsername(authentication);
-            var userOpt = usuarioRepository.findByUsernameIgnoreCase(username);
+            var userOpt = usuarioRepositoryPort.findByUsernameIgnoreCase(username);
             if (userOpt.isEmpty() || userOpt.get().getCorreo() == null || userOpt.get().getCorreo().isBlank()) {
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put(KEY_RECIPIENT, username);
@@ -256,15 +257,15 @@ public class NotificationAdminController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> estadisticas() {
         Map<String, Object> result = new LinkedHashMap<>();
 
-        long totalSent = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_SENT);
-        long totalFailed = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
-        long totalInApp = auditRepository.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_SENT);
-        long totalInAppFailed = auditRepository.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_FAILED);
+        long totalSent = auditRepositoryPort.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_SENT);
+        long totalFailed = auditRepositoryPort.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
+        long totalInApp = auditRepositoryPort.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_SENT);
+        long totalInAppFailed = auditRepositoryPort.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_FAILED);
 
-        long activeTemplates = templateRepository.countByEnabledTrue();
-        long totalEvents = eventCatalogRepository.count();
+        long activeTemplates = templateRepositoryPort.countByEnabledTrue();
+        long totalEvents = eventCatalogRepositoryPort.count();
 
-        List<SeguridadUsuario> users = usuarioRepository.findAll();
+        List<SeguridadUsuario> users = usuarioRepositoryPort.findAll();
         long usersWithEmail = users.stream()
                 .filter(u -> u.getActivo() != null && u.getActivo())
                 .filter(u -> u.getCorreo() != null && !u.getCorreo().isBlank())
@@ -313,13 +314,8 @@ public class NotificationAdminController {
             result.put("smtpConnection", "ERROR - " + e.getMessage());
         }
 
-        List<NotificationMailDispatchLog> recentLogs = mailDispatchLogRepository.findAll(
-                PageRequest.of(
-                        0,
-                        10,
-                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, KEY_CREATED_AT)
-                )
-        ).getContent();
+        List<NotificationMailDispatchLog> recentLogs = mailDispatchLogRepositoryPort.findAll(
+                new PageQuery(0, 10, List.of(new SortOrder(KEY_CREATED_AT, false)))).content();
 
         List<Map<String, Object>> logEntries = recentLogs.stream().map(logEntry -> {
             Map<String, Object> entry = new LinkedHashMap<>();
@@ -332,11 +328,11 @@ public class NotificationAdminController {
         }).toList();
         result.put("recentDispatchLogs", logEntries);
 
-        long totalSent = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_SENT);
-        long totalFailed = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
+        long totalSent = auditRepositoryPort.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_SENT);
+        long totalFailed = auditRepositoryPort.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
         result.put("emailStats", Map.of("sent", totalSent, "failed", totalFailed));
 
-        List<NotificationTemplate> templates = templateRepository.findAll();
+        List<NotificationTemplate> templates = templateRepositoryPort.findAll();
         List<Map<String, Object>> templateStatus = templates.stream().map(t -> {
             Map<String, Object> ts = new LinkedHashMap<>();
             ts.put("eventCode", t.getEventCode());
@@ -346,7 +342,7 @@ public class NotificationAdminController {
         }).toList();
         result.put("templates", templateStatus);
 
-        List<SeguridadUsuario> users = usuarioRepository.findAll();
+        List<SeguridadUsuario> users = usuarioRepositoryPort.findAll();
         List<Map<String, Object>> userInfo = users.stream().map(u -> {
             Map<String, Object> ui = new LinkedHashMap<>();
             ui.put("username", u.getUsername());
@@ -378,24 +374,24 @@ public class NotificationAdminController {
         LocalDateTime toDate = parseDateTime(to);
         String status = STATUS_FAILED;
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, KEY_CREATED_AT));
-        Page<NotificationAudit> auditPage = auditRepository.findFailedWithFilters(
-                status, channel, eventCode, recipient, fromDate, toDate, pageable);
+        PageQuery query = new PageQuery(page, size, List.of(new SortOrder(KEY_CREATED_AT, false)));
+        PageResult<NotificationAudit> auditPage = auditRepositoryPort.findFailedWithFilters(
+                status, channel, eventCode, recipient, fromDate, toDate, query);
 
-        List<NotificationAuditDTO> entries = auditPage.getContent().stream()
+        List<NotificationAuditDTO> entries = auditPage.content().stream()
                 .map(a -> new NotificationAuditDTO(
                         a.getId(), a.getEventCode(), a.getRecipient(),
                         a.getChannel(), a.getStatus(), a.getFailureReason(), a.getCreatedAt()))
                 .toList();
 
-        long totalFailedEmail = auditRepository.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
-        long totalFailedInApp = auditRepository.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_FAILED);
+        long totalFailedEmail = auditRepositoryPort.countByChannelAndStatus(CHANNEL_EMAIL, STATUS_FAILED);
+        long totalFailedInApp = auditRepositoryPort.countByChannelAndStatus(CHANNEL_IN_APP, STATUS_FAILED);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("entries", entries);
-        result.put("totalElements", auditPage.getTotalElements());
-        result.put("totalPages", auditPage.getTotalPages());
-        result.put("currentPage", auditPage.getNumber());
+        result.put("totalElements", auditPage.totalElements());
+        result.put("totalPages", auditPage.totalPages());
+        result.put("currentPage", auditPage.page());
         result.put("totalFailedEmail", totalFailedEmail);
         result.put("totalFailedInApp", totalFailedInApp);
 
@@ -418,11 +414,11 @@ public class NotificationAdminController {
         Instant toDate = parseInstant(to);
         String status = STATUS_FAILED;
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, KEY_CREATED_AT));
-        Page<NotificationMailDispatchLog> logPage = mailDispatchLogRepository.findFailedWithFilters(
-                status, recipient, fromDate, toDate, pageable);
+        PageQuery query = new PageQuery(page, size, List.of(new SortOrder(KEY_CREATED_AT, false)));
+        PageResult<NotificationMailDispatchLog> logPage = mailDispatchLogRepositoryPort.findFailedWithFilters(
+                status, recipient, fromDate, toDate, query);
 
-        List<NotificationDispatchLogDTO> entries = logPage.getContent().stream()
+        List<NotificationDispatchLogDTO> entries = logPage.content().stream()
                 .map(l -> new NotificationDispatchLogDTO(
                         l.getId(), l.getRecipient(), l.getSubject(),
                         l.getStatus(), l.getDetail(), l.getCreatedAt()))
@@ -430,9 +426,9 @@ public class NotificationAdminController {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("entries", entries);
-        result.put("totalElements", logPage.getTotalElements());
-        result.put("totalPages", logPage.getTotalPages());
-        result.put("currentPage", logPage.getNumber());
+        result.put("totalElements", logPage.totalElements());
+        result.put("totalPages", logPage.totalPages());
+        result.put("currentPage", logPage.page());
 
         return ResponseEntity.ok(ApiResponse.success(result, "Detalle de dispatch fallidos listado correctamente"));
     }

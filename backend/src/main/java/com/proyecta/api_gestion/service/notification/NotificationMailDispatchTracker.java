@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.notification;
 
-import com.proyecta.api_gestion.model.notification.NotificationMailDispatchLog;
-import com.proyecta.api_gestion.repository.notification.NotificationMailDispatchLogRepository;
+import com.proyecta.api_gestion.domain.model.notification.NotificationMailDispatchLog;
+import com.proyecta.api_gestion.application.port.out.persistence.notification.NotificationMailDispatchLogRepositoryPort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -21,9 +21,9 @@ public class NotificationMailDispatchTracker {
     private final AtomicReference<Snapshot> state = new AtomicReference<>(
             new Snapshot(NotificationDeliveryStatus.IDLE, null, null, "Sin actividad", Instant.now())
     );
-    private final NotificationMailDispatchLogRepository repository;
+    private final NotificationMailDispatchLogRepositoryPort repository;
 
-    public NotificationMailDispatchTracker(NotificationMailDispatchLogRepository repository) {
+    public NotificationMailDispatchTracker(NotificationMailDispatchLogRepositoryPort repository) {
         this.repository = repository;
     }
 

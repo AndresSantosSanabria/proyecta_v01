@@ -3,59 +3,59 @@ package com.proyecta.api_gestion.service.closure;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proyecta.api_gestion.dto.closure.ProjectClosureRecordDTO;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.closure.ClosureTemplate;
-import com.proyecta.api_gestion.model.closure.ProjectClosureRecord;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
-import com.proyecta.api_gestion.repository.closure.ClosureTemplateRepository;
-import com.proyecta.api_gestion.repository.closure.ProjectClosureRecordRepository;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.closure.ClosureTemplate;
+import com.proyecta.api_gestion.domain.model.closure.ProjectClosureRecord;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.closure.ClosureTemplateRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.closure.ProjectClosureRecordRepositoryPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProjectClosureRecordService {
 
-    private final ProjectClosureRecordRepository recordRepository;
-    private final ClosureTemplateRepository templateRepository;
-    private final ProyectoRepository proyectoRepository;
+    private final ProjectClosureRecordRepositoryPort recordRepositoryPort;
+    private final ClosureTemplateRepositoryPort templateRepositoryPort;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
     private final ObjectMapper objectMapper;
 
-    public ProjectClosureRecordService(ProjectClosureRecordRepository recordRepository,
-                                       ClosureTemplateRepository templateRepository,
-                                       ProyectoRepository proyectoRepository,
+    public ProjectClosureRecordService(ProjectClosureRecordRepositoryPort recordRepositoryPort,
+                                       ClosureTemplateRepositoryPort templateRepositoryPort,
+                                       ProyectoRepositoryPort proyectoRepositoryPort,
                                        ObjectMapper objectMapper) {
-        this.recordRepository = recordRepository;
-        this.templateRepository = templateRepository;
-        this.proyectoRepository = proyectoRepository;
+        this.recordRepositoryPort = recordRepositoryPort;
+        this.templateRepositoryPort = templateRepositoryPort;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
         this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
     public ProjectClosureRecordDTO getByProject(String proyectoId) {
-        ProjectClosureRecord registro = recordRepository.findByProyectoId(proyectoId)
+        ProjectClosureRecord registro = recordRepositoryPort.findByProyectoId(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe registro de cierre para el proyecto: " + proyectoId));
         return toDTO(registro);
     }
 
     @Transactional
     public ProjectClosureRecordDTO saveOrUpdate(String proyectoId, String formDataJson, String username) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
 
-        ClosureTemplate template = templateRepository.findByActivoTrue()
+        ClosureTemplate template = templateRepositoryPort.findByActivoTrue()
                 .orElseThrow(() -> new ResourceNotFoundException("No hay plantilla activa."));
 
         String templateSnapshot = template.getTemplateJson();
 
-        ProjectClosureRecord existing = recordRepository.findByProyectoId(proyectoId).orElse(null);
+        ProjectClosureRecord existing = recordRepositoryPort.findByProyectoId(proyectoId).orElse(null);
 
         if (existing != null) {
             existing.setFormData(formDataJson);
             existing.setTemplate(template);
             existing.setTemplateSnapshot(templateSnapshot);
             existing.setCreatedBy(username);
-            return toDTO(recordRepository.save(existing));
+            return toDTO(recordRepositoryPort.save(existing));
         }
 
         ProjectClosureRecord registro = new ProjectClosureRecord();
@@ -64,7 +64,7 @@ public class ProjectClosureRecordService {
         registro.setTemplateSnapshot(templateSnapshot);
         registro.setFormData(formDataJson);
         registro.setCreatedBy(username);
-        return toDTO(recordRepository.save(registro));
+        return toDTO(recordRepositoryPort.save(registro));
     }
 
     private ProjectClosureRecordDTO toDTO(ProjectClosureRecord r) {

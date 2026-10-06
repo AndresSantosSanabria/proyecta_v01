@@ -1,21 +1,21 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.document.*;
-import com.proyecta.api_gestion.exception.BadRequestException;
-import com.proyecta.api_gestion.exception.ResourceNotFoundException;
-import com.proyecta.api_gestion.exception.UnauthorizedException;
-import com.proyecta.api_gestion.model.Documento;
-import com.proyecta.api_gestion.model.DocumentoPreWizardRevision;
-import com.proyecta.api_gestion.model.DocumentoProyectoVersion;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.model.config.TipoDocumentoConfig;
-import com.proyecta.api_gestion.model.enums.DocumentoPreWizardEstado;
-import com.proyecta.api_gestion.model.enums.DocumentoProyectoVersionEstado;
-import com.proyecta.api_gestion.model.enums.TipoDocumento;
-import com.proyecta.api_gestion.model.enums.ViabilidadEstado;
-import com.proyecta.api_gestion.repository.*;
-import com.proyecta.api_gestion.repository.config.TipoDocumentoConfigRepository;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.exception.UnauthorizedException;
+import com.proyecta.api_gestion.domain.model.Documento;
+import com.proyecta.api_gestion.domain.model.DocumentoPreWizardRevision;
+import com.proyecta.api_gestion.domain.model.DocumentoProyectoVersion;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.domain.model.config.TipoDocumentoConfig;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoPreWizardEstado;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoProyectoVersionEstado;
+import com.proyecta.api_gestion.domain.model.enums.TipoDocumento;
+import com.proyecta.api_gestion.domain.model.enums.ViabilidadEstado;
+import com.proyecta.api_gestion.application.port.out.persistence.*;
+import com.proyecta.api_gestion.application.port.out.persistence.config.TipoDocumentoConfigRepositoryPort;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
 import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
 import com.proyecta.api_gestion.service.notification.NotificationContext;
@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -64,31 +65,31 @@ public class DocumentoServiceImpl implements IDocumentoService {
     private static final List<String> PRE_WIZARD_TYPES = List.of(
             TIPO_VIABILIZACION, TIPO_PLAN_COMUNICACIONES, TIPO_MATRIZ_RIESGOS_VIABILIDAD);
 
-    private final DocumentoRepository documentoRepository;
-    private final DocumentoProyectoVersionRepository versionRepository;
-    private final ProyectoRepository proyectoRepository;
-    private final TipoDocumentoConfigRepository tipoDocumentoConfigRepository;
-    private final DocumentoPreWizardRevisionRepository preWizardRevisionRepository;
+    private final DocumentoRepositoryPort documentoRepositoryPort;
+    private final DocumentoProyectoVersionRepositoryPort versionRepositoryPort;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final TipoDocumentoConfigRepositoryPort tipoDocumentoConfigRepositoryPort;
+    private final DocumentoPreWizardRevisionRepositoryPort preWizardRevisionRepositoryPort;
     private final NotificationEventPublisherPort notificationPublisher;
     private final KeycloakIdentityExtractor identityExtractor;
     private final LocalUserAuthorizationService localUserAuthorizationService;
     private final IStorageProvider storageProvider;
 
     public DocumentoServiceImpl(
-            DocumentoRepository documentoRepository,
-            DocumentoProyectoVersionRepository versionRepository,
-            ProyectoRepository proyectoRepository,
-            TipoDocumentoConfigRepository tipoDocumentoConfigRepository,
-            DocumentoPreWizardRevisionRepository preWizardRevisionRepository,
+            DocumentoRepositoryPort documentoRepositoryPort,
+            DocumentoProyectoVersionRepositoryPort versionRepositoryPort,
+            ProyectoRepositoryPort proyectoRepositoryPort,
+            TipoDocumentoConfigRepositoryPort tipoDocumentoConfigRepositoryPort,
+            DocumentoPreWizardRevisionRepositoryPort preWizardRevisionRepositoryPort,
             NotificationEventPublisherPort notificationPublisher,
             KeycloakIdentityExtractor identityExtractor,
             LocalUserAuthorizationService localUserAuthorizationService,
             IStorageProvider storageProvider) {
-        this.documentoRepository = documentoRepository;
-        this.versionRepository = versionRepository;
-        this.proyectoRepository = proyectoRepository;
-        this.tipoDocumentoConfigRepository = tipoDocumentoConfigRepository;
-        this.preWizardRevisionRepository = preWizardRevisionRepository;
+        this.documentoRepositoryPort = documentoRepositoryPort;
+        this.versionRepositoryPort = versionRepositoryPort;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.tipoDocumentoConfigRepositoryPort = tipoDocumentoConfigRepositoryPort;
+        this.preWizardRevisionRepositoryPort = preWizardRevisionRepositoryPort;
         this.notificationPublisher = notificationPublisher;
         this.identityExtractor = identityExtractor;
         this.localUserAuthorizationService = localUserAuthorizationService;
@@ -100,8 +101,8 @@ public class DocumentoServiceImpl implements IDocumentoService {
     public DocumentoListadoResponseDTO listarDocumentos(String proyectoId) {
         validarExistenciaProyecto(proyectoId);
 
-        List<Documento> documentos = documentoRepository.findByProyectoIdOrderByFechaCargaDesc(proyectoId);
-        Map<String, DocumentoProyectoVersion> versionesActuales = versionRepository
+        List<Documento> documentos = documentoRepositoryPort.findByProyectoIdOrderByFechaCargaDesc(proyectoId);
+        Map<String, DocumentoProyectoVersion> versionesActuales = versionRepositoryPort
                 .findByProyectoIdAndEstado(proyectoId, DocumentoProyectoVersionEstado.ACTUAL)
                 .stream()
                 .collect(Collectors.toMap(
@@ -127,7 +128,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         storageProvider.validateFile(archivo, MAX_FILE_SIZE, ALLOWED_MIME_TYPES);
         ActorContext actor = actorContext(authentication);
 
-        DocumentoProyectoVersion versionActual = versionRepository
+        DocumentoProyectoVersion versionActual = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoAndEstado(proyectoId, tipoDocumento, DocumentoProyectoVersionEstado.ACTUAL)
                 .orElse(null);
         boolean esReemplazo = versionActual != null;
@@ -138,10 +139,10 @@ public class DocumentoServiceImpl implements IDocumentoService {
             }
             observacion = observacion.trim();
             versionActual.setEstado(DocumentoProyectoVersionEstado.HISTORICA);
-            versionRepository.save(versionActual);
+            versionRepositoryPort.save(versionActual);
         }
 
-        Integer maxVersion = versionRepository.findMaxNumeroVersion(proyectoId, tipoDocumento);
+        Integer maxVersion = versionRepositoryPort.findMaxNumeroVersion(proyectoId, tipoDocumento);
         Integer nuevaVersion = maxVersion + 1;
 
         String nombreOriginal = storageProvider.sanitizeFileName(archivo.getOriginalFilename());
@@ -164,13 +165,13 @@ public class DocumentoServiceImpl implements IDocumentoService {
         version.setSubidoPor(actor.username());
         version.setSubidoRol(actor.role());
 
-        DocumentoProyectoVersion guardada = versionRepository.save(version);
+        DocumentoProyectoVersion guardada = versionRepositoryPort.save(version);
 
         sincronizarDocumentoPrincipal(proyectoId, tipoDocumento, guardada);
 
         boolean esPreWizard = PRE_WIZARD_TYPES.contains(tipoDocumento);
         if (!esPreWizard) {
-            Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+            Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId).orElse(null);
             boolean enAsistenteInicial = proyecto != null && proyecto.requiereCompletitudDirector();
             if (!enAsistenteInicial) {
                 notificarCambioDocumento(proyectoId, actor.username(), NotificationEventType.PROJECT_DOCUMENT_UPLOADED, tipoDocumento, nombreOriginal, esReemplazo);
@@ -187,7 +188,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     public Resource descargarDocumento(String proyectoId, String tipoDocumento) {
         validarExistenciaProyecto(proyectoId);
 
-        DocumentoProyectoVersion version = versionRepository
+        DocumentoProyectoVersion version = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoAndEstado(proyectoId, tipoDocumento, DocumentoProyectoVersionEstado.ACTUAL)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Documento no encontrado: " + tipoDocumento + " para proyecto " + proyectoId));
@@ -207,7 +208,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     public DocumentoVersionHistorialResponseDTO listarVersiones(String proyectoId, String tipoDocumento) {
         validarExistenciaProyecto(proyectoId);
 
-        List<DocumentoProyectoVersion> versiones = versionRepository
+        List<DocumentoProyectoVersion> versiones = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyectoId, tipoDocumento);
 
         List<DocumentoProyectoVersionDTO> dtos = versiones.stream()
@@ -222,7 +223,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     public Resource descargarVersion(String proyectoId, String tipoDocumento, Integer numeroVersion) {
         validarExistenciaProyecto(proyectoId);
 
-        DocumentoProyectoVersion version = versionRepository
+        DocumentoProyectoVersion version = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoAndNumeroVersion(proyectoId, tipoDocumento, numeroVersion)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Version " + numeroVersion + " del documento " + tipoDocumento + " no encontrada."));
@@ -235,7 +236,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     public DocumentoPreWizardRevisionDTO.Listado listarRevisionesPreWizard(String proyectoId) {
         validarExistenciaProyecto(proyectoId);
 
-        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepository
+        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepositoryPort
                 .findByProyectoId(proyectoId)
                 .stream()
                 .collect(Collectors.toMap(
@@ -269,20 +270,20 @@ public class DocumentoServiceImpl implements IDocumentoService {
         String tipo = normalizarTipoPreWizard(tipoDocumento);
         ActorContext actor = actorContext(authentication);
 
-        DocumentoProyectoVersion version = versionRepository
+        DocumentoProyectoVersion version = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoAndEstado(proyectoId, tipo, DocumentoProyectoVersionEstado.ACTUAL)
                 .orElseThrow(() -> new BadRequestException(
                         "No hay un documento cargado del tipo " + tipo + " para aprobar."));
 
-        DocumentoPreWizardRevision revision = preWizardRevisionRepository
+        DocumentoPreWizardRevision revision = preWizardRevisionRepositoryPort
                 .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
                 .orElseGet(() -> nuevaRevision(proyectoId, tipo, version));
 
         revision.setEstado(DocumentoPreWizardEstado.APROBADO);
         revision.setObservacion(null);
         revision.setRevisadoPor(actor.username());
-        revision.setRevisadoEn(LocalDateTime.now());
-        DocumentoPreWizardRevision guardada = preWizardRevisionRepository.save(revision);
+        revision.setRevisadoEn(LocalDateTime.now(ZoneId.systemDefault()));
+        DocumentoPreWizardRevision guardada = preWizardRevisionRepositoryPort.save(revision);
 
         sincronizarEstadoViabilidadAggregate(proyectoId, actor.username());
 
@@ -299,20 +300,20 @@ public class DocumentoServiceImpl implements IDocumentoService {
         }
         ActorContext actor = actorContext(authentication);
 
-        DocumentoProyectoVersion version = versionRepository
+        DocumentoProyectoVersion version = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoAndEstado(proyectoId, tipo, DocumentoProyectoVersionEstado.ACTUAL)
                 .orElseThrow(() -> new BadRequestException(
                         "No hay un documento cargado del tipo " + tipo + " para devolver."));
 
-        DocumentoPreWizardRevision revision = preWizardRevisionRepository
+        DocumentoPreWizardRevision revision = preWizardRevisionRepositoryPort
                 .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
                 .orElseGet(() -> nuevaRevision(proyectoId, tipo, version));
 
         revision.setEstado(DocumentoPreWizardEstado.DEVUELTO);
         revision.setObservacion(observaciones.trim());
         revision.setRevisadoPor(actor.username());
-        revision.setRevisadoEn(LocalDateTime.now());
-        DocumentoPreWizardRevision guardada = preWizardRevisionRepository.save(revision);
+        revision.setRevisadoEn(LocalDateTime.now(ZoneId.systemDefault()));
+        DocumentoPreWizardRevision guardada = preWizardRevisionRepositoryPort.save(revision);
 
         sincronizarEstadoViabilidadAggregate(proyectoId, actor.username());
 
@@ -320,7 +321,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private void marcarRevisionPendiente(String proyectoId, String tipoDocumento) {
-        DocumentoPreWizardRevision revision = preWizardRevisionRepository
+        DocumentoPreWizardRevision revision = preWizardRevisionRepositoryPort
                 .findByProyectoIdAndTipoDocumento(proyectoId, tipoDocumento)
                 .orElseGet(() -> {
                     DocumentoPreWizardRevision nueva = new DocumentoPreWizardRevision();
@@ -332,7 +333,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         revision.setObservacion(null);
         revision.setRevisadoPor(null);
         revision.setRevisadoEn(null);
-        preWizardRevisionRepository.save(revision);
+        preWizardRevisionRepositoryPort.save(revision);
     }
 
     private DocumentoPreWizardRevision nuevaRevision(String proyectoId, String tipoDocumento, DocumentoProyectoVersion version) {
@@ -345,14 +346,14 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private void sincronizarEstadoViabilidadAggregate(String proyectoId, String actorUsername) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId).orElse(null);
         if (proyecto == null) {
             return;
         }
 
         verificarTodosDocumentosCargados(proyecto);
 
-        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepository
+        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepositoryPort
                 .findByProyectoId(proyectoId)
                 .stream()
                 .collect(Collectors.toMap(
@@ -373,58 +374,75 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         if (todosAprobado && cargados) {
             // Aprobacion consolidada solo al confirmar (boton final del gestor).
-            if (eraDevuelta || Boolean.TRUE.equals(proyecto.getDocumentosVerificados())) {
-                proyecto.setViabilidadEstado(ViabilidadEstado.CARGADA);
-                proyecto.setViabilidadObservaciones(null);
-                proyecto.setViabilidadRevisadoPor(null);
-                proyecto.setViabilidadRevisadoEn(null);
-                proyecto.setDocumentosVerificados(false);
-                proyecto.setFechaVerificacionDocumentos(null);
-                proyecto.setFechaLimiteCompletar(null);
-            } else if (proyecto.getViabilidadEstado() != ViabilidadEstado.CARGADA) {
-                proyecto.setViabilidadEstado(ViabilidadEstado.CARGADA);
-            }
-            proyectoRepository.save(proyecto);
+            aplicarAprobacionConsolidada(proyecto, eraDevuelta);
+            proyectoRepositoryPort.save(proyecto);
             return;
         }
 
         if (hayDevuelto) {
-            String observaciones = porTipo.values().stream()
-                    .filter(r -> r.getEstado() == DocumentoPreWizardEstado.DEVUELTO && r.getObservacion() != null)
-                    .map(DocumentoPreWizardRevision::getObservacion)
-                    .collect(Collectors.joining("\n"));
-            if (!eraDevuelta || !Boolean.TRUE.equals(proyecto.getDocumentosVerificados())) {
-                proyecto.setViabilidadEstado(ViabilidadEstado.DEVUELTA);
-                proyecto.setViabilidadObservaciones(observaciones.isBlank() ? null : observaciones);
-                proyecto.setViabilidadRevisadoPor(actorUsername);
-                proyecto.setViabilidadRevisadoEn(LocalDateTime.now());
-                proyecto.setDocumentosVerificados(false);
-                proyecto.setFechaVerificacionDocumentos(null);
-                proyecto.setFechaLimiteCompletar(null);
-                proyectoRepository.save(proyecto);
-            } else {
-                proyecto.setViabilidadObservaciones(observaciones.isBlank() ? null : observaciones);
-                proyectoRepository.save(proyecto);
-            }
+            aplicarDevolucion(proyecto, porTipo, actorUsername, eraDevuelta);
             return;
         }
 
         if (cargados) {
-            if (proyecto.getViabilidadEstado() != ViabilidadEstado.CARGADA) {
-                proyecto.marcarViabilidadCargada();
-            }
-            proyecto.setDocumentosVerificados(false);
-            proyecto.setFechaVerificacionDocumentos(null);
-            proyecto.setFechaLimiteCompletar(null);
-            proyectoRepository.save(proyecto);
+            aplicarCargaParcial(proyecto);
             return;
         }
 
+        aplicarPendiente(proyecto);
+    }
+
+    private void aplicarAprobacionConsolidada(Proyecto proyecto, boolean eraDevuelta) {
+        if (eraDevuelta || Boolean.TRUE.equals(proyecto.getDocumentosVerificados())) {
+            proyecto.setViabilidadEstado(ViabilidadEstado.CARGADA);
+            proyecto.setViabilidadObservaciones(null);
+            proyecto.setViabilidadRevisadoPor(null);
+            proyecto.setViabilidadRevisadoEn(null);
+            proyecto.setDocumentosVerificados(false);
+            proyecto.setFechaVerificacionDocumentos(null);
+            proyecto.setFechaLimiteCompletar(null);
+        } else if (proyecto.getViabilidadEstado() != ViabilidadEstado.CARGADA) {
+            proyecto.setViabilidadEstado(ViabilidadEstado.CARGADA);
+        }
+    }
+
+    private void aplicarDevolucion(Proyecto proyecto, Map<String, DocumentoPreWizardRevision> porTipo, String actorUsername, boolean eraDevuelta) {
+        String observaciones = porTipo.values().stream()
+                .filter(r -> r.getEstado() == DocumentoPreWizardEstado.DEVUELTO && r.getObservacion() != null)
+                .map(DocumentoPreWizardRevision::getObservacion)
+                .collect(Collectors.joining("\n"));
+        String observacionesNormalizadas = observaciones.isBlank() ? null : observaciones;
+        if (!eraDevuelta || !Boolean.TRUE.equals(proyecto.getDocumentosVerificados())) {
+            proyecto.setViabilidadEstado(ViabilidadEstado.DEVUELTA);
+            proyecto.setViabilidadObservaciones(observacionesNormalizadas);
+            proyecto.setViabilidadRevisadoPor(actorUsername);
+            proyecto.setViabilidadRevisadoEn(LocalDateTime.now(ZoneId.systemDefault()));
+            proyecto.setDocumentosVerificados(false);
+            proyecto.setFechaVerificacionDocumentos(null);
+            proyecto.setFechaLimiteCompletar(null);
+            proyectoRepositoryPort.save(proyecto);
+        } else {
+            proyecto.setViabilidadObservaciones(observacionesNormalizadas);
+            proyectoRepositoryPort.save(proyecto);
+        }
+    }
+
+    private void aplicarCargaParcial(Proyecto proyecto) {
+        if (proyecto.getViabilidadEstado() != ViabilidadEstado.CARGADA) {
+            proyecto.marcarViabilidadCargada();
+        }
+        proyecto.setDocumentosVerificados(false);
+        proyecto.setFechaVerificacionDocumentos(null);
+        proyecto.setFechaLimiteCompletar(null);
+        proyectoRepositoryPort.save(proyecto);
+    }
+
+    private void aplicarPendiente(Proyecto proyecto) {
         if (proyecto.getViabilidadEstado() != ViabilidadEstado.PENDIENTE) {
             proyecto.setViabilidadEstado(ViabilidadEstado.PENDIENTE);
             proyecto.setViabilidadObservaciones(null);
         }
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
     }
 
     private void notificarViabilidad(Proyecto proyecto, String actorUsername, NotificationEventType eventType, String observaciones) {
@@ -442,7 +460,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         validarExistenciaProyecto(proyectoId);
         ActorContext actor = actorContext(authentication);
 
-        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepository
+        Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepositoryPort
                 .findByProyectoId(proyectoId)
                 .stream()
                 .collect(Collectors.toMap(
@@ -463,7 +481,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
             }
         }
 
-        Proyecto proyecto = proyectoRepository.findById(proyectoId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + proyectoId));
 
         boolean hayDevuelto = porTipo.values().stream()
@@ -483,7 +501,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         }
 
         proyecto.aprobarDocumentos(actor.username());
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
         notificarViabilidad(proyecto, actor.username(), NotificationEventType.VIABILIDAD_APPROVED, null);
         return new DocumentoPreWizardConfirmacionDTO(
                 NotificationEventType.VIABILIDAD_APPROVED.name(),
@@ -530,10 +548,10 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
     private void sincronizarDocumentoPrincipal(String proyectoId, String tipoDocumento, DocumentoProyectoVersion version) {
         TipoDocumento tipoDocumentoEnum = resolverTipoDocumento(tipoDocumento);
-        TipoDocumentoConfig tipoDocumentoConfig = tipoDocumentoConfigRepository.findByCodigo(tipoDocumento)
+        TipoDocumentoConfig tipoDocumentoConfig = tipoDocumentoConfigRepositoryPort.findByCodigo(tipoDocumento)
                 .orElse(null);
 
-        Documento documentoExistente = documentoRepository
+        Documento documentoExistente = documentoRepositoryPort
                 .findByProyectoIdAndTipoDocumentoConfigCodigo(proyectoId, tipoDocumento)
                 .orElse(null);
 
@@ -547,7 +565,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
             documentoExistente.setTamanoBytes(version.getTamanoBytes());
             documentoExistente.setUrlDescarga(construirUrlDescarga(proyectoId, tipoDocumento));
             documentoExistente.setFechaCarga(version.getSubidoEn());
-            documentoRepository.save(documentoExistente);
+            documentoRepositoryPort.save(documentoExistente);
         } else {
             Documento documento = new Documento();
             documento.setProyectoId(proyectoId);
@@ -560,12 +578,12 @@ public class DocumentoServiceImpl implements IDocumentoService {
             documento.setTamanoBytes(version.getTamanoBytes());
             documento.setUrlDescarga(construirUrlDescarga(proyectoId, tipoDocumento));
             documento.setFechaCarga(version.getSubidoEn());
-            documentoRepository.save(documento);
+            documentoRepositoryPort.save(documento);
         }
     }
 
     private void validarExistenciaProyecto(String proyectoId) {
-        proyectoRepository.findById(proyectoId)
+        proyectoRepositoryPort.findById(proyectoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + proyectoId));
     }
 
@@ -651,7 +669,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private void notificarCambioDocumento(String proyectoId, String actorUsername, NotificationEventType eventType, String tipoDocumento, String nombreDocumento, boolean reemplazo) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId).orElse(null);
         if (proyecto == null) {
             return;
         }
@@ -663,7 +681,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private void sincronizarFlagsProyectoDocumentos(String proyectoId, String tipoDocumento, DocumentoProyectoVersion version, String actorUsername) {
-        Proyecto proyecto = proyectoRepository.findById(proyectoId).orElse(null);
+        Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId).orElse(null);
         if (proyecto == null) return;
 
         switch (tipoDocumento) {
@@ -685,7 +703,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         boolean esPreWizard = PRE_WIZARD_TYPES.contains(tipoDocumento);
         boolean habiaDevueltos = false;
         if (esPreWizard) {
-            habiaDevueltos = preWizardRevisionRepository.findByProyectoId(proyectoId).stream()
+            habiaDevueltos = preWizardRevisionRepositoryPort.findByProyectoId(proyectoId).stream()
                     .anyMatch(r -> r.getEstado() == DocumentoPreWizardEstado.DEVUELTO);
             marcarRevisionPendiente(proyectoId, tipoDocumento);
         }
@@ -697,13 +715,13 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         boolean documentosCompletosAntes = Boolean.TRUE.equals(proyecto.getDocumentosCargados());
         verificarTodosDocumentosCargados(proyecto);
-        proyectoRepository.save(proyecto);
+        proyectoRepositoryPort.save(proyecto);
 
         boolean ahoraCompletos = Boolean.TRUE.equals(proyecto.getDocumentosCargados());
         boolean recienCompletado = !documentosCompletosAntes && ahoraCompletos;
         boolean resubmissionCompleta = false;
         if (esPreWizard && habiaDevueltos) {
-            resubmissionCompleta = preWizardRevisionRepository.findByProyectoId(proyectoId).stream()
+            resubmissionCompleta = preWizardRevisionRepositoryPort.findByProyectoId(proyectoId).stream()
                     .noneMatch(r -> r.getEstado() == DocumentoPreWizardEstado.DEVUELTO);
         }
         if (esPreWizard && (recienCompletado || resubmissionCompleta)) {
@@ -712,13 +730,13 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private void verificarTodosDocumentosCargados(Proyecto proyecto) {
-        boolean tieneViabilidad = versionRepository
+        boolean tieneViabilidad = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), TIPO_VIABILIZACION)
                 .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
-        boolean tienePlanComunicaciones = versionRepository
+        boolean tienePlanComunicaciones = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), TIPO_PLAN_COMUNICACIONES)
                 .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
-        boolean tieneMatrizRiesgos = versionRepository
+        boolean tieneMatrizRiesgos = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyecto.getId(), TIPO_MATRIZ_RIESGOS_VIABILIDAD)
                 .stream().anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());
 
@@ -731,7 +749,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     }
 
     private String buildDocumentStatusSummary(String proyectoId) {
-        Map<String, DocumentoPreWizardRevision> revisiones = preWizardRevisionRepository
+        Map<String, DocumentoPreWizardRevision> revisiones = preWizardRevisionRepositoryPort
                 .findByProyectoId(proyectoId)
                 .stream()
                 .collect(Collectors.toMap(
@@ -742,7 +760,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         StringBuilder sb = new StringBuilder();
         for (String tipo : PRE_WIZARD_TYPES) {
-            boolean cargado = versionRepository
+            boolean cargado = versionRepositoryPort
                     .findByProyectoIdAndTipoDocumentoOrderByNumeroVersionDesc(proyectoId, tipo)
                     .stream()
                     .anyMatch(v -> v.getRutaAlmacenamiento() != null && !v.getRutaAlmacenamiento().isBlank());

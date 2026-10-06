@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.seed;
 
-import com.proyecta.api_gestion.model.SystemParameter;
-import com.proyecta.api_gestion.repository.SystemParameterRepository;
+import com.proyecta.api_gestion.domain.model.SystemParameter;
+import com.proyecta.api_gestion.application.port.out.persistence.SystemParameterRepositoryPort;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,10 +16,10 @@ import org.springframework.stereotype.Service;
 public class SystemParameterSeeder {
 
     private static final Logger logger = LoggerFactory.getLogger(SystemParameterSeeder.class);
-    private final SystemParameterRepository parameterRepository;
+    private final SystemParameterRepositoryPort parameterRepositoryPort;
 
-    public SystemParameterSeeder(SystemParameterRepository parameterRepository) {
-        this.parameterRepository = parameterRepository;
+    public SystemParameterSeeder(SystemParameterRepositoryPort parameterRepositoryPort) {
+        this.parameterRepositoryPort = parameterRepositoryPort;
     }
 
     public void seedSystemParameters() {
@@ -163,9 +163,9 @@ public class SystemParameterSeeder {
     }
 
     private void crearParametroSiNoExiste(String clave, String valor, String descripcion) {
-        if (!parameterRepository.existsById(clave)) {
+        if (!parameterRepositoryPort.existsById(clave)) {
             SystemParameter param = new SystemParameter(clave, valor, descripcion);
-            parameterRepository.save(param);
+            parameterRepositoryPort.save(param);
             logger.debug("Parametro creado: {}", clave);
         }
     }

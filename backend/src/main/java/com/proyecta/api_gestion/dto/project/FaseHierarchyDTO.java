@@ -17,41 +17,18 @@ import java.util.List;
       "hitos": []
     }
     """)
-public class FaseHierarchyDTO {
-    private Integer id;
-    private Short numero;
-    private String nombre;
-    private String descripcion;
-    private BigDecimal ponderacion;
-    private BigDecimal avanceCalculado;
+public class FaseHierarchyDTO extends PlanificacionHierarchyDTO {
     private List<HitoHierarchyDTO> hitos;
 
     public FaseHierarchyDTO() {}
 
     public FaseHierarchyDTO(Integer id, Short numero, String nombre, String descripcion, BigDecimal ponderacion,
                             BigDecimal avanceCalculado, List<HitoHierarchyDTO> hitos) {
-        this.id = id;
-        this.numero = numero;
-        this.nombre = nombre;
-        this.descripcion = descripcion;
-        this.ponderacion = ponderacion;
-        this.avanceCalculado = avanceCalculado;
+        super(id, numero, nombre, descripcion, ponderacion, avanceCalculado);
         this.hitos = hitos;
     }
 
     // Getters and Setters
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-    public Short getNumero() { return numero; }
-    public void setNumero(Short numero) { this.numero = numero; }
-    public String getNombre() { return nombre; }
-    public void setNombre(String nombre) { this.nombre = nombre; }
-    public String getDescripcion() { return descripcion; }
-    public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
-    public BigDecimal getPonderacion() { return ponderacion; }
-    public void setPonderacion(BigDecimal ponderacion) { this.ponderacion = ponderacion; }
-    public BigDecimal getAvanceCalculado() { return avanceCalculado; }
-    public void setAvanceCalculado(BigDecimal avanceCalculado) { this.avanceCalculado = avanceCalculado; }
     public List<HitoHierarchyDTO> getHitos() { return hitos; }
     public void setHitos(List<HitoHierarchyDTO> hitos) { this.hitos = hitos; }
 }

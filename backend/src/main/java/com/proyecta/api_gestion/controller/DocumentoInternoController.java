@@ -3,7 +3,7 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.controller.interfaces.IDocumentoInternoController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.document.DocumentoInternoDTO;
-import com.proyecta.api_gestion.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
 import com.proyecta.api_gestion.dto.document.DocumentoInternoDownload;
 import com.proyecta.api_gestion.service.interfaces.IDocumentoInternoService;
 import io.swagger.v3.oas.annotations.Parameter;

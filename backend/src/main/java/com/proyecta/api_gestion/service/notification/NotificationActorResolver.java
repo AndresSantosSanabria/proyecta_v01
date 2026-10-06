@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.notification;
 
-import com.proyecta.api_gestion.model.security.SeguridadUsuario;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,12 +16,12 @@ import java.util.Set;
 public class NotificationActorResolver {
 
     private final KeycloakIdentityExtractor identityExtractor;
-    private final SeguridadUsuarioRepository usuarioRepository;
+    private final SeguridadUsuarioRepositoryPort usuarioRepositoryPort;
 
     public NotificationActorResolver(KeycloakIdentityExtractor identityExtractor,
-                                     SeguridadUsuarioRepository usuarioRepository) {
+                                     SeguridadUsuarioRepositoryPort usuarioRepositoryPort) {
         this.identityExtractor = identityExtractor;
-        this.usuarioRepository = usuarioRepository;
+        this.usuarioRepositoryPort = usuarioRepositoryPort;
     }
 
     public Set<String> resolveActorIdentifiers(String fallbackActorUsername) {
@@ -53,10 +53,10 @@ public class NotificationActorResolver {
             return;
         }
         String value = candidate.trim();
-        usuarioRepository.findByUsernameIgnoreCase(value)
-                .or(() -> usuarioRepository.findByCorreoIgnoreCase(value))
+        usuarioRepositoryPort.findByUsernameIgnoreCase(value)
+                .or(() -> usuarioRepositoryPort.findByCorreoIgnoreCase(value))
                 .ifPresent(user -> addLocalUserIdentifiers(identifiers, user));
-        usuarioRepository.findByNombreIgnoreCase(value)
+        usuarioRepositoryPort.findByNombreIgnoreCase(value)
                 .forEach(user -> addLocalUserIdentifiers(identifiers, user));
     }
 

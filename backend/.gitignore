@@ -69,3 +69,8 @@ apache-maven-3.9.14/
 # User uploads (documents, evidence)
 uploads/
 
+
+### SonarQube ###
+.scannerwork/
+.sonarqube/
+*.exec

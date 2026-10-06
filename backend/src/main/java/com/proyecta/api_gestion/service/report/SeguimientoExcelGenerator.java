@@ -1,11 +1,11 @@
 package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.config.PublicUrlProperties;
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.model.Fase;
-import com.proyecta.api_gestion.model.Hito;
-import com.proyecta.api_gestion.model.Proyecto;
-import com.proyecta.api_gestion.repository.ProyectoRepository;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Fase;
+import com.proyecta.api_gestion.domain.model.Hito;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
 import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.*;
@@ -24,20 +24,20 @@ public class SeguimientoExcelGenerator {
     private static final String SUBHDR_ATRASO = "ATRASO";
     private static final String SUBHDR_PROG_HOY = "PROG HOY";
 
-    private final ProyectoRepository proyectoRepository;
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
     private final PublicEvidenceAccessService evidenceAccessService;
     private final PublicUrlProperties publicUrlProperties;
 
-    public SeguimientoExcelGenerator(ProyectoRepository proyectoRepository,
+    public SeguimientoExcelGenerator(ProyectoRepositoryPort proyectoRepositoryPort,
                                      PublicEvidenceAccessService evidenceAccessService,
                                      PublicUrlProperties publicUrlProperties) {
-        this.proyectoRepository = proyectoRepository;
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
         this.evidenceAccessService = evidenceAccessService;
         this.publicUrlProperties = publicUrlProperties;
     }
 
     public byte[] generate(String projectId, String username) throws IOException {
-        Proyecto proyecto = proyectoRepository.findById(projectId)
+        Proyecto proyecto = proyectoRepositoryPort.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Proyecto no encontrado: " + projectId));
 
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
@@ -53,6 +53,60 @@ public class SeguimientoExcelGenerator {
     private void buildCronogramaSheet(XSSFWorkbook workbook, Proyecto proyecto, String username) {
         XSSFSheet sheet = workbook.createSheet("AVANCE");
 
+        SheetStyles styles = createSheetStyles(workbook);
+
+        writeTitleRow(sheet, proyecto, styles.headerStyle());
+        writeSubHeaderRows(sheet, styles);
+
+        int rowIndex = writeDataRows(sheet, workbook, proyecto, username, styles);
+
+        int finalRow = rowIndex > 4 ? rowIndex : 5; // 1-based index of last data row
+
+        updateRangeFormulas(sheet, rowIndex, finalRow);
+
+        // Merge Pyto columns vertically across all rows
+        if (rowIndex > 5) {
+            sheet.addMergedRegion(new CellRangeAddress(4, rowIndex - 1, 16, 16)); // Ejecutado Pyto
+            sheet.addMergedRegion(new CellRangeAddress(4, rowIndex - 1, 22, 22)); // Prog Pyto
+        }
+
+        writeSummaryAndIndicators(sheet, workbook, rowIndex, finalRow, styles);
+
+        // Hide columns 0 and 13
+        sheet.setColumnHidden(0, true);
+        sheet.setColumnHidden(13, true);
+
+        // Set explicit column widths (in units of 1/256th of a character width)
+        sheet.setColumnWidth(1,  4500);  // B: FASES
+        sheet.setColumnWidth(2,  2500);  // C: POND
+        sheet.setColumnWidth(3,  4500);  // D: HITOS
+        sheet.setColumnWidth(4,  2800);  // E: Ponderado
+        sheet.setColumnWidth(5,  3000);  // F: ENTREGABLES
+        sheet.setColumnWidth(6,  2800);  // G: Ponderado
+        sheet.setColumnWidth(7,  10000); // H: NOMBRE (wide for description)
+        sheet.setColumnWidth(8,  3800);  // I: FECHA LIM
+        sheet.setColumnWidth(9,  4000);  // J: FECHA ENTREGA
+        sheet.setColumnWidth(10, 3000);  // K: ATRASO
+        sheet.setColumnWidth(11, 2200);  // L: OK
+        sheet.setColumnWidth(12, 5000);  // M: RUTA EVIDENCIAS
+        sheet.setColumnWidth(14, 3500);  // O: EJ HITO
+        sheet.setColumnWidth(15, 3500);  // P: EJ FASE
+        sheet.setColumnWidth(16, 3500);  // Q: EJ PYTO
+        sheet.setColumnWidth(17, 3800);  // R: HOY
+        sheet.setColumnWidth(18, 3000);  // S: ATRASO PROG
+        sheet.setColumnWidth(19, 2800);  // T: VALIDA
+        sheet.setColumnWidth(20, 4000);  // U: HITO PROG
+        sheet.setColumnWidth(21, 4000);  // V: FASE PROG
+        sheet.setColumnWidth(22, 4000);  // W: PYTO PROG
+        sheet.setColumnWidth(23, 3500);  // X: EyE Incluye?
+        sheet.setColumnWidth(24, 4500);  // Y: Eficacia Calcula
+        sheet.setColumnWidth(25, 4500);  // Z: Eficiencia Calcula
+
+        // Set default row height
+        sheet.setDefaultRowHeightInPoints(30);
+    }
+
+    private SheetStyles createSheetStyles(XSSFWorkbook workbook) {
         // Palette styles
         XSSFCellStyle headerStyle = createHeaderStyle(workbook, new XSSFColor(new java.awt.Color(31, 78, 121), new DefaultIndexedColorMap())); // Dark Blue (#1F4E79)
         XSSFCellStyle subHeaderStyle = createHeaderStyle(workbook, new XSSFColor(new java.awt.Color(47, 117, 181), new DefaultIndexedColorMap())); // Lighter Blue (#2F75B8)
@@ -121,6 +175,17 @@ public class SeguimientoExcelGenerator {
         setBorder(textStyle);
         textStyle.setAlignment(HorizontalAlignment.LEFT);
 
+        return new SheetStyles(
+                headerStyle, subHeaderStyle, greenHeaderStyle,
+                phase1Style, phase2Style, phase1PercentStyle, phase2PercentStyle,
+                hitoStyles, hitoPercentStyles,
+                executedHitoStyle, executedFaseStyle, executedPytoStyle,
+                progHitoStyle, progFaseStyle, progPytoStyle,
+                eyeStyle, eficaciaCalcStyle, eficienciaCalcStyle,
+                greenSummaryStyle, dateStyle, percentStyle, defaultStyle, textStyle);
+    }
+
+    private void writeTitleRow(XSSFSheet sheet, Proyecto proyecto, XSSFCellStyle headerStyle) {
         // Header Rows (0 to 3)
         // Row 0: Title
         Row titleRow = sheet.createRow(0);
@@ -130,6 +195,12 @@ public class SeguimientoExcelGenerator {
         sheet.addMergedRegion(new CellRangeAddress(0, 0, 1, 25));
 
         sheet.createRow(1); // Spacing row
+    }
+
+    private void writeSubHeaderRows(XSSFSheet sheet, SheetStyles styles) {
+        XSSFCellStyle headerStyle = styles.headerStyle();
+        XSSFCellStyle subHeaderStyle = styles.subHeaderStyle();
+        XSSFCellStyle greenHeaderStyle = styles.greenHeaderStyle();
 
         Row row2 = sheet.createRow(2); // Subheader 1
         Row row3 = sheet.createRow(3); // Subheader 2
@@ -157,11 +228,11 @@ public class SeguimientoExcelGenerator {
 
         for (int i = 1; i <= 25; i++) {
             Cell c1 = row2.createCell(i);
-            c1.setCellValue(subHeader1[i] != null ? subHeader1[i] : "");
+            c1.setCellValue(subHeaderLabel(subHeader1, i));
             c1.setCellStyle(i == 25 ? greenHeaderStyle : headerStyle);
 
             Cell c2 = row3.createCell(i);
-            c2.setCellValue(subHeader2[i] != null ? subHeader2[i] : "");
+            c2.setCellValue(subHeaderLabel(subHeader2, i));
             c2.setCellStyle(i == 25 ? greenHeaderStyle : subHeaderStyle);
         }
 
@@ -172,230 +243,257 @@ public class SeguimientoExcelGenerator {
         sheet.addMergedRegion(new CellRangeAddress(2, 2, 14, 16)); // EJECUTADO
         sheet.addMergedRegion(new CellRangeAddress(2, 2, 17, 19)); // ATRASO
         sheet.addMergedRegion(new CellRangeAddress(2, 2, 20, 22)); // PROG HOY
+    }
 
+    private String subHeaderLabel(String[] labels, int index) {
+        return labels[index] != null ? labels[index] : "";
+    }
+
+    private int writeDataRows(XSSFSheet sheet, XSSFWorkbook workbook, Proyecto proyecto, String username, SheetStyles styles) {
         int rowIndex = 4; // Data starts at row 5 (0-indexed 4)
         int phaseCount = 0;
 
         List<Fase> fases = proyecto.getFases();
         for (Fase fase : fases) {
             int phaseStartRow = rowIndex;
-            XSSFCellStyle currentPhaseStyle = (phaseCount % 2 == 0) ? phase1Style : phase2Style;
 
             List<Hito> hitos = fase.getHitos();
             int hitoIndex = 0;
 
             for (Hito hito : hitos) {
                 int hitoStartRow = rowIndex;
-                XSSFCellStyle currentHitoStyle = hitoStyles[hitoIndex % hitoStyles.length];
 
                 List<Entregable> entregables = hito.getEntregables();
                 for (int e = 0; e < entregables.size(); e++) {
                     Entregable entregable = entregables.get(e);
-                    Row row = sheet.createRow(rowIndex);
-                    int r = rowIndex + 1; // 1-based index for formulas
-
-                    // 1 (B): Fase Nombre
-                    Cell c1 = row.createCell(1);
-                    c1.setCellValue(fase.getNombre());
-                    c1.setCellStyle(currentPhaseStyle);
-
-                    // 2 (C): Fase Ponderacion - use percent style matching phase background
-                    Cell c2 = row.createCell(2);
-                    c2.setCellValue(fase.getPonderacion().doubleValue() / 100.0);
-                    c2.setCellStyle(phaseCount % 2 == 0 ? phase1PercentStyle : phase2PercentStyle);
-
-                    // 3 (D): Hito Nombre
-                    Cell c3 = row.createCell(3);
-                    c3.setCellValue(hito.getNombre());
-                    c3.setCellStyle(currentHitoStyle);
-
-                    // 4 (E): Hito Ponderacion - use percent style matching hito background
-                    Cell c4 = row.createCell(4);
-                    c4.setCellValue(hito.getPonderacion().doubleValue() / 100.0);
-                    c4.setCellStyle(hitoPercentStyles[hitoIndex % hitoPercentStyles.length]);
-
-                    // 5 (F): Entregable Codigo
-                    Cell c5 = row.createCell(5);
-                    c5.setCellValue("E" + String.format("%02d", e + 1));
-                    c5.setCellStyle(defaultStyle);
-
-                    // 6 (G): Entregable Ponderacion
-                    Cell c6 = row.createCell(6);
-                    c6.setCellValue(entregable.getPonderacion().doubleValue() / 100.0);
-                    c6.setCellStyle(percentStyle);
-
-                    // 7 (H): Entregable Nombre
-                    Cell c7 = row.createCell(7);
-                    c7.setCellValue(entregable.getNombre());
-                    c7.setCellStyle(textStyle);
-
-                    // 8 (I): Fecha Limite
-                    Cell c8 = row.createCell(8);
-                    if (entregable.getFechaLimite() != null) {
-                        c8.setCellValue(java.sql.Date.valueOf(entregable.getFechaLimite()));
-                        c8.setCellStyle(dateStyle);
-                    } else {
-                        c8.setCellStyle(defaultStyle);
-                    }
-
-                    // 9 (J): Fecha Entrega
-                    Cell c9 = row.createCell(9);
-                    if (entregable.getFechaEntregaEfectiva() != null) {
-                        c9.setCellValue(java.sql.Date.valueOf(entregable.getFechaEntregaEfectiva()));
-                        c9.setCellStyle(dateStyle);
-                    } else {
-                        c9.setCellStyle(defaultStyle);
-                    }
-
-                    // 10 (K): ATRASO
-                    Cell c10 = row.createCell(10);
-                    c10.setCellFormula("IF(I"+r+"=\"\";\"\";IF(J"+r+"=\"\";MIN(0;I"+r+"-R"+r+");I"+r+"-J"+r+"))");
-                    c10.setCellStyle(defaultStyle);
-
-                    // 11 (L): OK
-                    Cell c11 = row.createCell(11);
-                    c11.setCellFormula("IF(ISNUMBER(J"+r+");1;0)");
-                    c11.setCellStyle(defaultStyle);
-
-                    // 12 (M): RUTA EVIDENCIAS
-                    Cell c12 = row.createCell(12);
-                    if (entregable.getArchivoPdf() != null) {
-                        String token = evidenceAccessService.getOrCreateToken(entregable, username);
-                        String base = publicUrlProperties.getBase() != null ? publicUrlProperties.getBase() : "";
-                        String publicUrl = base + "/api/v1/public/evidencia/" + token;
-
-                        c12.setCellValue("Ver evidencia");
-                        CreationHelper createHelper = workbook.getCreationHelper();
-                        Hyperlink link = createHelper.createHyperlink(HyperlinkType.URL);
-                        link.setAddress(publicUrl);
-                        c12.setHyperlink(link);
-
-                        XSSFCellStyle linkStyle = workbook.createCellStyle();
-                        XSSFFont linkFont = workbook.createFont();
-                        linkFont.setUnderline(FontUnderline.SINGLE);
-                        linkFont.setColor(IndexedColors.BLUE.getIndex());
-                        linkStyle.setFont(linkFont);
-                        linkStyle.setShrinkToFit(true);
-                        linkStyle.setWrapText(false);
-                        setBorder(linkStyle);
-                        c12.setCellStyle(linkStyle);
-                    } else {
-                        c12.setCellStyle(defaultStyle);
-                    }
-
-                    // 13 (N): Empty/Hidden
-                    Cell c13 = row.createCell(13);
-                    c13.setCellStyle(defaultStyle);
-
-                    // 14 (O): EJECUTADO HITO
-                    Cell c14 = row.createCell(14);
-                    c14.setCellStyle(executedHitoStyle);
-
-                    // 15 (P): EJECUTADO FASE
-                    Cell c15 = row.createCell(15);
-                    c15.setCellStyle(executedFaseStyle);
-
-                    // 16 (Q): EJECUTADO PYTO
-                    Cell c16 = row.createCell(16);
-                    c16.setCellStyle(executedPytoStyle);
-
-                    // 17 (R): HOY() - Spanish locale function name
-                    Cell c17 = row.createCell(17);
-                    c17.setCellFormula("HOY()");
-                    c17.setCellStyle(dateStyle);
-
-                    // 18 (S): ATRASO PROG
-                    Cell c18 = row.createCell(18);
-                    c18.setCellFormula("I"+r+"-R"+r);
-                    c18.setCellStyle(defaultStyle);
-
-                    // 19 (T): VALIDA
-                    Cell c19 = row.createCell(19);
-                    c19.setCellFormula("IF(S"+r+">0;0;1)");
-                    c19.setCellStyle(defaultStyle);
-
-                    // 20 (U): PROG HITO
-                    Cell c20 = row.createCell(20);
-                    c20.setCellStyle(progHitoStyle);
-
-                    // 21 (V): PROG FASE
-                    Cell c21 = row.createCell(21);
-                    c21.setCellStyle(progFaseStyle);
-
-                    // 22 (W): PROG PYTO
-                    Cell c22 = row.createCell(22);
-                    c22.setCellStyle(progPytoStyle);
-
-                    // 23 (X): EyE Incluye?
-                    Cell c23 = row.createCell(23);
-                    c23.setCellFormula("IF(I"+r+"<=R"+r+";\"Si\";\"No\")");
-                    c23.setCellStyle(eyeStyle);
-
-                    // 24 (Y): Eficacia Calcula
-                    Cell c24 = row.createCell(24);
-                    c24.setCellFormula("IF(AND(I"+r+"<=R"+r+";J"+r+"<>\"\";L"+r+"=1);\"Si\";\"\")");
-                    c24.setCellStyle(eficaciaCalcStyle);
-
-                    // 25 (Z): Eficiencia Calcula
-                    Cell c25 = row.createCell(25);
-                    c25.setCellFormula("IF(AND(I"+r+"<>\"\";J"+r+"<>\"\";L"+r+"=1;J"+r+"<=I"+r+");\"Si\";\"\")");
-                    c25.setCellStyle(eficienciaCalcStyle);
-
+                    writeEntregableRow(sheet, workbook, fase, hito, entregable, e, rowIndex, phaseCount, hitoIndex, username, styles);
                     rowIndex++;
                 }
 
                 // Merge Hito columns vertically
-                if (rowIndex - 1 > hitoStartRow) {
-                    sheet.addMergedRegion(new CellRangeAddress(hitoStartRow, rowIndex - 1, 3, 3));
-                    sheet.addMergedRegion(new CellRangeAddress(hitoStartRow, rowIndex - 1, 4, 4));
-                    sheet.addMergedRegion(new CellRangeAddress(hitoStartRow, rowIndex - 1, 14, 14)); // Ejecutado Hito
-                    sheet.addMergedRegion(new CellRangeAddress(hitoStartRow, rowIndex - 1, 20, 20)); // Prog Hito
-                }
+                mergeHitoRows(sheet, hitoStartRow, rowIndex - 1);
                 hitoIndex++;
             }
 
             // Merge Fase columns vertically
-            if (rowIndex - 1 > phaseStartRow) {
-                sheet.addMergedRegion(new CellRangeAddress(phaseStartRow, rowIndex - 1, 1, 1));
-                sheet.addMergedRegion(new CellRangeAddress(phaseStartRow, rowIndex - 1, 2, 2));
-                sheet.addMergedRegion(new CellRangeAddress(phaseStartRow, rowIndex - 1, 15, 15)); // Ejecutado Fase
-                sheet.addMergedRegion(new CellRangeAddress(phaseStartRow, rowIndex - 1, 21, 21)); // Prog Fase
-            }
+            mergeFaseRows(sheet, phaseStartRow, rowIndex - 1);
             phaseCount++;
         }
+        return rowIndex;
+    }
 
-        int finalRow = rowIndex > 4 ? rowIndex : 5; // 1-based index of last data row
+    private void mergeHitoRows(XSSFSheet sheet, int startRow, int endRow) {
+        if (endRow > startRow) {
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 3, 3));
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 4, 4));
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 14, 14)); // Ejecutado Hito
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 20, 20)); // Prog Hito
+        }
+    }
 
+    private void mergeFaseRows(XSSFSheet sheet, int startRow, int endRow) {
+        if (endRow > startRow) {
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 1, 1));
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 2, 2));
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 15, 15)); // Ejecutado Fase
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, 21, 21)); // Prog Fase
+        }
+    }
+
+    @SuppressWarnings("java:S107")
+    private void writeEntregableRow(XSSFSheet sheet, XSSFWorkbook workbook, Fase fase, Hito hito,
+                                     Entregable entregable, int e, int rowIndex, int phaseCount, int hitoIndex,
+                                     String username, SheetStyles styles) {
+        XSSFCellStyle currentPhaseStyle = (phaseCount % 2 == 0) ? styles.phase1Style() : styles.phase2Style();
+        XSSFCellStyle currentHitoStyle = styles.hitoStyles()[hitoIndex % styles.hitoStyles().length];
+
+        Row row = sheet.createRow(rowIndex);
+        int r = rowIndex + 1; // 1-based index for formulas
+
+        // 1 (B): Fase Nombre
+        Cell c1 = row.createCell(1);
+        c1.setCellValue(fase.getNombre());
+        c1.setCellStyle(currentPhaseStyle);
+
+        // 2 (C): Fase Ponderacion - use percent style matching phase background
+        Cell c2 = row.createCell(2);
+        c2.setCellValue(fase.getPonderacion().doubleValue() / 100.0);
+        c2.setCellStyle(phaseCount % 2 == 0 ? styles.phase1PercentStyle() : styles.phase2PercentStyle());
+
+        // 3 (D): Hito Nombre
+        Cell c3 = row.createCell(3);
+        c3.setCellValue(hito.getNombre());
+        c3.setCellStyle(currentHitoStyle);
+
+        // 4 (E): Hito Ponderacion - use percent style matching hito background
+        Cell c4 = row.createCell(4);
+        c4.setCellValue(hito.getPonderacion().doubleValue() / 100.0);
+        c4.setCellStyle(styles.hitoPercentStyles()[hitoIndex % styles.hitoPercentStyles().length]);
+
+        // 5 (F): Entregable Codigo
+        Cell c5 = row.createCell(5);
+        c5.setCellValue("E" + String.format("%02d", e + 1));
+        c5.setCellStyle(styles.defaultStyle());
+
+        // 6 (G): Entregable Ponderacion
+        Cell c6 = row.createCell(6);
+        c6.setCellValue(entregable.getPonderacion().doubleValue() / 100.0);
+        c6.setCellStyle(styles.percentStyle());
+
+        // 7 (H): Entregable Nombre
+        Cell c7 = row.createCell(7);
+        c7.setCellValue(entregable.getNombre());
+        c7.setCellStyle(styles.textStyle());
+
+        // 8 (I): Fecha Limite
+        Cell c8 = row.createCell(8);
+        setDateCell(c8, entregable.getFechaLimite(), styles);
+
+        // 9 (J): Fecha Entrega
+        Cell c9 = row.createCell(9);
+        setDateCell(c9, entregable.getFechaEntregaEfectiva(), styles);
+
+        // 10 (K): ATRASO
+        Cell c10 = row.createCell(10);
+        c10.setCellFormula("IF(I"+r+"=\"\";\"\";IF(J"+r+"=\"\";MIN(0;I"+r+"-R"+r+");I"+r+"-J"+r+"))");
+        c10.setCellStyle(styles.defaultStyle());
+
+        // 11 (L): OK
+        Cell c11 = row.createCell(11);
+        c11.setCellFormula("IF(ISNUMBER(J"+r+");1;0)");
+        c11.setCellStyle(styles.defaultStyle());
+
+        // 12 (M): RUTA EVIDENCIAS
+        Cell c12 = row.createCell(12);
+        if (entregable.getArchivoPdf() != null) {
+            String token = evidenceAccessService.getOrCreateToken(entregable, username);
+            String base = publicUrlProperties.getBase() != null ? publicUrlProperties.getBase() : "";
+            String publicUrl = base + "/api/v1/public/evidencia/" + token;
+
+            c12.setCellValue("Ver evidencia");
+            CreationHelper createHelper = workbook.getCreationHelper();
+            Hyperlink link = createHelper.createHyperlink(HyperlinkType.URL);
+            link.setAddress(publicUrl);
+            c12.setHyperlink(link);
+
+            XSSFCellStyle linkStyle = workbook.createCellStyle();
+            XSSFFont linkFont = workbook.createFont();
+            linkFont.setUnderline(FontUnderline.SINGLE);
+            linkFont.setColor(IndexedColors.BLUE.getIndex());
+            linkStyle.setFont(linkFont);
+            linkStyle.setShrinkToFit(true);
+            linkStyle.setWrapText(false);
+            setBorder(linkStyle);
+            c12.setCellStyle(linkStyle);
+        } else {
+            c12.setCellStyle(styles.defaultStyle());
+        }
+
+        // 13 (N): Empty/Hidden
+        Cell c13 = row.createCell(13);
+        c13.setCellStyle(styles.defaultStyle());
+
+        // 14 (O): EJECUTADO HITO
+        Cell c14 = row.createCell(14);
+        c14.setCellStyle(styles.executedHitoStyle());
+
+        // 15 (P): EJECUTADO FASE
+        Cell c15 = row.createCell(15);
+        c15.setCellStyle(styles.executedFaseStyle());
+
+        // 16 (Q): EJECUTADO PYTO
+        Cell c16 = row.createCell(16);
+        c16.setCellStyle(styles.executedPytoStyle());
+
+        // 17 (R): HOY() - Spanish locale function name
+        Cell c17 = row.createCell(17);
+        c17.setCellFormula("HOY()");
+        c17.setCellStyle(styles.dateStyle());
+
+        // 18 (S): ATRASO PROG
+        Cell c18 = row.createCell(18);
+        c18.setCellFormula("I"+r+"-R"+r);
+        c18.setCellStyle(styles.defaultStyle());
+
+        // 19 (T): VALIDA
+        Cell c19 = row.createCell(19);
+        c19.setCellFormula("IF(S"+r+">0;0;1)");
+        c19.setCellStyle(styles.defaultStyle());
+
+        // 20 (U): PROG HITO
+        Cell c20 = row.createCell(20);
+        c20.setCellStyle(styles.progHitoStyle());
+
+        // 21 (V): PROG FASE
+        Cell c21 = row.createCell(21);
+        c21.setCellStyle(styles.progFaseStyle());
+
+        // 22 (W): PROG PYTO
+        Cell c22 = row.createCell(22);
+        c22.setCellStyle(styles.progPytoStyle());
+
+        // 23 (X): EyE Incluye?
+        Cell c23 = row.createCell(23);
+        c23.setCellFormula("IF(I"+r+"<=R"+r+";\"Si\";\"No\")");
+        c23.setCellStyle(styles.eyeStyle());
+
+        // 24 (Y): Eficacia Calcula
+        Cell c24 = row.createCell(24);
+        c24.setCellFormula("IF(AND(I"+r+"<=R"+r+";J"+r+"<>\"\";L"+r+"=1);\"Si\";\"\")");
+        c24.setCellStyle(styles.eficaciaCalcStyle());
+
+        // 25 (Z): Eficiencia Calcula
+        Cell c25 = row.createCell(25);
+        c25.setCellFormula("IF(AND(I"+r+"<>\"\";J"+r+"<>\"\";L"+r+"=1;J"+r+"<=I"+r+");\"Si\";\"\")");
+        c25.setCellStyle(styles.eficienciaCalcStyle());
+    }
+
+    private void setDateCell(Cell cell, java.time.LocalDate value, SheetStyles styles) {
+        if (value != null) {
+            cell.setCellValue(java.sql.Date.valueOf(value));
+            cell.setCellStyle(styles.dateStyle());
+        } else {
+            cell.setCellStyle(styles.defaultStyle());
+        }
+    }
+
+    private void updateRangeFormulas(XSSFSheet sheet, int rowIndex, int finalRow) {
         // Update range-dependent formulas with exact finalRow
         for (int i = 4; i < rowIndex; i++) {
             Row row = sheet.getRow(i);
             if (row != null) {
                 int r = i + 1;
-                Cell c14 = row.getCell(14);
-                if (c14 != null) c14.setCellFormula("SUMPRODUCT(($D$5:$D$" + finalRow + "=D" + r + ")*$G$5:$G$" + finalRow + "*$L$5:$L$" + finalRow + ")");
-
-                Cell c15 = row.getCell(15);
-                if (c15 != null) c15.setCellFormula("SUMPRODUCT(($B$5:$B$" + finalRow + "=B" + r + ")*$E$5:$E$" + finalRow + "*$O$5:$O$" + finalRow + ")");
-
-                Cell c16 = row.getCell(16);
-                if (c16 != null) c16.setCellFormula("PROMEDIO($P$5:$P$" + finalRow + ")");
-
-                Cell c20 = row.getCell(20);
-                if (c20 != null) c20.setCellFormula("SI.ERROR(PROMEDIO.SI($T$5:$T$" + finalRow + ";$D$5:$D$" + finalRow + ";D" + r + ");0)");
-
-                Cell c21 = row.getCell(21);
-                if (c21 != null) c21.setCellFormula("SI.ERROR(PROMEDIO.SI($U$5:$U$" + finalRow + ";$B$5:$B$" + finalRow + ";B" + r + ");0)");
-
-                Cell c22 = row.getCell(22);
-                if (c22 != null) c22.setCellFormula("PROMEDIO($V$5:$V$" + finalRow + ")");
+                applyRangeFormulas(row, r, finalRow);
             }
         }
+    }
 
-        // Merge Pyto columns vertically across all rows
-        if (rowIndex > 5) {
-            sheet.addMergedRegion(new CellRangeAddress(4, rowIndex - 1, 16, 16)); // Ejecutado Pyto
-            sheet.addMergedRegion(new CellRangeAddress(4, rowIndex - 1, 22, 22)); // Prog Pyto
-        }
+    private void applyRangeFormulas(Row row, int r, int finalRow) {
+        Cell c14 = row.getCell(14);
+        if (c14 != null) c14.setCellFormula("SUMPRODUCT(($D$5:$D$" + finalRow + "=D" + r + ")*$G$5:$G$" + finalRow + "*$L$5:$L$" + finalRow + ")");
+
+        Cell c15 = row.getCell(15);
+        if (c15 != null) c15.setCellFormula("SUMPRODUCT(($B$5:$B$" + finalRow + "=B" + r + ")*$E$5:$E$" + finalRow + "*$O$5:$O$" + finalRow + ")");
+
+        Cell c16 = row.getCell(16);
+        if (c16 != null) c16.setCellFormula("PROMEDIO($P$5:$P$" + finalRow + ")");
+
+        Cell c20 = row.getCell(20);
+        if (c20 != null) c20.setCellFormula("SI.ERROR(PROMEDIO.SI($T$5:$T$" + finalRow + ";$D$5:$D$" + finalRow + ";D" + r + ");0)");
+
+        Cell c21 = row.getCell(21);
+        if (c21 != null) c21.setCellFormula("SI.ERROR(PROMEDIO.SI($U$5:$U$" + finalRow + ";$B$5:$B$" + finalRow + ";B" + r + ");0)");
+
+        Cell c22 = row.getCell(22);
+        if (c22 != null) c22.setCellFormula("PROMEDIO($V$5:$V$" + finalRow + ")");
+    }
+
+    private void writeSummaryAndIndicators(XSSFSheet sheet, XSSFWorkbook workbook, int rowIndex, int finalRow, SheetStyles styles) {
+        XSSFCellStyle greenSummaryStyle = styles.greenSummaryStyle();
+        XSSFCellStyle greenHeaderStyle = styles.greenHeaderStyle();
+        XSSFCellStyle textStyle = styles.textStyle();
+        XSSFCellStyle dateStyle = styles.dateStyle();
+        XSSFCellStyle defaultStyle = styles.defaultStyle();
 
         // Summary row right under table (Row finalRow + 1)
         Row summaryRow = sheet.createRow(rowIndex);
@@ -469,39 +567,6 @@ public class SeguimientoExcelGenerator {
         Cell r6x = r6.createCell(23); r6x.setCellValue("Eficiencia"); r6x.setCellStyle(lightGreenStyle);
         Cell r6y = r6.createCell(24); r6y.setCellFormula("MIN(1;SI.ERROR(Y" + entTiempoRow1Based + "/Y" + progCorteRow1Based + ";0))"); r6y.setCellStyle(lightGreenPercentStyle);
         Cell r6z = r6.createCell(25); r6z.setCellValue("Entregados a tiempo / Programados al corte"); r6z.setCellStyle(lightGreenStyle);
-
-        // Hide columns 0 and 13
-        sheet.setColumnHidden(0, true);
-        sheet.setColumnHidden(13, true);
-
-        // Set explicit column widths (in units of 1/256th of a character width)
-        sheet.setColumnWidth(1,  4500);  // B: FASES
-        sheet.setColumnWidth(2,  2500);  // C: POND
-        sheet.setColumnWidth(3,  4500);  // D: HITOS
-        sheet.setColumnWidth(4,  2800);  // E: Ponderado
-        sheet.setColumnWidth(5,  3000);  // F: ENTREGABLES
-        sheet.setColumnWidth(6,  2800);  // G: Ponderado
-        sheet.setColumnWidth(7,  10000); // H: NOMBRE (wide for description)
-        sheet.setColumnWidth(8,  3800);  // I: FECHA LIM
-        sheet.setColumnWidth(9,  4000);  // J: FECHA ENTREGA
-        sheet.setColumnWidth(10, 3000);  // K: ATRASO
-        sheet.setColumnWidth(11, 2200);  // L: OK
-        sheet.setColumnWidth(12, 5000);  // M: RUTA EVIDENCIAS
-        sheet.setColumnWidth(14, 3500);  // O: EJ HITO
-        sheet.setColumnWidth(15, 3500);  // P: EJ FASE
-        sheet.setColumnWidth(16, 3500);  // Q: EJ PYTO
-        sheet.setColumnWidth(17, 3800);  // R: HOY
-        sheet.setColumnWidth(18, 3000);  // S: ATRASO PROG
-        sheet.setColumnWidth(19, 2800);  // T: VALIDA
-        sheet.setColumnWidth(20, 4000);  // U: HITO PROG
-        sheet.setColumnWidth(21, 4000);  // V: FASE PROG
-        sheet.setColumnWidth(22, 4000);  // W: PYTO PROG
-        sheet.setColumnWidth(23, 3500);  // X: EyE Incluye?
-        sheet.setColumnWidth(24, 4500);  // Y: Eficacia Calcula
-        sheet.setColumnWidth(25, 4500);  // Z: Eficiencia Calcula
-
-        // Set default row height
-        sheet.setDefaultRowHeightInPoints(30);
     }
 
     private XSSFCellStyle createHeaderStyle(XSSFWorkbook workbook, XSSFColor color) {
@@ -552,5 +617,32 @@ public class SeguimientoExcelGenerator {
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
     }
+
+    @SuppressWarnings("java:S6218")
+    private record SheetStyles(
+            XSSFCellStyle headerStyle,
+            XSSFCellStyle subHeaderStyle,
+            XSSFCellStyle greenHeaderStyle,
+            XSSFCellStyle phase1Style,
+            XSSFCellStyle phase2Style,
+            XSSFCellStyle phase1PercentStyle,
+            XSSFCellStyle phase2PercentStyle,
+            XSSFCellStyle[] hitoStyles,
+            XSSFCellStyle[] hitoPercentStyles,
+            XSSFCellStyle executedHitoStyle,
+            XSSFCellStyle executedFaseStyle,
+            XSSFCellStyle executedPytoStyle,
+            XSSFCellStyle progHitoStyle,
+            XSSFCellStyle progFaseStyle,
+            XSSFCellStyle progPytoStyle,
+            XSSFCellStyle eyeStyle,
+            XSSFCellStyle eficaciaCalcStyle,
+            XSSFCellStyle eficienciaCalcStyle,
+            XSSFCellStyle greenSummaryStyle,
+            XSSFCellStyle dateStyle,
+            XSSFCellStyle percentStyle,
+            XSSFCellStyle defaultStyle,
+            XSSFCellStyle textStyle
+    ) {}
 }
 

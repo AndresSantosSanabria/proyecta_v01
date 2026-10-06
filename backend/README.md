@@ -175,26 +175,28 @@ El frontend arranca en: `http://localhost:5173`
 
 ## Estructura del Proyecto
 
+Arquitectura hexagonal (ports & adapters, [ADR-007](docs/adr/ADR-007-arquitectura-hexagonal.md)):
+
 ```
 api-gestion/
 ├── docs/
 │   ├── arquitectura-tecnica.md    # Documento de Arquitectura Técnica
-│   └── api-endpoints.md           # Documentación de Endpoints API
+│   ├── api-endpoints.md           # Documentación de Endpoints API
+│   └── adr/                       # Decisiones de Arquitectura (ADR-007 hexagonal)
 ├── src/
 │   ├── main/
-│   │   ├── java/
-│   │   │   └── com/proyecta/
-│   │   │       ├── controller/    # Controladores REST
-│   │   │       ├── service/       # Lógica de negocio
-│   │   │       ├── repository/    # Acceso a datos (JPA)
-│   │   │       ├── model/         # Entidades de dominio
-│   │   │       ├── dto/           # Data Transfer Objects
-│   │   │       ├── config/        # Configuración (Security, CORS, etc.)
-│   │   │       └── exception/     # Manejo de excepciones
+│   │   ├── java/com/proyecta/api_gestion/
+│   │   │   ├── domain/            # Núcleo: model/ (72 entidades), value/ (PageQuery, PageResult), exception/
+│   │   │   ├── application/       # Puertos de salida (51 *RepositoryPort) + readmodel/
+│   │   │   ├── adapter/           # in/web (PageSupport, GlobalExceptionHandler) · out/persistence (interfaces JPA espejo)
+│   │   │   ├── controller/        # 29 controllers REST (frontera web, @PreAuthorize)
+│   │   │   ├── service/           # Casos de uso @Transactional + support/ (soportes SOLID)
+│   │   │   ├── dto/               # DTOs de la frontera HTTP
+│   │   │   ├── config/            # Composition root (Security, CORS, async, Flyway, OpenAPI)
+│   │   │   └── infrastructure/    # Utilidades transversales
 │   │   └── resources/
 │   │       └── application.properties
-│   └── test/                      # Pruebas unitarias e de integración
-├── CHANGELOG.md                   # Historial de cambios (Keep a Changelog)
+│   └── test/                      # Pruebas unitarias, de integración y de arquitectura
 ├── README.md                      # Este archivo
 ├── pom.xml                        # Descriptor Maven
 └── mvnw / mvnw.cmd               # Maven Wrapper
@@ -295,17 +297,19 @@ if (response.status === 403) {
 ## Pruebas
 
 ```bash
-# Ejecutar todas las pruebas
+# Ejecutar todas las pruebas (incluye ArchitectureTest: 11 reglas de arquitectura)
 ./mvnw test
 
 # Ejecutar pruebas específicas
-./mvnw test -Dtest=DocumentLifecycleServiceTest
+./mvnw test -Dtest=ArchitectureTest
 
 # Cobertura de código
 ./mvnw jacoco:report
 ```
 
 Los reportes de cobertura se generan en `target/site/jacoco/index.html`.
+
+**Reglas de arquitectura (ArchUnit):** `src/test/java/.../architecture/ArchitectureTest.java` verifica en cada build que el dominio no dependa de adaptadores ni frameworks (R1/R1b), que los repositorios solo existan en `adapter/out` (R3a), que la frontera web no use `Pageable` (R3b-ii), que `adapter/in` y `adapter/out` no se conozcan (R4), que los controllers no dependan de persistencia (R5), que los DTOs estén en la frontera (R6) y que cada puerto tenga un único adaptador (R7).
 
 ---
 

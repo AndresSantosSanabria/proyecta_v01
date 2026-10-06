@@ -1,8 +1,8 @@
 package com.proyecta.api_gestion.service.notification;
 
-import com.proyecta.api_gestion.model.Entregable;
-import com.proyecta.api_gestion.repository.EntregableRepository;
-import com.proyecta.api_gestion.repository.security.SeguridadUsuarioRepository;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
 import com.proyecta.api_gestion.service.config.SystemParameterKeys;
 import com.proyecta.api_gestion.service.config.SystemParameterService;
 import org.slf4j.Logger;
@@ -13,34 +13,44 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
-public class EntregableOverdueReminderScheduler {
+public class EntregableOverdueReminderScheduler extends EntregableNotificationSchedulerSupport {
 
     private static final Logger log = LoggerFactory.getLogger(EntregableOverdueReminderScheduler.class);
-    private static final String EVENT_CODE = NotificationEventType.ENTREGABLE_OVERDUE_REMINDER.name();
 
     private static final int DEFAULT_INTERVAL_DAYS = 8;
 
-    private final EntregableRepository entregableRepository;
-    private final SeguridadUsuarioRepository usuarioRepository;
-    private final InAppNotificationService inAppNotificationService;
-    private final NotificationEventPublisherPort notificationPublisher;
-    private final SystemParameterService systemParameterService;
-
     public EntregableOverdueReminderScheduler(
-            EntregableRepository entregableRepository,
-            SeguridadUsuarioRepository usuarioRepository,
+            EntregableRepositoryPort entregableRepositoryPort,
+            SeguridadUsuarioRepositoryPort usuarioRepositoryPort,
             InAppNotificationService inAppNotificationService,
             NotificationEventPublisherPort notificationPublisher,
             SystemParameterService systemParameterService) {
-        this.entregableRepository = entregableRepository;
-        this.usuarioRepository = usuarioRepository;
-        this.inAppNotificationService = inAppNotificationService;
-        this.notificationPublisher = notificationPublisher;
-        this.systemParameterService = systemParameterService;
+        super(entregableRepositoryPort, usuarioRepositoryPort, inAppNotificationService,
+                notificationPublisher, systemParameterService);
+    }
+
+    @Override
+    protected NotificationEventType eventType() {
+        return NotificationEventType.ENTREGABLE_OVERDUE_REMINDER;
+    }
+
+    @Override
+    protected long calcularDias(LocalDate today, Entregable entregable) {
+        return diasEntre(entregable.getFechaLimite(), today);
+    }
+
+    @Override
+    protected String claveDias() {
+        return "diasVencido";
+    }
+
+    @Override
+    protected String tituloNotificacion(long dias, Entregable entregable) {
+        return "Entregable vencido hace " + dias + " días: " + entregable.getNombre();
     }
 
     @Scheduled(cron = "${notifications.overdue-reminder.cron:0 0 9 * * *}")
@@ -49,65 +59,13 @@ public class EntregableOverdueReminderScheduler {
         int intervalDays = systemParameterService.getInt(
                 SystemParameterKeys.NOTIFICATION_OVERDUE_REMINDER_INTERVAL_DAYS, DEFAULT_INTERVAL_DAYS);
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         LocalDateTime cutoffForDedup = today.minusDays(intervalDays).atStartOfDay();
 
-        List<Entregable> vencidos = entregableRepository.findVencidosNoEntregados(today);
-
-        for (Entregable entregable : vencidos) {
-            try {
-                procesarEntregable(entregable, today, cutoffForDedup);
-            } catch (Exception ex) {
-                log.warn("[OverdueReminder] Failed to process entregable {}: {}",
-                        entregable.getId(), ex.getMessage());
-            }
-        }
+        List<Entregable> vencidos = entregableRepositoryPort.findVencidosNoEntregados(today);
+        procesarCada(vencidos, today, cutoffForDedup, "OverdueReminder");
 
         log.info("[OverdueReminder] Scanned {} overdue deliverables, interval={} days",
                 vencidos.size(), intervalDays);
-    }
-
-    private void procesarEntregable(Entregable entregable, LocalDate today,
-                                     LocalDateTime cutoffForDedup) {
-        String projectId = entregable.getHito().getFase().getProyecto().getId();
-        String director = entregable.getHito().getFase().getProyecto().getCorreoDirector();
-
-        if (director == null || director.isBlank()) {
-            return;
-        }
-
-        List<String> recipients = ProjectNotificationRecipients.resolve(entregable.getHito().getFase().getProyecto());
-        if (recipients.isEmpty()) {
-            return;
-        }
-
-        var recipient = usuarioRepository.findByUsernameIgnoreCase(director)
-                .or(() -> usuarioRepository.findByCorreoIgnoreCase(director))
-                .orElse(null);
-        if (recipient == null) {
-            return;
-        }
-
-        String sourceEntityId = String.valueOf(entregable.getId());
-        if (inAppNotificationService.existsForRecipient(recipient.getId(), EVENT_CODE, sourceEntityId, cutoffForDedup)) {
-            return;
-        }
-
-        long diasVencido = ChronoUnit.DAYS.between(entregable.getFechaLimite(), today);
-        String projectName = entregable.getHito().getFase().getProyecto().getNombre();
-
-        notificationPublisher.publish(new NotificationContext(
-                NotificationEventType.ENTREGABLE_OVERDUE_REMINDER,
-                projectId,
-                "system",
-                java.util.Map.of(
-                        "entregableNombre", entregable.getNombre(),
-                        "entregableId", entregable.getId(),
-                        "projectName", projectName,
-                        "diasVencido", diasVencido,
-                        "fechaLimite", entregable.getFechaLimite().toString(),
-                        "recipients", recipients,
-                        "title", "Entregable vencido hace " + diasVencido + " días: " + entregable.getNombre()
-                )));
     }
 }

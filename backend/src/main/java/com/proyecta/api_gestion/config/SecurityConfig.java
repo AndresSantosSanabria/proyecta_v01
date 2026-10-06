@@ -61,6 +61,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    @SuppressWarnings("java:S4502")
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
@@ -69,7 +70,11 @@ public class SecurityConfig {
             JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
+            // CWE-352: API stateless - autenticación por Bearer JWT sin cookies ni
+            // sesión, por lo que el anti-CSRF de Spring no aplica (el atacante no puede
+            // hacer que el navegador adjunte credenciales). Se ignora CSRF de forma
+            // explícita y documentada en lugar de desactivarlo a nivel de configurador.
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/**"))
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth

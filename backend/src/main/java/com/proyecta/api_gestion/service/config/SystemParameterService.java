@@ -1,7 +1,7 @@
 package com.proyecta.api_gestion.service.config;
 
-import com.proyecta.api_gestion.model.SystemParameter;
-import com.proyecta.api_gestion.repository.SystemParameterRepository;
+import com.proyecta.api_gestion.domain.model.SystemParameter;
+import com.proyecta.api_gestion.application.port.out.persistence.SystemParameterRepositoryPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,14 +13,14 @@ import java.util.Optional;
 @Service
 public class SystemParameterService {
 
-    private final SystemParameterRepository systemParameterRepository;
+    private final SystemParameterRepositoryPort systemParameterRepositoryPort;
 
-    public SystemParameterService(SystemParameterRepository systemParameterRepository) {
-        this.systemParameterRepository = systemParameterRepository;
+    public SystemParameterService(SystemParameterRepositoryPort systemParameterRepositoryPort) {
+        this.systemParameterRepositoryPort = systemParameterRepositoryPort;
     }
 
     public Optional<String> getString(String key) {
-        return systemParameterRepository.findByKey(normalizeKey(key)).map(param -> trimToNull(param.getValue()));
+        return systemParameterRepositoryPort.findByKey(normalizeKey(key)).map(param -> trimToNull(param.getValue()));
     }
 
     public String getString(String key, String defaultValue) {
@@ -64,11 +64,11 @@ public class SystemParameterService {
     @Transactional
     public void set(String key, String value) {
         String normalizedKey = normalizeKey(key);
-        SystemParameter param = systemParameterRepository.findById(normalizedKey)
+        SystemParameter param = systemParameterRepositoryPort.findById(normalizedKey)
                 .orElse(new SystemParameter());
         param.setKey(normalizedKey);
         param.setValue(value);
-        systemParameterRepository.save(param);
+        systemParameterRepositoryPort.save(param);
     }
 
     private String normalizeKey(String key) {

@@ -1,9 +1,9 @@
 package com.proyecta.api_gestion.service.report;
 
 import com.proyecta.api_gestion.config.PublicUrlProperties;
-import com.proyecta.api_gestion.model.Riesgo;
-import com.proyecta.api_gestion.model.RiesgoTratamiento;
-import com.proyecta.api_gestion.model.RiesgoTratamientoAdjunto;
+import com.proyecta.api_gestion.domain.model.Riesgo;
+import com.proyecta.api_gestion.domain.model.RiesgoTratamiento;
+import com.proyecta.api_gestion.domain.model.RiesgoTratamientoAdjunto;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -91,46 +91,42 @@ public class RiesgoExcelExporter {
                     ? List.of()
                     : new ArrayList<>(riesgo.getTratamientos());
 
-            String evidenciaLabel;
-            String evidenciaUrl;
-            String ultimoComentario;
+            EvidenciaInfo evidencia = resolveEvidencia(projectId, riesgo, tratamientos);
 
-            if (tratamientos.isEmpty()) {
-                evidenciaLabel = "Sin evidencia";
-                evidenciaUrl = null;
-                ultimoComentario = "";
-            } else {
-                RiesgoTratamiento ultimoTratamiento = tratamientos.get(0);
-                ultimoComentario = normalize(ultimoTratamiento.getComentario(), "");
-
-                List<RiesgoTratamientoAdjunto> adjuntos = ultimoTratamiento.getAdjuntos() == null
-                        ? List.of()
-                        : ultimoTratamiento.getAdjuntos();
-
-                if (adjuntos.isEmpty()) {
-                    evidenciaLabel = "Sin evidencia";
-                    evidenciaUrl = null;
-                } else {
-                    StringBuilder labels = new StringBuilder();
-                    StringBuilder urls = new StringBuilder();
-                    for (int i = 0; i < adjuntos.size(); i++) {
-                        RiesgoTratamientoAdjunto adjunto = adjuntos.get(i);
-                        if (i > 0) {
-                            labels.append('\n');
-                            urls.append('\n');
-                        }
-                        labels.append(defaultLabel(i + 1));
-                        urls.append(publicTreatmentUrl(projectId, riesgo.getId(), ultimoTratamiento.getId(), adjunto.getId()));
-                    }
-                    evidenciaLabel = labels.toString();
-                    evidenciaUrl = urls.toString();
-                }
-            }
-
-            rows.add(mapRiskRow(numero, riesgo, evidenciaLabel, evidenciaUrl, ultimoComentario));
+            rows.add(mapRiskRow(numero, riesgo, evidencia.label(), evidencia.url(), evidencia.comentario()));
             numero++;
         }
         return rows;
+    }
+
+    private EvidenciaInfo resolveEvidencia(String projectId, Riesgo riesgo, List<RiesgoTratamiento> tratamientos) {
+        if (tratamientos.isEmpty()) {
+            return new EvidenciaInfo("Sin evidencia", null, "");
+        }
+
+        RiesgoTratamiento ultimoTratamiento = tratamientos.get(0);
+        String ultimoComentario = normalize(ultimoTratamiento.getComentario(), "");
+
+        List<RiesgoTratamientoAdjunto> adjuntos = ultimoTratamiento.getAdjuntos() == null
+                ? List.of()
+                : ultimoTratamiento.getAdjuntos();
+
+        if (adjuntos.isEmpty()) {
+            return new EvidenciaInfo("Sin evidencia", null, ultimoComentario);
+        }
+
+        StringBuilder labels = new StringBuilder();
+        StringBuilder urls = new StringBuilder();
+        for (int i = 0; i < adjuntos.size(); i++) {
+            RiesgoTratamientoAdjunto adjunto = adjuntos.get(i);
+            if (i > 0) {
+                labels.append('\n');
+                urls.append('\n');
+            }
+            labels.append(defaultLabel(i + 1));
+            urls.append(publicTreatmentUrl(projectId, riesgo.getId(), ultimoTratamiento.getId(), adjunto.getId()));
+        }
+        return new EvidenciaInfo(labels.toString(), urls.toString(), ultimoComentario);
     }
 
     private RiskRow mapRiskRow(int numero, Riesgo riesgo, String evidenciaLabel, String evidenciaUrl, String ultimoComentario) {
@@ -202,6 +198,7 @@ public class RiesgoExcelExporter {
         Cell cell = cell(row, col);
         cell.setCellValue(label == null || label.isBlank() ? "Click aqu�" : label);
         cell.getCellStyle().setWrapText(true);
+        cell.setHyperlink(null);
         if (urls != null && !urls.isBlank()) {
             String firstUrl = urls.split("\\R")[0].trim();
             if (!firstUrl.isBlank()) {
@@ -269,6 +266,8 @@ public class RiesgoExcelExporter {
         };
         return p + i;
     }
+
+    private record EvidenciaInfo(String label, String url, String comentario) {}
 
     private record RiskRow(
             String nro,

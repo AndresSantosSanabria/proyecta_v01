@@ -1,6 +1,6 @@
 package com.proyecta.api_gestion.dto.risk;
 
-import com.proyecta.api_gestion.model.enums.NivelRiesgo;
+import com.proyecta.api_gestion.domain.model.enums.NivelRiesgo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

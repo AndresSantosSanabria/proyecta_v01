@@ -1,15 +1,12 @@
 package com.proyecta.api_gestion.service.report;
 
-import com.proyecta.api_gestion.dto.report.ProyectoReporteResumenDTO;
-import com.proyecta.api_gestion.model.enums.DetailMode;
+import com.proyecta.api_gestion.application.readmodel.ProyectoReporteResumenDTO;
+import com.proyecta.api_gestion.domain.model.enums.DetailMode;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.core.io.ClassPathResource;
@@ -18,11 +15,11 @@ import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -48,7 +45,7 @@ public final class EstadoTodosProyectosPdfGenerator {
     public byte[] build(List<ProyectoReporteResumenDTO> proyectos, LocalDate corte, String detailMode) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            FontPack fonts = loadFonts(document);
+            FontPack fonts = FontPack.load(document);
             PdfCanvas canvas = new PdfCanvas(document, fonts);
             DetailMode mode = DetailMode.from(detailMode);
             canvas.startPage();
@@ -63,38 +60,6 @@ public final class EstadoTodosProyectosPdfGenerator {
         } catch (IOException ex) {
             throw new IllegalStateException("No fue posible generar el PDF del reporte de portafolio.", ex);
         }
-    }
-
-    private static FontPack loadFonts(PDDocument document) {
-        List<String[]> candidates = List.of(
-                new String[]{"C:\\Windows\\Fonts\\calibri.ttf", "C:\\Windows\\Fonts\\calibrib.ttf"},
-                new String[]{"C:\\Windows\\Fonts\\arial.ttf", "C:\\Windows\\Fonts\\arialbd.ttf"}
-        );
-
-        for (String[] candidate : candidates) {
-            try {
-                File regular = new File(candidate[0]);
-                File bold = new File(candidate[1]);
-                if (regular.isFile() && bold.isFile()) {
-                    return new FontPack(
-                            PDType0Font.load(document, regular),
-                            PDType0Font.load(document, bold),
-                            true
-                    );
-                }
-            } catch (IOException _) {
-                // fallback below
-            }
-        }
-
-        return new FontPack(
-                new PDType1Font(Standard14Fonts.FontName.HELVETICA),
-                new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD),
-                false
-        );
-    }
-
-    private record FontPack(PDFont regular, PDFont bold, boolean unicode) {
     }
 
     private static final class PdfCanvas {
@@ -216,7 +181,7 @@ public final class EstadoTodosProyectosPdfGenerator {
                     startPage();
                     renderHeader();
                     renderTitle();
-                    renderMeta(LocalDate.now());
+                    renderMeta(LocalDate.now(ZoneId.systemDefault()));
                     renderDetailMode(mode);
                     headerTop = cursorY;
                     headerHeight = drawTableHeader(headers, widths, headerSizes, headerTop);
@@ -291,18 +256,11 @@ public final class EstadoTodosProyectosPdfGenerator {
         }
 
         private void drawFilledRect(float x, float y, float width, float height, Color fill) throws IOException {
-            content.setNonStrokingColor(fill);
-            content.addRect(x, y, width, height);
-            content.fill();
-            content.setNonStrokingColor(COLOR_TEXT);
+            PdfReportShared.drawFilledRect(content, x, y, width, height, fill, COLOR_TEXT);
         }
 
         private void drawRect(float x, float y, float width, float height, Color stroke, float lineWidth) throws IOException {
-            content.setStrokingColor(stroke);
-            content.setLineWidth(lineWidth);
-            content.addRect(x, y, width, height);
-            content.stroke();
-            content.setStrokingColor(COLOR_TEXT);
+            PdfReportShared.drawRect(content, x, y, width, height, stroke, lineWidth, COLOR_TEXT);
         }
 
         private void drawVerticalLine(float x, float yTop, float yBottom, Color stroke, float lineWidth) throws IOException {
@@ -344,21 +302,7 @@ public final class EstadoTodosProyectosPdfGenerator {
             List<String> result = new ArrayList<>();
             StringBuilder line = new StringBuilder();
             for (String word : words) {
-                String candidate = line.isEmpty() ? word : line + " " + word;
-                if (stringWidth(font, size, candidate) <= width) {
-                    line.setLength(0);
-                    line.append(candidate);
-                } else {
-                    if (!line.isEmpty()) {
-                        result.add(line.toString());
-                        line.setLength(0);
-                    }
-                    if (stringWidth(font, size, word) <= width) {
-                        line.append(word);
-                    } else {
-                        result.add(word);
-                    }
-                }
+                appendWord(word, line, result, font, size, width);
             }
             if (!line.isEmpty()) {
                 result.add(line.toString());
@@ -367,6 +311,24 @@ public final class EstadoTodosProyectosPdfGenerator {
                 result.add(NO_DISPONIBLE);
             }
             return result;
+        }
+
+        private void appendWord(String word, StringBuilder line, List<String> result, PDFont font, float size, float width) throws IOException {
+            String candidate = line.isEmpty() ? word : line + " " + word;
+            if (stringWidth(font, size, candidate) <= width) {
+                line.setLength(0);
+                line.append(candidate);
+                return;
+            }
+            if (!line.isEmpty()) {
+                result.add(line.toString());
+                line.setLength(0);
+            }
+            if (stringWidth(font, size, word) <= width) {
+                line.append(word);
+            } else {
+                result.add(word);
+            }
         }
 
         private float stringWidth(PDFont font, float size, String text) throws IOException {
@@ -407,7 +369,7 @@ public final class EstadoTodosProyectosPdfGenerator {
         }
 
         private String vigenciaGlobal() {
-            int year = LocalDate.now().getYear();
+            int year = LocalDate.now(ZoneId.systemDefault()).getYear();
             return year + "-" + (year + 3);
         }
 
@@ -431,6 +393,13 @@ public final class EstadoTodosProyectosPdfGenerator {
                 total += width;
             }
             float[] normalized = new float[widths.length];
+            if (total <= 0f) {
+                float equal = widths.length > 0 ? 1f / widths.length : 0f;
+                for (int i = 0; i < widths.length; i++) {
+                    normalized[i] = equal;
+                }
+                return normalized;
+            }
             for (int i = 0; i < widths.length; i++) {
                 normalized[i] = widths[i] / total;
             }
