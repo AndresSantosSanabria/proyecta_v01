@@ -35,11 +35,23 @@ public final class PageSupport {
                 if (raw == null || raw.isBlank()) {
                     continue;
                 }
-                String[] parts = raw.split(",", 2);
-                String property = parts[0].trim();
-                if (!property.isEmpty()) {
-                    boolean ascending = parts.length < 2 || !"desc".equalsIgnoreCase(parts[1].trim());
-                    orders.add(new SortOrder(property, ascending));
+                // Spring ya separa por comas al bindear List<String> (?sort=id,desc -> ["id","desc"]),
+                // asi que un token "desc"/"asc" indica la direccion del campo anterior.
+                // Re-spliteamos por si llega un "propiedad,dir" sin splitear (tests, otros clientes).
+                for (String token : raw.split(",")) {
+                    String t = token.trim();
+                    if (t.isEmpty()) {
+                        continue;
+                    }
+                    if ("asc".equalsIgnoreCase(t) || "desc".equalsIgnoreCase(t)) {
+                        if (!orders.isEmpty()) {
+                            SortOrder last = orders.get(orders.size() - 1);
+                            orders.set(orders.size() - 1,
+                                    new SortOrder(last.property(), "asc".equalsIgnoreCase(t)));
+                        }
+                        continue;
+                    }
+                    orders.add(new SortOrder(t, true));
                 }
             }
         }
