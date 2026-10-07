@@ -1,0 +1,404 @@
+.cqp {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-family: var(--font-sans);
+}
+
+.cqp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── HEADER ───────────────────────────────────── */
+.cqp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.cqp-header-left { flex: 1; min-width: 280px; }
+
+.cqp-eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.cqp-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.cqp-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── NOTICES ──────────────────────────────────── */
+.cqp-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 12px 28px 0;
+  border-radius: var(--radius-md);
+  background: var(--success-bg, #dcfce7);
+  color: var(--success-text, #166534);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cqp-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 12px 28px 0;
+  border-radius: var(--radius-md);
+  background: var(--danger-bg, #fef2f2);
+  color: var(--danger-text, #991b1b);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ── FORM CARD ────────────────────────────────── */
+.cqp-form-card {
+  margin: 16px 28px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.cqp-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.cqp-form-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.cqp-form-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cqp-form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.cqp-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.cqp-form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cqp-input, .cqp-select, .cqp-input-textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.cqp-input:focus, .cqp-select:focus, .cqp-input-textarea:focus {
+  border-color: var(--primary);
+}
+
+.cqp-input-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.cqp-char-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.cqp-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.cqp-toggle-label input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+}
+
+.cqp-options-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cqp-option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.cqp-option-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cqp-option-add .cqp-input {
+  flex: 1;
+}
+
+.cqp-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* ── BUTTONS ──────────────────────────────────── */
+.cqp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.cqp-btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.cqp-btn-primary:hover { opacity: 0.9; }
+.cqp-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ctp-btn-secondary {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.ctp-btn-secondary:hover { background: var(--bg-hover, #f3f4f6); }
+
+.cqp-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cqp-btn-icon:hover { background: var(--bg-hover, #f3f4f6); color: var(--text-main); }
+
+.cqp-btn-icon-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.cqp-btn-icon-sm:hover { color: var(--danger, #dc2626); }
+
+.cqp-btn-danger { color: var(--danger, #dc2626); }
+.cqp-btn-danger:hover { background: var(--danger-bg, #fef2f2); }
+
+/* ── QUESTION LIST ────────────────────────────── */
+.cqp-list {
+  padding: 16px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cqp-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.cqp-question-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  transition: all 0.15s ease;
+}
+
+.cqp-question-card.active { border-left: 3px solid var(--primary, #16a34a); }
+.cqp-question-card.inactive { border-left: 3px solid var(--text-muted, #9ca3af); opacity: 0.7; }
+.cqp-question-card:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+.cqp-qg-drag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.cqp-qg-drag button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.cqp-qg-drag button:hover { background: var(--bg-hover, #f3f4f6); }
+.cqp-qg-drag button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.cqp-qg-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 18px;
+  text-align: center;
+}
+
+.cqp-qg-body { flex: 1; min-width: 0; }
+
+.cqp-qg-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.cqp-qg-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.cqp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary-bg, #f0fdf4);
+  color: var(--primary, #16a34a);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cqp-chip-muted {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-hover, #f3f4f6);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.cqp-qg-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cqp-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cqp-toggle-btn.on {
+  color: var(--primary, #16a34a);
+  border-color: var(--primary, #16a34a);
+  background: var(--primary-bg, #f0fdf4);
+}
+
+.cqp-toggle-btn.off {
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.cqp-toggle-btn:hover { box-shadow: 0 0 0 2px var(--primary-bg, #f0fdf4); }

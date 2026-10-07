@@ -1,0 +1,197 @@
+import { useEffect, useState, useRef } from 'react';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import SidebarLayout from './components/layout/SidebarLayout/SidebarLayout';
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import PermissionRoute from './components/ProtectedRoute/PermissionRoute';
+import AdminRoute from './components/ProtectedRoute/AdminRoute';
+import AnalyticsRoute from './components/ProtectedRoute/AnalyticsRoute';
+import ProjectAccessRoute from './components/ProtectedRoute/ProjectAccessRoute';
+import ProjectLifecycleGuard from './components/projects/ProjectLifecycleGuard';
+import AdvanceReportLoginModal from './components/common/AdvanceReportLoginModal/AdvanceReportLoginModal';
+import advanceReportService from './services/advanceReportService';
+import { useAuthContext } from './context/AuthContext';
+import DashboardPage from './pages/DashboardPage/DashboardPage';
+import ProjectsPage from './pages/ProjectsPage/ProjectsPage';
+import ReportsPage from './pages/ReportsPage/ReportsPage';
+import AnalyticsPage from './pages/AnalyticsPage/AnalyticsPage';
+import NewProjectPage from './pages/NewProjectPage/NewProjectPage';
+import ProjectProgressPage from './pages/ProjectProgressPage/ProjectProgressPage';
+import CronogramaPage from './pages/CronogramaPage/CronogramaPage';
+import ProjectClosurePage from './pages/ProjectClosurePage/ProjectClosurePage';
+import RiesgosPage from './pages/RiesgosPage/RiesgosPage';
+import EvidenciasProyectoPage from './pages/EvidenciasProyectoPage/EvidenciasProyectoPage';
+import CallbackPage from './pages/CallbackPage/CallbackPage';
+import SecurityConfigPage from './pages/SecurityConfigPage/SecurityConfigPage';
+import DocumentacionInternaPage from './pages/DocumentacionInternaPage/DocumentacionInternaPage';
+import { hasProjectScopePermission, hasAdminScopePermission } from './utils/permissions';
+import './App.css';
+
+const LoadingRedirectState = ({ title, subtitle }) => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '60vh',
+    flexDirection: 'column',
+    gap: '12px',
+    color: '#64748b',
+  }}>
+    <span style={{ fontSize: '1rem' }}>{title}</span>
+    {subtitle ? <span style={{ fontSize: '0.92rem' }}>{subtitle}</span> : null}
+  </div>
+);
+
+const DefaultEntryRoute = () => {
+  const {
+    assignedProjects,
+    hasPermission,
+    hasRole,
+    isAdminLocal,
+    transversal,
+    backendLoading,
+    permissions,
+  } = useAuthContext();
+
+  const canViewDashboard = isAdminLocal
+    || transversal
+    || hasRole('ADMIN')
+    || hasPermission('DASHBOARD:VER');
+  const canViewProjects = hasRole('DIRECTOR_PROYECTO')
+    || hasProjectScopePermission(permissions)
+    || hasPermission('PROYECTO:VER')
+    || (Array.isArray(assignedProjects) && assignedProjects.length > 0);
+  const canViewReports = hasPermission('REPORTE:VER');
+  const canViewAnalytics = hasPermission('ANALITICA:VER');
+  const canViewAdmin = hasAdminScopePermission(permissions);
+
+  if (backendLoading) {
+    return <LoadingRedirectState title="Cargando perfil de usuario..." />;
+  }
+
+  if (canViewDashboard) {
+    return <DashboardPage />;
+  }
+
+  if (canViewProjects) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  if (canViewReports) {
+    return <Navigate to="/reports" replace />;
+  }
+
+  if (canViewAnalytics) {
+    return <Navigate to="/analytics" replace />;
+  }
+
+  if (canViewAdmin) {
+    return <Navigate to="/admin/configuracion" replace />;
+  }
+
+  return (
+    <LoadingRedirectState
+      title="Sin accesos establecidos"
+      subtitle="Solicita al gestor de proyectos los permisos requeridos según tu rol."
+    />
+  );
+};
+
+/**
+ * AdvanceReportLoginCheck
+ * Shows the advance report pending modal once per login session
+ * after backend identity is fully loaded.
+ */
+export const AdvanceReportLoginCheck = () => {
+  const { backendLoading, isAuthenticated, hasRole } = useAuthContext();
+  const [showModal, setShowModal] = useState(false);
+  const shownRef = useRef(false);
+
+  useEffect(() => {
+    if (shownRef.current || backendLoading || !isAuthenticated || !hasRole('DIRECTOR_PROYECTO')) return;
+    shownRef.current = true;
+    let cancelled = false;
+    let timer;
+    const run = async () => {
+      try {
+        const settings = await advanceReportService.getSettings();
+        const delay = Number.parseInt(settings?.login_modal_delay_ms, 10) || 1200;
+        timer = setTimeout(() => { if (!cancelled) setShowModal(true); }, delay);
+      } catch {
+        timer = setTimeout(() => { if (!cancelled) setShowModal(true); }, 1200);
+      }
+    };
+    run();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [backendLoading, isAuthenticated, hasRole]);
+
+  return (
+    <AdvanceReportLoginModal
+      isOpen={showModal}
+      onClose={() => setShowModal(false)}
+    />
+  );
+};
+
+/**
+ * App Component
+ * Define el sistema de rutas de la aplicacion utilizando SidebarLayout como base.
+ */
+function App() {
+  return (
+    <>
+      <AdvanceReportLoginCheck />
+      <Routes>
+      <Route path="/callback" element={<CallbackPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<SidebarLayout />}>
+          <Route index element={<DefaultEntryRoute />} />
+
+          <Route element={<PermissionRoute permissions={['PROYECTO:VER']} />}>
+            <Route path="projects" element={<ProjectsPage />} />
+          </Route>
+
+          <Route element={<PermissionRoute permissions={['PROYECTO:CREAR']} />}>
+            <Route path="proyectos/nuevo" element={<NewProjectPage />} />
+          </Route>
+
+          <Route element={<ProjectAccessRoute />}>
+            <Route element={<ProjectLifecycleGuard />}>
+              <Route path="projects/:id" element={<Outlet />}>
+                <Route path="progress" element={<ProjectProgressPage />} />
+                <Route path="schedule" element={<CronogramaPage />} />
+                <Route path="risks" element={<RiesgosPage />} />
+                <Route path="closure" element={<ProjectClosurePage />} />
+                <Route path="evidences" element={<EvidenciasProyectoPage />} />
+              </Route>
+              <Route path="proyectos/:codigoProyecto" element={<Outlet />}>
+                <Route path="avance" element={<ProjectProgressPage />} />
+                <Route path="riesgos" element={<RiesgosPage />} />
+                <Route path="evidencias" element={<EvidenciasProyectoPage />} />
+              </Route>
+            </Route>
+          </Route>
+
+          <Route element={<PermissionRoute permissions={['REPORTE:VER']} />}>
+            <Route path="reports" element={<ReportsPage />} />
+          </Route>
+          <Route element={<PermissionRoute permissions={['DOCUMENTO_INTERNO:VER']} />}>
+            <Route path="documentacion-interna" element={<DocumentacionInternaPage />} />
+          </Route>
+          <Route element={<AnalyticsRoute />}>
+            <Route path="analytics" element={<AnalyticsPage />} />
+          </Route>
+          <Route path="admin/configuracion" element={<AdminRoute />}>
+            <Route index element={<SecurityConfigPage />} />
+          </Route>
+          <Route path="admin/seguridad" element={<Navigate to="/admin/configuracion" replace />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<div className="container"><h1>404 - Pagina no encontrada</h1></div>} />
+      </Routes>
+    </>
+  );
+}
+
+export default App;

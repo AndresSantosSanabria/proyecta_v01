@@ -1,0 +1,200 @@
+.retroactive-upload-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  backdrop-filter: blur(2px);
+}
+
+.retroactive-upload-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow-premium);
+  overflow: hidden;
+  animation: retroactive-modal-in 0.2s ease-out;
+}
+
+@keyframes retroactive-modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.retroactive-upload-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.retroactive-upload-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.retroactive-upload-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+.retroactive-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.retroactive-close-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.retroactive-upload-body {
+  padding: 1.25rem;
+}
+
+.retroactive-current-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--primary);
+}
+
+.retroactive-dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: 10px;
+  padding: 2rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: var(--bg-panel);
+}
+
+.retroactive-dropzone:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-panel));
+}
+
+.retroactive-dropzone-icon {
+  color: var(--primary);
+  opacity: 0.7;
+  margin-bottom: 0.5rem;
+}
+
+.retroactive-dropzone-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+  margin: 0 0 0.25rem;
+}
+
+.retroactive-dropzone-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 0;
+  opacity: 0.7;
+}
+
+.retroactive-error-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg-surface));
+  border-radius: 6px;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+.retroactive-file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: color-mix(in srgb, var(--success) 8%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
+  border-radius: 6px;
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--success);
+}
+
+.retroactive-file-size {
+  margin-left: auto;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.retroactive-upload-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.retroactive-cancel-btn {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retroactive-cancel-btn:hover {
+  background: var(--bg-panel);
+}
+
+.retroactive-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retroactive-confirm-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.retroactive-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
