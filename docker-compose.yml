@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: proyecta-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+      POSTGRES_DB: ${DB_NAME:-postgres}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [proyecta]
+
+  backend:
+    build: ./backend
+    container_name: proyecta-backend
+    environment:
+      SERVER_PORT: 8082
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-postgres}
+      DB_SCHEMA: ${DB_SCHEMA:-proyecta_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_HOST: ${MAIL_HOST:-correo.cundinamarca.gov.co}
+      APP_PUBLIC_URL_BASE: ${APP_PUBLIC_URL_BASE:-http://localhost:8082}
+      APP_FRONTEND_URL_BASE: ${APP_FRONTEND_URL_BASE:-http://localhost:8080}
+      GOB_CORS_ORIGINS: ${GOB_CORS_ORIGINS:-http://localhost:8080}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-}
+      KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI:-}
+      PUBLIC_EVIDENCE_HMAC_SECRET: ${PUBLIC_EVIDENCE_HMAC_SECRET:-dev-secret-change-me}
+    ports:
+      - "8082:8082"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [proyecta]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8082}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
+        VITE_ENABLE_AUTH: ${VITE_ENABLE_AUTH:-true}
+        VITE_KEYCLOAK_BASE_URL: ${VITE_KEYCLOAK_BASE_URL:-}
+        VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-}
+        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-}
+        VITE_KEYCLOAK_REDIRECT_URI: ${VITE_KEYCLOAK_REDIRECT_URI:-http://localhost:8080/callback}
+        VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI: ${VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI:-http://localhost:8080/}
+        VITE_KEYCLOAK_RESPONSE_TYPE: ${VITE_KEYCLOAK_RESPONSE_TYPE:-code}
+        VITE_KEYCLOAK_SCOPE: ${VITE_KEYCLOAK_SCOPE:-openid profile email}
+    container_name: proyecta-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks: [proyecta]
+
+volumes:
+  db-data:
+
+networks:
+  proyecta:
+    driver: bridge
