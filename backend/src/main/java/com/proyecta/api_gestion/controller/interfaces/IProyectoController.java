@@ -1,0 +1,112 @@
+package com.proyecta.api_gestion.controller.interfaces;
+
+import com.proyecta.api_gestion.dto.proyecto.*;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import com.proyecta.api_gestion.dto.common.ApiResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@Tag(name = "Módulo 2 — Proyectos", description = "Endpoints para la gestión de proyectos TIC")
+public interface IProyectoController {
+
+    @Operation(summary = "EP-PROY-01 · Listar proyectos", description = "Listar todos los proyectos con filtros y paginación.")
+    @GetMapping
+    ResponseEntity<ApiResponse<Page<ProyectoListDTO>>> listarProyectos(
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String codigo,
+            @RequestParam(required = false) String dependencia,
+            @RequestParam(required = false) EstadoProyecto estado,
+            @RequestParam(required = false) Boolean peti,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "sort", required = false) List<String> sort);
+
+    @Operation(summary = "EP-PROY-01B · Listar mis proyectos", description = "Retorna los proyectos asignados al usuario autenticado.")
+    @GetMapping("/mis-proyectos")
+    ResponseEntity<ApiResponse<List<ProyectoListDTO>>> listarMisProyectos(Authentication authentication);
+
+    @Operation(summary = "EP-PROY-01C - Directores asignables", description = "Lista usuarios activos con rol directivo para asignarlos como Director del proyecto.")
+    @GetMapping("/directores-asignables")
+    ResponseEntity<ApiResponse<List<SeguridadUsuarioDTO>>> listarDirectoresAsignables();
+
+    @Operation(summary = "EP-PROY-02 · Obtener detalle", description = "Obtener detalle completo de un proyecto por ID.")
+    @GetMapping("/{id}")
+    ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable String id);
+
+    @Operation(summary = "EP-PROY-03A - Siguiente codigo", description = "Retorna el siguiente codigo auto-generado para un nuevo proyecto con formato PROY-CUN-YYYY-NNN.")
+    @GetMapping("/siguiente-codigo")
+    ResponseEntity<ApiResponse<String>> obtenerSiguienteCodigo();
+
+    @Operation(summary = "EP-PROY-03B - Registro inicial", description = "Crear el registro minimo del proyecto y dejarlo pendiente de completar por el Director asignado.")
+    @PostMapping("/registro-inicial")
+    ResponseEntity<ApiResponse<ProyectoCreatedDTO>> registrarProyectoInicial(
+            @Valid @RequestBody ProyectoRegistroInicialDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-03C - Estado de completitud", description = "Consultar si el proyecto requiere completitud inicial del Director asignado.")
+    @GetMapping("/{id}/completion-status")
+    ResponseEntity<ApiResponse<ProyectoCompletionStatusDTO>> obtenerEstadoCompletitud(
+            @PathVariable String id,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-03D - Completar informacion inicial", description = "Completar los datos restantes del proyecto pendiente. Solo aplica al Director asignado.")
+    @PutMapping("/{id}/completar-informacion")
+    ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarInformacionInicial(
+            @PathVariable String id,
+            @Valid @RequestBody ProyectoCompletarInformacionDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-04 · Actualizar proyecto", description = "Actualizar datos editables de un proyecto existente.")
+    @PutMapping("/{id}")
+    ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
+            @PathVariable String id,
+            @Valid @RequestBody ProyectoUpdateDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-07 · Resumen para cierre", description = "Obtener resumen ejecutivo para la pantalla de cierre.")
+    @GetMapping("/{id}/resumen")
+    ResponseEntity<ApiResponse<ProyectoResumenDTO>> obtenerResumen(@PathVariable String id);
+
+    @Operation(summary = "EP-PROY-09 · Obtener FURAG", description = "Obtener respuestas FURAG del proyecto.")
+    @GetMapping("/{id}/furag")
+    ResponseEntity<ApiResponse<com.proyecta.api_gestion.domain.model.Furag>> obtenerFurag(@PathVariable String id);
+
+    @Operation(summary = "EP-PROY-10 · Actualizar FURAG", description = "Actualizar respuestas FURAG del proyecto.")
+    @PutMapping("/{id}/furag")
+    ResponseEntity<Void> actualizarFurag(@PathVariable String id, @RequestBody @jakarta.validation.Valid com.proyecta.api_gestion.domain.model.Furag furag);
+
+    @Operation(summary = "EP-PROY-12 · Guardar borrador completitud", description = "Guardar borrador de completitud por fase para que el Director pueda continuar despues.")
+    @PatchMapping("/{id}/completitud-borrador")
+    ResponseEntity<ApiResponse<CompletitudBorradorDTO>> guardarBorradorCompletitud(
+            @PathVariable String id,
+            @RequestBody CompletitudBorradorDTO dto,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-13 · Obtener borrador completitud", description = "Obtener el borrador de completitud guardado por el Director.")
+    @GetMapping("/{id}/completitud-borrador")
+    ResponseEntity<ApiResponse<CompletitudBorradorDTO>> obtenerBorradorCompletitud(
+            @PathVariable String id,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-14 · Completar fase", description = "Marcar una fase de completitud como completada.")
+    @PatchMapping("/{id}/completitud-fase/{fase}")
+    ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarFaseCompletitud(
+            @PathVariable String id,
+            @PathVariable Integer fase,
+            Authentication authentication);
+
+    @Operation(summary = "EP-PROY-17 · Cierre forzoso / extraordinario",
+            description = "El Gestor o Administrador cierra forzosamente cualquier proyecto (sin entrar a el) indicando un comentario obligatorio. Aplica aunque no se haya cargado documentacion inicial.")
+    @PatchMapping("/{id}/cierre-forzoso")
+    ResponseEntity<ApiResponse<Void>> cerrarForzoso(
+            @PathVariable String id,
+            @Valid @RequestBody com.proyecta.api_gestion.dto.proyecto.CierreForzosoDTO dto,
+            Authentication authentication);
+}

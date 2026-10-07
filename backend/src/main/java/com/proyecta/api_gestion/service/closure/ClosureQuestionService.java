@@ -1,0 +1,179 @@
+package com.proyecta.api_gestion.service.closure;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proyecta.api_gestion.dto.closure.ClosureAnswerDTO;
+import com.proyecta.api_gestion.dto.closure.ClosureQuestionDTO;
+import com.proyecta.api_gestion.dto.closure.ClosureQuestionRequest;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.closure.ClosureAnswer;
+import com.proyecta.api_gestion.domain.model.closure.ClosureQuestion;
+import com.proyecta.api_gestion.application.port.out.persistence.closure.ClosureAnswerRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.closure.ClosureQuestionRepositoryPort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+public class ClosureQuestionService {
+
+    private final ClosureQuestionRepositoryPort questionRepositoryPort;
+    private final ClosureAnswerRepositoryPort answerRepositoryPort;
+    private final ObjectMapper objectMapper;
+
+    private static final String MSG_PREGUNTA_NO_ENCONTRADA = "Pregunta no encontrada: ";
+
+    public ClosureQuestionService(ClosureQuestionRepositoryPort questionRepositoryPort,
+                                   ClosureAnswerRepositoryPort answerRepositoryPort,
+                                   ObjectMapper objectMapper) {
+        this.questionRepositoryPort = questionRepositoryPort;
+        this.answerRepositoryPort = answerRepositoryPort;
+        this.objectMapper = objectMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClosureQuestionDTO> listAll() {
+        return questionRepositoryPort.findAllByOrderByOrdenAsc().stream()
+                .map(this::toQuestionDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClosureQuestionDTO> listActive() {
+        return questionRepositoryPort.findByActivoTrueOrderByOrdenAsc().stream()
+                .map(this::toQuestionDTO)
+                .toList();
+    }
+
+    @Transactional
+    public ClosureQuestionDTO create(ClosureQuestionRequest request, String username) {
+        ClosureQuestion q = new ClosureQuestion();
+        q.setTexto(request.texto());
+        q.setTipoRespuesta(request.tipoRespuesta() != null ? request.tipoRespuesta() : "texto_libre");
+        q.setOpciones(serializeOpciones(request.opciones()));
+        q.setActivo(request.activo() == null || request.activo());
+        q.setOrden(request.orden() != null ? request.orden() : getNextOrden());
+        q.setCreatedBy(username);
+        q.setUpdatedBy(username);
+        return toQuestionDTO(questionRepositoryPort.save(q));
+    }
+
+    @Transactional
+    public ClosureQuestionDTO update(Long id, ClosureQuestionRequest request, String username) {
+        ClosureQuestion q = questionRepositoryPort.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + id));
+        q.setTexto(request.texto());
+        if (request.tipoRespuesta() != null) q.setTipoRespuesta(request.tipoRespuesta());
+        q.setOpciones(serializeOpciones(request.opciones()));
+        if (request.activo() != null) q.setActivo(request.activo());
+        if (request.orden() != null) q.setOrden(request.orden());
+        q.setUpdatedBy(username);
+        return toQuestionDTO(questionRepositoryPort.save(q));
+    }
+
+    @Transactional
+    public void toggleActivo(Long id, String username) {
+        ClosureQuestion q = questionRepositoryPort.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + id));
+        q.setActivo(!Boolean.TRUE.equals(q.getActivo()));
+        q.setUpdatedBy(username);
+        questionRepositoryPort.save(q);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        ClosureQuestion q = questionRepositoryPort.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + id));
+        if (answerRepositoryPort.existsByQuestionId(id)) {
+            throw new BadRequestException("No se puede eliminar una pregunta que tiene respuestas registradas. Desactivala en su lugar.");
+        }
+        questionRepositoryPort.delete(q);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClosureAnswerDTO> getAnswersByProject(String projectId) {
+        return answerRepositoryPort.findByProyectoIdOrderByQuestionOrdenAsc(projectId).stream()
+                .map(this::toAnswerDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, String> getAnswersMapByProject(String projectId) {
+        return answerRepositoryPort.findByProyectoIdOrderByQuestionOrdenAsc(projectId).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        a -> a.getQuestion().getId(),
+                        a -> a.getRespuesta() != null ? a.getRespuesta() : "",
+                        (a, b) -> b
+                ));
+    }
+
+    @Transactional
+    public void saveAnswers(String projectId, List<ClosureAnswerRequest> answers) {
+        for (ClosureAnswerRequest ans : answers) {
+            ClosureQuestion q = questionRepositoryPort.findById(ans.questionId())
+                    .orElseThrow(() -> new ResourceNotFoundException(MSG_PREGUNTA_NO_ENCONTRADA + ans.questionId()));
+            ClosureAnswer existing = answerRepositoryPort.findByProyectoIdAndQuestionId(projectId, ans.questionId()).orElse(null);
+            if (existing != null) {
+                existing.setRespuesta(ans.respuesta());
+            } else {
+                ClosureAnswer answer = new ClosureAnswer();
+                answer.setProyectoId(projectId);
+                answer.setQuestion(q);
+                answer.setRespuesta(ans.respuesta());
+                answerRepositoryPort.save(answer);
+            }
+        }
+    }
+
+    private int getNextOrden() {
+        List<ClosureQuestion> all = questionRepositoryPort.findAllByOrderByOrdenAsc();
+        return all.isEmpty() ? 1 : all.get(all.size() - 1).getOrden() + 1;
+    }
+
+    private String serializeOpciones(Object opciones) {
+        if (opciones == null) return null;
+        if (opciones instanceof String s) {
+            try {
+                objectMapper.readTree(s);
+                return s;
+            } catch (JsonProcessingException _) {
+                throw new BadRequestException("Las opciones no son JSON valido.");
+            }
+        }
+        try {
+            return objectMapper.writeValueAsString(opciones);
+        } catch (JsonProcessingException _) {
+            throw new BadRequestException("No fue posible serializar las opciones.");
+        }
+    }
+
+    private ClosureQuestionDTO toQuestionDTO(ClosureQuestion q) {
+        Object ops = null;
+        if (q.getOpciones() != null && !q.getOpciones().isBlank()) {
+            try {
+                ops = objectMapper.readValue(q.getOpciones(), Object.class);
+            } catch (JsonProcessingException _) {
+                ops = q.getOpciones();
+            }
+        }
+        return new ClosureQuestionDTO(
+                q.getId(), q.getTexto(), q.getTipoRespuesta(), ops,
+                q.getActivo(), q.getOrden(),
+                q.getCreatedAt(), q.getUpdatedAt(),
+                q.getCreatedBy(), q.getUpdatedBy()
+        );
+    }
+
+    private ClosureAnswerDTO toAnswerDTO(ClosureAnswer a) {
+        return new ClosureAnswerDTO(
+                a.getId(), a.getProyectoId(),
+                a.getQuestion().getId(), a.getQuestion().getTexto(),
+                a.getRespuesta(),
+                a.getCreatedAt(), a.getUpdatedAt()
+        );
+    }
+
+    public record ClosureAnswerRequest(Long questionId, String respuesta) {}
+}

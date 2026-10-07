@@ -1,0 +1,57 @@
+package com.proyecta.api_gestion.service;
+
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.PublicEvidenceAccess;
+import com.proyecta.api_gestion.application.port.out.persistence.PublicEvidenceAccessRepositoryPort;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
+import java.util.Base64;
+
+@Service
+public class PublicEvidenceAccessService {
+
+    private static final Logger log = LoggerFactory.getLogger(PublicEvidenceAccessService.class);
+    private static final SecureRandom RANDOM = new SecureRandom();
+
+    private final PublicEvidenceAccessRepositoryPort repository;
+
+    public PublicEvidenceAccessService(PublicEvidenceAccessRepositoryPort repository) {
+        this.repository = repository;
+    }
+
+    @Transactional
+    public String getOrCreateToken(Entregable entregable, String username) {
+        var existing = repository.findByEntregableIdAndActivoTrue(entregable.getId());
+        if (existing.isPresent()) {
+            return existing.get().getToken();
+        }
+        String token = generateToken();
+        PublicEvidenceAccess access = new PublicEvidenceAccess();
+        access.setEntregable(entregable);
+        access.setToken(token);
+        access.setActivo(true);
+        access.setCreatedBy(username);
+        repository.save(access);
+        // CWE-532: el token es un secreto de acceso; solo se registra el recurso, nunca el valor.
+        log.info("Token de evidencia publica creado para entregable {}", entregable.getId());
+        return token;
+    }
+
+    @Transactional(readOnly = true)
+    public Entregable resolveByToken(String token) {
+        var access = repository.findByTokenAndActivoTrueWithEntregable(token)
+                .orElseThrow(() -> new com.proyecta.api_gestion.domain.exception.ResourceNotFoundException(
+                        "Evidencia no encontrada o enlace expirado."));
+        return access.getEntregable();
+    }
+
+    private String generateToken() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+}

@@ -1,0 +1,224 @@
+package com.proyecta.api_gestion.controller;
+
+import com.proyecta.api_gestion.dto.common.ApiResponse;
+import com.proyecta.api_gestion.dto.proyecto.CompletitudBorradorDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletarInformacionDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCompletionStatusDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoCreatedDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoListDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoRegistroInicialDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoResponseDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoResumenDTO;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
+import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
+import com.proyecta.api_gestion.domain.model.Furag;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.service.interfaces.ProyectoService;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import com.proyecta.api_gestion.adapter.in.web.PageSupport;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/proyectos")
+@Tag(name = "Módulo 2 — Proyectos", description = "Endpoints para la gestión de proyectos TIC")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
+public class ProyectoController implements com.proyecta.api_gestion.controller.interfaces.IProyectoController {
+
+    private final ProyectoService proyectoService;
+    private final KeycloakIdentityExtractor identityExtractor;
+
+    public ProyectoController(ProyectoService proyectoService, KeycloakIdentityExtractor identityExtractor) {
+        this.proyectoService = proyectoService;
+        this.identityExtractor = identityExtractor;
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
+    public ResponseEntity<ApiResponse<Page<ProyectoListDTO>>> listarProyectos(
+            String nombre, String codigo, String dependencia, EstadoProyecto estado, Boolean peti,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "sort", required = false) List<String> sort) {
+        Page<ProyectoListDTO> resultado = PageSupport.toPage(proyectoService.listarProyectos(
+                nombre, codigo, dependencia, estado, peti, PageSupport.fromParams(page, size, sort, 20)));
+        return ResponseEntity.ok(ApiResponse.success(resultado, "Proyectos listados con Ǹxito"));
+    }
+
+    @Override
+    @GetMapping("/mis-proyectos")
+    @PreAuthorize("@proyectoSecurity.canAccessOwnProjects(authentication)")
+    public ResponseEntity<ApiResponse<List<ProyectoListDTO>>> listarMisProyectos(Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        List<ProyectoListDTO> proyectos = proyectoService.listarProyectosAsignados(username);
+        return ResponseEntity.ok(ApiResponse.success(proyectos, "Proyectos asignados listados con éxito"));
+    }
+
+    @Override
+    @GetMapping("/{id}")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> obtenerProyecto(@PathVariable("id") String id) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerPorId(id), "Detalle del proyecto obtenido"));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
+    public ResponseEntity<ApiResponse<String>> obtenerSiguienteCodigo() {
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.obtenerSiguienteCodigo(),
+                "Siguiente codigo generado"
+        ));
+    }
+
+    @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Proyecto registrado inicialmente",
+        content = @Content(schema = @Schema(implementation = ProyectoCreatedDTO.class))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
+    public ResponseEntity<ApiResponse<ProyectoCreatedDTO>> registrarProyectoInicial(
+            @Valid @RequestBody ProyectoRegistroInicialDTO dto,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        ProyectoCreatedDTO creado = proyectoService.registrarProyectoInicial(dto, username);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(creado, "Proyecto registrado inicialmente"));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:CREAR', authentication)")
+    public ResponseEntity<ApiResponse<List<SeguridadUsuarioDTO>>> listarDirectoresAsignables() {
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.listarDirectoresAsignables(),
+                "Directores asignables listados correctamente"
+        ));
+    }
+
+    @Override
+    @GetMapping("/{id}/completion-status")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoCompletionStatusDTO>> obtenerEstadoCompletitud(
+            @PathVariable("id") String id,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.obtenerEstadoCompletitud(id, username),
+                "Estado de completitud obtenido"
+        ));
+    }
+
+    @Override
+    @PutMapping("/{id}/completar-informacion")
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarInformacionInicial(
+            @PathVariable("id") String id,
+            @Valid @RequestBody ProyectoCompletarInformacionDTO dto,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.completarInformacionInicial(id, dto, username),
+                "Informacion inicial completada exitosamente"
+        ));
+    }
+
+    @Override
+    @PutMapping("/{id}")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
+            @PathVariable("id") String id,
+            @Valid @RequestBody ProyectoUpdateDTO dto,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.actualizarProyecto(id, dto, authentication), "Proyecto actualizado exitosamente"));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoResumenDTO>> obtenerResumen(String id) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerResumen(id), "Resumen del proyecto obtenido"));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #id, authentication)")
+    public ResponseEntity<ApiResponse<Furag>> obtenerFurag(String id) {
+        return ResponseEntity.ok(ApiResponse.success(proyectoService.obtenerFurag(id), "FURAG obtenido"));
+    }
+
+    @Override
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #id, authentication)")
+    public ResponseEntity<Void> actualizarFurag(String id, Furag furag) {
+        proyectoService.actualizarFurag(id, furag);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @PatchMapping("/{id}/completitud-borrador")
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<CompletitudBorradorDTO>> guardarBorradorCompletitud(
+            @PathVariable String id,
+            @RequestBody CompletitudBorradorDTO dto,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.guardarBorradorCompletitud(id, dto, username),
+                "Borrador de completitud guardado exitosamente"
+        ));
+    }
+
+    @Override
+    @GetMapping("/{id}/completitud-borrador")
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<CompletitudBorradorDTO>> obtenerBorradorCompletitud(
+            @PathVariable String id,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.obtenerBorradorCompletitud(id, username),
+                "Borrador de completitud obtenido"
+        ));
+    }
+
+    @Override
+    @PatchMapping("/{id}/completitud-fase/{fase}")
+    @PreAuthorize("@proyectoSecurity.canCompleteInitialRegistration(#id, authentication)")
+    public ResponseEntity<ApiResponse<ProyectoResponseDTO>> completarFaseCompletitud(
+            @PathVariable String id,
+            @PathVariable Integer fase,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        return ResponseEntity.ok(ApiResponse.success(
+                proyectoService.completarFaseCompletitud(id, fase, username),
+                "Fase " + fase + " completada exitosamente"
+        ));
+    }
+
+    @Override
+    @PatchMapping("/{id}/cierre-forzoso")
+    @PreAuthorize("@proyectoSecurity.canForceCloseExtraordinary(authentication)")
+    public ResponseEntity<ApiResponse<Void>> cerrarForzoso(
+            @PathVariable String id,
+            @Valid @RequestBody com.proyecta.api_gestion.dto.proyecto.CierreForzosoDTO dto,
+            Authentication authentication) {
+        String gestorUsername = identityExtractor.resolveUsername(authentication);
+        proyectoService.cerrarForzoso(id, gestorUsername, dto.comentario());
+        return ResponseEntity.ok(ApiResponse.success(null, "Proyecto cerrado forzosamente (cierre extraordinario)"));
+    }
+}

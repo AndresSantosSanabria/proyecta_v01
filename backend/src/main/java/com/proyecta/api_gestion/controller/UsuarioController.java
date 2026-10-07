@@ -1,0 +1,131 @@
+package com.proyecta.api_gestion.controller;
+
+import com.proyecta.api_gestion.controller.interfaces.IUsuarioController;
+import com.proyecta.api_gestion.dto.common.ApiResponse;
+import com.proyecta.api_gestion.dto.user.GlobalNotificationUpdateRequest;
+import com.proyecta.api_gestion.dto.user.UsuarioDTO;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
+import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
+
+@RestController
+@RequestMapping("/api/v1/usuarios")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
+public class UsuarioController implements IUsuarioController {
+
+    private static final String JWT_CLAIM_PREFERRED_USERNAME = "preferred_username";
+
+    private final LocalUserAuthorizationService localUserAuthorizationService;
+    private final SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort;
+    private final KeycloakIdentityExtractor identityExtractor;
+
+    public UsuarioController(LocalUserAuthorizationService localUserAuthorizationService,
+                             SeguridadUsuarioRepositoryPort seguridadUsuarioRepositoryPort,
+                             KeycloakIdentityExtractor identityExtractor) {
+        this.localUserAuthorizationService = localUserAuthorizationService;
+        this.seguridadUsuarioRepositoryPort = seguridadUsuarioRepositoryPort;
+        this.identityExtractor = identityExtractor;
+    }
+
+    @Override
+    @Transactional(readOnly = false)
+    public ResponseEntity<ApiResponse<UsuarioDTO>> getMe(@AuthenticationPrincipal Jwt jwt, Authentication authentication) {
+        SeguridadUsuario usuario = localUserAuthorizationService.validateAndTouch(authentication);
+
+        String nombre = firstNonBlank(
+                usuario.getNombre(),
+                jwt.getClaimAsString("name"),
+                jwt.getClaimAsString(JWT_CLAIM_PREFERRED_USERNAME),
+                "Usuario Keycloak");
+
+        String correo = firstNonBlank(
+                usuario.getCorreo(),
+                jwt.getClaimAsString("email"),
+                jwt.getClaimAsString(JWT_CLAIM_PREFERRED_USERNAME),
+                "");
+
+        String username = identityExtractor.resolveUsername(authentication);
+
+        String rolCodigo = usuario.getRolCodigo();
+        String rolNombre = usuario.getRolNombre();
+
+        if (rolCodigo == null || rolCodigo.isBlank()) {
+            rolCodigo = "SIN_ROL";
+        }
+        if (rolNombre == null || rolNombre.isBlank()) {
+            rolNombre = rolCodigo;
+        }
+
+        String dependencia = firstNonBlank(
+                usuario.getDependencia(),
+                jwt.getClaimAsString("department"),
+                jwt.getClaimAsString("organizational_unit"),
+                jwt.getClaimAsString(JWT_CLAIM_PREFERRED_USERNAME),
+                "No definida");
+
+        Boolean recibirNotificacionesGlobales = resolveGlobalNotificationsFlag(username);
+
+        UsuarioDTO user = new UsuarioDTO(
+                usuario.getId().intValue(),
+                nombre,
+                correo,
+                rolCodigo,
+                rolNombre,
+                null,
+                dependencia,
+                usuario.getActivo(),
+                usuario.getUltimoAcceso(),
+                recibirNotificacionesGlobales);
+
+        return ResponseEntity.ok(ApiResponse.success(user, "Perfil de usuario recuperado"));
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse<Boolean>> updateGlobalNotifications(
+            @Valid GlobalNotificationUpdateRequest request,
+            Authentication authentication) {
+        String username = identityExtractor.resolveUsername(authentication);
+        SeguridadUsuario segUsuario = seguridadUsuarioRepositoryPort.findByUsernameIgnoreCase(username)
+                .or(() -> seguridadUsuarioRepositoryPort.findByCorreoIgnoreCase(username))
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + username));
+
+        boolean newValue = Boolean.TRUE.equals(request.recibirNotificacionesGlobales());
+        segUsuario.setRecibirNotificacionesGlobales(newValue);
+        seguridadUsuarioRepositoryPort.save(segUsuario);
+
+        return ResponseEntity.ok(ApiResponse.success(newValue, newValue
+                ? "Notificaciones globales activadas"
+                : "Notificaciones globales desactivadas"));
+    }
+
+    private Boolean resolveGlobalNotificationsFlag(String username) {
+        if (username == null || username.isBlank()) return false;
+        return seguridadUsuarioRepositoryPort.findByUsernameIgnoreCase(username)
+                .or(() -> seguridadUsuarioRepositoryPort.findByCorreoIgnoreCase(username))
+                .map(SeguridadUsuario::getRecibirNotificacionesGlobales)
+                .orElse(false);
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+}

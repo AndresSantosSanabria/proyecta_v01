@@ -1,0 +1,287 @@
+package com.proyecta.api_gestion.service.report;
+
+import com.proyecta.api_gestion.config.PublicUrlProperties;
+import com.proyecta.api_gestion.domain.model.Riesgo;
+import com.proyecta.api_gestion.domain.model.RiesgoTratamiento;
+import com.proyecta.api_gestion.domain.model.RiesgoTratamientoAdjunto;
+import org.apache.poi.common.usermodel.HyperlinkType;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Component;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+@Component
+public class RiesgoExcelExporter {
+
+    private final String publicUrlBase;
+    private final com.proyecta.api_gestion.service.PublicEvidenceUrlSigner urlSigner;
+
+    public RiesgoExcelExporter(PublicUrlProperties publicUrlProperties,
+                               com.proyecta.api_gestion.service.PublicEvidenceUrlSigner urlSigner) {
+        this.publicUrlBase = normalizeBase(publicUrlProperties.getBase());
+        this.urlSigner = urlSigner;
+    }
+
+    private String normalizeBase(String base) {
+        if (base == null || base.isBlank()) {
+            return "";
+        }
+        return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+    }
+
+    public byte[] buildProjectRiskMatrix(String projectId, List<Riesgo> riesgos) {
+        try (
+                InputStream templateStream = new ClassPathResource("report-assets/Matriz de Riesgos Plantilla.xlsx").getInputStream();
+                Workbook workbook = new XSSFWorkbook(templateStream);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+        ) {
+            Sheet sheet = workbook.getSheetAt(0);
+            List<RiskRow> rows = buildRows(projectId, riesgos);
+            int dataStartRow = 6;
+            int templateRows = 5;
+            Row styleRow = sheet.getRow(dataStartRow);
+            if (styleRow == null) {
+                throw new IllegalStateException("La plantilla de matriz de riesgos no contiene la fila de datos esperada.");
+            }
+
+            for (int i = 0; i < rows.size(); i++) {
+                RiskRow data = rows.get(i);
+                Row source = sheet.getRow(dataStartRow + Math.min(i, templateRows - 1));
+                Row target = sheet.getRow(dataStartRow + i);
+                if (target == null) {
+                    target = sheet.createRow(dataStartRow + i);
+                }
+                copyRowStyle(source, target);
+                target.setHeight(source != null ? source.getHeight() : styleRow.getHeight());
+                fillRow(target, data, workbook);
+            }
+
+            for (int i = rows.size(); i < templateRows; i++) {
+                Row row = sheet.getRow(dataStartRow + i);
+                if (row != null) {
+                    clearRow(row, 0, 11);
+                    row.setHeight(styleRow.getHeight());
+                }
+            }
+
+            int lastRow = Math.max(dataStartRow + rows.size() - 1, dataStartRow);
+            sheet.setAutoFilter(new CellRangeAddress(4, lastRow, 0, 11));
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException ex) {
+            throw new IllegalStateException("No fue posible generar el archivo Excel de riesgos.", ex);
+        }
+    }
+
+    private List<RiskRow> buildRows(String projectId, List<Riesgo> riesgos) {
+        List<RiskRow> rows = new ArrayList<>();
+        int numero = 1;
+        for (Riesgo riesgo : riesgos) {
+            List<RiesgoTratamiento> tratamientos = riesgo.getTratamientos() == null
+                    ? List.of()
+                    : new ArrayList<>(riesgo.getTratamientos());
+
+            EvidenciaInfo evidencia = resolveEvidencia(projectId, riesgo, tratamientos);
+
+            rows.add(mapRiskRow(numero, riesgo, evidencia.label(), evidencia.url(), evidencia.comentario()));
+            numero++;
+        }
+        return rows;
+    }
+
+    private EvidenciaInfo resolveEvidencia(String projectId, Riesgo riesgo, List<RiesgoTratamiento> tratamientos) {
+        if (tratamientos.isEmpty()) {
+            return new EvidenciaInfo("Sin evidencia", null, "");
+        }
+
+        RiesgoTratamiento ultimoTratamiento = tratamientos.get(0);
+        String ultimoComentario = normalize(ultimoTratamiento.getComentario(), "");
+
+        List<RiesgoTratamientoAdjunto> adjuntos = ultimoTratamiento.getAdjuntos() == null
+                ? List.of()
+                : ultimoTratamiento.getAdjuntos();
+
+        if (adjuntos.isEmpty()) {
+            return new EvidenciaInfo("Sin evidencia", null, ultimoComentario);
+        }
+
+        StringBuilder labels = new StringBuilder();
+        StringBuilder urls = new StringBuilder();
+        for (int i = 0; i < adjuntos.size(); i++) {
+            RiesgoTratamientoAdjunto adjunto = adjuntos.get(i);
+            if (i > 0) {
+                labels.append('\n');
+                urls.append('\n');
+            }
+            labels.append(defaultLabel(i + 1));
+            urls.append(publicTreatmentUrl(projectId, riesgo.getId(), ultimoTratamiento.getId(), adjunto.getId()));
+        }
+        return new EvidenciaInfo(labels.toString(), urls.toString(), ultimoComentario);
+    }
+
+    private RiskRow mapRiskRow(int numero, Riesgo riesgo, String evidenciaLabel, String evidenciaUrl, String ultimoComentario) {
+        return new RiskRow(
+                String.valueOf(numero),
+                normalize(riesgo.getDescripcion(), "Sin descripci\u00f3n"),
+                riesgo.getProbabilidad() == null ? "" : riesgo.getProbabilidad().name(),
+                riesgo.getImpacto() == null ? "" : riesgo.getImpacto().name(),
+                String.valueOf(score(riesgo.getProbabilidad(), riesgo.getImpacto())),
+                riesgo.getNivel() == null ? "" : riesgo.getNivel().name(),
+                normalize(riesgo.getTratamiento() != null ? riesgo.getTratamiento() : riesgo.getAccionesMitigacion(), ""),
+                normalize(riesgo.getEntidadResponsable() != null ? riesgo.getEntidadResponsable() :riesgo.getRolResponsable(), ""),
+                normalize(riesgo.getAccionesMitigacion() != null ? riesgo.getAccionesMitigacion() :riesgo.getTratamiento(), ""),
+                riesgo.getFechaAccion(),
+                evidenciaLabel == null || evidenciaLabel.isBlank() ? "Click aqu\u00ed" : evidenciaLabel,
+                evidenciaUrl,
+                ultimoComentario
+        );
+    }
+
+    private void fillRow(Row row, RiskRow data, Workbook workbook) {
+        CellStyle levelStyle = row.getCell(5) != null ? row.getCell(5).getCellStyle() : null;
+        setText(row, 0, data.nro());
+        setText(row, 1, data.descripcion());
+        setText(row, 2, data.probabilidad());
+        setText(row, 3, data.impacto());
+        setText(row, 4, data.calificacion());
+        setLevel(row, 5, data.nivel(), levelStyle, workbook);
+        setText(row, 6, data.mitigar());
+        setText(row, 7, data.responsable());
+        setText(row, 8, data.acciones());
+        setDate(row, 9, data.fechaAccion());
+        setEvidence(row, 10, data.evidenciaLabel(), data.evidenciaUrl(), workbook);
+        setText(row, 11, data.ultimoComentario());
+    }
+
+    private void setText(Row row, int col, String value) {
+        cell(row, col).setCellValue(value == null ? "" : value);
+    }
+
+    private void setDate(Row row, int col, LocalDate value) {
+        Cell cell = cell(row, col);
+        if (value == null) {
+            cell.setBlank();
+            return;
+        }
+        cell.setCellValue(java.util.Date.from(value.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+    }
+
+    private void setLevel(Row row, int col, String value, CellStyle baseStyle, Workbook workbook) {
+        Cell cell = cell(row, col);
+        cell.setCellValue(value == null ? "" : value);
+        CellStyle style = workbook.createCellStyle();
+        if (baseStyle != null) {
+            style.cloneStyleFrom(baseStyle);
+        }
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if ("EXTREMO".equals(normalized)) {
+            style.setFillForegroundColor(IndexedColors.RED.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        } else if ("ALTO".equals(normalized)) {
+            style.setFillForegroundColor(IndexedColors.ORANGE.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
+        cell.setCellStyle(style);
+    }
+
+    private void setEvidence(Row row, int col, String label, String urls, Workbook workbook) {
+        Cell cell = cell(row, col);
+        cell.setCellValue(label == null || label.isBlank() ? "Click aqu�" : label);
+        cell.getCellStyle().setWrapText(true);
+        cell.setHyperlink(null);
+        if (urls != null && !urls.isBlank()) {
+            String firstUrl = urls.split("\\R")[0].trim();
+            if (!firstUrl.isBlank()) {
+                CreationHelper helper = workbook.getCreationHelper();
+                Hyperlink hyperlink = helper.createHyperlink(HyperlinkType.URL);
+                hyperlink.setAddress(firstUrl);
+                cell.setHyperlink(hyperlink);
+            }
+        }
+    }
+
+    private Cell cell(Row row, int col) {
+        Cell cell = row.getCell(col);
+        if (cell == null) {
+            cell = row.createCell(col);
+        }
+        return cell;
+    }
+
+    private void copyRowStyle(Row source, Row target) {
+        if (source == null || target == null) return;
+        for (int col = 0; col <= 11; col++) {
+            Cell sourceCell = source.getCell(col);
+            if (sourceCell == null) continue;
+            cell(target, col).setCellStyle(sourceCell.getCellStyle());
+        }
+    }
+
+    private void clearRow(Row row, int fromCol, int toCol) {
+        if (row == null) return;
+        for (int col = fromCol; col <= toCol; col++) {
+            cell(row, col).setBlank();
+        }
+    }
+
+    private String normalize(String value, String fallback) {
+        if (value == null || value.isBlank()) return fallback;
+        return value.trim();
+    }
+
+    private String defaultLabel(int index) {
+        return "Entregable - " + String.format(Locale.ROOT, "%02d", index);
+    }
+
+    private String publicTreatmentUrl(String projectId, Integer riesgoId, Long tratamientoId, Long adjuntoId) {
+        return urlSigner.appendSignature(publicUrlBase + "/api/v1/public/riesgos/" + projectId + "/" + riesgoId + "/tratamientos/" + tratamientoId + "/adjuntos/" + adjuntoId + "?inline=true");
+    }
+
+    private int score(Object probabilidad, Object impacto) {
+        int p = switch (String.valueOf(probabilidad)) {
+            case "UNO" -> 1;
+            case "DOS" -> 2;
+            case "TRES" -> 3;
+            case "CUATRO" -> 4;
+            case "CINCO" -> 5;
+            default -> 0;
+        };
+        int i = switch (String.valueOf(impacto)) {
+            case "UNO" -> 1;
+            case "DOS" -> 2;
+            case "TRES" -> 3;
+            case "CUATRO" -> 4;
+            case "CINCO" -> 5;
+            default -> 0;
+        };
+        return p + i;
+    }
+
+    private record EvidenciaInfo(String label, String url, String comentario) {}
+
+    private record RiskRow(
+            String nro,
+            String descripcion,
+            String probabilidad,
+            String impacto,
+            String calificacion,
+            String nivel,
+            String mitigar,
+            String responsable,
+            String acciones,
+            LocalDate fechaAccion,
+            String evidenciaLabel,
+            String evidenciaUrl,
+            String ultimoComentario
+    ) {}
+}

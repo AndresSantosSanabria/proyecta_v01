@@ -1,0 +1,158 @@
+package com.proyecta.api_gestion.controller;
+
+import com.proyecta.api_gestion.controller.interfaces.IDocumentoController;
+import com.proyecta.api_gestion.dto.common.ApiResponse;
+import com.proyecta.api_gestion.dto.document.DocumentoListadoResponseDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardConfirmacionDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardDevolverDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoUploadResultDTO;
+import com.proyecta.api_gestion.dto.document.DocumentoVersionHistorialResponseDTO;
+import com.proyecta.api_gestion.service.interfaces.IDocumentoService;
+import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/v1/proyectos")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
+public class DocumentoController implements IDocumentoController {
+
+    private final IDocumentoService documentoService;
+
+    public DocumentoController(IDocumentoService documentoService) {
+        this.documentoService = documentoService;
+    }
+
+    @Override
+    @GetMapping("/{proyectoId}/documentos")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoListadoResponseDTO>> listarDocumentos(@PathVariable String proyectoId) {
+        DocumentoListadoResponseDTO response = documentoService.listarDocumentos(proyectoId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Documentos recuperados exitosamente"));
+    }
+
+    @Override
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Documento cargado exitosamente",
+        content = @Content(schema = @Schema(implementation = DocumentoUploadResultDTO.class))
+    )
+    @ResponseStatus(HttpStatus.CREATED)
+    @PostMapping(value = "/{proyectoId}/documentos/{tipoDocumento}", consumes = {"multipart/form-data"})
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('DOCUMENTO:CARGAR', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoUploadResultDTO>> cargarDocumento(
+            @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
+            @Parameter(description = "Tipo de documento (VIABILIZACION, ACTA_CONSTITUCION, CRONOGRAMA, PLAN_COMUNICACIONES)") @PathVariable String tipoDocumento,
+            @Parameter(description = "Archivo a subir") @RequestPart("archivo") MultipartFile archivo,
+            @Parameter(description = "Observacion del cambio (obligatoria al reemplazar)") @RequestPart(value = "observacion", required = false) String observacion,
+            Authentication authentication) {
+
+        DocumentoUploadResultDTO response = documentoService.cargarDocumento(proyectoId, tipoDocumento, archivo, observacion, authentication);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(response, "Documento cargado exitosamente"));
+    }
+
+    @Override
+    @GetMapping(value = "/{proyectoId}/documentos/{tipoDocumento}/descargar")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<Resource> descargarDocumento(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento) {
+
+        Resource resource = documentoService.descargarDocumento(proyectoId, tipoDocumento);
+        String filename = resource.getFilename();
+        boolean isPdf = filename != null && filename.toLowerCase().endsWith(".pdf");
+
+        return ResponseEntity.ok()
+                .contentType(isPdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition(
+                                isPdf ? "inline" : "attachment", filename))
+                .body(resource);
+    }
+
+    @Override
+    @GetMapping("/{proyectoId}/documentos/{tipoDocumento}/versiones")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoVersionHistorialResponseDTO>> listarVersiones(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento) {
+        DocumentoVersionHistorialResponseDTO response = documentoService.listarVersiones(proyectoId, tipoDocumento);
+        return ResponseEntity.ok(ApiResponse.success(response, "Historial de versiones obtenido exitosamente"));
+    }
+
+    @Override
+    @GetMapping(value = "/{proyectoId}/documentos/{tipoDocumento}/versiones/{numeroVersion}/archivo")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<Resource> descargarVersion(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento,
+            @PathVariable Integer numeroVersion) {
+
+        Resource resource = documentoService.descargarVersion(proyectoId, tipoDocumento, numeroVersion);
+        String filename = resource.getFilename();
+        boolean isPdf = filename != null && filename.toLowerCase().endsWith(".pdf");
+
+        return ResponseEntity.ok()
+                .contentType(isPdf ? MediaType.APPLICATION_PDF : MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        com.proyecta.api_gestion.infrastructure.HttpHeaderSanitizer.contentDisposition(
+                                isPdf ? "inline" : "attachment", filename))
+                .body(resource);
+    }
+
+    @Override
+    @GetMapping("/{proyectoId}/documentos-pre-wizard")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO.Listado>> listarRevisionesPreWizard(
+            @PathVariable String proyectoId) {
+        DocumentoPreWizardRevisionDTO.Listado response = documentoService.listarRevisionesPreWizard(proyectoId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Revisiones de documentos pre-wizard obtenidas exitosamente"));
+    }
+
+    @Override
+    @PatchMapping("/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/aprobar")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO>> aprobarDocumentoPreWizard(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento,
+            Authentication authentication) {
+        DocumentoPreWizardRevisionDTO response = documentoService.aprobarDocumentoPreWizard(proyectoId, tipoDocumento, authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, "Documento aprobado exitosamente"));
+    }
+
+    @Override
+    @PatchMapping("/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/devolver")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO>> devolverDocumentoPreWizard(
+            @PathVariable String proyectoId,
+            @PathVariable String tipoDocumento,
+            @Valid @RequestBody DocumentoPreWizardDevolverDTO dto,
+            Authentication authentication) {
+        DocumentoPreWizardRevisionDTO response = documentoService.devolverDocumentoPreWizard(
+                proyectoId, tipoDocumento, dto.observaciones(), authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, "Documento devuelto exitosamente"));
+    }
+
+    @Override
+    @PostMapping("/{proyectoId}/documentos-pre-wizard/confirmar-revision")
+    @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:EDITAR', #proyectoId, authentication)")
+    public ResponseEntity<ApiResponse<DocumentoPreWizardConfirmacionDTO>> confirmarRevisionPreWizard(
+            @PathVariable String proyectoId,
+            Authentication authentication) {
+        DocumentoPreWizardConfirmacionDTO response =
+                documentoService.confirmarRevisionPreWizard(proyectoId, authentication);
+        return ResponseEntity.ok(ApiResponse.success(response, response.mensaje()));
+    }
+}

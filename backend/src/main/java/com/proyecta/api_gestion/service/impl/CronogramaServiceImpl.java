@@ -1,0 +1,261 @@
+package com.proyecta.api_gestion.service.impl;
+
+import com.proyecta.api_gestion.dto.cronograma.CronogramaResponseDTO;
+import com.proyecta.api_gestion.dto.cronograma.CronogramaUploadResponseDTO;
+import com.proyecta.api_gestion.dto.cronograma.EntregableGanttDTO;
+import com.proyecta.api_gestion.dto.cronograma.FaseGanttDTO;
+import com.proyecta.api_gestion.dto.cronograma.HitoGanttDTO;
+import com.proyecta.api_gestion.domain.exception.BadRequestException;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Fase;
+import com.proyecta.api_gestion.domain.model.Hito;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.enums.EstadoProyecto;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.FaseRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.HitoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioProyectoRepositoryPort;
+import com.proyecta.api_gestion.service.interfaces.CronogramaService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
+import com.proyecta.api_gestion.service.support.ProjectHierarchyOrdering;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Comparator;
+import java.util.Locale;
+
+@Service
+public class CronogramaServiceImpl implements CronogramaService {
+
+    private static final String PROYECTO_NO_ENCONTRADO = "Proyecto no encontrado: ";
+
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final FaseRepositoryPort faseRepositoryPort;
+    private final HitoRepositoryPort hitoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
+    private final SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort;
+    private final FileStorageServiceImpl fileStorageService;
+    private final NotificationEventPublisherPort notificationPublisher;
+
+    public CronogramaServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                 FaseRepositoryPort faseRepositoryPort,
+                                 HitoRepositoryPort hitoRepositoryPort,
+                                 EntregableRepositoryPort entregableRepositoryPort,
+                                 SeguridadUsuarioProyectoRepositoryPort usuarioProyectoRepositoryPort,
+                                 FileStorageServiceImpl fileStorageService,
+                                 NotificationEventPublisherPort notificationPublisher) {
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.faseRepositoryPort = faseRepositoryPort;
+        this.hitoRepositoryPort = hitoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
+        this.usuarioProyectoRepositoryPort = usuarioProyectoRepositoryPort;
+        this.fileStorageService = fileStorageService;
+        this.notificationPublisher = notificationPublisher;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CronogramaResponseDTO obtenerCronograma(String projectId) {
+        final String normalizedProjectId = normalizeProjectId(projectId);
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedProjectId)
+                .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
+
+        List<Fase> fases = faseRepositoryPort.findByProyectoId(normalizedProjectId).stream()
+                .sorted(ProjectHierarchyOrdering.FASES_BY_ORDEN)
+                .toList();
+        List<FaseGanttDTO> vistaGantt = new ArrayList<>();
+        
+        int totalHitos = 0;
+
+        for (Fase fase : fases) {
+            List<Hito> hitos = hitoRepositoryPort.findByFaseId(fase.getId());
+            hitos.sort(ProjectHierarchyOrdering.HITOS_BY_ORDEN);
+            
+            List<HitoGanttDTO> hitosGantt = new ArrayList<>();
+
+            for (Hito hito : hitos) {
+                totalHitos++;
+                List<Entregable> entregables = entregableRepositoryPort.findByHitoId(hito.getId());
+                entregables.sort(ProjectHierarchyOrdering.ENTREGABLES_BY_ORDEN);
+                List<EntregableGanttDTO> entregablesGantt = entregables.stream()
+                        .map(entregable -> new EntregableGanttDTO(
+                                entregable.getId(),
+                                entregable.getNombre(),
+                                entregable.esConforme() ? BigDecimal.valueOf(100) : BigDecimal.ZERO,
+                                entregable.getPonderacion(),
+                                firstNonNull(entregable.getFechaInicio(), entregable.getFechaLimite()),
+                                entregable.getFechaLimite(),
+                                entregable.getEstadoCodigo()
+                        ))
+                        .toList();
+                
+                LocalDate hitoStart = null;
+                LocalDate hitoEnd = null;
+                
+                if (!entregables.isEmpty()) {
+                    hitoStart = entregables.stream()
+                            .map(entregable -> firstNonNull(entregable.getFechaInicio(), entregable.getFechaLimite()))
+                            .filter(Objects::nonNull)
+                            .min(LocalDate::compareTo)
+                            .orElse(null);
+                    
+                    hitoEnd = entregables.stream()
+                            .map(Entregable::getFechaLimite)
+                            .filter(Objects::nonNull)
+                            .max(LocalDate::compareTo)
+                            .orElse(null);
+                }
+                
+                hitosGantt.add(new HitoGanttDTO(
+                        hito.getId(),
+                        hito.getNombre(),
+                        hito.getAvanceCalculado(),
+                        hitoStart,
+                        hitoEnd,
+                        entregablesGantt
+                ));
+            }
+            
+            vistaGantt.add(new FaseGanttDTO(
+                    fase.getId(),
+                    fase.getNombre(),
+                    fase.getAvanceCalculado(),
+                    hitosGantt
+            ));
+        }
+
+        vistaGantt.sort(Comparator.comparing(FaseGanttDTO::nombre));
+
+        String nombreArchivo = null;
+        if (proyecto.getCronogramaPdf() != null) {
+            int lastSlash = proyecto.getCronogramaPdf().lastIndexOf("/");
+            int lastBackslash = proyecto.getCronogramaPdf().lastIndexOf("\\");
+            int slashIndex = Math.max(lastSlash, lastBackslash);
+            nombreArchivo = (slashIndex >= 0) ? proyecto.getCronogramaPdf().substring(slashIndex + 1) : proyecto.getCronogramaPdf();
+        }
+
+        return new CronogramaResponseDTO(
+                proyecto.getId(),
+                nombreArchivo,
+                LocalDate.now(ZoneId.systemDefault()), // La fecha de carga no se guarda por defecto en Proyecto, retornamos la actual
+                resolveDirectorAsignado(proyecto),
+                fases.size(),
+                totalHitos,
+                proyecto.getAvanceTotal(),
+                proyecto.getFechaInicio(),
+                "/api/v1/proyectos/" + proyecto.getId() + "/cronograma/descargar",
+                vistaGantt
+        );
+    }
+
+    @Override
+    @Transactional
+    public CronogramaUploadResponseDTO cargarCronograma(String projectId, MultipartFile file) {
+        final String normalizedProjectId = normalizeProjectId(projectId);
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedProjectId)
+                .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
+
+        if (EstadoProyecto.CERRADO.equals(proyecto.getEstado()) || EstadoProyecto.CERRADO_FORZOSO.equals(proyecto.getEstado())) {
+            throw new ForbiddenException("No se puede subir el cronograma a un proyecto cerrado.");
+        }
+
+        if (file.isEmpty() || !Objects.equals(file.getContentType(), "application/pdf")) {
+            throw new BadRequestException("El archivo no es un PDF válido.");
+        }
+
+        if (file.getSize() > 20 * 1024 * 1024) { // 20MB limit as per spec
+            throw new BadRequestException("El archivo supera el tamaño permitido de 20MB.");
+        }
+
+        String fileName = "cronograma_" + normalizedProjectId;
+        String storedPath = fileStorageService.storeFile(file, "cronogramas", fileName);
+
+        proyecto.setCronogramaPdf(storedPath);
+        proyectoRepositoryPort.save(proyecto);
+
+        if (!proyecto.requiereCompletitudDirector()) {
+            var recipients = ProjectNotificationRecipients.resolve(proyecto);
+            if (recipients != null && !recipients.isEmpty()) {
+                notificationPublisher.publish(new NotificationContext(
+                        NotificationEventType.PROJECT_DOCUMENT_UPLOADED,
+                        proyecto.getId(),
+                        "system",
+                        java.util.Map.of(
+                                "projectName", proyecto.getNombre() != null ? proyecto.getNombre() : "",
+                                "documentType", "CRONOGRAMA",
+                                "documentName", file.getOriginalFilename() != null ? file.getOriginalFilename() : "Cronograma",
+                                "recipients", recipients
+                        )));
+            }
+        }
+
+        return new CronogramaUploadResponseDTO(
+                proyecto.getId(),
+                file.getOriginalFilename(),
+                LocalDate.now(ZoneId.systemDefault()),
+                "/api/v1/proyectos/" + proyecto.getId() + "/cronograma/descargar"
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Resource descargarCronograma(String projectId) {
+        final String normalizedProjectId = normalizeProjectId(projectId);
+        Proyecto proyecto = proyectoRepositoryPort.findById(normalizedProjectId)
+                .orElseThrow(() -> new ResourceNotFoundException(PROYECTO_NO_ENCONTRADO + normalizedProjectId));
+
+        if (proyecto.getCronogramaPdf() == null) {
+            throw new ResourceNotFoundException("No se ha cargado un cronograma para este proyecto.");
+        }
+
+        return fileStorageService.loadFileAsResource("cronogramas", proyecto.getCronogramaPdf());
+    }
+
+    private String normalizeProjectId(String projectId) {
+        return projectId == null ? null : projectId.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private LocalDate firstNonNull(LocalDate first, LocalDate second) {
+        return first != null ? first : second;
+    }
+
+    private String resolveDirectorAsignado(Proyecto proyecto) {
+        if (proyecto == null || proyecto.getId() == null) {
+            return null;
+        }
+        return usuarioProyectoRepositoryPort.findActiveDirectorAssignmentsByProyectoId(proyecto.getId()).stream()
+                .filter(assignment -> assignment.getUsuario() != null)
+                .findFirst()
+                .map(assignment -> firstNonBlank(
+                        assignment.getUsuario().getNombre(),
+                        assignment.getUsuario().getUsername()
+                ))
+                .orElse(null);
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+}

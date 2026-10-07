@@ -1,0 +1,911 @@
+package com.proyecta.api_gestion.service.impl;
+
+import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
+import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
+import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
+import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
+import com.proyecta.api_gestion.domain.exception.ForbiddenException;
+import com.proyecta.api_gestion.domain.exception.ResourceNotFoundException;
+import com.proyecta.api_gestion.domain.exception.UnprocessableEntityException;
+import com.proyecta.api_gestion.domain.model.ActaCierre;
+import com.proyecta.api_gestion.domain.model.DocumentoAuditoria;
+import com.proyecta.api_gestion.domain.model.DocumentoObservacion;
+import com.proyecta.api_gestion.domain.model.DocumentoVersion;
+import com.proyecta.api_gestion.domain.model.Entregable;
+import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.domain.model.Riesgo;
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoObservacionEstado;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoVersionEstado;
+import com.proyecta.api_gestion.domain.model.enums.EstadoRiesgo;
+import com.proyecta.api_gestion.domain.model.config.EstadoEntregableConfig;
+import com.proyecta.api_gestion.application.port.out.persistence.ActaCierreRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoAuditoriaRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoObservacionRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.DocumentoVersionRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.EntregableRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.RiesgoRepositoryPort;
+import com.proyecta.api_gestion.application.port.out.persistence.config.EstadoEntregableConfigRepositoryPort;
+import com.proyecta.api_gestion.config.PublicUrlProperties;
+import com.proyecta.api_gestion.service.interfaces.IProgressCalculator;
+import com.proyecta.api_gestion.service.interfaces.IStorageProvider;
+import com.proyecta.api_gestion.service.interfaces.ProyectoBeneficioImpactoService;
+import com.proyecta.api_gestion.service.interfaces.ProyectoAvanceService;
+import com.proyecta.api_gestion.service.notification.NotificationContext;
+import com.proyecta.api_gestion.service.notification.NotificationEventPublisherPort;
+import com.proyecta.api_gestion.service.notification.NotificationEventType;
+import com.proyecta.api_gestion.service.notification.ProjectNotificationRecipients;
+import com.proyecta.api_gestion.service.PublicEvidenceAccessService;
+import com.proyecta.api_gestion.service.security.LocalUserAuthorizationService;
+import com.proyecta.api_gestion.service.security.dynamic.KeycloakIdentityExtractor;
+import com.proyecta.api_gestion.service.security.dynamic.SecurityRoleCatalog;
+import com.proyecta.api_gestion.service.support.TextSupport;
+import jakarta.persistence.EntityManager;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.nio.charset.StandardCharsets;
+
+@Service
+public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
+
+    private static final String ATTR_DELIVERABLE_NAME = "deliverableName";
+    private static final String ATTR_PROJECT_NAME = "projectName";
+    private static final String ATTR_RECIPIENTS = "recipients";
+    private static final String MIME_PDF = "application/pdf";
+    private static final String MSG_ENTREGABLE_NO_ENCONTRADO = "Entregable no encontrado: ";
+    private static final String STORAGE_EVIDENCIAS = "evidencias";
+    private static final String URL_PROYECTOS_PREFIX = "/api/v1/proyectos/";
+    private static final String URL_AVANCE_ENTREGABLES = "/avance/entregables/";
+    private static final String URL_EVIDENCIA_SUFFIX = "/evidencia";
+    private static final String AUDIT_OBSERVACION_ID_PREFIX = "observacionId=";
+    private static final String USUARIO_SISTEMA = "sistema";
+    private static final String ESTADO_COMPLETADO = "COMPLETADO";
+    private static final String ESTADO_APROBADO = "APROBADO";
+
+    private final ProyectoRepositoryPort proyectoRepositoryPort;
+    private final EntregableRepositoryPort entregableRepositoryPort;
+    private final IProgressCalculator progressCalculator;
+    private final IStorageProvider storageProvider;
+    private final EntityManager entityManager;
+    private final ActaCierreRepositoryPort actaCierreRepositoryPort;
+    private final ProjectProgressMetricsService metricsService;
+    private final DocumentoVersionRepositoryPort documentoVersionRepositoryPort;
+    private final DocumentoObservacionRepositoryPort documentoObservacionRepositoryPort;
+    private final DocumentoAuditoriaRepositoryPort documentoAuditoriaRepositoryPort;
+    private final LocalUserAuthorizationService localUserAuthorizationService;
+    private final KeycloakIdentityExtractor identityExtractor;
+    private final NotificationEventPublisherPort notificationPublisher;
+    private final ProyectoBeneficioImpactoService beneficioImpactoService;
+    private final PublicEvidenceAccessService publicEvidenceAccessService;
+    private final RiesgoRepositoryPort riesgoRepositoryPort;
+    private final PublicUrlProperties publicUrlProperties;
+    private final EstadoEntregableConfigRepositoryPort estadoEntregableConfigRepositoryPort;
+
+    public ProjectAdvanceServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
+                                     EntregableRepositoryPort entregableRepositoryPort,
+                                     IProgressCalculator progressCalculator,
+                                     IStorageProvider storageProvider,
+                                     EntityManager entityManager,
+                                     ActaCierreRepositoryPort actaCierreRepositoryPort,
+                                     ProjectProgressMetricsService metricsService,
+                                     DocumentoVersionRepositoryPort documentoVersionRepositoryPort,
+                                     DocumentoObservacionRepositoryPort documentoObservacionRepositoryPort,
+                                     DocumentoAuditoriaRepositoryPort documentoAuditoriaRepositoryPort,
+                                     LocalUserAuthorizationService localUserAuthorizationService,
+                                     KeycloakIdentityExtractor identityExtractor,
+                                     NotificationEventPublisherPort notificationPublisher,
+                                     ProyectoBeneficioImpactoService beneficioImpactoService,
+                                     PublicEvidenceAccessService publicEvidenceAccessService,
+                                     RiesgoRepositoryPort riesgoRepositoryPort,
+                                     PublicUrlProperties publicUrlProperties,
+                                     EstadoEntregableConfigRepositoryPort estadoEntregableConfigRepositoryPort) {
+        this.proyectoRepositoryPort = proyectoRepositoryPort;
+        this.entregableRepositoryPort = entregableRepositoryPort;
+        this.progressCalculator = progressCalculator;
+        this.storageProvider = storageProvider;
+        this.entityManager = entityManager;
+        this.actaCierreRepositoryPort = actaCierreRepositoryPort;
+        this.metricsService = metricsService;
+        this.documentoVersionRepositoryPort = documentoVersionRepositoryPort;
+        this.documentoObservacionRepositoryPort = documentoObservacionRepositoryPort;
+        this.documentoAuditoriaRepositoryPort = documentoAuditoriaRepositoryPort;
+        this.localUserAuthorizationService = localUserAuthorizationService;
+        this.identityExtractor = identityExtractor;
+        this.notificationPublisher = notificationPublisher;
+        this.beneficioImpactoService = beneficioImpactoService;
+        this.publicEvidenceAccessService = publicEvidenceAccessService;
+        this.riesgoRepositoryPort = riesgoRepositoryPort;
+        this.publicUrlProperties = publicUrlProperties;
+        this.estadoEntregableConfigRepositoryPort = estadoEntregableConfigRepositoryPort;
+    }
+
+    private EstadoEntregableConfig estadoEntregableConfig(String codigo) {
+        return estadoEntregableConfigRepositoryPort.findByCodigo(codigo)
+                .orElseThrow(() -> new IllegalStateException("Estado de entregable no configurado: " + codigo));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProyectoAvanceResponseDTO obtenerAvanceDetallado(String proyectoId) {
+        Proyecto proyecto = cargarProyecto(proyectoId);
+
+        if (proyecto.esEstadoTerminal()) {
+            ActaCierre acta = actaCierreRepositoryPort.findByProyectoId(proyectoId)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "El proyecto " + proyectoId + " está cerrado pero no tiene un snapshot de cierre persistido."));
+
+            String snapshotJson = acta.getSnapshotJson();
+            if (snapshotJson == null || snapshotJson.isBlank()) {
+                throw new IllegalStateException(
+                        "El proyecto " + proyectoId + " está cerrado pero su snapshot de cierre está vacío.");
+            }
+
+            return metricsService.deserializar(snapshotJson);
+        }
+
+        return metricsService.construir(proyecto, LocalDate.now(ZoneId.systemDefault()));
+    }
+
+    @Override
+    @Transactional
+    public EntregableAprobadoResponseDTO registrarEvidencia(String proyectoId, Integer entregableId, LocalDate fechaEntrega, MultipartFile evidencia, Authentication authentication) {
+        if (evidencia == null || evidencia.isEmpty()) {
+            throw new UnprocessableEntityException("El archivo de evidencia es requerido");
+        }
+
+        if (!MIME_PDF.equals(evidencia.getContentType())) {
+            throw new UnprocessableEntityException("El archivo debe ser un PDF");
+        }
+
+        validarPdfReal(evidencia);
+
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
+
+        try {
+            entregable.asegurarModificable();
+        } catch (IllegalStateException ex) {
+            throw new UnprocessableEntityException(ex.getMessage());
+        }
+
+        if (!entregable.getHito().getFase().getProyecto().getId().equals(proyectoId)) {
+            throw new UnprocessableEntityException("El entregable no pertenece al proyecto especificado");
+        }
+
+        if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se pueden modificar entregables de un proyecto cerrado.");
+        }
+
+        ActorContext actor = actorContext(authentication);
+        boolean subsanaObservaciones = !documentoObservacionRepositoryPort
+                .findByEntregableIdAndEstadoIn(entregableId, List.of(DocumentoObservacionEstado.ABIERTA))
+                .isEmpty();
+        String fileName = "evidencia_" + proyectoId + "_" + entregableId + "_" + System.currentTimeMillis();
+        String storedName = null;
+
+        try {
+            storedName = storageProvider.storeFile(evidencia, STORAGE_EVIDENCIAS, fileName);
+            DocumentoVersion nuevaVersion = registrarNuevaVersion(entregable, evidencia, storedName, fechaEntrega, actor);
+
+            entregable.completar(storedName, fechaEntrega, estadoEntregableConfig("EN_PROCESO"));
+
+            // Si la fecha limite ya paso y no se indico una fecha de entrega, usar la fecha actual
+            java.time.LocalDate hoy = java.time.LocalDate.now(ZoneId.systemDefault());
+            if (entregable.getFechaEntregaReal() == null
+                    && entregable.getFechaLimite() != null
+                    && entregable.getFechaLimite().isBefore(hoy)) {
+                entregable.setFechaEntregaReal(hoy);
+                entregable.setEstadoConfig(estadoEntregableConfig(ESTADO_COMPLETADO));
+                entregable.setConforme(false);
+            }
+
+            entregableRepositoryPort.save(entregable);
+            if (subsanaObservaciones) {
+                marcarObservacionesSubsanadas(entregable, actor, "Nueva version cargada para subsanar observaciones.");
+            }
+            auditar(entregable, nuevaVersion, null, "UPLOAD", actor, "version=" + nuevaVersion.getNumeroVersion());
+            publicEvidenceAccessService.getOrCreateToken(entregable, actor.username());
+            entityManager.flush();
+
+            Integer hitoId = entregable.getHito().getId();
+            progressCalculator.calcularYActualizarAvanceHito(hitoId);
+            progressCalculator.calcularYActualizarAvanceProyecto(proyectoId);
+
+            entityManager.flush();
+            entityManager.refresh(entregable);
+
+            Proyecto proyectoActualizado = cargarProyecto(proyectoId);
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.DELIVERABLE_EVIDENCE_UPLOADED,
+                    proyectoId,
+                    actor.username(),
+                    java.util.Map.of(
+                            ATTR_DELIVERABLE_NAME, entregable.getNombre(),
+                            ATTR_PROJECT_NAME, proyectoActualizado.getNombre(),
+                            ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoActualizado)
+                    )));
+            ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now(ZoneId.systemDefault()));
+            beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
+            String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
+
+            return new EntregableAprobadoResponseDTO(
+                    entregable.getId(),
+                    entregable.getEstadoCodigo(),
+                    entregable.getFechaEntregaReal(),
+                    evidenciaUrl,
+                    avance
+            );
+        } catch (RuntimeException ex) {
+            if (storedName != null) {
+                storageProvider.deleteFile(STORAGE_EVIDENCIAS, storedName);
+            }
+            if (ex instanceof IllegalStateException) {
+                throw new UnprocessableEntityException(ex.getMessage());
+            }
+            throw ex;
+        }
+    }
+
+    @Override
+    @Transactional
+    public EntregableAprobadoResponseDTO aprobarEntregable(String proyectoId, Integer entregableId, Authentication authentication) {
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
+
+        if (!entregable.getHito().getFase().getProyecto().getId().equals(proyectoId)) {
+            throw new UnprocessableEntityException("El entregable no pertenece al proyecto especificado");
+        }
+
+        if (entregable.getArchivoPdf() == null || entregable.getArchivoPdf().isBlank()) {
+            throw new UnprocessableEntityException("No se puede aprobar un entregable sin evidencia cargada.");
+        }
+
+        if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se pueden aprobar entregables de un proyecto cerrado.");
+        }
+
+        try {
+            entregable.aprobarEvidencia(estadoEntregableConfig(ESTADO_APROBADO));
+        } catch (IllegalStateException ex) {
+            throw new UnprocessableEntityException(ex.getMessage());
+        }
+        ActorContext actor = actorContext(authentication);
+        cerrarObservaciones(entregable, actor);
+        auditar(entregable, versionActual(entregable).orElse(null), null, "APROBAR", actor, "estado=APROBADO");
+        entregableRepositoryPort.save(entregable);
+        entityManager.flush();
+
+        Integer hitoId = entregable.getHito().getId();
+        progressCalculator.calcularYActualizarAvanceHito(hitoId);
+        progressCalculator.calcularYActualizarAvanceProyecto(proyectoId);
+
+        entityManager.flush();
+        entityManager.refresh(entregable);
+
+        Proyecto proyectoActualizado = cargarProyecto(proyectoId);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.DELIVERABLE_APPROVED,
+                proyectoId,
+                actor.username(),
+                java.util.Map.of(
+                        ATTR_DELIVERABLE_NAME, entregable.getNombre(),
+                        ATTR_PROJECT_NAME, proyectoActualizado.getNombre(),
+                        ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoActualizado)
+                )));
+        ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now(ZoneId.systemDefault()));
+        beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
+        String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
+
+        return new EntregableAprobadoResponseDTO(
+                entregable.getId(),
+                entregable.getEstadoCodigo(),
+                entregable.getFechaEntregaReal(),
+                evidenciaUrl,
+                avance
+        );
+    }
+
+    @Override
+    @Transactional
+    public EntregableAprobadoResponseDTO rechazarEntregable(String proyectoId, Integer entregableId, String observacion, Authentication authentication) {
+        if (observacion == null || observacion.isBlank()) {
+            throw new UnprocessableEntityException("La observacion de rechazo es obligatoria.");
+        }
+
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
+
+        if (!entregable.getHito().getFase().getProyecto().getId().equals(proyectoId)) {
+            throw new UnprocessableEntityException("El entregable no pertenece al proyecto especificado");
+        }
+
+        if (entregable.getArchivoPdf() == null || entregable.getArchivoPdf().isBlank()) {
+            throw new UnprocessableEntityException("No se puede rechazar un entregable sin evidencia cargada.");
+        }
+
+        if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se pueden rechazar entregables de un proyecto cerrado.");
+        }
+
+        try {
+            entregable.rechazarEvidencia(observacion.trim(), estadoEntregableConfig("RECHAZADO"));
+        } catch (IllegalStateException ex) {
+            throw new UnprocessableEntityException(ex.getMessage());
+        }
+        ActorContext actor = actorContext(authentication);
+        DocumentoVersion version = asegurarVersionActual(entregable, actor);
+        DocumentoObservacion observacionCreada = crearObservacion(entregable, version, observacion.trim(), actor);
+        auditar(entregable, version, observacionCreada, "OBSERVAR", actor, AUDIT_OBSERVACION_ID_PREFIX + observacionCreada.getId());
+        entregableRepositoryPort.save(entregable);
+        entityManager.flush();
+
+        Integer hitoId = entregable.getHito().getId();
+        progressCalculator.calcularYActualizarAvanceHito(hitoId);
+        progressCalculator.calcularYActualizarAvanceProyecto(proyectoId);
+
+        entityManager.flush();
+        entityManager.refresh(entregable);
+
+        Proyecto proyectoActualizado = cargarProyecto(proyectoId);
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.DELIVERABLE_REJECTED,
+                proyectoId,
+                actor.username(),
+                java.util.Map.of(
+                        ATTR_DELIVERABLE_NAME, entregable.getNombre(),
+                        ATTR_PROJECT_NAME, proyectoActualizado.getNombre(),
+                        "observation", observacion.trim(),
+                        ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoActualizado)
+                )));
+        ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now(ZoneId.systemDefault()));
+        beneficioImpactoService.exigirSiCorresponde(proyectoId, avance, actor.username());
+        String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
+
+        return new EntregableAprobadoResponseDTO(
+                entregable.getId(),
+                entregable.getEstadoCodigo(),
+                entregable.getFechaEntregaReal(),
+                evidenciaUrl,
+                avance
+        );
+    }
+
+    @Override
+    @Transactional
+    public List<DocumentoVersionDTO> listarVersiones(String proyectoId, Integer entregableId, Authentication authentication) {
+        Entregable entregable = cargarEntregableDelProyecto(proyectoId, entregableId);
+        asegurarVersionActual(entregable, actorContext(authentication));
+        return documentoVersionRepositoryPort.findByEntregableIdOrderByNumeroVersionDesc(entregableId).stream()
+                .map(this::toVersionDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DocumentoObservacionDTO> listarObservaciones(String proyectoId, Integer entregableId, Authentication authentication) {
+        cargarEntregableDelProyecto(proyectoId, entregableId);
+        return documentoObservacionRepositoryPort.findByEntregableIdOrderByCreadaEnDesc(entregableId).stream()
+                .map(this::toObservacionDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public DocumentoObservacionDTO marcarObservacionSubsanada(String proyectoId, Integer entregableId, Long observacionId, String comentario, Authentication authentication) {
+        cargarEntregableDelProyecto(proyectoId, entregableId);
+        DocumentoObservacion observacion = documentoObservacionRepositoryPort.findByIdAndEntregableId(observacionId, entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Observacion no encontrada: " + observacionId));
+
+        if (!DocumentoObservacionEstado.ABIERTA.equals(observacion.getEstado())) {
+            throw new UnprocessableEntityException("Solo se pueden subsanar observaciones abiertas.");
+        }
+
+        ActorContext actor = actorContext(authentication);
+        observacion.setEstado(DocumentoObservacionEstado.SUBSANADA);
+        observacion.setSubsanadaPor(actor.username());
+        observacion.setSubsanadaEn(LocalDateTime.now(ZoneId.systemDefault()));
+        observacion.setComentarioSubsanacion(trimToNull(comentario));
+        DocumentoObservacion guardada = documentoObservacionRepositoryPort.save(observacion);
+        auditar(guardada.getEntregable(), guardada.getVersion(), guardada, "SUBSANAR", actor, AUDIT_OBSERVACION_ID_PREFIX + guardada.getId());
+
+        Proyecto proyectoSubsanacion = guardada.getEntregable() != null
+                && guardada.getEntregable().getHito() != null
+                && guardada.getEntregable().getHito().getFase() != null
+                && guardada.getEntregable().getHito().getFase().getProyecto() != null
+                ? guardada.getEntregable().getHito().getFase().getProyecto() : null;
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.OBSERVATION_SUBSANATED,
+                proyectoId,
+                actor.username(),
+                java.util.Map.of(
+                        "observationId", guardada.getId(),
+                        ATTR_DELIVERABLE_NAME, guardada.getEntregable() != null ? guardada.getEntregable().getNombre() : "",
+                        ATTR_PROJECT_NAME, proyectoSubsanacion != null ? proyectoSubsanacion.getNombre() : "",
+                        ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyectoSubsanacion)
+                )));
+        return toObservacionDto(guardada);
+    }
+
+    @Override
+    @Transactional
+    public EntregableAprobadoResponseDTO revertirVersion(String proyectoId, Integer entregableId, Long versionId, String motivo, Authentication authentication) {
+        if (motivo == null || motivo.isBlank()) {
+            throw new UnprocessableEntityException("El motivo de reversion es obligatorio.");
+        }
+
+        Entregable entregable = cargarEntregableDelProyecto(proyectoId, entregableId);
+        if (entregable.getHito().getFase().getProyecto().esEstadoTerminal()) {
+            throw new ForbiddenException("No se pueden revertir documentos de un proyecto cerrado.");
+        }
+
+        DocumentoVersion version = documentoVersionRepositoryPort.findByIdAndEntregableId(versionId, entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Version documental no encontrada: " + versionId));
+
+        if (!storageProvider.fileExists(STORAGE_EVIDENCIAS, version.getArchivoStorage())) {
+            throw new ResourceNotFoundException("El archivo fisico de la version seleccionada no esta disponible.");
+        }
+
+        ActorContext actor = actorContext(authentication);
+        documentoVersionRepositoryPort.findByEntregableIdAndEstado(entregableId, DocumentoVersionEstado.ACTUAL)
+                .forEach(actual -> {
+                    actual.setEstado(DocumentoVersionEstado.HISTORICA);
+                    documentoVersionRepositoryPort.save(actual);
+                });
+
+        version.setEstado(DocumentoVersionEstado.ACTUAL);
+        documentoVersionRepositoryPort.save(version);
+
+        entregable.setArchivoPdf(version.getArchivoStorage());
+        entregable.setFechaEntregaReal(version.getFechaEntrega());
+        entregable.setConforme(false);
+        entregable.setEstadoConfig(estadoEntregableConfig("EN_PROCESO"));
+        entregable.setObservacionRevision(null);
+        entregableRepositoryPort.save(entregable);
+
+        auditar(entregable, version, null, "REVERTIR", actor, "motivo=" + motivo.trim());
+
+        Integer hitoId = entregable.getHito().getId();
+        progressCalculator.calcularYActualizarAvanceHito(hitoId);
+        progressCalculator.calcularYActualizarAvanceProyecto(proyectoId);
+        entityManager.flush();
+        entityManager.refresh(entregable);
+
+        Proyecto proyectoRevert = cargarProyecto(proyectoId);
+        var revertRecipients = ProjectNotificationRecipients.resolve(proyectoRevert);
+        if (revertRecipients != null && !revertRecipients.isEmpty()) {
+            notificationPublisher.publish(new NotificationContext(
+                    NotificationEventType.EVIDENCE_VERSION_REVERTED,
+                    proyectoId,
+                    actor.username(),
+                    java.util.Map.of(
+                            ATTR_PROJECT_NAME, proyectoRevert.getNombre() != null ? proyectoRevert.getNombre() : "",
+                            ATTR_DELIVERABLE_NAME, entregable.getNombre() != null ? entregable.getNombre() : "",
+                            "versionNumber", version.getNumeroVersion() != null ? version.getNumeroVersion() : 0,
+                            "motivo", motivo.trim(),
+                            ATTR_RECIPIENTS, revertRecipients
+                    )));
+        }
+
+        return responseConAvance(proyectoId, entregable);
+    }
+
+    @Override
+    @Transactional
+    public void enviarAlertaDirector(String proyectoId, Authentication authentication) {
+        Proyecto proyecto = cargarProyecto(proyectoId);
+
+        if (proyecto.getCorreoDirector() == null || proyecto.getCorreoDirector().isBlank()) {
+            throw new UnprocessableEntityException("El proyecto no tiene un correo de director registrado para enviar la notificacion.");
+        }
+
+        ActorContext actor = actorContext(authentication);
+
+        List<Riesgo> riesgosPendientes = riesgoRepositoryPort.findByProyectoId(proyectoId).stream()
+                .filter(r -> r.getEstado() == EstadoRiesgo.PENDIENTE)
+                .toList();
+
+        List<Entregable> todosEntregables = entregableRepositoryPort.findByProyectoId(proyectoId);
+        List<Entregable> entregablesPendientes = filtrarEntregablesPendientes(todosEntregables);
+
+        LocalDate hoy = LocalDate.now(ZoneId.systemDefault());
+        List<Entregable> entregablesVencidos = filtrarEntregablesVencidos(todosEntregables, hoy);
+
+        List<String> documentosFaltantes = documentosFaltantesDelProyecto(proyecto);
+
+        String baseUrl = publicUrlProperties.getBase() != null ? publicUrlProperties.getBase() : "";
+        String projectUrl = baseUrl + "/projects/" + proyectoId.toLowerCase() + "/progress";
+
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a");
+        String sentAt = LocalDateTime.now(ZoneId.systemDefault()).format(dtf);
+
+        String riesgosDetail = construirDetalleRiesgos(riesgosPendientes);
+        String entregablesDetail = construirDetalleEntregables(entregablesPendientes);
+        String vencidosDetail = construirDetalleVencidos(entregablesVencidos);
+
+        StringBuilder documentosDetail = new StringBuilder();
+        for (String doc : documentosFaltantes) {
+            documentosDetail.append("  - ").append(doc).append("\n");
+        }
+
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("directorName", proyecto.getDirector() != null ? proyecto.getDirector() : "Director");
+        attributes.put(ATTR_PROJECT_NAME, proyecto.getNombre());
+        attributes.put("projectId", proyecto.getId());
+        attributes.put("projectState", proyecto.getEstadoCodigo() != null ? proyecto.getEstadoCodigo() : "DESCONOCIDO");
+        attributes.put("avanceTotal", proyecto.getAvanceTotal() != null ? proyecto.getAvanceTotal().toPlainString() : "0.00");
+        attributes.put("pendingRisksCount", String.valueOf(riesgosPendientes.size()));
+        attributes.put("pendingRisksDetail", riesgosDetail);
+        attributes.put("pendingDeliverablesCount", String.valueOf(entregablesPendientes.size()));
+        attributes.put("pendingDeliverablesDetail", entregablesDetail);
+        attributes.put("overdueCount", String.valueOf(entregablesVencidos.size()));
+        attributes.put("overdueDetail", vencidosDetail);
+        attributes.put("hasOverdue", !entregablesVencidos.isEmpty());
+        attributes.put("hasMissingDocuments", !documentosFaltantes.isEmpty());
+        attributes.put("missingDocumentsDetail", documentosDetail.toString());
+        attributes.put("projectUrl", projectUrl);
+        attributes.put("sentBy", actor.username());
+        attributes.put("sentAt", sentAt);
+        attributes.put(ATTR_RECIPIENTS, ProjectNotificationRecipients.resolve(proyecto));
+
+        notificationPublisher.publish(new NotificationContext(
+                NotificationEventType.PROJECT_DIRECTOR_ALERT,
+                proyectoId,
+                actor.username(),
+                attributes
+        ));
+    }
+
+    private List<Entregable> filtrarEntregablesPendientes(List<Entregable> todosEntregables) {
+        return todosEntregables.stream()
+                .filter(e -> {
+                    String estadoCodigo = e.getEstadoCodigo();
+                    boolean esTerminal = ESTADO_COMPLETADO.equals(estadoCodigo) || ESTADO_APROBADO.equals(estadoCodigo);
+                    return !esTerminal && (e.getArchivoPdf() == null || e.getArchivoPdf().isBlank());
+                })
+                .toList();
+    }
+
+    private List<Entregable> filtrarEntregablesVencidos(List<Entregable> todosEntregables, LocalDate hoy) {
+        return todosEntregables.stream()
+                .filter(e -> {
+                    String estadoCodigo = e.getEstadoCodigo();
+                    boolean esTerminal = ESTADO_COMPLETADO.equals(estadoCodigo) || ESTADO_APROBADO.equals(estadoCodigo);
+                    return !esTerminal && e.getFechaLimite() != null && e.getFechaLimite().isBefore(hoy);
+                })
+                .toList();
+    }
+
+    private List<String> documentosFaltantesDelProyecto(Proyecto proyecto) {
+        List<String> documentosFaltantes = new ArrayList<>();
+        if (proyecto.getCronogramaPdf() == null || proyecto.getCronogramaPdf().isBlank()) {
+            documentosFaltantes.add("Cronograma del proyecto");
+        }
+        if (proyecto.getActaConstitucionPdf() == null || proyecto.getActaConstitucionPdf().isBlank()) {
+            documentosFaltantes.add("Acta de constitucion del proyecto");
+        }
+        if (proyecto.getPlanComunicacionesPdf() == null || proyecto.getPlanComunicacionesPdf().isBlank()) {
+            documentosFaltantes.add("Plan de comunicaciones del proyecto");
+        }
+        return documentosFaltantes;
+    }
+
+    private String construirDetalleRiesgos(List<Riesgo> riesgosPendientes) {
+        StringBuilder riesgosDetail = new StringBuilder();
+        if (riesgosPendientes.isEmpty()) {
+            riesgosDetail.append("  No tiene riesgos pendientes por tratar.");
+        } else {
+            for (Riesgo r : riesgosPendientes) {
+                String nivel = nivelRiesgo(r);
+                String desc = descripcionRiesgo(r);
+                String codigo = r.getCodigo() != null ? r.getCodigo() : "S/C";
+                riesgosDetail.append("  - ")
+                        .append(codigo)
+                        .append(" | Nivel: ").append(nivel)
+                        .append(" | ").append(desc)
+                        .append("\n");
+            }
+        }
+        return riesgosDetail.toString();
+    }
+
+    private String nivelRiesgo(Riesgo r) {
+        return r.getNivel() != null ? r.getNivel().name() : "SIN NIVEL";
+    }
+
+    private String descripcionRiesgo(Riesgo r) {
+        String desc = r.getDescripcion() != null ? r.getDescripcion() : "Sin descripcion";
+        if (desc.length() > 80) {
+            desc = desc.substring(0, 80) + "...";
+        }
+        return desc;
+    }
+
+    private String construirDetalleEntregables(List<Entregable> entregablesPendientes) {
+        StringBuilder entregablesDetail = new StringBuilder();
+        if (entregablesPendientes.isEmpty()) {
+            entregablesDetail.append("  No tiene entregables pendientes por cargar evidencia.");
+        } else {
+            for (Entregable e : entregablesPendientes) {
+                String faseNombre = nombreFase(e);
+                String fechaLimite = fechaLimiteFormateada(e, "Sin fecha");
+                entregablesDetail.append("  - ")
+                        .append(e.getNombre())
+                        .append(" (Fase: ").append(faseNombre).append(")")
+                        .append(" | Fecha limite: ").append(fechaLimite)
+                        .append("\n");
+            }
+        }
+        return entregablesDetail.toString();
+    }
+
+    private String construirDetalleVencidos(List<Entregable> entregablesVencidos) {
+        StringBuilder vencidosDetail = new StringBuilder();
+        for (Entregable e : entregablesVencidos) {
+            String faseNombre = nombreFase(e);
+            String fechaVencida = fechaLimiteFormateada(e, "S/F");
+            String faseTexto = faseNombre.isEmpty() ? "N/A" : faseNombre;
+            vencidosDetail.append("  - ")
+                    .append(e.getNombre())
+                    .append(" (Fase: ").append(faseTexto).append(")")
+                    .append(" | Vencido el: ").append(fechaVencida)
+                    .append("\n");
+        }
+        return vencidosDetail.toString();
+    }
+
+    private String nombreFase(Entregable e) {
+        if (e.getHito() != null && e.getHito().getFase() != null && e.getHito().getFase().getDescripcion() != null) {
+            return e.getHito().getFase().getDescripcion();
+        }
+        return "N/A";
+    }
+
+    private String fechaLimiteFormateada(Entregable e, String valorPorDefecto) {
+        return e.getFechaLimite() != null
+                ? e.getFechaLimite().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                : valorPorDefecto;
+    }
+
+    private void validarPdfReal(MultipartFile evidencia) {
+        try (var is = evidencia.getInputStream()) {
+            byte[] encabezado = is.readNBytes(5);
+            String firma = new String(encabezado, StandardCharsets.US_ASCII);
+            if (!firma.startsWith("%PDF-")) {
+                throw new UnprocessableEntityException("El archivo cargado no es un PDF válido.");
+            }
+        } catch (IOException _) {
+            throw new UnprocessableEntityException("No fue posible validar el archivo PDF cargado.");
+        }
+    }
+
+    private DocumentoVersion registrarNuevaVersion(Entregable entregable, MultipartFile evidencia, String storedName, LocalDate fechaEntrega, ActorContext actor) {
+        asegurarVersionActual(entregable, actor);
+
+        documentoVersionRepositoryPort.findByEntregableIdAndEstado(entregable.getId(), DocumentoVersionEstado.ACTUAL)
+                .forEach(actual -> {
+                    actual.setEstado(DocumentoVersionEstado.HISTORICA);
+                    documentoVersionRepositoryPort.save(actual);
+                });
+
+        DocumentoVersion version = new DocumentoVersion();
+        version.setEntregable(entregable);
+        version.setNumeroVersion(documentoVersionRepositoryPort.findMaxNumeroVersionByEntregableId(entregable.getId()) + 1);
+        version.setNombreArchivoOriginal(nombreOriginalSeguro(evidencia));
+        version.setArchivoStorage(storedName);
+        version.setMimeType(firstNonBlank(evidencia.getContentType(), MIME_PDF));
+        version.setSizeBytes(evidencia.getSize());
+        version.setChecksumSha256(sha256(evidencia));
+        version.setFechaEntrega(fechaEntrega);
+        version.setComentarioCarga(null);
+        version.setEstado(DocumentoVersionEstado.ACTUAL);
+        version.setSubidoPor(actor.username());
+        version.setSubidoRol(actor.role());
+        return documentoVersionRepositoryPort.save(version);
+    }
+
+    private DocumentoVersion asegurarVersionActual(Entregable entregable, ActorContext actor) {
+        return versionActual(entregable).orElseGet(() -> {
+            if (entregable.getArchivoPdf() == null || entregable.getArchivoPdf().isBlank()) {
+                return null;
+            }
+
+            DocumentoVersion version = new DocumentoVersion();
+            version.setEntregable(entregable);
+            version.setNumeroVersion(documentoVersionRepositoryPort.findMaxNumeroVersionByEntregableId(entregable.getId()) + 1);
+            version.setNombreArchivoOriginal(entregable.getArchivoPdf());
+            version.setArchivoStorage(entregable.getArchivoPdf());
+            version.setMimeType(MIME_PDF);
+            version.setFechaEntrega(entregable.getFechaEntregaReal());
+            version.setComentarioCarga("Version inicial registrada automaticamente desde evidencia existente.");
+            version.setEstado(DocumentoVersionEstado.ACTUAL);
+            version.setSubidoPor(actor != null ? actor.username() : USUARIO_SISTEMA);
+            version.setSubidoRol(actor != null ? actor.role() : USUARIO_SISTEMA);
+            return documentoVersionRepositoryPort.save(version);
+        });
+    }
+
+    private java.util.Optional<DocumentoVersion> versionActual(Entregable entregable) {
+        return documentoVersionRepositoryPort.findFirstByEntregableIdAndEstadoOrderByNumeroVersionDesc(
+                entregable.getId(), DocumentoVersionEstado.ACTUAL);
+    }
+
+    private DocumentoObservacion crearObservacion(Entregable entregable, DocumentoVersion version, String observacionTexto, ActorContext actor) {
+        DocumentoObservacion observacion = new DocumentoObservacion();
+        observacion.setEntregable(entregable);
+        observacion.setVersion(version);
+        observacion.setObservacion(observacionTexto);
+        observacion.setEstado(DocumentoObservacionEstado.ABIERTA);
+        observacion.setCreadaPor(actor.username());
+        observacion.setCreadaRol(actor.role());
+        return documentoObservacionRepositoryPort.save(observacion);
+    }
+
+    private void marcarObservacionesSubsanadas(Entregable entregable, ActorContext actor, String comentario) {
+        List<DocumentoObservacion> abiertas = documentoObservacionRepositoryPort.findByEntregableIdAndEstadoIn(
+                entregable.getId(), List.of(DocumentoObservacionEstado.ABIERTA));
+        for (DocumentoObservacion observacion : abiertas) {
+            observacion.setEstado(DocumentoObservacionEstado.SUBSANADA);
+            observacion.setSubsanadaPor(actor.username());
+            observacion.setSubsanadaEn(LocalDateTime.now(ZoneId.systemDefault()));
+            observacion.setComentarioSubsanacion(comentario);
+            documentoObservacionRepositoryPort.save(observacion);
+            auditar(entregable, observacion.getVersion(), observacion, "SUBSANAR", actor, AUDIT_OBSERVACION_ID_PREFIX + observacion.getId());
+        }
+    }
+
+    private void cerrarObservaciones(Entregable entregable, ActorContext actor) {
+        List<DocumentoObservacion> pendientes = documentoObservacionRepositoryPort.findByEntregableIdAndEstadoIn(
+                entregable.getId(), List.of(DocumentoObservacionEstado.ABIERTA, DocumentoObservacionEstado.SUBSANADA));
+        for (DocumentoObservacion observacion : pendientes) {
+            observacion.setEstado(DocumentoObservacionEstado.CERRADA);
+            observacion.setCerradaPor(actor.username());
+            observacion.setCerradaEn(LocalDateTime.now(ZoneId.systemDefault()));
+            documentoObservacionRepositoryPort.save(observacion);
+        }
+    }
+
+    private void auditar(Entregable entregable, DocumentoVersion version, DocumentoObservacion observacion, String accion, ActorContext actor, String metadata) {
+        DocumentoAuditoria auditoria = new DocumentoAuditoria();
+        auditoria.setEntregable(entregable);
+        auditoria.setVersion(version);
+        auditoria.setObservacion(observacion);
+        auditoria.setAccion(accion);
+        auditoria.setActor(actor.username());
+        auditoria.setActorRol(actor.role());
+        auditoria.setMetadata(metadata);
+        documentoAuditoriaRepositoryPort.save(auditoria);
+    }
+
+    private Entregable cargarEntregableDelProyecto(String proyectoId, Integer entregableId) {
+        Entregable entregable = entregableRepositoryPort.findById(entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException(MSG_ENTREGABLE_NO_ENCONTRADO + entregableId));
+
+        if (entregable.getHito() == null
+                || entregable.getHito().getFase() == null
+                || entregable.getHito().getFase().getProyecto() == null
+                || !entregable.getHito().getFase().getProyecto().getId().equalsIgnoreCase(proyectoId)) {
+            throw new UnprocessableEntityException("El entregable no pertenece al proyecto especificado");
+        }
+        return entregable;
+    }
+
+    private EntregableAprobadoResponseDTO responseConAvance(String proyectoId, Entregable entregable) {
+        Proyecto proyectoActualizado = cargarProyecto(proyectoId);
+        ProyectoAvanceResponseDTO avance = metricsService.construir(proyectoActualizado, LocalDate.now(ZoneId.systemDefault()));
+        String evidenciaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregable.getId() + URL_EVIDENCIA_SUFFIX;
+
+        return new EntregableAprobadoResponseDTO(
+                entregable.getId(),
+                entregable.getEstadoCodigo(),
+                entregable.getFechaEntregaReal(),
+                evidenciaUrl,
+                avance
+        );
+    }
+
+    private DocumentoVersionDTO toVersionDto(DocumentoVersion version) {
+        String proyectoId = version.getEntregable().getHito().getFase().getProyecto().getId();
+        Integer entregableId = version.getEntregable().getId();
+        String descargaUrl = URL_PROYECTOS_PREFIX + proyectoId + URL_AVANCE_ENTREGABLES + entregableId
+                + "/versiones/" + version.getId() + "/archivo";
+
+        return new DocumentoVersionDTO(
+                version.getId(),
+                entregableId,
+                version.getNumeroVersion(),
+                version.getNombreArchivoOriginal(),
+                version.getEstado().name(),
+                version.getMimeType(),
+                version.getSizeBytes(),
+                version.getChecksumSha256(),
+                version.getFechaEntrega(),
+                version.getSubidoPor(),
+                version.getSubidoRol(),
+                version.getSubidoEn(),
+                version.getComentarioCarga(),
+                DocumentoVersionEstado.ACTUAL.equals(version.getEstado()),
+                descargaUrl
+        );
+    }
+
+    private DocumentoObservacionDTO toObservacionDto(DocumentoObservacion observacion) {
+        DocumentoVersion version = observacion.getVersion();
+        return new DocumentoObservacionDTO(
+                observacion.getId(),
+                observacion.getEntregable().getId(),
+                version != null ? version.getId() : null,
+                version != null ? version.getNumeroVersion() : null,
+                observacion.getObservacion(),
+                observacion.getEstado().name(),
+                observacion.getCreadaPor(),
+                observacion.getCreadaRol(),
+                observacion.getCreadaEn(),
+                observacion.getSubsanadaPor(),
+                observacion.getSubsanadaEn(),
+                observacion.getComentarioSubsanacion(),
+                observacion.getCerradaPor(),
+                observacion.getCerradaEn()
+        );
+    }
+
+    private ActorContext actorContext(Authentication authentication) {
+        try {
+            SeguridadUsuario usuario = localUserAuthorizationService.requireLocalUser(authentication);
+            String username = firstNonBlank(usuario.getCorreo(), usuario.getNombre(), identityExtractor.resolveUsername(authentication), USUARIO_SISTEMA);
+            String role = firstNonBlank(SecurityRoleCatalog.normalize(usuario.getRolCodigo()), "sin_rol");
+            return new ActorContext(username, role);
+        } catch (RuntimeException _) {
+            return new ActorContext(firstNonBlank(identityExtractor.resolveUsername(authentication), USUARIO_SISTEMA), "sin_rol");
+        }
+    }
+
+    private String nombreOriginalSeguro(MultipartFile evidencia) {
+        String original = firstNonBlank(evidencia.getOriginalFilename(), "evidencia.pdf");
+        return storageProvider.sanitizeFileName(original);
+    }
+
+    private String sha256(MultipartFile evidencia) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(evidencia.getBytes());
+            return HexFormat.of().formatHex(hash);
+        } catch (IOException _) {
+            throw new UnprocessableEntityException("No fue posible calcular la huella del documento cargado.");
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 no esta disponible en el entorno de ejecucion.", ex);
+        }
+    }
+
+    private String trimToNull(String value) {
+        return TextSupport.trimToNull(value);
+    }
+
+    private String firstNonBlank(String... values) {
+        return TextSupport.firstNonBlank(values);
+    }
+
+    private Proyecto cargarProyecto(String proyectoId) {
+        return proyectoRepositoryPort.findById(proyectoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + proyectoId));
+    }
+
+    private record ActorContext(String username, String role) {}
+}
+

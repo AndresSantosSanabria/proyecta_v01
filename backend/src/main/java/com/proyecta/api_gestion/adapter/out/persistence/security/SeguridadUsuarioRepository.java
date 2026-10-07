@@ -1,0 +1,60 @@
+package com.proyecta.api_gestion.adapter.out.persistence.security;
+
+import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
+import java.util.List;
+
+import com.proyecta.api_gestion.application.port.out.persistence.security.SeguridadUsuarioRepositoryPort;
+import com.proyecta.api_gestion.domain.value.PageQuery;
+import com.proyecta.api_gestion.domain.value.PageResult;
+import com.proyecta.api_gestion.adapter.out.persistence.PageBridge;
+public interface SeguridadUsuarioRepository extends JpaRepository<SeguridadUsuario, Long>, SeguridadUsuarioRepositoryPort {
+    @Override
+    default PageResult<SeguridadUsuario> findAll(PageQuery query) {
+        return PageBridge.toResult(findAll(PageBridge.toPageable(query)), query);
+    }
+
+    Optional<SeguridadUsuario> findByUsernameIgnoreCase(String username);
+    Optional<SeguridadUsuario> findByCorreoIgnoreCase(String correo);
+    Optional<SeguridadUsuario> findByKeycloakSubIgnoreCase(String keycloakSub);
+    List<SeguridadUsuario> findByNombreIgnoreCase(String nombre);
+    List<SeguridadUsuario> findByRecibirNotificacionesGlobalesTrue();
+
+    @Query("""
+        SELECT u FROM SeguridadUsuario u
+        WHERE u.activo = true
+          AND (
+            LOWER(COALESCE(u.rolCodigo, '')) IN ('director_proyecto', 'director_pro', 'director_tecnico', 'lider_tecnico')
+            OR LOWER(COALESCE(u.rolNombre, '')) LIKE '%director%'
+            OR LOWER(COALESCE(u.rolNombre, '')) LIKE '%lider%tecnico%'
+          )
+        ORDER BY u.nombre ASC
+    """)
+    List<SeguridadUsuario> findAssignableProjectDirectors();
+
+    @Query("""
+        SELECT u FROM SeguridadUsuario u
+        WHERE u.activo = true
+          AND (
+            :search IS NULL OR :search = '' OR
+            LOWER(u.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR
+            LOWER(u.correo) LIKE LOWER(CONCAT('%', :search, '%')) OR
+            LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) OR
+            LOWER(COALESCE(u.dependencia, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+          AND (:rol IS NULL OR :rol = '' OR LOWER(COALESCE(u.rolCodigo, '')) = LOWER(:rol))
+        ORDER BY u.nombre ASC
+    """)
+    Page<SeguridadUsuario> search(@Param("search") String search, @Param("rol") String rol, Pageable pageable);
+
+    @Override
+    default PageResult<SeguridadUsuario> search(String search, String rol, PageQuery pageable) {
+        return PageBridge.toResult(search(search, rol, PageBridge.toPageable(pageable)), pageable);
+    }
+}

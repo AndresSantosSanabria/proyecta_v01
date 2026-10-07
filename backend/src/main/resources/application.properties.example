@@ -1,0 +1,172 @@
+# ---------------------------------------------------------------------------
+# PLANTILLA de configuracion de la aplicacion.
+# Copiar a: src/main/resources/application.properties  (git ignorado) y completar.
+# Nunca subir el application.properties real a git (CWE-798).
+# Toda credencial via variable de entorno. Obligatorias (sin default):
+#   DB_PASSWORD, MAIL_PASSWORD
+# ---------------------------------------------------------------------------
+spring.application.name=api-gestion
+
+# AWT Headless for JFreeChart
+java.awt.headless=true
+
+# Server Configuration
+server.port=${SERVER_PORT:8082}
+# Prefijo de despliegue del API bajo subruta (vacio = raiz). Ej.: /apps/proyecta/api
+# IMPORTANTE: si se define, APP_PUBLIC_URL_BASE debe incluir el MISMO prefijo para
+# que la firma HMAC de /api/v1/public/** coincida con request.getRequestURI().
+server.servlet.context-path=${SERVER_SERVLET_CONTEXT_PATH:}
+
+# Database Connection (PostgreSQL Persistence)
+spring.datasource.url=jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}?currentSchema=${DB_SCHEMA:proyecta_db}
+spring.datasource.username=${DB_USER:postgres}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driverClassName=org.postgresql.Driver
+
+# JPA / Hibernate Properties
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=validate
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+# BD existente (historial hasta V105 consolidado en V1/V2): ignorar faltantes y pendientes
+spring.flyway.ignore-migration-patterns=*:missing,*:pending
+# repair se ejecuta via FlywayConfig.FlywayMigrationStrategy (la propied spring.flyway.repair-on-migrate
+# no existe en Spring Boot 4 y se ignora); sincroniza checksums de migraciones ya aplicadas
+spring.sql.init.mode=never
+spring.jpa.defer-datasource-initialization=false
+
+spring.jpa.show-sql=${JPA_SHOW_SQL:false}
+spring.jpa.properties.hibernate.format_sql=false
+spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
+
+# SQL Initialization
+# Server Encoding
+server.servlet.encoding.charset=UTF-8
+server.servlet.encoding.enabled=true
+server.servlet.encoding.force=true
+
+# Swagger UI / OpenAPI (CWE-200): apagado por defecto; habilitar solo en local/dev
+# con SPRINGDOC_API_DOCS_ENABLED=true y SPRINGDOC_SWAGGER_UI_ENABLED=true.
+springdoc.api-docs.enabled=${SPRINGDOC_API_DOCS_ENABLED:false}
+springdoc.swagger-ui.enabled=${SPRINGDOC_SWAGGER_UI_ENABLED:false}
+springdoc.swagger-ui.path=/swagger-ui.html
+
+# Dashboard Config
+dashboard.ventana-vencimiento=${DASHBOARD_VENTANA_VENCIMIENTO:7}
+
+# Logging Configuration
+logging.level.com.proyecta.api_gestion=${LOG_LEVEL_APP:INFO}
+logging.level.org.springframework.web=INFO
+logging.level.org.hibernate=INFO
+logging.level.org.springframework.security=${LOG_LEVEL_SECURITY:INFO}
+logging.level.org.hibernate.SQL=${LOG_LEVEL_SQL:WARN}
+logging.level.org.hibernate.tool.schema=WARN
+logging.level.org.hibernate.orm.jdbc.bind=OFF
+logging.level.org.springframework.mail=INFO
+logging.level.com.sun.mail=INFO
+
+# Connection Pool Settings (HikariCP)
+spring.datasource.hikari.pool-name=ProyectaHikariPool
+spring.datasource.hikari.maximum-pool-size=${DB_POOL_MAX:15}
+spring.datasource.hikari.minimum-idle=${DB_POOL_MIN_IDLE:5}
+spring.datasource.hikari.idle-timeout=300000
+spring.datasource.hikari.max-lifetime=1200000
+spring.datasource.hikari.connection-timeout=20000
+spring.datasource.hikari.validation-timeout=5000
+spring.datasource.hikari.keepalive-time=60000
+spring.datasource.hikari.leak-detection-threshold=30000
+spring.datasource.hikari.initialization-fail-timeout=-1
+spring.datasource.hikari.auto-commit=true
+
+# JPA Settings
+spring.jpa.open-in-view=false
+spring.jpa.properties.hibernate.generate_statistics=false
+spring.jpa.properties.hibernate.connection.provider_disables_autocommit=true
+
+# Public URL base (used for Excel hyperlinks that must work without login)
+app.public-url.base=${APP_PUBLIC_URL_BASE:http://localhost:8082}
+
+# Frontend URL base (used for notification direct links)
+app.frontend-url.base=${APP_FRONTEND_URL_BASE:http://localhost:5173}
+
+# Deadline warning notification scheduler
+notifications.deadline-warning.cron=${NOTIFICATIONS_DEADLINE_CRON:0 0 8 * * *}
+notifications.overdue-reminder.cron=${NOTIFICATIONS_OVERDUE_CRON:0 0 9 * * *}
+
+# Graceful Shutdown
+server.shutdown=graceful
+spring.lifecycle.timeout-per-shutdown-phase=30s
+
+# Tomcat Thread Pool
+server.tomcat.threads.max=${TOMCAT_THREADS_MAX:20}
+server.tomcat.threads.min-spare=5
+server.tomcat.threads.max-keep-alive=60
+server.tomcat.accept-count=100
+server.tomcat.connection-timeout=10000
+
+# Multipart File Upload
+spring.servlet.multipart.enabled=true
+spring.servlet.multipart.max-file-size=${MAX_FILE_SIZE:50MB}
+spring.servlet.multipart.max-request-size=${MAX_REQUEST_SIZE:200MB}
+spring.servlet.multipart.file-size-threshold=2MB
+
+# ---------------------------------------------------------------------------
+# Keycloak OAuth2 Resource Server Configuration
+# ---------------------------------------------------------------------------
+spring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_ISSUER_URI:https://iamqa.cundinamarca.gov.co/realms/gob-cundinamarca-devqa}
+spring.security.oauth2.resourceserver.jwt.jwk-set-uri=${KEYCLOAK_JWKS_URI:https://iamqa.cundinamarca.gov.co/realms/gob-cundinamarca-devqa/protocol/openid-connect/certs}
+gob.security.resource-client-ids=${GOB_RESOURCE_CLIENT_IDS:proyecta-web}
+gob.security.cors.allowed-origins=${GOB_CORS_ORIGINS:http://localhost:5173}
+gob.security.admin-emails=${GOB_SECURITY_ADMIN_EMAILS:}
+# CWE-290: solo confiar en X-Forwarded-For / X-Real-IP si hay un proxy propio delante
+# (poner true unicamente en el despliegue tras reverse proxy/LB).
+gob.security.trust-forwarded-for=${GOB_SECURITY_TRUST_FORWARDED_FOR:false}
+# CWE-266: scopes del JWT que se convierten en authorities. Vacio por defecto = no se
+# confia en ningun scope declarado por el cliente.
+gob.security.trusted-scopes=${GOB_SECURITY_TRUSTED_SCOPES:}
+gob.seed.users=${GOB_SEED_USERS:}
+# Cuenta admin inicial: si esta vacio NO se crea ni se fuerza ninguna cuenta fija.
+# En despliegue definir: GOB_SEED_ADMIN_USERNAME, GOB_SEED_ADMIN_CORREO, GOB_SEED_ADMIN_NOMBRE
+# (o declarar las cuentas administrativas en GOB_SEED_USERS).
+gob.seed.admin.username=${GOB_SEED_ADMIN_USERNAME:}
+gob.seed.admin.correo=${GOB_SEED_ADMIN_CORREO:}
+gob.seed.admin.nombre=${GOB_SEED_ADMIN_NOMBRE:}
+gob.security.keycloak.client-secret=${GOB_KEYCLOAK_CLIENT_SECRET:}
+gob.security.logout.post-redirect-uri=${GOB_LOGOUT_POST_REDIRECT_URI:http://localhost:5173/}
+
+# ---------------------------------------------------------------------------
+# Evidencia publica anonima: firma HMAC de enlaces + rate limiting (anti-IDOR/CWE-639)
+# PUBLIC_EVIDENCE_HMAC_SECRET debe definirse como variable de entorno en despliegues (nunca en git).
+# ---------------------------------------------------------------------------
+gob.security.public-evidence.hmac-secret=${PUBLIC_EVIDENCE_HMAC_SECRET:}
+gob.security.public-evidence.expiry-days=${PUBLIC_EVIDENCE_EXPIRY_DAYS:30}
+gob.security.public-evidence.rate-limit-per-minute=${PUBLIC_EVIDENCE_RATE_LIMIT:120}
+gob.security.public-evidence.trust-forwarded-for=${PUBLIC_EVIDENCE_TRUST_XFF:false}
+
+# ---------------------------------------------------------------------------
+# Mail Configuration
+# `spring.mail.username` es el usuario SMTP para autenticarse.
+# `mail.from` es la direccion que vera el destinatario como remitente.
+# La contrasena SOLO vive en la variable de entorno MAIL_PASSWORD (terminal, CI/CD o
+# gestor de secretos). Nunca debe escribirse en este archivo (CWE-798).
+# ---------------------------------------------------------------------------
+spring.mail.host=${MAIL_HOST:correo.cundinamarca.gov.co}
+spring.mail.port=${MAIL_PORT:25}
+spring.mail.username=${MAIL_USERNAME:}
+spring.mail.password=${MAIL_PASSWORD}
+spring.mail.protocol=${MAIL_PROTOCOL:smtp}
+spring.mail.properties.mail.smtp.auth=${MAIL_SMTP_AUTH:false}
+spring.mail.properties.mail.smtp.starttls.enable=${MAIL_SMTP_STARTTLS_ENABLE:true}
+spring.mail.properties.mail.smtp.starttls.required=${MAIL_SMTP_STARTTLS_REQUIRED:false}
+spring.mail.properties.mail.smtp.ssl.trust=${MAIL_SMTP_SSL_TRUST:correo.cundinamarca.gov.co}
+spring.mail.properties.mail.smtp.ssl.protocols=${MAIL_SMTP_SSL_PROTOCOLS:TLSv1.2 TLSv1.3}
+spring.mail.properties.mail.smtp.connectiontimeout=${MAIL_SMTP_CONNECTION_TIMEOUT:30000}
+spring.mail.properties.mail.smtp.timeout=${MAIL_SMTP_TIMEOUT:30000}
+spring.mail.properties.mail.smtp.writetimeout=${MAIL_SMTP_WRITE_TIMEOUT:30000}
+spring.mail.properties.mail.smtp.quitwait=${MAIL_SMTP_QUITWAIT:false}
+spring.mail.properties.mail.smtp.auth.mechanisms=${MAIL_SMTP_AUTH_MECHANISMS:LOGIN}
+
+# Remitente visible en los correos enviados por la aplicacion.
+mail.from=${MAIL_FROM:notificaciones_proyecta@cundinamarca.gov.co}
+# Activa o desactiva el envio real de correos.
+mail.notifications.enabled=${MAIL_NOTIFICATION_ENABLED:true}

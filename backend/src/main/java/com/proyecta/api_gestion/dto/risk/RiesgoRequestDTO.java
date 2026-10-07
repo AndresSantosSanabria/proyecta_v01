@@ -1,0 +1,34 @@
+package com.proyecta.api_gestion.dto.risk;
+
+import com.proyecta.api_gestion.domain.model.enums.EstadoRiesgo;
+import com.proyecta.api_gestion.domain.model.enums.Impacto;
+import com.proyecta.api_gestion.domain.model.enums.Probabilidad;
+import com.proyecta.api_gestion.domain.model.enums.TipoRiesgo;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+import java.time.LocalDate;
+
+public record RiesgoRequestDTO(
+        @NotBlank(message = "La descripcion es obligatoria")
+        String descripcion,
+
+        @NotNull(message = "La probabilidad es obligatoria")
+        Probabilidad probabilidad,
+
+        @NotNull(message = "El impacto es obligatorio")
+        Impacto impacto,
+
+        TipoRiesgo tipoRiesgo,
+
+        String tratamiento,
+
+        @NotBlank(message = "El responsable es obligatorio")
+        String entidadResponsable,
+
+        String accionesMitigacion,
+
+        LocalDate fechaAccion,
+
+        EstadoRiesgo estado
+) {}

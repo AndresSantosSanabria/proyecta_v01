@@ -1,0 +1,43 @@
+package com.proyecta.api_gestion.controller;
+
+import com.proyecta.api_gestion.dto.common.ApiResponse;
+import com.proyecta.api_gestion.dto.proyecto.PatrocinadorDTO;
+import com.proyecta.api_gestion.domain.model.Patrocinador;
+import com.proyecta.api_gestion.application.port.out.persistence.PatrocinadorRepositoryPort;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/patrocinadores")
+@Tag(name = "Catálogos — Patrocinadores", description = "Endpoints para listar patrocinadores")
+@PreAuthorize("@localUserAuthorization.hasBaseAccess(authentication)")
+public class PatrocinadorController {
+
+    private final PatrocinadorRepositoryPort patrocinadorRepositoryPort;
+
+    public PatrocinadorController(PatrocinadorRepositoryPort patrocinadorRepositoryPort) {
+        this.patrocinadorRepositoryPort = patrocinadorRepositoryPort;
+    }
+
+    @Operation(summary = "Listar los patrocinadores únicos registrados")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<PatrocinadorDTO>>> listarPatrocinadoresUnicos() {
+        List<Patrocinador> patrocinadores = patrocinadorRepositoryPort.findUniquePatrocinadores();
+        List<PatrocinadorDTO> dtos = patrocinadores.stream()
+                .map(p -> new PatrocinadorDTO(
+                        p.getNombre(),
+                        p.getCargo(),
+                        p.getProcesoSigc(),
+                        p.getProcedimiento()
+                ))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(dtos, "Patrocinadores obtenidos con éxito"));
+    }
+}
