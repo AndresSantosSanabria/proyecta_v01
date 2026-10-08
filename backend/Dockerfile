@@ -15,5 +15,9 @@ COPY src/main/resources/application.properties.example /app/config/application.p
 
 COPY --from=build /app/target/api-gestion-0.0.1-SNAPSHOT.jar app.jar
 
+# Usuario no-root (buena practica)
+RUN groupadd -r app && useradd -r -g app app && chown -R app:app /app
+USER app
+
 EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.additional-location=optional:file:/app/config/"]
