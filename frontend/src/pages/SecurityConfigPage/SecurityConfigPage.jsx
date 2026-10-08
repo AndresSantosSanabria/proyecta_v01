@@ -448,7 +448,7 @@ const SecurityConfigPage = () => {
     });
   }, [roles, roleSearch]);
 
-  const loadData = async (search = '') => {
+  const loadData = async (search = '', { syncSelectedUser = true } = {}) => {
     try {
       setLoading(true);
       setError('');
@@ -534,7 +534,7 @@ const SecurityConfigPage = () => {
         }
       }
 
-      if (selectedUser?.username) {
+      if (syncSelectedUser && selectedUser?.username) {
         const freshUser = resolvedUsersData.find((item) => item.username === selectedUser.username) || null;
         if (freshUser) {
           setSelectedUser(freshUser);
@@ -741,7 +741,7 @@ const SecurityConfigPage = () => {
       setCreatingUser(false);
       setSelectedUser(null);
       setUserForm(emptyUserForm);
-      await loadData(userSearch);
+      await loadData(userSearch, { syncSelectedUser: false });
     } catch (saveError) {
       console.error('Error guardando usuario:', saveError);
       setError('No fue posible guardar el usuario.');

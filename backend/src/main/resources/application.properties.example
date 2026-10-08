@@ -76,12 +76,12 @@ spring.datasource.hikari.validation-timeout=5000
 spring.datasource.hikari.keepalive-time=60000
 spring.datasource.hikari.leak-detection-threshold=30000
 spring.datasource.hikari.initialization-fail-timeout=-1
-spring.datasource.hikari.auto-commit=true
+spring.datasource.hikari.auto-commit=false
 
 # JPA Settings
 spring.jpa.open-in-view=false
 spring.jpa.properties.hibernate.generate_statistics=false
-spring.jpa.properties.hibernate.connection.provider_disables_autocommit=true
+spring.jpa.properties.hibernate.connection.provider_disables_autocommit=false
 
 # Public URL base (used for Excel hyperlinks that must work without login)
 app.public-url.base=${APP_PUBLIC_URL_BASE:http://localhost:8082}

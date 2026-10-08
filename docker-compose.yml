@@ -32,8 +32,8 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_HOST: ${MAIL_HOST:-correo.cundinamarca.gov.co}
       APP_PUBLIC_URL_BASE: ${APP_PUBLIC_URL_BASE:-http://localhost:8082}
-      APP_FRONTEND_URL_BASE: ${APP_FRONTEND_URL_BASE:-http://localhost:8080}
-      GOB_CORS_ORIGINS: ${GOB_CORS_ORIGINS:-http://localhost:8080}
+      APP_FRONTEND_URL_BASE: ${APP_FRONTEND_URL_BASE:-http://localhost:5173}
+      GOB_CORS_ORIGINS: ${GOB_CORS_ORIGINS:-http://localhost:5173}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-}
       KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI:-}
       PUBLIC_EVIDENCE_HMAC_SECRET: ${PUBLIC_EVIDENCE_HMAC_SECRET:-dev-secret-change-me}
@@ -54,14 +54,14 @@ services:
         VITE_KEYCLOAK_BASE_URL: ${VITE_KEYCLOAK_BASE_URL:-}
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-}
         VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-}
-        VITE_KEYCLOAK_REDIRECT_URI: ${VITE_KEYCLOAK_REDIRECT_URI:-http://localhost:8080/callback}
-        VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI: ${VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI:-http://localhost:8080/}
+        VITE_KEYCLOAK_REDIRECT_URI: ${VITE_KEYCLOAK_REDIRECT_URI:-http://localhost:5173/callback}
+        VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI: ${VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI:-http://localhost:5173/}
         VITE_KEYCLOAK_RESPONSE_TYPE: ${VITE_KEYCLOAK_RESPONSE_TYPE:-code}
         VITE_KEYCLOAK_SCOPE: ${VITE_KEYCLOAK_SCOPE:-openid profile email}
     container_name: proyecta-frontend
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "5173:8080"
     depends_on:
       - backend
     networks: [proyecta]
