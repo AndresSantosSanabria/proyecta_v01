@@ -75,17 +75,31 @@ SELECT r.id, p.id FROM roles r, permisos p
 WHERE r.codigo = 'gestor_tic' AND p.codigo NOT IN ('SISTEMA:GESTIONAR_USUARIOS');
 
 -- Director de Proyecto
+-- NOTA: el director NO recibe ENTREGABLE:CAMBIAR_FECHA ni
+-- ENTREGABLE:CAMBIAR_DESCRIPCION. Cambiar fecha limite o descripcion de un
+-- entregable es exclusivo de Gestores y Administrador (ver
+-- SecurityCatalogSeeder y ProyectoSecurity.canChangeDeadline/canChangeDescription).
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM roles r, permisos p
 WHERE r.codigo = 'director_proyecto' AND p.codigo IN (
     'DASHBOARD:VER', 'PROYECTO:VER', 'PROYECTO:EDITAR', 'PROYECTO:EDITAR_DATOS_GENERALES',
     'PROYECTO:EDITAR_FURAG', 'PROYECTO:EDITAR_BENEFICIO_IMPACTO',
-    'ENTREGABLE:VER', 'ENTREGABLE:EDITAR', 'ENTREGABLE:CAMBIAR_FECHA', 'ENTREGABLE:CAMBIAR_DESCRIPCION',
+    'ENTREGABLE:VER', 'ENTREGABLE:EDITAR',
     'AVANCE:VER', 'AVANCE:EDITAR', 'EVIDENCIA:VER', 'EVIDENCIA:SUBIR', 'EVIDENCIA:APROBAR',
     'DOCUMENTO:VER', 'DOCUMENTO:SUBIR', 'CRONOGRAMA:VER', 'CRONOGRAMA:EDITAR',
     'CIERRE:VER', 'CIERRE:EDITAR', 'CIERRE:SOLICITAR',
     'REPORTE:VER', 'REPORTE:DESCARGAR_ACTUAL'
 );
+
+-- Limpieza defensiva: retira del director los permisos de cambiar fecha limite
+-- y descripcion de entregables si una versión anterior de esta migración ya los
+-- había insertado en la BD. Idempotente: en BDs nuevas no afecta nada.
+DELETE FROM proyecta_db.rol_permiso rp
+USING proyecta_db.roles r, proyecta_db.permisos p
+WHERE rp.rol_id = r.id
+  AND rp.permiso_id = p.id
+  AND r.codigo = 'director_proyecto'
+  AND p.codigo IN ('ENTREGABLE:CAMBIAR_FECHA', 'ENTREGABLE:CAMBIAR_DESCRIPCION');
 
 -- Auditor: solo lectura + auditoría
 INSERT INTO rol_permiso (rol_id, permiso_id)

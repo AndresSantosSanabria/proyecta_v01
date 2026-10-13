@@ -425,10 +425,15 @@ public class ProyectoServiceImpl implements ProyectoService {
         aplicarFuragYListas(proyecto, dto);
 
         Proyecto actualizado = proyectoRepositoryPort.save(proyecto);
+        // sincronizarRespuestasFurag ejecuta un DELETE masivo con @Modifying(clearAutomatically=true),
+        // que limpia el contexto de persistencia y deja la entidad despega. El estadoConfig es un proxy
+        // lazy, por lo que leerlo despues del clear lanza LazyInitializationException; se captura aqui,
+        // mientras la entidad sigue gestionada dentro de la transaccion.
+        String estadoCodigo = actualizado.getEstadoCodigo();
         furagSupport.sincronizarRespuestasFurag(actualizado);
         notificarCambioProyecto(actualizado, actorUsername, NotificationEventType.PROJECT_UPDATED, Map.of(
                 KEY_PROJECT_NAME, actualizado.getNombre(),
-                KEY_STATE, actualizado.getEstadoCodigo()
+                KEY_STATE, estadoCodigo
         ));
         return proyectoRepositoryPort.findById(actualizado.getId()).map(p -> {
             initializeLazyCollections(p);

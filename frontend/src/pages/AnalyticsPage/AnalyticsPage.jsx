@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -44,6 +44,8 @@ import {
   Pie,
   PieChart,
 } from 'recharts';
+import { domToCanvas } from 'modern-screenshot';
+import { jsPDF } from 'jspdf';
 import analyticsService from '../../services/analyticsService';
 import { AutocompleteSelect } from '../../components/common/AutocompleteSelect';
 import './AnalyticsPage.css';
@@ -209,6 +211,75 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
 };
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Exportación PDF: pagina el tablero por paneles en formato A4 ──
+   Cada panel se coloca completo; si no cabe en el espacio restante de la
+   pagina salta a la siguiente (los graficos nunca se cortan por la mitad). */
+const PDF_MARGIN_MM = 6;
+const PDF_PAGE_WIDTH_MM = 210;
+const PDF_PAGE_HEIGHT_MM = 297;
+
+const parseHexColor = (hex) => {
+  const match = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!match) return [11, 16, 22];
+  const value = parseInt(match[1], 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+};
+
+const buildPdfFromSections = (canvases, pageWidthPx, bgMain) => {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const contentWidthMm = PDF_PAGE_WIDTH_MM - PDF_MARGIN_MM * 2;
+  const contentHeightMm = PDF_PAGE_HEIGHT_MM - PDF_MARGIN_MM * 2;
+  const gapMm = Math.max(2, (16 * contentWidthMm) / (pageWidthPx || 1520)); // gap original del tablero
+
+  const fillPageBackground = () => {
+    pdf.setFillColor(...parseHexColor(bgMain));
+    pdf.rect(0, 0, PDF_PAGE_WIDTH_MM, PDF_PAGE_HEIGHT_MM, 'F');
+  };
+  const startNewPage = () => {
+    pdf.addPage();
+    fillPageBackground();
+    return PDF_MARGIN_MM;
+  };
+
+  fillPageBackground();
+  let yMm = PDF_MARGIN_MM;
+
+  for (const canvas of canvases) {
+    if (!canvas || canvas.width === 0 || canvas.height === 0) continue;
+    const fullHeightMm = (canvas.height / canvas.width) * contentWidthMm;
+
+    if (fullHeightMm <= contentHeightMm) {
+      // Panel completo: si no cabe en el espacio restante, salta de pagina
+      if (yMm + fullHeightMm > PDF_MARGIN_MM + contentHeightMm) {
+        yMm = startNewPage();
+      }
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', PDF_MARGIN_MM, yMm, contentWidthMm, fullHeightMm);
+      yMm += fullHeightMm + gapMm;
+      continue;
+    }
+
+    // Panel mas alto que una pagina: se pagina en cortes de pagina completos
+    if (yMm > PDF_MARGIN_MM) yMm = startNewPage();
+    let srcY = 0;
+    while (srcY < canvas.height) {
+      const spaceMm = PDF_MARGIN_MM + contentHeightMm - yMm;
+      const slicePx = Math.max(1, Math.min(canvas.height - srcY, Math.round((spaceMm / fullHeightMm) * canvas.height)));
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = slicePx;
+      const ctx = slice.getContext('2d');
+      ctx.fillStyle = bgMain || '#0b1016';
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+      const sliceMm = (slicePx / canvas.height) * fullHeightMm;
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', PDF_MARGIN_MM, yMm, contentWidthMm, sliceMm);
+      srcY += slicePx;
+      yMm = srcY < canvas.height ? startNewPage() : yMm + sliceMm + gapMm;
+    }
+  }
+  return pdf;
+};
+
 const SkeletonLoader = () => (
   <div className="analytics-page">
     <section className="analytics-hero">
@@ -247,6 +318,7 @@ const SkeletonLoader = () => (
 );
 
 const AnalyticsPage = () => {
+  const pageRef = useRef(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -277,18 +349,46 @@ const AnalyticsPage = () => {
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      const blob = await analyticsService.downloadPortfolioPdf();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'analitica-portafolio.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Espera a que React pinte el overlay de carga antes de capturar
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const element = pageRef.current;
+      if (!element) throw new Error('No se encontro el tablero para exportar.');
+
+      // Captura el tablero tal cual se ve en pantalla: mismo titulo, KPIs, graficos y filtros activos.
+      // Se captura panel por panel para paginar sin cortar las graficas.
+      // Se excluyen los botones de accion (estado transitorio "Generando...").
+      const scale = Math.max(1, Math.min(2, 1800 / (element.offsetWidth || 1800)));
+      const bgMain = getComputedStyle(document.body).getPropertyValue('--bg-main').trim() || '#0b1016';
+      const captureOptions = {
+        scale,
+        backgroundColor: bgMain,
+        maximumCanvasSize: 16000,
+        timeout: 60000,
+        filter: (node) => !(node instanceof Element && node.classList.contains('analytics-hero__actions')),
+      };
+      const canvases = [];
+      for (const child of Array.from(element.children)) {
+        canvases.push(await domToCanvas(child, captureOptions));
+      }
+
+      buildPdfFromSections(canvases, element.offsetWidth, bgMain).save('analitica-portafolio.pdf');
     } catch (err) {
-      console.error('Error descargando PDF:', err);
-      setError('No fue posible generar el reporte PDF.');
+      console.error('Error exportando el tablero a PDF:', err);
+      // Fallback: reporte institucional generado por el backend
+      try {
+        const blob = await analyticsService.downloadPortfolioPdf();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'analitica-portafolio.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (fallbackErr) {
+        console.error('Error descargando el reporte:', fallbackErr);
+        setError('No fue posible generar la descarga del tablero.');
+      }
     } finally {
       setDownloadingPdf(false);
     }
@@ -494,7 +594,8 @@ const AnalyticsPage = () => {
   }
 
   return (
-    <div className="analytics-page">
+    <>
+    <div className="analytics-page" ref={pageRef}>
       {/* â”€â”€ Hero â”€â”€ */}
       <section className="analytics-hero">
         <div>
@@ -507,11 +608,11 @@ const AnalyticsPage = () => {
         </div>
         <div className="analytics-hero__actions">
           <button className="analytics-refresh" onClick={loadAnalytics} disabled={loading}>
-            <RefreshCw size={18} />
+            <RefreshCw size={18} className={loading ? 'analytics-refresh__icon--spin' : undefined} />
             {loading ? 'Actualizando…' : 'Actualizar'}
           </button>
           <button className="analytics-refresh analytics-refresh--download" onClick={handleDownloadPdf} disabled={downloadingPdf || loading}>
-            <Download size={18} />
+            <Download size={18} className={downloadingPdf ? 'analytics-refresh__icon--spin' : undefined} />
             {downloadingPdf ? 'Generando…' : 'Descargar'}
           </button>
           <button className="analytics-refresh analytics-refresh--secondary" onClick={resetFilters}>
@@ -1286,9 +1387,16 @@ const AnalyticsPage = () => {
           </div>
         </section>
       </>
-
-      {loading ? <div className="analytics-loading"><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Actualizando datos del portafolio…</div> : null}
-    </div>
+      </div>
+      {loading || downloadingPdf ? (
+        <div className="analytics-loading-overlay" role="status" aria-live="polite">
+          <div className="analytics-loading-overlay__box">
+            <RefreshCw size={30} className="analytics-loading-overlay__spinner" />
+            <p>{downloadingPdf ? 'Generando la descarga del tablero…' : 'Actualizando datos del portafolio…'}</p>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 };
 

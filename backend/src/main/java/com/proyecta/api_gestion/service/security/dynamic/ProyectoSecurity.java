@@ -48,6 +48,7 @@ public class ProyectoSecurity {
             "ENTREGABLE:EDITAR",
             "ENTREGABLE:APROBAR",
             "ENTREGABLE:CAMBIAR_FECHA",
+            "ENTREGABLE:CAMBIAR_DESCRIPCION",
             "EVIDENCIA:EDITAR",
             "EVIDENCIA:ELIMINAR",
             "DOCUMENTO:HISTORIAL",

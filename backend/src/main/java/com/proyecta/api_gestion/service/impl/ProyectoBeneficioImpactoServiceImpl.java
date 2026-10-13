@@ -241,12 +241,17 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
     }
 
     private ProyectoBeneficioImpactoResponseDTO toResponse(ProyectoBeneficioImpacto registro, AuthInfo auth) {
+        boolean presente = registro.getId() != null;
+        boolean requerido = registro.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO
+                && registro.getEstado() != EstadoBeneficioImpacto.APROBADO;
         boolean visibleParaGestor = registro.getEstado() != null && registro.getEstado() != EstadoBeneficioImpacto.PENDIENTE;
         boolean editable = registro.getEstado() == null
                 || registro.getEstado() == EstadoBeneficioImpacto.PENDIENTE
                 || registro.getEstado() == EstadoBeneficioImpacto.OBSERVADO
                 || (registro.getEstado() == EstadoBeneficioImpacto.DILIGENCIADO && puedeEditar(auth));
 
+        // El orden de los argumentos debe coincidir con el orden de los componentes del record:
+        // (requerido, editable, visibleParaGestor, bloqueaCierre). Java empareja por posicion.
         return new ProyectoBeneficioImpactoResponseDTO(
                 registro.getId(),
                 registro.getProyecto() != null ? registro.getProyecto().getId() : null,
@@ -264,10 +269,10 @@ public class ProyectoBeneficioImpactoServiceImpl implements ProyectoBeneficioImp
                 registro.getSnapshotJson(),
                 registro.getCreatedAt(),
                 registro.getUpdatedAt(),
-                registro.getId() != null,
+                requerido,
                 editable,
                 visibleParaGestor,
-                registro.getEstado() != EstadoBeneficioImpacto.DILIGENCIADO && registro.getEstado() != EstadoBeneficioImpacto.APROBADO
+                presente && requerido
         );
     }
 

@@ -48,9 +48,9 @@ public class ClosureQuestionController {
         return ResponseEntity.ok(ApiResponse.success(service.listAll(), "Preguntas listadas"));
     }
 
-    @Operation(summary = "Listar las preguntas de cierre activas")
+    @Operation(summary = "Listar las preguntas de cierre activas",
+            description = "Banco activo de preguntas del acta de cierre. Requiere solo acceso base (no SISTEMA:CONFIGURAR): es la lista que diligencian los directores y gestores al cerrar un proyecto. El CRUD completo del banco si exige SISTEMA:CONFIGURAR.")
     @GetMapping("/active")
-    @PreAuthorize("@proyectoSecurity.canAccessGlobal('SISTEMA:CONFIGURAR', authentication)")
     public ResponseEntity<ApiResponse<List<ClosureQuestionDTO>>> listActive() {
         return ResponseEntity.ok(ApiResponse.success(service.listActive(), "Preguntas activas"));
     }

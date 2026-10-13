@@ -79,7 +79,7 @@ const ProjectClosurePage = () => {
     entregables: [],
   });
 
-  const [questions] = useState([]);
+  const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [resolvedTemplate, setResolvedTemplate] = useState(null);
@@ -145,10 +145,12 @@ const ProjectClosurePage = () => {
     const fetchQuestionsAndAnswers = async () => {
       try {
         setQuestionsLoading(true);
-        const [aRes, tRes, missingRes] = await Promise.all([
+        const [aRes, tRes, missingRes, qRes] = await Promise.all([
           securityService.getClosureAnswers(id).catch(() => ({ data: [] })),
           securityService.getClosureDraftTemplate(id).catch(() => ({ data: null })),
           securityService.getMissingClosureQuestions(id).catch(() => ({ data: [] })),
+          // Banco activo de preguntas del acta de cierre (fallback del formulario)
+          securityService.listActiveClosureQuestions().catch(() => ({ data: [] })),
         ]);
 
         const aData = aRes?.data?.data ?? aRes?.data ?? aRes;
@@ -182,6 +184,9 @@ const ProjectClosurePage = () => {
 
         const missingData = missingRes?.data?.data ?? missingRes?.data ?? missingRes;
         setMissingQuestions(Array.isArray(missingData) ? missingData : []);
+
+        const questionsData = qRes?.data?.data ?? qRes?.data ?? qRes;
+        setQuestions(Array.isArray(questionsData) ? questionsData : []);
       } catch (err) {
         console.error('Error loading questions/answers:', err);
       } finally {
@@ -377,6 +382,8 @@ const ProjectClosurePage = () => {
   const saveAnswersIfDynamic = async () => {
     const questionIds = new Set();
     (missingQuestions || []).forEach((q) => questionIds.add(q.id));
+    // Preguntas del banco activo renderizadas como fallback del formulario
+    (questions || []).forEach((q) => questionIds.add(q.id));
     if (Array.isArray(resolvedTemplate?.secciones)) {
       resolvedTemplate.secciones.forEach((s) => {
         (s.campos || []).forEach((c) => {
