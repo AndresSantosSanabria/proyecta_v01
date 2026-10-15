@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Info, ShieldAlert } from 'lucide-react';
 import projectService from '../../../../services/projectService';
 import { emitToast } from '../../../../utils/feedback';
 import './ProjectListTable.css';
@@ -43,6 +43,8 @@ const statusMap = {
   },
 };
 
+const BLOCKED_PENDING_STATUSES = ['PENDIENTE_COMPLETAR', 'PENDIENTE_DE_COMPLETAR'];
+
 const getProjectId = (project) => project?.codigo || project?.id || project?.proyectoId || project?.proyecto_id || '';
 const getProjectName = (project) => project?.nombre || project?.nombreProyecto || project?.name || 'Sin nombre';
 const getProjectDependency = (project) => project?.dependencia || project?.nombreDependencia || 'Sin dependencia';
@@ -74,6 +76,7 @@ const ProjectListTable = ({
   const [forceCloseStep, setForceCloseStep] = useState('warning');
   const [forceCloseComment, setForceCloseComment] = useState('');
   const [forceClosing, setForceClosing] = useState(false);
+  const [editBlockedTarget, setEditBlockedTarget] = useState(null);
 
   const openForceClose = (project, event) => {
     event?.preventDefault?.();
@@ -133,6 +136,25 @@ const ProjectListTable = ({
   const isTerminalStatus = (project) => {
     const estado = String(project?.estado || '').toUpperCase();
     return estado === 'CERRADO' || estado === 'CERRADO_FORZOSO' || estado === 'FINALIZADO';
+  };
+
+  // Solo los proyectos pendientes por completar (PENDIENTE_COMPLETAR) quedan
+  // bloqueados: deben cerrar su flujo de completitud antes de editarse.
+  const isBlockedStatus = (project) =>
+    BLOCKED_PENDING_STATUSES.includes(String(project?.estado || '').toUpperCase().trim());
+
+  const handleEditProject = (project, event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    if (isBlockedStatus(project)) {
+      setEditBlockedTarget(project);
+      return;
+    }
+
+    const projectId = getProjectId(project);
+    if (!projectId) return;
+    onEditProject?.(projectId);
   };
 
   if (loading) {
@@ -224,7 +246,7 @@ const ProjectListTable = ({
                           <button
                             type="button"
                             className="btn-action-edit"
-                            onClick={() => onEditProject(projectId)}
+                            onClick={(event) => handleEditProject(project, event)}
                           >
                             Editar
                           </button>
@@ -382,7 +404,7 @@ const ProjectListTable = ({
                     <button
                       type="button"
                       className="btn-action-edit"
-                      onClick={() => onEditProject(projectId)}
+                      onClick={(event) => handleEditProject(project, event)}
                     >
                       Editar
                     </button>
@@ -541,6 +563,75 @@ const ProjectListTable = ({
                 disabled={forceClosing || forceCloseComment.trim().length < 10}
               >
                 {forceClosing ? 'Cerrando...' : 'Sí, cerrar definitivamente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {editBlockedTarget && (
+        <div className="force-close-overlay">
+          <button
+            type="button"
+            className="force-close-overlay__backdrop"
+            onClick={() => setEditBlockedTarget(null)}
+            aria-label="Cerrar modal de edicion"
+          />
+          <div
+            className="force-close-modal force-close-modal--warning"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="edit-blocked-title"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <div className="force-close-modal__header">
+              <div className="force-close-modal__header-title">
+                <span
+                  className="force-close-modal__icon force-close-modal__icon--warning"
+                  aria-hidden="true"
+                >
+                  <Info size={18} />
+                </span>
+                <h3 id="edit-blocked-title">Edicion no disponible</h3>
+              </div>
+              <button
+                type="button"
+                className="force-close-modal__close"
+                onClick={() => setEditBlockedTarget(null)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="force-close-danger force-close-danger--warning" role="alert">
+              <div className="force-close-danger__icon" aria-hidden="true">
+                <Info size={18} />
+              </div>
+              <div className="force-close-danger__body">
+                <strong>El proyecto no se encuentra en estado activo.</strong>
+                <p>
+                  El proyecto está en estado{' '}
+                  <mark>
+                    {statusMap[editBlockedTarget.estado]?.label || editBlockedTarget.estado || 'desconocido'}
+                  </mark>
+                  : debe completar la información pendiente antes de poder editarlo.
+                </p>
+              </div>
+            </div>
+
+            <p className="force-close-modal__hint">
+              Proyecto: <strong>{getProjectName(editBlockedTarget)}</strong>{' '}
+              ({getProjectId(editBlockedTarget)})
+            </p>
+
+            <div className="force-close-modal__footer">
+              <button
+                type="button"
+                className="btn-action-edit"
+                onClick={() => setEditBlockedTarget(null)}
+              >
+                Entendido
               </button>
             </div>
           </div>

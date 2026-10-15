@@ -1,3 +1,4 @@
+
 services:
   db:
     image: postgres:16-alpine
@@ -8,17 +9,20 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
       POSTGRES_DB: ${DB_NAME:-postgres}
     volumes:
+      # Persistencia: los datos sobreviven a 'down' y 'pull'. No borrar para no perder la BD.
       - db-data:/var/lib/postgresql/data
-      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro,Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    # Sin 'ports:' a proposito: la BD solo es alcanzable desde la red interna bridge.
     networks: [proyecta]
 
   backend:
     build: ./backend
+    image: proyecta-backend:latest
     container_name: proyecta-backend
     restart: unless-stopped
     environment:
@@ -58,6 +62,7 @@ services:
         VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI: ${VITE_KEYCLOAK_POST_LOGOUT_REDIRECT_URI:-http://localhost:5173/}
         VITE_KEYCLOAK_RESPONSE_TYPE: ${VITE_KEYCLOAK_RESPONSE_TYPE:-code}
         VITE_KEYCLOAK_SCOPE: ${VITE_KEYCLOAK_SCOPE:-openid profile email}
+    image: proyecta-frontend:latest
     container_name: proyecta-frontend
     restart: unless-stopped
     ports:

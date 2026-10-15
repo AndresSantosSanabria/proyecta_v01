@@ -25,7 +25,15 @@ spring.datasource.driverClassName=org.postgresql.Driver
 
 # JPA / Hibernate Properties
 spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
-spring.jpa.hibernate.ddl-auto=validate
+# Estrategia DDL configurable por variable de entorno (DB_DDL_AUTO).
+# Con Flyway activo el valor correcto es 'validate': Hibernate SOLO verifica que el
+# esquema coincide con las entidades. NO usar 'update' junto a Flyway porque Hibernate
+# alteraria tablas que las migraciones versionan y genera drift del esquema (los
+# cambios quedarian fuera del historial de migraciones).
+# 'update' aplica unicamente en una BD nueva levantada SIN Flyway (spring.flyway.enabled=false).
+spring.jpa.hibernate.ddl-auto=${DB_DDL_AUTO:validate}
+# Flyway crea/actualiza las tablas automaticamente al arrancar la aplicacion,
+# a partir de src/main/resources/db/migration (V1__, V2__, ...).
 spring.flyway.enabled=true
 spring.flyway.locations=classpath:db/migration
 # BD existente (historial hasta V105 consolidado en V1/V2): ignorar faltantes y pendientes

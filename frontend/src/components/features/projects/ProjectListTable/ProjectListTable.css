@@ -272,6 +272,14 @@
     var(--shadow-lg);
 }
 
+.force-close-modal--warning {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border-color));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--warning) 18%, transparent),
+    0 18px 40px -12px color-mix(in srgb, var(--warning) 35%, transparent),
+    var(--shadow-lg);
+}
+
 .force-close-modal__header {
   display: flex;
   align-items: center;
@@ -297,6 +305,12 @@
   color: var(--danger);
   background: var(--danger-soft);
   border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+.force-close-modal__icon--warning {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
 }
 
 .force-close-modal__header h3 {
@@ -356,6 +370,27 @@
   font-weight: 800;
   padding: 0 4px;
   border-radius: 4px;
+}
+
+.force-close-danger--warning {
+  border-color: color-mix(in srgb, var(--warning) 32%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--warning) 12%, transparent), color-mix(in srgb, var(--warning) 5%, transparent)),
+    var(--bg-surface);
+}
+
+.force-close-danger--warning .force-close-danger__icon {
+  background: var(--warning);
+  box-shadow: 0 4px 10px -2px color-mix(in srgb, var(--warning) 45%, transparent);
+}
+
+.force-close-danger--warning .force-close-danger__body strong {
+  color: var(--warning);
+}
+
+.force-close-danger--warning .force-close-danger__body mark {
+  background: color-mix(in srgb, var(--warning) 22%, transparent);
+  color: var(--warning);
 }
 
 .force-close-modal__close {
