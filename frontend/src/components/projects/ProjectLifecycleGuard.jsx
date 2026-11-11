@@ -20,7 +20,7 @@ const projectNeedsCompletion = (projectData, statusData) => {
   return NEEDS_COMPLETION_STATUSES.includes(projectStatus);
 };
 
-const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResubmission = false }) => {
+export const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResubmission = false }) => {
   const [files, setFiles] = useState({
     VIABILIZACION: null,
     PLAN_COMUNICACIONES: null,
@@ -28,6 +28,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
   });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [showMissing, setShowMissing] = useState(false);
   const navigate = useNavigate();
 
   const DOC_LABELS = {
@@ -81,10 +82,24 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
     }
   };
 
-  const allFilesSelected = uploadableTypes.every((f) => files[f] !== null);
+  const missingTypes = showMissing ? uploadableTypes.filter((tipo) => !files[tipo]) : [];
 
   const handleUploadAll = async () => {
-    if (!allFilesSelected || !project?.id) return;
+    if (!project?.id || uploading) return;
+    const missing = uploadableTypes.filter((tipo) => !files[tipo]);
+    if (missing.length > 0) {
+      setShowMissing(true);
+      emitToast({
+        tone: 'warning',
+        title: 'Documentos requeridos faltantes',
+        message: `Faltan ${missing.length} documento(s) obligatorio(s): ${missing.map((tipo) => DOC_LABELS[tipo]).join(', ')}. Carguelos para poder continuar.`,
+      });
+      requestAnimationFrame(() => {
+        document.querySelector('.plg-doc-card--missing')?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      });
+      return;
+    }
+    setShowMissing(false);
     setUploading(true);
     setUploadProgress({});
 
@@ -209,6 +224,16 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                 : 'Cargue los 3 documentos en formato PDF. Todos son obligatorios para continuar.'}
             </p>
 
+            {missingTypes.length > 0 && (
+              <div className="plg-missing-banner" role="alert">
+                <AlertTriangle size={16} />
+                <div>
+                  <strong>Faltan {missingTypes.length} documento(s) obligatorio(s)</strong>
+                  <p>Cargue: {missingTypes.map((tipo) => DOC_LABELS[tipo]).join(', ')}.</p>
+                </div>
+              </div>
+            )}
+
             <div className="plg-doc-list">
               {Object.entries(DOC_LABELS).map(([tipo, label]) => {
                 const revision = docRevisions[tipo];
@@ -216,6 +241,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                 const isReturned = revision?.estado === 'DEVUELTO';
                 const file = files[tipo];
                 const progress = uploadProgress[tipo];
+                const isMissing = showMissing && !file && uploadableTypes.includes(tipo);
 
                 if (isApproved) {
                   return (
@@ -254,7 +280,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                 return (
                   <div
                     key={tipo}
-                    className={`plg-doc-card ${file ? 'plg-doc-card--has-file' : 'plg-doc-card--empty'}`}
+                    className={`plg-doc-card ${file ? 'plg-doc-card--has-file' : 'plg-doc-card--empty'} ${isMissing ? 'plg-doc-card--missing' : ''}`}
                   >
                     {file ? (
                       <div className="plg-doc-card__inner">
@@ -302,6 +328,12 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
                         </div>
                         <p className="plg-doc-card__placeholder-title">{label}</p>
                         <p className="plg-doc-card__placeholder-hint">Arrastre o haga clic para seleccionar. Solo PDF, max 20 MB.</p>
+                        {isMissing && (
+                          <span className="plg-doc-card__missing-msg">
+                            <AlertTriangle size={12} />
+                            Documento obligatorio sin cargar
+                          </span>
+                        )}
                         {isReturned && (
                           <span className="plg-doc-status plg-doc-status--returned">Devuelto</span>
                         )}
@@ -324,7 +356,7 @@ const DocumentosPreWizardView = ({ project, completionStatus, onComplete, isResu
               type="button"
               className="plg-btn-primary"
               onClick={handleUploadAll}
-              disabled={!allFilesSelected || uploading}
+              disabled={uploading}
             >
               {uploading ? (
                 <>

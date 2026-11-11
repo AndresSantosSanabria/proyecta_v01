@@ -174,3 +174,12 @@
   background: var(--bg-elevated);
   color: var(--text-main);
 }
+
+.acs-container.input-error .acs-trigger {
+  border-color: rgba(239, 100, 100, 0.5);
+}
+
+.acs-container.input-error .acs-trigger:focus,
+.acs-container.input-error .acs-trigger.acs-open {
+  box-shadow: 0 0 0 3px rgba(239, 100, 100, 0.12);
+}

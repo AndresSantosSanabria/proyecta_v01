@@ -65,6 +65,15 @@ public class ReporteController implements IReporteController {
     }
 
     @Override
+    @GetMapping("/plan-comunicaciones")
+    @PreAuthorize("@proyectoSecurity.canAccessGlobal('PROYECTO:VER', authentication)")
+    public ResponseEntity<ApiResponse<List<PlanComunicacionesProyectoDTO>>> getPortafolioPlanComunicaciones() {
+        return ResponseEntity.ok(ApiResponse.success(
+                reporteService.obtenerPortafolioPlanComunicaciones(),
+                "Portafolio de planes de comunicaciones obtenido con exito"));
+    }
+
+    @Override
     @GetMapping("/furag/{proyectoId}")
     @PreAuthorize("@proyectoSecurity.canAccessOperational('PROYECTO:VER', #proyectoId, authentication)")
     public ResponseEntity<ApiResponse<FuragReporteDTO>> getFurag(@PathVariable String proyectoId) {

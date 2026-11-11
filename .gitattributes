@@ -1,0 +1,5 @@
+# Los scripts shell SIEMPRE con finales de linea LF.
+# En Windows (core.autocrlf=true) el checkout genera CRLF y Docker copia ese archivo
+# al contenedor: el shebang #!/bin/sh\r provoca "exec /app-entrypoint.sh: no such file
+# or directory" y el contenedor muere al arrancar.
+*.sh text eol=lf

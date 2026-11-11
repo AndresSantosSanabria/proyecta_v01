@@ -73,7 +73,7 @@ const CallbackPage = () => {
       console.warn('[CallbackPage] signinRedirectCallback excedio el timeout');
       clearTimer();
       purgeOidcParams();
-      setError('La autenticaci��n tard�� demasiado. Regresando al inicio...');
+      setError('La autenticación tardó demasiado. Regresando al inicio...');
       clearOidcStaleState().finally(() => go('/'));
     }, CALLBACK_TIMEOUT_MS);
 
@@ -88,7 +88,7 @@ const CallbackPage = () => {
         console.error('Error procesando callback de OIDC:', err);
         clearTimer();
         purgeOidcParams();
-        setError('Fall�� la autenticaci��n. Regresando al inicio...');
+        setError('Falló la autenticación. Regresando al inicio...');
         clearOidcStaleState().finally(() => go('/'));
       });
 

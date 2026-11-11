@@ -164,6 +164,22 @@ public class ReporteServiceImpl implements ReporteService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PlanComunicacionesProyectoDTO> obtenerPortafolioPlanComunicaciones() {
+        return proyectoRepositoryPort.findAll().stream()
+                .filter(p -> !esPendienteCompletar(p))
+                .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .map(p -> new PlanComunicacionesProyectoDTO(
+                        p.getId(),
+                        p.getNombre(),
+                        p.getPeti(),
+                        p.esPetiDefinido(),
+                        Boolean.TRUE.equals(p.getTienePlanComunicaciones())
+                                || (p.getPlanComunicacionesPdf() != null && !p.getPlanComunicacionesPdf().isBlank())))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<FuragReporteDTO> obtenerFurag(String proyectoId) {
         return proyectoRepositoryPort.findById(proyectoId).map(p -> new FuragReporteDTO(
                 p.getId(),
@@ -352,8 +368,8 @@ public class ReporteServiceImpl implements ReporteService {
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 8), 2, safe(proyecto.getCorreoDirector()));
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 9), 2, safe(proyecto.getObjetivoGeneral()));
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 10), 2, objetivosEspecificos(proyecto));
-        ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 11), 2, formatYear(proyecto.getFechaInicio()));
-        ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 12), 2, formatYear(fechaFinProyecto(proyecto)));
+        ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 11), 2, formatFecha(proyecto.getFechaInicio()));
+        ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 12), 2, formatFecha(fechaFinProyecto(proyecto)));
         ExcelSheetSupport.setCellNumber(ExcelSheetSupport.ensureRow(sheet, 13), 2, proyecto.getPresupuestoEstimado());
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 14), 2, Boolean.TRUE.equals(proyecto.getPeti()) ? "SI" : "NO");
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 15), 2, estrategiaPeti(proyecto));
@@ -363,6 +379,13 @@ public class ReporteServiceImpl implements ReporteService {
     }
 
     private Map<String, Map<String, Integer>> poblarSeguimientoProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
+        // La plantilla trae celdas combinadas fijas (B5:B8, C5:C8, B9:B12, X15:Z15) que no coinciden
+        // con las filas reales del proyecto: ocultan el nombre de las fases siguientes y desalinean
+        // el bloque de indicadores. Se capturan primero los estilos del bloque de indicadores y luego
+        // se eliminan todas las combinaciones para reconstruirlas segun los datos.
+        CellStyle[][] estilosIndicadores = capturarEstilosIndicadores(sheet);
+        eliminarFusiones(sheet);
+
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 1), 1, safe(proyecto.getId()) + " " + safe(proyecto.getNombre()));
         List<DetalleSeguimiento> detalles = detallesSeguimiento(proyecto, avance, corte);
         prepararFilasDetalle(sheet, detalles.size());
@@ -384,9 +407,22 @@ public class ReporteServiceImpl implements ReporteService {
             ExcelSheetSupport.setCellText(row, 5, detalle.entregable());
             ExcelSheetSupport.setCellPercent(row, 6, detalle.ponderacionEntregable());
             ExcelSheetSupport.setCellText(row, 7, detalle.descripcion());
+            for (int column : new int[]{1, 3, 5, 7, 13}) {
+                var cell = row.getCell(column);
+                if (cell != null) {
+                    CellStyle style = sheet.getWorkbook().createCellStyle();
+                    style.cloneStyleFrom(cell.getCellStyle());
+                    style.setWrapText(true);
+                    style.setVerticalAlignment(org.apache.poi.ss.usermodel.VerticalAlignment.TOP);
+                    cell.setCellStyle(style);
+                }
+            }
+            int visibleLines = Math.max(wrappedLineCount(detalle.descripcion(), 55),
+                    Math.max(wrappedLineCount(detalle.fase(), 24), wrappedLineCount(detalle.hito(), 24)));
+            row.setHeightInPoints(Math.max(24f, visibleLines * 15f));
             ExcelSheetSupport.setCellDate(row, 8, toDate(detalle.fechaLimite()));
             ExcelSheetSupport.setCellDate(row, 9, toDate(detalle.fechaEntrega()));
-            ExcelSheetSupport.setCellFormula(row, 10, "I" + excelRow + "-J" + excelRow);
+            ExcelSheetSupport.setCellFormula(row, 10, "IF(I" + excelRow + "-J" + excelRow + ">1000,\"NA\",I" + excelRow + "-J" + excelRow + ")");
             ExcelSheetSupport.setCellFormula(row, 11, "IF(ISNUMBER(J" + excelRow + "),1,0)");
             ExcelSheetSupport.setCellHyperlink(row, 12, detalle.evidencia(), detalle.evidenciaPublica());
             ExcelSheetSupport.setCellText(row, 13, detalle.observacion());
@@ -399,8 +435,8 @@ public class ReporteServiceImpl implements ReporteService {
             ExcelSheetSupport.setCellFormula(row, 18, "I" + excelRow + "-R" + excelRow);
             ExcelSheetSupport.setCellFormula(row, 19, "IF(S" + excelRow + ">0,0,1)");
 
-            ExcelSheetSupport.escribirFormulaSuma(row, 20, isFirstInHito, mapas.hitoEntregableRows().get(detalle.hito()), "G", "T");
-            ExcelSheetSupport.escribirFormulaSuma(row, 21, isFirstInFase, mapas.faseHitoRows().get(detalle.fase()), "E", "U");
+            ExcelSheetSupport.escribirFormulaSuma(row, 20, isFirstInHito, mapas.hitoEntregableRows().get(detalle.hito()), "T", "G");
+            ExcelSheetSupport.escribirFormulaSuma(row, 21, isFirstInFase, mapas.faseHitoRows().get(detalle.fase()), "U", "E");
             ExcelSheetSupport.escribirFormulaSuma(row, 22, isFirstInProject, mapas.projectFaseFirstRows(), "V", "C");
 
             ExcelSheetSupport.setCellFormula(row, 23, "IF(R" + excelRow + "-I" + excelRow + ">=0,\"Si\",\"No\")");
@@ -408,7 +444,7 @@ public class ReporteServiceImpl implements ReporteService {
             ExcelSheetSupport.setCellFormula(row, 25, "IF(AND(K" + excelRow + ">=0,X" + excelRow + "=\"Si\"),\"Si\",\"\")");
         }
 
-        escribirIndicadores(sheet, detalles.size());
+        escribirIndicadores(sheet, detalles.size(), estilosIndicadores);
 
         Map<String, Map<String, Integer>> context = new HashMap<>();
         context.put("faseFirstRows", mapas.faseFirstRow());
@@ -450,12 +486,66 @@ public class ReporteServiceImpl implements ReporteService {
         return new MapasSeguimiento(faseFirstRowMap, hitoFirstRowMap, faseHitoRowsMap, hitoEntregableRowsMap, projectFaseFirstRows);
     }
 
-    private void escribirIndicadores(Sheet sheet, int totalDetalles) {
+    /** Primera fila (0-based) del bloque de indicadores en la plantilla: resumen, vacía, título y 7 indicadores. */
+    private static final int PLANTILLA_INDICADORES_PRIMERA_FILA = 12;
+    private static final int PLANTILLA_INDICADORES_FILAS = 10;
+    private static final int INDICADORES_PRIMERA_COLUMNA = 23; // X
+    private static final int INDICADORES_ULTIMA_COLUMNA = 25;  // Z
+
+    /** Guarda los estilos del bloque de indicadores de la plantilla antes de reubicarlo. */
+    private CellStyle[][] capturarEstilosIndicadores(Sheet sheet) {
+        CellStyle porDefecto = sheet.getWorkbook().createCellStyle();
+        CellStyle[][] estilos = new CellStyle[PLANTILLA_INDICADORES_FILAS][3];
+        for (int i = 0; i < PLANTILLA_INDICADORES_FILAS; i++) {
+            Row row = sheet.getRow(PLANTILLA_INDICADORES_PRIMERA_FILA + i);
+            for (int c = 0; c < 3; c++) {
+                Cell cell = row != null ? row.getCell(INDICADORES_PRIMERA_COLUMNA + c) : null;
+                estilos[i][c] = cell != null && cell.getCellStyle() != null ? cell.getCellStyle() : porDefecto;
+            }
+        }
+        return estilos;
+    }
+
+    /** Elimina todas las celdas combinadas de la hoja (la plantilla las trae fijas para 8 filas de datos). */
+    private void eliminarFusiones(Sheet sheet) {
+        for (int i = sheet.getNumMergedRegions() - 1; i >= 0; i--) {
+            sheet.removeMergedRegion(i);
+        }
+    }
+
+    /** Borra valores y estilos del bloque de indicadores que la plantilla dejo por debajo del nuevo bloque. */
+    private void limpiarBloqueIndicadores(Sheet sheet, int primeraFila) {
+        CellStyle porDefecto = sheet.getWorkbook().createCellStyle();
+        for (int rowIndex = primeraFila; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+            Row row = ExcelSheetSupport.ensureRow(sheet, rowIndex);
+            for (int col = INDICADORES_PRIMERA_COLUMNA; col <= INDICADORES_ULTIMA_COLUMNA; col++) {
+                ExcelSheetSupport.setCellBlank(row, col);
+                row.getCell(col).setCellStyle(porDefecto);
+            }
+        }
+    }
+
+    /** Reaplica los estilos de la plantilla al bloque reubicado (títulos, verdes de porcentaje, etc.). */
+    private void aplicarEstilosIndicadores(Sheet sheet, int primeraFila, CellStyle[][] estilosPlantilla) {
+        if (estilosPlantilla == null) return;
+        for (int i = 0; i < estilosPlantilla.length; i++) {
+            Row row = ExcelSheetSupport.ensureRow(sheet, primeraFila + i);
+            for (int c = 0; c < 3; c++) {
+                Cell cell = row.getCell(INDICADORES_PRIMERA_COLUMNA + c);
+                if (cell == null) cell = row.createCell(INDICADORES_PRIMERA_COLUMNA + c);
+                if (estilosPlantilla[i][c] != null) cell.setCellStyle(estilosPlantilla[i][c]);
+            }
+        }
+    }
+
+    private void escribirIndicadores(Sheet sheet, int totalDetalles, CellStyle[][] estilosPlantilla) {
         int totalFilas = Math.max(totalDetalles, 1);
         int lastDataRow = 4 + totalFilas;
         int filaResumen = lastDataRow + 1;
         int indicadorFila = filaResumen + 2;
         int filaCorte = indicadorFila + 1;
+
+        limpiarBloqueIndicadores(sheet, lastDataRow);
 
         Row rowResumen = ExcelSheetSupport.ensureRow(sheet, filaResumen - 1);
         ExcelSheetSupport.setCellFormula(rowResumen, 24, "COUNTIFS($Y$5:$Y$" + lastDataRow + ",\"Si\",$X$5:$X$" + lastDataRow + ",\"Si\")/COUNTIF($X$5:$X$" + lastDataRow + ",\"Si\")");
@@ -491,12 +581,18 @@ public class ReporteServiceImpl implements ReporteService {
 
         Row efiRow = ExcelSheetSupport.ensureRow(sheet, indicadorFila + 5);
         ExcelSheetSupport.setCellText(efiRow, 23, "Eficiencia");
-        ExcelSheetSupport.setCellFormula(efiRow, 24, "MIN(1,IFERROR(Y" + (indicadorFila + 4) + "/Y" + (indicadorFila + 2) + ",0))");
-        ExcelSheetSupport.setCellText(efiRow, 25, "Entregados a tiempo / Programados al corte");
+        ExcelSheetSupport.setCellFormula(efiRow, 24, "IFERROR(Y" + (indicadorFila + 4) + "/Y" + (indicadorFila + 3) + ",0)");
+        ExcelSheetSupport.setCellText(efiRow, 25, "Entregados a tiempo / Entregados al corte");
 
         Row totRow = ExcelSheetSupport.ensureRow(sheet, indicadorFila + 6);
         ExcelSheetSupport.setCellText(totRow, 23, "total entregables");
         ExcelSheetSupport.setCellFormula(totRow, 24, "COUNT(I5:I" + lastDataRow + ")");
+
+        aplicarEstilosIndicadores(sheet, lastDataRow, estilosPlantilla);
+
+        int filaTitulo = indicadorFila - 1;
+        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(filaTitulo, filaTitulo,
+                INDICADORES_PRIMERA_COLUMNA, INDICADORES_ULTIMA_COLUMNA));
     }
 
     private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, Map<String, Map<String, Integer>> context) {
@@ -726,7 +822,10 @@ public class ReporteServiceImpl implements ReporteService {
         return base + "/api/v1/public/evidencia/" + token;
     }
 
-    private String formatYear(LocalDate date) { return date == null ? "" : String.valueOf(date.getYear()); }
+    /** Formato dd/MM/aaaa, igual que el Excel de referencia (antes solo se escribia el año). */
+    private String formatFecha(LocalDate date) {
+        return date == null ? "" : String.format("%02d/%02d/%04d", date.getDayOfMonth(), date.getMonthValue(), date.getYear());
+    }
     private LocalDateTime toDate(LocalDate date) { return date == null ? null : date.atStartOfDay(); }
     private BigDecimal safeDecimal(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
     private BigDecimal ratioDesdePorcentaje(BigDecimal value) { return safeDecimal(value).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP); }
@@ -796,6 +895,7 @@ public class ReporteServiceImpl implements ReporteService {
         return proyectos.stream()
                 .filter(proyecto -> {
                     String projectStatus = proyecto.getEstado() != null ? proyecto.getEstado().name() : proyecto.getEstadoCodigo();
+                    boolean petiDefinido = proyecto.esPetiDefinido();
                     String searchHaystack = String.join(" ",
                             safe(proyecto.getId()),
                             safe(proyecto.getNombre()),
@@ -803,7 +903,7 @@ public class ReporteServiceImpl implements ReporteService {
                             safe(proyecto.getDependencia()),
                             safe(resolveDirectorAsignado(proyecto)),
                             safe(projectStatus),
-                            Boolean.TRUE.equals(proyecto.getPeti()) ? "PETI" : "NO PETI");
+                            petiDefinido ? (Boolean.TRUE.equals(proyecto.getPeti()) ? "PETI" : "NO PETI") : "SIN DEFINIR");
 
                     boolean matchesQuery = normalizedQuery.isBlank() || normalizeText(searchHaystack).contains(normalizedQuery);
                     boolean matchesDependency = normalizedDependency.isBlank()
@@ -812,8 +912,9 @@ public class ReporteServiceImpl implements ReporteService {
                             || allowedStatuses.contains(normalizeText(projectStatus))
                             || allowedStatuses.contains(normalizeText(proyecto.getEstadoCodigo()));
                     boolean matchesPeti = normalizedPeti.isBlank()
-                            || ("peti".equals(normalizedPeti) && Boolean.TRUE.equals(proyecto.getPeti()))
-                            || ("no_peti".equals(normalizedPeti) && !Boolean.TRUE.equals(proyecto.getPeti()));
+                            || ("peti".equals(normalizedPeti) && petiDefinido && Boolean.TRUE.equals(proyecto.getPeti()))
+                            || ("no_peti".equals(normalizedPeti) && petiDefinido && !Boolean.TRUE.equals(proyecto.getPeti()))
+                            || ("sin_definir".equals(normalizedPeti) && !petiDefinido);
 
                     return matchesQuery && matchesDependency && matchesStatus && matchesPeti;
                 })
@@ -871,12 +972,11 @@ public class ReporteServiceImpl implements ReporteService {
         }
 
         int dataStartRow = 4;
-        int templateRows = 16;
-        int visibleRows = Math.min(templateRows, snapshots.size());
-        for (int index = 0; index < templateRows; index++) {
+        int visibleRows = snapshots.size();
+        int lastTemplateRow = sheet.getLastRowNum();
+        for (int index = 0; index < visibleRows; index++) {
             Row row = ExcelSheetSupport.ensureRow(sheet, dataStartRow + index);
-            if (index < visibleRows) {
-                RowSnapshot snapshot = snapshots.get(index);
+            RowSnapshot snapshot = snapshots.get(index);
                 ExcelSheetSupport.setCellText(row, 1, snapshot.codigo());
                 ExcelSheetSupport.setCellText(row, 2, snapshot.nombre());
                 ExcelSheetSupport.setCellText(row, 3, snapshot.meta());
@@ -891,12 +991,30 @@ public class ReporteServiceImpl implements ReporteService {
                 ExcelSheetSupport.setCellPercent(row, 12, snapshot.eficiencia());
                 ExcelSheetSupport.setCellText(row, 13, snapshot.dependencia());
                 ExcelSheetSupport.setCellText(row, 14, snapshot.responsable());
-            } else {
-                ExcelSheetSupport.clearTemplateRow(row, 1, 14);
-            }
+                for (int column : new int[]{1, 2, 3, 7, 12, 13}) {
+                    var cell = row.getCell(column);
+                    if (cell != null) {
+                        var style = sheet.getWorkbook().createCellStyle();
+                        style.cloneStyleFrom(cell.getCellStyle());
+                        style.setWrapText(true);
+                        style.setVerticalAlignment(org.apache.poi.ss.usermodel.VerticalAlignment.TOP);
+                        cell.setCellStyle(style);
+                    }
+                }
+                int lines = Math.max(
+                        wrappedLineCount(snapshot.codigo(), 16),
+                        Math.max(wrappedLineCount(snapshot.nombre(), 28),
+                                Math.max(wrappedLineCount(snapshot.meta(), 28),
+                                        Math.max(wrappedLineCount(snapshot.dependencia(), 24), wrappedLineCount(snapshot.responsable(), 24)))));
+                row.setHeightInPoints(Math.max(24f, lines * 15f));
+        }
+        for (int index = visibleRows; index <= Math.max(15, lastTemplateRow - dataStartRow); index++) {
+            Row row = sheet.getRow(dataStartRow + index);
+            if (row != null) ExcelSheetSupport.clearTemplateRow(row, 1, 14);
         }
 
-        Row summaryRow = ExcelSheetSupport.ensureRow(sheet, 20);
+        int summaryRowIndex = Math.max(20, dataStartRow + visibleRows + 1);
+        Row summaryRow = ExcelSheetSupport.ensureRow(sheet, summaryRowIndex);
         ExcelSheetSupport.setCellText(summaryRow, 1, "Promedios");
         ExcelSheetSupport.setCellPercent(summaryRow, 2, promedio(snapshots.stream().map(RowSnapshot::programado).toList()));
         ExcelSheetSupport.setCellPercent(summaryRow, 3, promedio(snapshots.stream().map(RowSnapshot::avance).toList()));
@@ -906,6 +1024,19 @@ public class ReporteServiceImpl implements ReporteService {
         ExcelSheetSupport.setCellNumber(summaryRow, 7, sumaEntera(snapshots.stream().map(RowSnapshot::entregablesEntregadosAlCorte).toList()));
         ExcelSheetSupport.setCellPercent(summaryRow, 8, promedio(snapshots.stream().map(RowSnapshot::eficacia).toList()));
         ExcelSheetSupport.setCellPercent(summaryRow, 9, promedio(snapshots.stream().map(RowSnapshot::eficiencia).toList()));
+        for (int rowIndex = 20; rowIndex < summaryRowIndex; rowIndex++) {
+            Row row = sheet.getRow(rowIndex);
+            if (row != null) ExcelSheetSupport.clearTemplateRow(row, 1, 14);
+        }
+    }
+
+    private int wrappedLineCount(String value, int charsPerLine) {
+        if (value == null || value.isBlank()) return 1;
+        int lines = 0;
+        for (String paragraph : value.split("\\R", -1)) {
+            lines += Math.max(1, (paragraph.length() + charsPerLine - 1) / charsPerLine);
+        }
+        return lines;
     }
 
     private RowSnapshot buildRowSnapshot(Proyecto proyecto, LocalDate corte) {

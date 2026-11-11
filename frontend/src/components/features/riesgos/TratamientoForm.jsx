@@ -19,6 +19,7 @@ const TratamientoForm = ({ proyectoId, riesgoId, onSuccess, onCancel }) => {
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
+  const [archivosInvalido, setArchivosInvalido] = useState(false);
 
   const handleFileChange = (e) => {
     const newFiles = Array.from(e.target.files || []);
@@ -43,6 +44,7 @@ const TratamientoForm = ({ proyectoId, riesgoId, onSuccess, onCancel }) => {
 
     setError('');
     setArchivos((prev) => [...prev, ...newFiles]);
+    setArchivosInvalido(false);
     e.target.value = '';
   };
 
@@ -55,6 +57,12 @@ const TratamientoForm = ({ proyectoId, riesgoId, onSuccess, onCancel }) => {
 
     if (!comentario.trim()) {
       setError('El comentario del tratamiento es obligatorio.');
+      return;
+    }
+
+    if (archivos.length === 0) {
+      setArchivosInvalido(true);
+      setError(`Debes cargar mínimo 1 y máximo ${MAX_FILES} archivos PDF para el tratamiento.`);
       return;
     }
 
@@ -88,7 +96,7 @@ const TratamientoForm = ({ proyectoId, riesgoId, onSuccess, onCancel }) => {
       )}
 
       <label className="field-label" htmlFor="tratamiento-comentario">
-        Comentario / Acci�n de mitigaci�n <span className="required">*</span>
+        Comentario / Acción de mitigación <span className="required">*</span>
       </label>
       <textarea
         id="tratamiento-comentario"
@@ -101,14 +109,15 @@ const TratamientoForm = ({ proyectoId, riesgoId, onSuccess, onCancel }) => {
       />
 
       <label className="field-label">
-        Archivos PDF {archivos.length > 0 && `(${archivos.length}/${MAX_FILES})`}
+        Archivos PDF * (mínimo 1, máximo {MAX_FILES}){archivos.length > 0 && ` — ${archivos.length} adjunto(s)`}
       </label>
-      <label className="file-picker">
+      <label className={`file-picker${archivosInvalido ? ' invalid' : ''}`}>
         <span>Elegir archivos</span>
         <input
           type="file"
           accept=".pdf,application/pdf"
           multiple
+          aria-invalid={archivosInvalido}
           onChange={handleFileChange}
           disabled={archivos.length >= MAX_FILES}
         />
@@ -116,7 +125,7 @@ const TratamientoForm = ({ proyectoId, riesgoId, onSuccess, onCancel }) => {
 
       <div className="pending-files">
         {archivos.length === 0 ? (
-          <div className="empty-box">Aún no has seleccionado archivos.</div>
+          <div className="empty-box">Debes adjuntar al menos un archivo PDF (máximo {MAX_FILES}).</div>
         ) : (
           archivos.map((file, index) => (
             <article className="pending-file" key={`${file.name}_${file.size}_${file.lastModified}`}>

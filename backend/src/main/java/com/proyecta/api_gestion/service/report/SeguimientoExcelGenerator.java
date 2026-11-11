@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -58,11 +59,12 @@ public class SeguimientoExcelGenerator {
         writeTitleRow(sheet, proyecto, styles.headerStyle());
         writeSubHeaderRows(sheet, styles);
 
-        int rowIndex = writeDataRows(sheet, workbook, proyecto, username, styles);
+        GruposReporte grupos = writeDataRows(sheet, workbook, proyecto, username, styles);
+        int rowIndex = grupos.primeraFilaLibre();
 
         int finalRow = rowIndex > 4 ? rowIndex : 5; // 1-based index of last data row
 
-        updateRangeFormulas(sheet, rowIndex, finalRow);
+        updateRangeFormulas(sheet, grupos);
 
         // Merge Pyto columns vertically across all rows
         if (rowIndex > 5) {
@@ -145,6 +147,7 @@ public class SeguimientoExcelGenerator {
         };
 
         XSSFCellStyle greenSummaryStyle = createColoredStyle(workbook, new XSSFColor(new java.awt.Color(55, 86, 35), new DefaultIndexedColorMap()), "0.0%");
+        greenSummaryStyle.setWrapText(true);
         XSSFFont fontWhite = workbook.createFont();
         fontWhite.setBold(true);
         fontWhite.setColor(IndexedColors.WHITE.getIndex());
@@ -174,6 +177,18 @@ public class SeguimientoExcelGenerator {
         XSSFCellStyle textStyle = workbook.createCellStyle();
         setBorder(textStyle);
         textStyle.setAlignment(HorizontalAlignment.LEFT);
+        textStyle.setVerticalAlignment(VerticalAlignment.TOP);
+        textStyle.setWrapText(true);
+
+        for (XSSFCellStyle style : new XSSFCellStyle[]{headerStyle, subHeaderStyle, greenHeaderStyle,
+                phase1Style, phase2Style, executedHitoStyle, executedFaseStyle, executedPytoStyle,
+                progHitoStyle, progFaseStyle, progPytoStyle, eyeStyle, eficaciaCalcStyle,
+                eficienciaCalcStyle, phase1PercentStyle, phase2PercentStyle, dateStyle,
+                percentStyle, percentTwoDecStyle, defaultStyle}) {
+            style.setVerticalAlignment(VerticalAlignment.CENTER);
+        }
+        for (XSSFCellStyle style : hitoStyles) style.setVerticalAlignment(VerticalAlignment.CENTER);
+        for (XSSFCellStyle style : hitoPercentStyles) style.setVerticalAlignment(VerticalAlignment.CENTER);
 
         return new SheetStyles(
                 headerStyle, subHeaderStyle, greenHeaderStyle,
@@ -192,6 +207,7 @@ public class SeguimientoExcelGenerator {
         Cell titleCell = titleRow.createCell(1);
         titleCell.setCellValue(proyecto.getId() + " - " + (proyecto.getNombre() != null ? proyecto.getNombre() : ""));
         titleCell.setCellStyle(headerStyle);
+        titleRow.setHeightInPoints(34f);
         sheet.addMergedRegion(new CellRangeAddress(0, 0, 1, 25));
 
         sheet.createRow(1); // Spacing row
@@ -204,6 +220,8 @@ public class SeguimientoExcelGenerator {
 
         Row row2 = sheet.createRow(2); // Subheader 1
         Row row3 = sheet.createRow(3); // Subheader 2
+        row2.setHeightInPoints(28f);
+        row3.setHeightInPoints(32f);
 
         String[] subHeader1 = new String[26];
         subHeader1[1] = "FASE"; subHeader1[2] = "FASE";
@@ -249,37 +267,67 @@ public class SeguimientoExcelGenerator {
         return labels[index] != null ? labels[index] : "";
     }
 
-    private int writeDataRows(XSSFSheet sheet, XSSFWorkbook workbook, Proyecto proyecto, String username, SheetStyles styles) {
+    /**
+     * Estructura de agrupaciones del reporte: filas (0-based) donde arranca cada fase y cada hito,
+     * mas las filas que componen cada hito. Se usa para escribir las formulas de agregacion
+     * (O/P/Q/U/V/W) unicamente en la primera fila de cada grupo, igual que el Excel de referencia.
+     */
+    private record GruposReporte(int primeraFilaLibre,
+                                 List<Integer> primerasFilasFase,
+                                 List<Integer> primerasFilasHito,
+                                 List<List<Integer>> filasPorHito,
+                                 List<List<Integer>> hitosPorFase) {}
+
+    private GruposReporte writeDataRows(XSSFSheet sheet, XSSFWorkbook workbook, Proyecto proyecto, String username, SheetStyles styles) {
         int rowIndex = 4; // Data starts at row 5 (0-indexed 4)
         int phaseCount = 0;
+
+        List<Integer> primerasFilasFase = new ArrayList<>();
+        List<Integer> primerasFilasHito = new ArrayList<>();
+        List<List<Integer>> filasPorHito = new ArrayList<>();
+        List<List<Integer>> hitosPorFase = new ArrayList<>();
 
         List<Fase> fases = proyecto.getFases();
         for (Fase fase : fases) {
             int phaseStartRow = rowIndex;
+            List<Integer> hitosDeEstaFase = new ArrayList<>();
 
             List<Hito> hitos = fase.getHitos();
             int hitoIndex = 0;
 
             for (Hito hito : hitos) {
                 int hitoStartRow = rowIndex;
+                List<Integer> filasDelHito = new ArrayList<>();
 
                 List<Entregable> entregables = hito.getEntregables();
                 for (int e = 0; e < entregables.size(); e++) {
                     Entregable entregable = entregables.get(e);
                     writeEntregableRow(sheet, workbook, fase, hito, entregable, e, rowIndex, phaseCount, hitoIndex, username, styles);
+                    filasDelHito.add(rowIndex);
                     rowIndex++;
                 }
 
-                // Merge Hito columns vertically
-                mergeHitoRows(sheet, hitoStartRow, rowIndex - 1);
+                // Solo se registra el hito si efectivamente genero filas.
+                if (!filasDelHito.isEmpty()) {
+                    primerasFilasHito.add(hitoStartRow);
+                    hitosDeEstaFase.add(primerasFilasHito.size() - 1);
+                    filasPorHito.add(filasDelHito);
+                    // Merge Hito columns vertically
+                    mergeHitoRows(sheet, hitoStartRow, rowIndex - 1);
+                }
                 hitoIndex++;
             }
 
-            // Merge Fase columns vertically
-            mergeFaseRows(sheet, phaseStartRow, rowIndex - 1);
+            // Solo se registra la fase si efectivamente genero filas.
+            if (rowIndex > phaseStartRow) {
+                primerasFilasFase.add(phaseStartRow);
+                hitosPorFase.add(hitosDeEstaFase);
+                // Merge Fase columns vertically
+                mergeFaseRows(sheet, phaseStartRow, rowIndex - 1);
+            }
             phaseCount++;
         }
-        return rowIndex;
+        return new GruposReporte(rowIndex, primerasFilasFase, primerasFilasHito, filasPorHito, hitosPorFase);
     }
 
     private void mergeHitoRows(XSSFSheet sheet, int startRow, int endRow) {
@@ -344,6 +392,7 @@ public class SeguimientoExcelGenerator {
         Cell c7 = row.createCell(7);
         c7.setCellValue(entregable.getNombre());
         c7.setCellStyle(styles.textStyle());
+        row.setHeightInPoints(30f);
 
         // 8 (I): Fecha Limite
         Cell c8 = row.createCell(8);
@@ -355,12 +404,12 @@ public class SeguimientoExcelGenerator {
 
         // 10 (K): ATRASO
         Cell c10 = row.createCell(10);
-        c10.setCellFormula("IF(I"+r+"=\"\";\"\";IF(J"+r+"=\"\";MIN(0;I"+r+"-R"+r+");I"+r+"-J"+r+"))");
+        c10.setCellFormula("IF(I"+r+"=\"\",\"\",IF(J"+r+"=\"\",MIN(0,I"+r+"-R"+r+"),I"+r+"-J"+r+"))");
         c10.setCellStyle(styles.defaultStyle());
 
         // 11 (L): OK
         Cell c11 = row.createCell(11);
-        c11.setCellFormula("IF(ISNUMBER(J"+r+");1;0)");
+        c11.setCellFormula("IF(ISNUMBER(J"+r+"),1,0)");
         c11.setCellStyle(styles.defaultStyle());
 
         // 12 (M): RUTA EVIDENCIAS
@@ -405,9 +454,9 @@ public class SeguimientoExcelGenerator {
         Cell c16 = row.createCell(16);
         c16.setCellStyle(styles.executedPytoStyle());
 
-        // 17 (R): HOY() - Spanish locale function name
+        // 17 (R): HOY (TODAY en ingles; POI exige nombres de funcion en ingles)
         Cell c17 = row.createCell(17);
-        c17.setCellFormula("HOY()");
+        c17.setCellFormula("TODAY()");
         c17.setCellStyle(styles.dateStyle());
 
         // 18 (S): ATRASO PROG
@@ -417,7 +466,7 @@ public class SeguimientoExcelGenerator {
 
         // 19 (T): VALIDA
         Cell c19 = row.createCell(19);
-        c19.setCellFormula("IF(S"+r+">0;0;1)");
+        c19.setCellFormula("IF(S"+r+">0,0,1)");
         c19.setCellStyle(styles.defaultStyle());
 
         // 20 (U): PROG HITO
@@ -434,17 +483,17 @@ public class SeguimientoExcelGenerator {
 
         // 23 (X): EyE Incluye?
         Cell c23 = row.createCell(23);
-        c23.setCellFormula("IF(I"+r+"<=R"+r+";\"Si\";\"No\")");
+        c23.setCellFormula("IF(I"+r+"<=R"+r+",\"Si\",\"No\")");
         c23.setCellStyle(styles.eyeStyle());
 
         // 24 (Y): Eficacia Calcula
         Cell c24 = row.createCell(24);
-        c24.setCellFormula("IF(AND(I"+r+"<=R"+r+";J"+r+"<>\"\";L"+r+"=1);\"Si\";\"\")");
+        c24.setCellFormula("IF(AND(I"+r+"<=R"+r+",J"+r+"<>\"\",L"+r+"=1),\"Si\",\"\")");
         c24.setCellStyle(styles.eficaciaCalcStyle());
 
         // 25 (Z): Eficiencia Calcula
         Cell c25 = row.createCell(25);
-        c25.setCellFormula("IF(AND(I"+r+"<>\"\";J"+r+"<>\"\";L"+r+"=1;J"+r+"<=I"+r+");\"Si\";\"\")");
+        c25.setCellFormula("IF(AND(I"+r+"<>\"\",J"+r+"<>\"\",L"+r+"=1,J"+r+"<=I"+r+"),\"Si\",\"\")");
         c25.setCellStyle(styles.eficienciaCalcStyle());
     }
 
@@ -457,35 +506,51 @@ public class SeguimientoExcelGenerator {
         }
     }
 
-    private void updateRangeFormulas(XSSFSheet sheet, int rowIndex, int finalRow) {
-        // Update range-dependent formulas with exact finalRow
-        for (int i = 4; i < rowIndex; i++) {
-            Row row = sheet.getRow(i);
-            if (row != null) {
-                int r = i + 1;
-                applyRangeFormulas(row, r, finalRow);
+    private void updateRangeFormulas(XSSFSheet sheet, GruposReporte grupos) {
+        // O (ejecutado hito) y U (prog hito): solo en la primera fila de cada hito.
+        for (int i = 0; i < grupos.primerasFilasHito().size(); i++) {
+            Row row = sheet.getRow(grupos.primerasFilasHito().get(i));
+            List<Integer> filas = grupos.filasPorHito().get(i);
+            setCellFormula(row, 14, sumaProducto(filas, "G", "L")); // = (G*L) + ... del hito
+            setCellFormula(row, 20, sumaProducto(filas, "G", "T")); // = (G*T) + ... del hito
+        }
+
+        // P (ejecutado fase) y V (prog fase): solo en la primera fila de cada fase,
+        // ponderando cada hito con su ponderacion.
+        for (int f = 0; f < grupos.primerasFilasFase().size(); f++) {
+            Row row = sheet.getRow(grupos.primerasFilasFase().get(f));
+            List<Integer> filasHitos = new ArrayList<>();
+            for (int indiceHito : grupos.hitosPorFase().get(f)) {
+                filasHitos.add(grupos.primerasFilasHito().get(indiceHito));
             }
+            setCellFormula(row, 15, sumaProducto(filasHitos, "O", "E")); // = (O*E) + ... de la fase
+            setCellFormula(row, 21, sumaProducto(filasHitos, "U", "E")); // = (U*E) + ... de la fase
+        }
+
+        // Q (ejecutado pyto) y W (prog pyto): solo en la primera fila de la tabla,
+        // ponderando cada fase con su ponderacion.
+        if (!grupos.primerasFilasFase().isEmpty()) {
+            Row row = sheet.getRow(4);
+            setCellFormula(row, 16, sumaProducto(grupos.primerasFilasFase(), "P", "C")); // = (P*C) + ... del proyecto
+            setCellFormula(row, 22, sumaProducto(grupos.primerasFilasFase(), "V", "C")); // = (V*C) + ... del proyecto
         }
     }
 
-    private void applyRangeFormulas(Row row, int r, int finalRow) {
-        Cell c14 = row.getCell(14);
-        if (c14 != null) c14.setCellFormula("SUMPRODUCT(($D$5:$D$" + finalRow + "=D" + r + ")*$G$5:$G$" + finalRow + "*$L$5:$L$" + finalRow + ")");
+    /** Construye "(COL1_fila*COL2_fila)+(COL1_fila*COL2_fila)..." sobre las filas indicadas. */
+    private String sumaProducto(List<Integer> filas, String columnaA, String columnaB) {
+        StringBuilder formula = new StringBuilder();
+        for (int fila : filas) {
+            if (formula.length() > 0) formula.append('+');
+            formula.append('(').append(columnaA).append(fila + 1)
+                    .append('*').append(columnaB).append(fila + 1).append(')');
+        }
+        return formula.length() > 0 ? formula.toString() : "0";
+    }
 
-        Cell c15 = row.getCell(15);
-        if (c15 != null) c15.setCellFormula("SUMPRODUCT(($B$5:$B$" + finalRow + "=B" + r + ")*$E$5:$E$" + finalRow + "*$O$5:$O$" + finalRow + ")");
-
-        Cell c16 = row.getCell(16);
-        if (c16 != null) c16.setCellFormula("PROMEDIO($P$5:$P$" + finalRow + ")");
-
-        Cell c20 = row.getCell(20);
-        if (c20 != null) c20.setCellFormula("SI.ERROR(PROMEDIO.SI($T$5:$T$" + finalRow + ";$D$5:$D$" + finalRow + ";D" + r + ");0)");
-
-        Cell c21 = row.getCell(21);
-        if (c21 != null) c21.setCellFormula("SI.ERROR(PROMEDIO.SI($U$5:$U$" + finalRow + ";$B$5:$B$" + finalRow + ";B" + r + ");0)");
-
-        Cell c22 = row.getCell(22);
-        if (c22 != null) c22.setCellFormula("PROMEDIO($V$5:$V$" + finalRow + ")");
+    private void setCellFormula(Row row, int columnIndex, String formula) {
+        if (row == null) return;
+        Cell cell = row.getCell(columnIndex);
+        if (cell != null) cell.setCellFormula(formula);
     }
 
     private void writeSummaryAndIndicators(XSSFSheet sheet, XSSFWorkbook workbook, int rowIndex, int finalRow, SheetStyles styles) {
@@ -498,11 +563,11 @@ public class SeguimientoExcelGenerator {
         // Summary row right under table (Row finalRow + 1)
         Row summaryRow = sheet.createRow(rowIndex);
         Cell summaryY = summaryRow.createCell(24); // Col Y (24)
-        summaryY.setCellFormula("CONTAR.SI.CONJUNTO($Y$5:$Y$" + finalRow + ";\"Si\";$X$5:$X$" + finalRow + ";\"Si\")/CONTAR.SI($X$5:$X$" + finalRow + ";\"Si\")");
+        summaryY.setCellFormula("COUNTIFS($Y$5:$Y$" + finalRow + ",\"Si\",$X$5:$X$" + finalRow + ",\"Si\")/COUNTIF($X$5:$X$" + finalRow + ",\"Si\")");
         summaryY.setCellStyle(greenSummaryStyle);
 
         Cell summaryZ = summaryRow.createCell(25); // Col Z (25)
-        summaryZ.setCellFormula("CONTAR.SI.CONJUNTO($Z$5:$Z$" + finalRow + ";\"Si\";$Y$5:$Y$" + finalRow + ";\"Si\")/CONTAR.SI($Y$5:$Y$" + finalRow + ";\"Si\")");
+        summaryZ.setCellFormula("COUNTIFS($Z$5:$Z$" + finalRow + ",\"Si\",$Y$5:$Y$" + finalRow + ",\"Si\")/COUNTIF($Y$5:$Y$" + finalRow + ",\"Si\")");
         summaryZ.setCellStyle(greenSummaryStyle);
 
         // INDICADORES AL CORTE summary box (Rows finalRow + 3 to finalRow + 9)
@@ -536,13 +601,13 @@ public class SeguimientoExcelGenerator {
         // Row 2: Programados al corte
         Row r2 = sheet.createRow(indStartRow + 2);
         Cell r2x = r2.createCell(23); r2x.setCellValue("Programados al corte"); r2x.setCellStyle(textStyle);
-        Cell r2y = r2.createCell(24); r2y.setCellFormula("CONTAR.SI.CONJUNTO(I5:I" + finalRow + ";\"<=\"&Y" + fechaCorteRow1Based + ";I5:I" + finalRow + ";\"<>\")"); r2y.setCellStyle(defaultStyle);
+        Cell r2y = r2.createCell(24); r2y.setCellFormula("COUNTIFS(I5:I" + finalRow + ",\"<=\"&Y" + fechaCorteRow1Based + ",I5:I" + finalRow + ",\"<>\")"); r2y.setCellStyle(defaultStyle);
         Cell r2z = r2.createCell(25); r2z.setCellValue("Entregables con fecha límite menor o igual a la fecha de corte"); r2z.setCellStyle(textStyle);
 
         // Row 3: Entregados al corte
         Row r3 = sheet.createRow(indStartRow + 3);
         Cell r3x = r3.createCell(23); r3x.setCellValue("Entregados al corte"); r3x.setCellStyle(textStyle);
-        Cell r3y = r3.createCell(24); r3y.setCellFormula("CONTAR.SI.CONJUNTO(J5:J" + finalRow + ";\"<=\"&Y" + fechaCorteRow1Based + ";J5:J" + finalRow + ";\"<>\";L5:L" + finalRow + ";1)"); r3y.setCellStyle(defaultStyle);
+        Cell r3y = r3.createCell(24); r3y.setCellFormula("COUNTIFS(J5:J" + finalRow + ",\"<=\"&Y" + fechaCorteRow1Based + ",J5:J" + finalRow + ",\"<>\",L5:L" + finalRow + ",1)"); r3y.setCellStyle(defaultStyle);
         Cell r3z = r3.createCell(25); r3z.setCellValue("Programados al corte con OK = 1"); r3z.setCellStyle(textStyle);
 
         int progCorteRow1Based = indStartRow + 3;
@@ -551,7 +616,7 @@ public class SeguimientoExcelGenerator {
         // Row 4: Entregados a tiempo
         Row r4 = sheet.createRow(indStartRow + 4);
         Cell r4x = r4.createCell(23); r4x.setCellValue("Entregados a tiempo"); r4x.setCellStyle(textStyle);
-        Cell r4y = r4.createCell(24); r4y.setCellFormula("SUMAPRODUCTO(--(J5:J" + finalRow + "<=Y" + fechaCorteRow1Based + ");--(I5:I" + finalRow + "<>\"\");--(L5:L" + finalRow + "=1);--(J5:J" + finalRow + "<>\"\");--(J5:J" + finalRow + "<=I5:I" + finalRow + "))"); r4y.setCellStyle(defaultStyle);
+        Cell r4y = r4.createCell(24); r4y.setCellFormula("SUMPRODUCT(--(J5:J" + finalRow + "<=Y" + fechaCorteRow1Based + "),--(I5:I" + finalRow + "<>\"\"),--(L5:L" + finalRow + "=1),--(J5:J" + finalRow + "<>\"\"),--(J5:J" + finalRow + "<=I5:I" + finalRow + "))"); r4y.setCellStyle(defaultStyle);
         Cell r4z = r4.createCell(25); r4z.setCellValue("Entregados al corte con fecha de entrega menor o igual a la fecha límite"); r4z.setCellStyle(textStyle);
 
         int entTiempoRow1Based = indStartRow + 5;
@@ -559,14 +624,14 @@ public class SeguimientoExcelGenerator {
         // Row 5: Eficacia
         Row r5 = sheet.createRow(indStartRow + 5);
         Cell r5x = r5.createCell(23); r5x.setCellValue("Eficacia"); r5x.setCellStyle(lightGreenStyle);
-        Cell r5y = r5.createCell(24); r5y.setCellFormula("MIN(1;SI.ERROR(Y" + entCorteRow1Based + "/Y" + progCorteRow1Based + ";0))"); r5y.setCellStyle(lightGreenPercentStyle);
+        Cell r5y = r5.createCell(24); r5y.setCellFormula("MIN(1,IFERROR(Y" + entCorteRow1Based + "/Y" + progCorteRow1Based + ",0))"); r5y.setCellStyle(lightGreenPercentStyle);
         Cell r5z = r5.createCell(25); r5z.setCellValue("Entregados al corte / Programados al corte"); r5z.setCellStyle(lightGreenStyle);
 
-        // Row 6: Eficiencia
+        // Row 6: Eficiencia (entregados a tiempo sobre entregados al corte, igual que el Excel de referencia)
         Row r6 = sheet.createRow(indStartRow + 6);
         Cell r6x = r6.createCell(23); r6x.setCellValue("Eficiencia"); r6x.setCellStyle(lightGreenStyle);
-        Cell r6y = r6.createCell(24); r6y.setCellFormula("MIN(1;SI.ERROR(Y" + entTiempoRow1Based + "/Y" + progCorteRow1Based + ";0))"); r6y.setCellStyle(lightGreenPercentStyle);
-        Cell r6z = r6.createCell(25); r6z.setCellValue("Entregados a tiempo / Programados al corte"); r6z.setCellStyle(lightGreenStyle);
+        Cell r6y = r6.createCell(24); r6y.setCellFormula("IFERROR(Y" + entTiempoRow1Based + "/Y" + entCorteRow1Based + ",0)"); r6y.setCellStyle(lightGreenPercentStyle);
+        Cell r6z = r6.createCell(25); r6z.setCellValue("Entregados a tiempo / Entregados al corte"); r6z.setCellStyle(lightGreenStyle);
     }
 
     private XSSFCellStyle createHeaderStyle(XSSFWorkbook workbook, XSSFColor color) {

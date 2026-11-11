@@ -52,7 +52,7 @@ final class PdfTextWrap {
         if (measure.widthOf(word) <= maxWidth) {
             current.append(word);
         } else {
-            result.addAll(splitLongWord(word, maxWidth, measure));
+            current.append(splitLongWord(word, maxWidth, measure, result));
         }
     }
 
@@ -65,26 +65,38 @@ final class PdfTextWrap {
         }
         if (!current.isEmpty()) {
             result.add(current.toString());
+            current.setLength(0);
         }
-        current.setLength(0);
-        current.append(word);
+        current.append(splitLongWord(word, maxWidth, measure, result));
     }
 
-    private static List<String> splitLongWord(String word, float maxWidth, WidthFn measure) throws IOException {
+    private static String splitLongWord(String word, float maxWidth, WidthFn measure, List<String> result) throws IOException {
         List<String> parts = new ArrayList<>();
         StringBuilder current = new StringBuilder();
-        for (char c : word.toCharArray()) {
-            String trial = current + String.valueOf(c);
+        for (int offset = 0; offset < word.length();) {
+            int codePoint = word.codePointAt(offset);
+            String character = new String(Character.toChars(codePoint));
+            String trial = current + character;
             if (measure.widthOf(trial) <= maxWidth || current.isEmpty()) {
-                current.append(c);
+                current.append(character);
+                if (current.length() == character.length() && measure.widthOf(current.toString()) > maxWidth) {
+                    parts.add(current.toString());
+                    current.setLength(0);
+                }
             } else {
                 parts.add(current.toString());
-                current = new StringBuilder().append(c);
+                current = new StringBuilder(character);
             }
+            offset += Character.charCount(codePoint);
+        }
+        if (parts.isEmpty()) {
+            return current.toString();
         }
         if (!current.isEmpty()) {
-            parts.add(current.toString());
+            result.addAll(parts);
+            return current.toString();
         }
-        return parts;
+        result.addAll(parts);
+        return "";
     }
 }

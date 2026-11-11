@@ -47,6 +47,8 @@ const initialForm = (project) => ({
 
 const sumPonderacion = (items = []) => items.reduce((sum, item) => sum + (parseFloat(item?.ponderacion) || 0), 0);
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 // FURAG field keys are fully dynamic — they come from petiCatalog.furagPreguntas at runtime.
 // Do NOT hardcode them here. This allows admins to add/remove FURAG questions from
 // the configuration panel without any frontend code changes.
@@ -379,20 +381,25 @@ const ProjectOnboardingWizard = ({
     };
   }, []);
 
-  const handleChange = (partialData) => {
-    setForm((current) => {
-      const merged = { ...current };
-      for (const key of Object.keys(partialData)) {
-        const value = partialData[key];
-        if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof File)) {
-          merged[key] = { ...(merged[key] || {}), ...value };
-        } else {
-          merged[key] = value;
-        }
+  const mergeForm = (current, partialData) => {
+    const merged = { ...current };
+    for (const key of Object.keys(partialData)) {
+      const value = partialData[key];
+      if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof File)) {
+        merged[key] = { ...(merged[key] || {}), ...value };
+      } else {
+        merged[key] = value;
       }
-      return merged;
-    });
-    setErrors({});
+    }
+    return merged;
+  };
+
+  const handleChange = (partialData) => {
+    const merged = mergeForm(form, partialData);
+    setForm(merged);
+    // Solo re-valida en vivo si ya hubo un intento fallido: mantiene marcados
+    // los campos pendientes y limpia cada marca en cuanto el campo se completa.
+    setErrors((prev) => (Object.keys(prev).length > 0 ? validateStep(step, merged) : prev));
   };
 
   const handleObjetivoAdd = () => {
@@ -452,12 +459,35 @@ const ProjectOnboardingWizard = ({
     if (targetStep === 3) {
       if (!source.patrocinador?.nombre?.trim()) nextErrors.patrocinadorNombre = 'El nombre del patrocinador es obligatorio.';
       if (!source.patrocinador?.cargo?.trim()) nextErrors.patrocinadorCargo = 'El cargo del patrocinador es obligatorio.';
-      if ((source.equipoTrabajo || []).filter((m) => m?.nombre?.trim()).length === 0) {
+
+      const equipo = source.equipoTrabajo || [];
+      if (equipo.length === 0) {
         nextErrors.equipoTrabajo = 'Debe agregar al menos un integrante al equipo de trabajo.';
       }
-      if ((source.stakeholders || []).filter((s) => s?.rol?.trim()).length === 0) {
+      equipo.forEach((miembro, i) => {
+        if (!miembro?.nombre?.trim()) nextErrors[`integrante_${i}_nombre`] = `Integrante #${i + 1}: el nombre es obligatorio.`;
+        if (!miembro?.cargo?.trim()) nextErrors[`integrante_${i}_cargo`] = `Integrante #${i + 1}: el cargo es obligatorio.`;
+        if (!miembro?.rol?.trim()) nextErrors[`integrante_${i}_rol`] = `Integrante #${i + 1}: seleccione el rol en el proyecto.`;
+        if (!miembro?.telefono?.trim()) {
+          nextErrors[`integrante_${i}_telefono`] = `Integrante #${i + 1}: el teléfono es obligatorio.`;
+        }
+        if (!miembro?.correo?.trim()) {
+          nextErrors[`integrante_${i}_correo`] = `Integrante #${i + 1}: el correo electrónico es obligatorio.`;
+        } else if (!EMAIL_REGEX.test(miembro.correo.trim())) {
+          nextErrors[`integrante_${i}_correo`] = `Integrante #${i + 1}: el correo electrónico no es válido.`;
+        }
+      });
+
+      const stakeholders = source.stakeholders || [];
+      if (stakeholders.length === 0) {
         nextErrors.stakeholders = 'Debe agregar al menos un stakeholder.';
       }
+      stakeholders.forEach((stakeholder, i) => {
+        if (!stakeholder?.rol?.trim()) nextErrors[`stakeholder_${i}_rol`] = `Stakeholder #${i + 1}: el rol es obligatorio.`;
+        if (!stakeholder?.descripcion?.trim()) nextErrors[`stakeholder_${i}_descripcion`] = `Stakeholder #${i + 1}: la descripción es obligatoria.`;
+        if (!stakeholder?.interes?.trim()) nextErrors[`stakeholder_${i}_interes`] = `Stakeholder #${i + 1}: el interés / expectativas es obligatorio.`;
+        if (!stakeholder?.impacto?.trim()) nextErrors[`stakeholder_${i}_impacto`] = `Stakeholder #${i + 1}: el impacto en el proyecto es obligatorio.`;
+      });
     }
 
     if (targetStep === 4) {
@@ -555,16 +585,25 @@ const ProjectOnboardingWizard = ({
     return nextErrors;
   };
 
-  const getFirstValidationMessage = (nextErrors) => {
-    if (nextErrors.fases) return nextErrors.fases;
-    const firstKey = Object.keys(nextErrors)[0];
-    return firstKey ? nextErrors[firstKey] : 'Revise los campos marcados.';
+  const announceValidationErrors = (nextErrors) => {
+    const messages = Object.values(nextErrors);
+    emitToast({
+      tone: 'warning',
+      title: `Faltan ${messages.length} campo(s) por completar`,
+      message: messages.slice(0, 3).join(' ') + (messages.length > 3 ? ` (+${messages.length - 3} más)` : ''),
+    });
+    requestAnimationFrame(() => {
+      document.querySelector('.project-onboarding .input-error')?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    });
   };
 
   const handleNext = async () => {
     const nextErrors = validateStep(step);
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+    if (Object.keys(nextErrors).length > 0) {
+      announceValidationErrors(nextErrors);
+      return;
+    }
     
     const newFasesCompletadas = { ...fasesCompletadas, [step]: true };
     setFasesCompletadas(newFasesCompletadas);
@@ -755,6 +794,7 @@ const ProjectOnboardingWizard = ({
       if (Object.keys(nextErrors).length > 0) {
         setStep(targetStep);
         setErrors(nextErrors);
+        announceValidationErrors(nextErrors);
         return;
       }
     }
@@ -969,7 +1009,10 @@ const ProjectOnboardingWizard = ({
                 type="button"
                 className={`project-onboarding__step ${step === item.id ? 'active' : ''} ${fasesCompletadas[item.id] ? 'completed' : ''}`}
                 onClick={() => {
-                  if (item.id <= step) setStep(item.id);
+                  if (item.id <= step) {
+                    setStep(item.id);
+                    setErrors({});
+                  }
                 }}
               >
                 {fasesCompletadas[item.id] ? (
@@ -983,11 +1026,21 @@ const ProjectOnboardingWizard = ({
           {renderStep()}
 
           {Object.keys(errors).length > 0 && (
-            <div className="error-banner">
+            <div className="error-banner error-banner--summary" role="alert">
               <AlertTriangle size={18} />
-              <span>
-                {errors.furag || getFirstValidationMessage(errors)}
-              </span>
+              <div className="error-banner__body">
+                <strong>
+                  Faltan {Object.keys(errors).length} campo(s) por completar o corregir en este paso.
+                </strong>
+                <ul className="error-banner__list">
+                  {Object.values(errors).slice(0, 8).map((message, index) => (
+                    <li key={index}>{message}</li>
+                  ))}
+                  {Object.keys(errors).length > 8 && (
+                    <li>y {Object.keys(errors).length - 8} campo(s) más marcados arriba.</li>
+                  )}
+                </ul>
+              </div>
             </div>
           )}
 
@@ -997,7 +1050,7 @@ const ProjectOnboardingWizard = ({
             <span />
             <div className="compact-toolbar">
               {step > 1 ? (
-                <button type="button" className="btn-ghost" onClick={() => setStep((current) => current - 1)}>
+                <button type="button" className="btn-ghost" onClick={() => { setStep((current) => current - 1); setErrors({}); }}>
                   <ArrowLeft size={16} />
                   Volver
                 </button>

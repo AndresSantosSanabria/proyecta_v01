@@ -35,6 +35,7 @@ import java.util.UUID;
 public class RiesgoTratamientoServiceImpl implements IRiesgoTratamientoService {
 
     private static final int MAX_ARCHIVOS_POR_TRATAMIENTO = 10;
+    private static final int MIN_ARCHIVOS_POR_TRATAMIENTO = 1;
 
     private final RiesgoTratamientoRepositoryPort tratamientoRepositoryPort;
     private final RiesgoTratamientoAdjuntoRepositoryPort adjuntoRepositoryPort;
@@ -69,6 +70,15 @@ public class RiesgoTratamientoServiceImpl implements IRiesgoTratamientoService {
         Riesgo riesgo = cargarRiesgoDelProyecto(projectId, riesgoId);
         if (esEstadoCerrado(riesgo.getProyecto())) {
             throw new ForbiddenException("No se pueden agregar tratamientos a un proyecto cerrado.");
+        }
+
+        int cantidadArchivos = archivos == null ? 0 : archivos.length;
+        if (cantidadArchivos < MIN_ARCHIVOS_POR_TRATAMIENTO) {
+            throw new BadRequestException("Debes adjuntar al menos " + MIN_ARCHIVOS_POR_TRATAMIENTO
+                    + " archivo PDF por tratamiento.");
+        }
+        if (cantidadArchivos > MAX_ARCHIVOS_POR_TRATAMIENTO) {
+            throw new BadRequestException("No se pueden adjuntar más de " + MAX_ARCHIVOS_POR_TRATAMIENTO + " archivos por tratamiento.");
         }
 
         long totalExistente = tratamientoRepositoryPort.countByRiesgoId(riesgo.getId());

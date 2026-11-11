@@ -48,7 +48,7 @@ public final class PlanComunicacionesPdfGenerator {
                 return List.of();
             }
             return proyectos.stream()
-                    .filter(p -> !Boolean.TRUE.equals(p.getPeti()))
+                    .filter(p -> p.esPetiDefinido() && !Boolean.TRUE.equals(p.getPeti()))
                     .sorted(Comparator.comparing(Proyecto::getId, Comparator.nullsLast(String::compareToIgnoreCase)))
                     .map(p -> new FilaProyecto(
                             safe(p.getId()),

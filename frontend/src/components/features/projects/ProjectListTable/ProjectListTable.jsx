@@ -50,6 +50,11 @@ const getProjectName = (project) => project?.nombre || project?.nombreProyecto |
 const getProjectDependency = (project) => project?.dependencia || project?.nombreDependencia || 'Sin dependencia';
 const getProjectDirectorName = (project) => project?.director || project?.directorNombre || '';
 const getProjectDirectorCargo = (project) => project?.directorCargo || project?.cargoDirector || project?.directorRol || '';
+const getPetiBadge = (project) => {
+  if (project?.petiDefinido === false) return { label: 'Sin definir', className: 'peti-badge peti-undefined' };
+  if (project?.peti) return { label: 'PETI', className: 'peti-badge' };
+  return { label: 'No PETI', className: 'peti-badge no-peti' };
+};
 const buildProjectProgressPath = (projectId) => `/projects/${encodeURIComponent(projectId)}/progress`;
 
 const openProject = (navigate, projectId) => (event) => {
@@ -181,6 +186,7 @@ const ProjectListTable = ({
             {projects.length > 0 ? (
               projects.map((project, index) => {
                 const projectId = getProjectId(project);
+                const petiBadge = getPetiBadge(project);
                 const baseStatus = statusMap[project.estado] || {
                   label: project.estado,
                   class: 'default',
@@ -284,11 +290,7 @@ const ProjectListTable = ({
                       </div>
                     </td>
                     <td data-label="PETI">
-                      {project.peti ? (
-                        <span className="peti-badge">PETI</span>
-                      ) : (
-                        <span className="peti-badge no-peti">No PETI</span>
-                      )}
+                      <span className={petiBadge.className}>{petiBadge.label}</span>
                     </td>
                     <td className="col-progress" data-label="Avance">
                       <div className="progress-cell">
@@ -387,7 +389,7 @@ const ProjectListTable = ({
                   </div>
                   <div>
                     <span>PETI</span>
-                    <strong>{project.peti ? 'Sí' : 'No'}</strong>
+                    <strong>{project.petiDefinido === false ? 'Sin definir' : project.peti ? 'Sí' : 'No'}</strong>
                   </div>
                 </div>
 

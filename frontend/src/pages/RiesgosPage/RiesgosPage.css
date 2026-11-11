@@ -888,6 +888,12 @@
   color: var(--text-muted);
 }
 
+.file-picker.invalid input[type='file'] {
+  border-color: var(--danger, #dc2626);
+  background: color-mix(in srgb, var(--danger, #dc2626) 7%, var(--bg-card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger, #dc2626) 35%, transparent);
+}
+
 .solution-form {
   gap: 0.9rem;
   overflow-y: auto;

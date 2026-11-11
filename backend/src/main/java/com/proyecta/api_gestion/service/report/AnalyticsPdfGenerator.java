@@ -240,16 +240,20 @@ public final class AnalyticsPdfGenerator {
             List<AnalyticsPortfolioDTO.ProjectMetrics> proyectos = data.proyectos();
             if (proyectos == null || proyectos.isEmpty()) return;
 
-            long peti = proyectos.stream().filter(p -> Boolean.TRUE.equals(p.peti())).count();
-            long noPeti = proyectos.size() - peti;
+            long peti = proyectos.stream().filter(p -> Boolean.TRUE.equals(p.petiDefinido()) && Boolean.TRUE.equals(p.peti())).count();
+            long sinDefinir = proyectos.stream().filter(p -> Boolean.FALSE.equals(p.petiDefinido())).count();
+            long noPeti = proyectos.size() - peti - sinDefinir;
 
-            if (peti == 0 && noPeti == 0) return;
+            if (peti == 0 && noPeti == 0 && sinDefinir == 0) return;
 
             drawSectionTitle("DISTRIBUCION PETI");
 
             DefaultPieDataset<String> dataset = new DefaultPieDataset<>();
             dataset.setValue("PETI (" + peti + ")", peti);
             dataset.setValue("NO PETI (" + noPeti + ")", noPeti);
+            if (sinDefinir > 0) {
+                dataset.setValue("SIN DEFINIR (" + sinDefinir + ")", sinDefinir);
+            }
 
             JFreeChart chart = ChartFactory.createPieChart(null, dataset, true, false, false);
             stylePieChart(chart);
@@ -326,6 +330,7 @@ public final class AnalyticsPdfGenerator {
             plot.setShadowPaint(null);
             plot.setSectionPaint("PETI", new Color(16, 185, 129));
             plot.setSectionPaint("NO PETI", new Color(239, 68, 68));
+            plot.setSectionPaint("SIN DEFINIR", new Color(245, 158, 11));
             plot.setLabelFont(CHART_FONT_PIE);
             plot.setLabelPaint(COLOR_TEXT);
             plot.setLabelGenerator(new StandardPieSectionLabelGenerator("{0}: {1}"));
@@ -543,7 +548,7 @@ public final class AnalyticsPdfGenerator {
                 String value = i < row.size() ? row.get(i) : "";
                 float available = CONTENT_WIDTH * widths[i] - (padding * 2f);
                 List<String> wrapped = wrapText(value, FONT_REGULAR, fontSize, available);
-                float height = (wrapped.size() * (fontSize + 2f)) + (padding * 1.5f);
+                float height = (wrapped.size() * (fontSize + 2f)) + (padding * 2f) + 2f;
                 maxHeight = Math.max(maxHeight, height);
             }
             return maxHeight;

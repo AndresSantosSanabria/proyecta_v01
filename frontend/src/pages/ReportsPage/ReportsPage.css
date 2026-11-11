@@ -489,6 +489,7 @@
 }
 
 .reports-page__metric-card {
+  min-width: 0;
   min-height: 100px;
   padding: 16px;
   border-radius: 18px;
@@ -501,6 +502,8 @@
 }
 
 .reports-page__metric-card span {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -509,8 +512,17 @@
 }
 
 .reports-page__metric-card strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
   font-size: clamp(1.08rem, 1.8vw, 1.7rem);
   color: var(--rp-text);
+}
+
+.reports-page__metric-card--long-value strong {
+  font-size: clamp(1rem, 1.35vw, 1.3rem);
+  line-height: 1.25;
 }
 
 .reports-page__metric-card.tone-primary {

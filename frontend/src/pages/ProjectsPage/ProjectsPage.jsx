@@ -109,7 +109,7 @@ const ProjectsPage = () => {
         project.nombreDependencia,
         project.director,
         project.estado,
-        project.peti ? 'peti' : 'no peti',
+        project.petiDefinido === false ? 'sin definir' : project.peti ? 'peti' : 'no peti',
       ]
         .filter(Boolean)
         .join(' ');
@@ -120,9 +120,12 @@ const ProjectsPage = () => {
         filters.dependency === 'all' ||
         normalizeText(project.dependencia) === normalizeText(filters.dependency) ||
         normalizeText(project.nombreDependencia) === normalizeText(filters.dependency);
+      const petiDefinido = project.petiDefinido !== false;
       const matchesPeti =
         filters.peti === 'all' ||
-        (filters.peti === 'peti' ? project.peti : !project.peti);
+        (filters.peti === 'sin_definir'
+          ? !petiDefinido
+          : petiDefinido && (filters.peti === 'peti' ? project.peti : !project.peti));
 
       return matchesSearch && matchesStatus && matchesDependency && matchesPeti;
     });
@@ -144,7 +147,10 @@ const ProjectsPage = () => {
       };
       chips.push({ key: 'status', label: `Estado: ${statusLabels[filters.status] || filters.status}` });
     }
-    if (filters.peti !== 'all') chips.push({ key: 'peti', label: filters.peti === 'peti' ? 'Solo PETI' : 'Solo NO PETI' });
+    if (filters.peti !== 'all') {
+      const petiLabels = { peti: 'Solo PETI', no_peti: 'Solo NO PETI', sin_definir: 'PETI sin definir' };
+      chips.push({ key: 'peti', label: petiLabels[filters.peti] || filters.peti });
+    }
     return chips;
   }, [filters]);
 
@@ -270,6 +276,7 @@ const ProjectsPage = () => {
               options={[
                 { value: 'peti', label: 'Solo PETI' },
                 { value: 'no_peti', label: 'Solo No PETI' },
+                { value: 'sin_definir', label: 'Sin definir' },
               ]}
               placeholder="Filtrar por PETI..."
               allLabel="PETI y No PETI"

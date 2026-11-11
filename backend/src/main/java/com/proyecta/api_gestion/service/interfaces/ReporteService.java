@@ -14,6 +14,7 @@ public interface ReporteService {
     List<ProyectoReporteResumenDTO> obtenerProyectosConRetrasos();
     Optional<FuragReporteDTO> obtenerFurag(String proyectoId);
     List<RiesgoVerificacionReporteDTO> obtenerVerificacionRiesgos();
+    List<PlanComunicacionesProyectoDTO> obtenerPortafolioPlanComunicaciones();
     
     // Reportes Binarios
     byte[] generarReporteProyectoPdf(String id, String detailMode);

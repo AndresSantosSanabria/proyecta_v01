@@ -2,6 +2,12 @@ import apiClient from '../api/axiosConfig';
 
 const normalizeProjectId = (id) => String(id || '').trim().toUpperCase();
 
+const notifyProjectsChanged = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('proyecta:proyectos:refresh'));
+  }
+};
+
 /**
  * Servicio encargado de la gestión de proyectos.
  * Sigue el principio de Single Responsibility centrándose solo en la comunicación de red.
@@ -111,11 +117,13 @@ const projectService = {
    */
   create: async (projectData) => {
     const { data } = await apiClient.post('/proyectos', projectData);
+    notifyProjectsChanged();
     return data;
   },
 
   registerInitial: async (projectData) => {
     const { data } = await apiClient.post('/proyectos/registro-inicial', projectData);
+    notifyProjectsChanged();
     return data;
   },
 
@@ -132,6 +140,7 @@ const projectService = {
 
   completeInitialInfo: async (id, projectData) => {
     const { data } = await apiClient.put(`/proyectos/${normalizeProjectId(id)}/completar-informacion`, projectData);
+    notifyProjectsChanged();
     return data;
   },
 
@@ -177,6 +186,7 @@ const projectService = {
    */
   update: async (id, projectData) => {
     const { data } = await apiClient.put(`/proyectos/${normalizeProjectId(id)}`, projectData);
+    notifyProjectsChanged();
     return data;
   },
 
@@ -260,6 +270,7 @@ const projectService = {
    */
   closeProject: async (id, closureData) => {
     const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre`, closureData);
+    notifyProjectsChanged();
     return data;
   },
 
@@ -292,6 +303,7 @@ const projectService = {
    */
   solicitarCierre: async (id, payload) => {
     const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/solicitar`, payload);
+    notifyProjectsChanged();
     return data;
   },
 
@@ -308,11 +320,13 @@ const projectService = {
 
   aprobarCierre: async (id) => {
     const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/aprobar`);
+    notifyProjectsChanged();
     return data;
   },
 
   rechazarCierre: async (id, observaciones) => {
     const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/rechazar`, { observaciones });
+    notifyProjectsChanged();
     return data;
   },
 
@@ -324,6 +338,7 @@ const projectService = {
    */
   cierreExtraordinario: async (id, closureData) => {
     const { data } = await apiClient.post(`/proyectos/${normalizeProjectId(id)}/cierre/extraordinario`, closureData);
+    notifyProjectsChanged();
     return data;
   },
 
@@ -453,6 +468,7 @@ const projectService = {
       `/proyectos/${normalizeProjectId(proyectoId)}/cierre-forzoso`,
       { comentario }
     );
+    notifyProjectsChanged();
     return data;
   },
 };

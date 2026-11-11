@@ -106,6 +106,12 @@
   border-color: rgba(149, 163, 184, 0.18);
 }
 
+.peti-badge.peti-undefined {
+  color: var(--warning, #f59e0b);
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
 .status-badge--tooltip {
   position: relative;
   cursor: help;

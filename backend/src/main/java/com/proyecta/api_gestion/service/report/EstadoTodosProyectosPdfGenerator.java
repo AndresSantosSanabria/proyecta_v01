@@ -198,11 +198,11 @@ public final class EstadoTodosProyectosPdfGenerator {
             for (int i = 0; i < headers.length; i++) {
                 float colWidth = CONTENT_WIDTH * widths[i];
                 List<String> wrapped = wrap(headers[i], fonts.bold(), headerSizes[i], colWidth - 8f);
-                float textHeight = wrapped.size() * 10.5f;
-                maxHeight = Math.max(maxHeight, Math.max(24f, textHeight + 8f));
+                float textHeight = wrapped.size() * 12f;
+                maxHeight = Math.max(maxHeight, Math.max(24f, textHeight + 14f));
                 drawFilledRect(x, topY - maxHeight, colWidth, maxHeight, Color.WHITE);
                 drawRect(x, topY - maxHeight, colWidth, maxHeight, COLOR_BORDER, 0.6f);
-                drawWrapped(wrapped, fonts.bold(), headerSizes[i], x + 4f, topY - 13f, 10.5f, COLOR_MUTED);
+                drawWrapped(wrapped, fonts.bold(), headerSizes[i], x + 4f, topY - 13f, 12f, COLOR_MUTED);
                 x += colWidth;
             }
             return maxHeight;
@@ -219,7 +219,7 @@ public final class EstadoTodosProyectosPdfGenerator {
                     drawVerticalLine(x, y, y - rowHeight, COLOR_BORDER, 0.6f);
                 }
                 List<String> wrapped = wrap(i < row.size() ? row.get(i) : "", fonts.regular(), fontSize, colWidth - 8f);
-                drawWrapped(wrapped, fonts.regular(), fontSize, x + 4f, y - 11f, 11.2f, COLOR_TEXT);
+                drawWrapped(wrapped, fonts.regular(), fontSize, x + 4f, y - 11f, 12f, COLOR_TEXT);
                 x += colWidth;
             }
         }
@@ -231,7 +231,7 @@ public final class EstadoTodosProyectosPdfGenerator {
                 int lines = wrap(value, fonts.regular(), fontSize, CONTENT_WIDTH * widths[i] - 8f).size();
                 maxLines = Math.max(maxLines, lines);
             }
-            return Math.max(22f, maxLines * leading + 4f);
+            return Math.max(22f, maxLines * 12f + 10f);
         }
 
         private void drawLabelValue(String label, String value, float y, boolean large) throws IOException {
@@ -327,7 +327,19 @@ public final class EstadoTodosProyectosPdfGenerator {
             if (stringWidth(font, size, word) <= width) {
                 line.append(word);
             } else {
-                result.add(word);
+                    StringBuilder fragment = new StringBuilder();
+                    for (int offset = 0; offset < word.length();) {
+                        int codePoint = word.codePointAt(offset);
+                        String character = new String(Character.toChars(codePoint));
+                        String candidateFragment = fragment + character;
+                        if (!fragment.isEmpty() && stringWidth(font, size, candidateFragment) > width) {
+                            result.add(fragment.toString());
+                            fragment.setLength(0);
+                        }
+                        fragment.append(character);
+                        offset += Character.charCount(codePoint);
+                    }
+                    if (!fragment.isEmpty()) line.append(fragment);
             }
         }
 

@@ -365,6 +365,10 @@ public class Proyecto {
         return Boolean.TRUE.equals(requiereCompletitudDirector);
     }
 
+    public boolean esPetiDefinido() {
+        return !(requiereCompletitudDirector() && completadoPorDirectorAt == null);
+    }
+
     public void marcarRegistroInicialPendiente(String username, EstadoProyectoConfig estado) {
         this.estadoConfig = estado;
         this.requiereCompletitudDirector = true;

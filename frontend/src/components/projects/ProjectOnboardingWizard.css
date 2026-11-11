@@ -339,6 +339,41 @@
   line-height: 1.35;
 }
 
+.project-onboarding .error-banner--summary {
+  align-items: flex-start;
+}
+
+.project-onboarding .error-banner--summary > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.project-onboarding .error-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.project-onboarding .error-banner__body strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.project-onboarding .error-banner__list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: disc;
+}
+
+.project-onboarding .error-banner__list li {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .project-onboarding .custom-select-menu {
   margin-top: 6px;
   border-radius: 10px;

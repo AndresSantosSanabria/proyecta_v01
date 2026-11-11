@@ -63,6 +63,7 @@ const SORT_OPTIONS = [
 
 const DEFAULT_FILTERS = {
   query: '',
+  director: '',
   dependencia: 'ALL',
   peti: 'ALL',
   estado: 'ALL',
@@ -72,6 +73,7 @@ const DEFAULT_FILTERS = {
 };
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
+const PORTFOLIO_STATE_COLORS = { EN_TIEMPO: '#10b981', NO_EN_TIEMPO: '#ef4444' };
 const CHART_COLORS_PASTEL = ['#60a5fa', '#34d399', '#fcd34d', '#f87171', '#a78bfa', '#67e8f9'];
 const COMPARISON_PAGE_SIZE = 3;
 
@@ -100,7 +102,16 @@ const formatNumber = (value) => {
 const average = (items, accessor) => {
   const values = items
     .map((item) => Number(accessor(item) ?? 0))
-    .filter((value) => Number.isFinite(value));
+    .filter(Number.isFinite);
+  if (!values.length) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
+const averageAvailable = (items, accessor) => {
+  const values = items
+    .map((item) => accessor(item))
+    .filter((value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)))
+    .map(Number);
   if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 };
@@ -128,16 +139,24 @@ const compareProjects = (items, sortBy, getFuragCoverage) => {
 };
 
 const isPeti = (project) => Boolean(project?.peti);
+const isPetiDefined = (project) => project?.petiDefinido !== false;
+const isSinDefinir = (project) => project?.petiDefinido === false;
 
-const matchesState = (projectState, filterState) => {
-  if (filterState === 'ALL') return true;
-  return normalizeText(projectState) === normalizeText(filterState);
+const portfolioStateKey = (projectState) => {
+  const state = normalizeText(projectState).replace(/[_-]+/g, ' ');
+  return state.includes('en tiempo') && !/\b(no|fuera|sin)\b.*\btiempo\b/.test(state)
+    ? 'EN_TIEMPO'
+    : 'NO_EN_TIEMPO';
 };
+
+const matchesState = (projectState, filterState) =>
+  filterState === 'ALL' || portfolioStateKey(projectState) === filterState;
 
 const matchesPeti = (project, filterPeti) => {
   if (filterPeti === 'ALL') return true;
-  if (filterPeti === 'PETI') return isPeti(project);
-  return !isPeti(project);
+  if (filterPeti === 'SIN_DEFINIR') return isSinDefinir(project);
+  if (!isPetiDefined(project)) return false;
+  return filterPeti === 'PETI' ? isPeti(project) : !isPeti(project);
 };
 
 const isInDateRange = (project, fechaInicio, fechaFin) => {
@@ -191,21 +210,21 @@ const DonutTooltipContent = ({ active, payload }) => {
     <div className="chart-tooltip">
       <strong className="chart-tooltip__title">{d?.name}</strong>
       <div className="chart-tooltip__row"><span>Proyectos</span><span>{d?.value}</span></div>
-      <div className="chart-tooltip__row"><span>Porcentaje</span><span>{formatPercent(d?.payload?.percent * 100)}</span></div>
+      <div className="chart-tooltip__row"><span>Porcentaje</span><span>{Number(d?.payload?.percentage ?? 0).toFixed(1)}%</span></div>
     </div>
   );
 };
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Custom Donut Label â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-  if (percent < 0.05) return null;
+const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }) => {
+  if (Number(payload?.percentage ?? 0) < 5) return null;
   const RADIAN = Math.PI / 180;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
   return (
     <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
-      {`${(percent * 100).toFixed(0)}%`}
+      {`${Number(payload?.percentage ?? 0).toFixed(1)}%`}
     </text>
   );
 };
@@ -410,12 +429,10 @@ const AnalyticsPage = () => {
     [projects]
   );
 
-  const statusOptions = useMemo(() =>
-    [...new Set(projects.map((p) => p?.estado?.trim()).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b, 'es'))
-      .map((v) => ({ value: v, label: v })),
-    [projects]
-  );
+  const statusOptions = [
+    { value: 'EN_TIEMPO', label: 'En tiempo' },
+    { value: 'NO_EN_TIEMPO', label: 'No están en tiempo' },
+  ];
 
   const furagLookup = useMemo(
     () => new Map(furagProjects.map((item) => [normalizeText(item?.proyectoId), item])),
@@ -433,19 +450,30 @@ const AnalyticsPage = () => {
     [furagLookup]
   );
 
-  const filteredProjects = useMemo(() => {
+  const filteredProjectsWithoutState = useMemo(() => {
     const query = normalizeText(filters.query);
     return projects.filter((project) => {
-      const haystack = [project?.proyectoId, project?.nombre, project?.dependencia, project?.estrategia, project?.estado, project?.peti ? 'PETI' : 'NO PETI']
+      const director = project?.director || project?.correoDirector || '';
+      const haystack = [project?.proyectoId, project?.nombre, project?.dependencia, director, project?.correoDirector, project?.estrategia, project?.estado, isSinDefinir(project) ? 'SIN DEFINIR' : project?.peti ? 'PETI' : 'NO PETI']
         .filter(Boolean).join(' ');
       if (query && !normalizeText(haystack).includes(query)) return false;
+      if (filters.director && !normalizeText(`${director} ${project?.correoDirector || ''}`).includes(normalizeText(filters.director))) return false;
       if (filters.dependencia !== 'ALL' && normalizeText(project?.dependencia) !== normalizeText(filters.dependencia)) return false;
       if (!matchesPeti(project, filters.peti)) return false;
-      if (!matchesState(project?.estado, filters.estado)) return false;
       if (!isInDateRange(project, filters.fechaInicio, filters.fechaFin)) return false;
       return true;
     });
-  }, [filters, projects]);
+  }, [filters.query, filters.director, filters.dependencia, filters.peti, filters.fechaInicio, filters.fechaFin, projects]);
+
+  const filteredProjects = useMemo(
+    () => filteredProjectsWithoutState.filter((project) => matchesState(project?.estado, filters.estado)),
+    [filteredProjectsWithoutState, filters.estado]
+  );
+
+  const quickStateFilterCounts = useMemo(() => ({
+    enTiempo: filteredProjectsWithoutState.filter((project) => portfolioStateKey(project?.estado) === 'EN_TIEMPO').length,
+    enAtraso: filteredProjectsWithoutState.filter((project) => portfolioStateKey(project?.estado) === 'NO_EN_TIEMPO').length,
+  }), [filteredProjectsWithoutState]);
 
   const filteredProjectsSorted = useMemo(() =>
     compareProjects(filteredProjects, filters.sortBy, getFuragCoverage),
@@ -467,16 +495,27 @@ const AnalyticsPage = () => {
 
   const summary = useMemo(() => {
     const total = filteredProjects.length;
-    const petiProjects = filteredProjects.filter(isPeti).length;
-    const noPetiProjects = total - petiProjects;
+    const petiProjects = filteredProjects.filter((p) => isPetiDefined(p) && isPeti(p)).length;
+    const sinDefinirProjects = filteredProjects.filter(isSinDefinir).length;
+    const noPetiProjects = total - petiProjects - sinDefinirProjects;
     const avancePromedio = average(filteredProjects, (p) => p?.avance);
     const eficaciaPromedio = average(filteredProjects, (p) => p?.eficacia);
     const eficienciaPromedio = average(filteredProjects, (p) => p?.eficiencia);
-    const furagPromedio = average(filteredProjects, (p) => getFuragCoverage(p));
-    const mitigacionPromedio = average(filteredProjects, (p) => p?.indiceMitigacion);
-    const enTiempo = filteredProjects.filter((p) => normalizeText(p?.estado).includes('tiempo')).length;
-    const enAtraso = filteredProjects.filter((p) => normalizeText(p?.estado).includes('atraso')).length;
-    const saludPortafolio = total > 0 ? (enTiempo / total) * 100 : 0;
+    const furagElegibles = filteredProjects.filter((p) => (
+      Number(p?.furagObligatorias ?? furagLookup.get(normalizeText(p?.proyectoId))?.respuestasObligatorias ?? 0) > 0
+    ));
+    const furagPromedio = averageAvailable(furagElegibles, (p) => getFuragCoverage(p));
+    const mitigacionRiesgos = filteredProjects.reduce((totals, project) => ({
+      total: totals.total + Number(project?.riesgosTotal ?? project?.riesgos?.total ?? 0),
+      tratados: totals.tratados + Number(project?.riesgosTratados ?? project?.riesgos?.tratados ?? 0),
+    }), { total: 0, tratados: 0 });
+    const mitigacionPromedio = mitigacionRiesgos.total > 0
+      ? (mitigacionRiesgos.tratados / mitigacionRiesgos.total) * 100
+      : averageAvailable(filteredProjects, (p) => p?.indiceMitigacion);
+    const enTiempo = filteredProjects.filter((p) => portfolioStateKey(p?.estado) === 'EN_TIEMPO').length;
+    const enAtraso = filteredProjects.length - enTiempo;
+    const proyectosConEstado = filteredProjects;
+    const saludPortafolio = proyectosConEstado.length > 0 ? (enTiempo / proyectosConEstado.length) * 100 : 0;
     const docsCargados = filteredProjects.filter((p) => Boolean(p?.documentosCargados)).length;
     const docsVerificados = filteredProjects.filter((p) => Boolean(p?.documentosVerificados)).length;
     const conViabilidad = filteredProjects.filter((p) => p?.viabilidadEstado === 'CARGADA' || p?.viabilidadEstado === 'APROBADA').length;
@@ -493,12 +532,15 @@ const AnalyticsPage = () => {
       ? ((conViabilidad + conCronograma + conActa + conPlanComunicaciones) / (total * 4)) * 100
       : 0;
     return {
-      total, petiProjects, noPetiProjects, avancePromedio, eficaciaPromedio, eficienciaPromedio,
-      furagPromedio, mitigacionPromedio, enTiempo, enAtraso, saludPortafolio,
+      total, petiProjects, noPetiProjects, sinDefinirProjects, avancePromedio, eficaciaPromedio, eficienciaPromedio,
+      petiPorcentaje: total > 0 ? (petiProjects / total) * 100 : 0,
+      furagPromedio, furagProyectosEvaluados: furagElegibles.length, mitigacionPromedio,
+      riesgosTotal: mitigacionRiesgos.total, riesgosTratados: mitigacionRiesgos.tratados,
+      enTiempo, enAtraso, proyectosConEstado: proyectosConEstado.length, saludPortafolio,
       docsCargados, docsVerificados, docsPendientes, conViabilidad, conCronograma, conActa,
       conPlanComunicaciones, cumplimientoDocumental, isMissingAnyDoc
     };
-  }, [filteredProjects, getFuragCoverage]);
+  }, [filteredProjects, furagLookup, getFuragCoverage]);
 
   /* â”€â”€â”€ Chart Data â”€â”€â”€ */
   const scatterData = useMemo(() =>
@@ -528,7 +570,7 @@ const AnalyticsPage = () => {
       .map((item) => ({
         name: item.dependencia.length > 18 ? item.dependencia.slice(0, 18) + '…' : item.dependencia,
         fullName: item.dependencia,
-        Avance: Math.round(item.avance / item.count),
+        Avance: item.avance / item.count,
         Eficacia: Math.round(item.eficacia / item.count),
         Eficiencia: Math.round(item.eficiencia / item.count),
         proyectos: item.count,
@@ -538,20 +580,31 @@ const AnalyticsPage = () => {
   }, [filteredProjects]);
 
   const donutData = useMemo(() => {
-    const groups = new Map();
+    const labels = {
+      EN_TIEMPO: 'En tiempo',
+      NO_EN_TIEMPO: 'No están en tiempo',
+    };
+    const groups = new Map([['EN_TIEMPO', 0], ['NO_EN_TIEMPO', 0]]);
     filteredProjects.forEach((p) => {
-      const estado = p?.estado?.trim() || 'Sin estado';
-      groups.set(estado, (groups.get(estado) ?? 0) + 1);
+      const stateKey = portfolioStateKey(p?.estado);
+      groups.set(stateKey, groups.get(stateKey) + 1);
     });
-    return [...groups.entries()]
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+    const total = filteredProjects.length;
+    if (!total) return [];
+    const distribution = [...groups.entries()]
+      .filter(([, value]) => value > 0)
+      .map(([key, value]) => ({ key, name: labels[key], value, percentage: Math.round((value / total) * 1000) / 10 }));
+    const tenthsRemaining = 1000 - distribution.reduce((sum, item) => sum + Math.round(item.percentage * 10), 0);
+    if (distribution.length && tenthsRemaining !== 0) {
+      distribution[0].percentage = Math.round((distribution[0].percentage + tenthsRemaining / 10) * 10) / 10;
+    }
+    return distribution.sort((a, b) => b.value - a.value);
   }, [filteredProjects]);
 
   const radarData = useMemo(() => {
     if (!filteredProjects.length) return [];
     const portAvg = {
-      Avance: Math.round(summary.avancePromedio),
+      Avance: summary.avancePromedio,
       Eficacia: Math.round(summary.eficaciaPromedio),
       Eficiencia: Math.round(summary.eficienciaPromedio),
       FURAG: Math.round(summary.furagPromedio),
@@ -569,22 +622,24 @@ const AnalyticsPage = () => {
   const activeFilterChips = useMemo(() => {
     const chips = [];
     if (filters.query) chips.push({ key: 'query', label: `Búsqueda: ${filters.query}` });
+    if (filters.director) chips.push({ key: 'director', label: `Director: ${filters.director}` });
     if (filters.dependencia !== 'ALL') chips.push({ key: 'dependencia', label: `Dependencia: ${filters.dependencia}` });
-    if (filters.peti !== 'ALL') chips.push({ key: 'peti', label: filters.peti === 'PETI' ? 'Solo PETI' : 'Solo NO PETI' });
-    if (filters.estado !== 'ALL') chips.push({ key: 'estado', label: `Estado: ${filters.estado}` });
+    if (filters.peti !== 'ALL') {
+      const petiLabels = { PETI: 'Solo PETI', NO_PETI: 'Solo NO PETI', SIN_DEFINIR: 'Sin definir' };
+      chips.push({ key: 'peti', label: petiLabels[filters.peti] || filters.peti });
+    }
+    if (filters.estado !== 'ALL') {
+      const stateLabels = { EN_TIEMPO: 'En tiempo', NO_EN_TIEMPO: 'No están en tiempo' };
+      chips.push({ key: 'estado', label: `Estado: ${stateLabels[filters.estado] || filters.estado}` });
+    }
     if (filters.fechaInicio) chips.push({ key: 'fechaInicio', label: `Desde: ${filters.fechaInicio}` });
     if (filters.fechaFin) chips.push({ key: 'fechaFin', label: `Hasta: ${filters.fechaFin}` });
     return chips;
   }, [filters]);
 
   const updateFilter = (field, value) => setFilters((cur) => ({ ...cur, [field]: value }));
+  const toggleStateFilter = (state) => updateFilter('estado', filters.estado === state ? 'ALL' : state);
   const resetFilters = () => setFilters(DEFAULT_FILTERS);
-
-  const visibleRiskText = useMemo(() => {
-    const total = Number(data?.riesgos?.total ?? 0);
-    const tratados = Number(data?.riesgos?.tratados ?? 0);
-    return `${formatNumber(tratados)} tratados de ${formatNumber(total)}`;
-  }, [data]);
 
   /* â”€â”€â”€ Recharts shared axis tick style â”€â”€â”€ */
   const axisStyle = { fontSize: 11, fill: 'var(--text-muted)' };
@@ -660,6 +715,11 @@ const AnalyticsPage = () => {
           </label>
 
           <label className="analytics-filter">
+            <span><User size={14} /> Director</span>
+            <input type="search" value={filters.director} onChange={(e) => updateFilter('director', e.target.value)} placeholder="Buscar director..." />
+          </label>
+
+          <label className="analytics-filter">
             <span><Sparkles size={14} /> Clasificación</span>
             <AutocompleteSelect
               value={filters.peti}
@@ -667,6 +727,7 @@ const AnalyticsPage = () => {
               options={[
                 { value: 'PETI', label: 'Solo PETI' },
                 { value: 'NO_PETI', label: 'Solo NO PETI' },
+                { value: 'SIN_DEFINIR', label: 'Sin definir' },
               ]}
               placeholder="Filtrar por PETI..."
               allLabel="PETI y NO PETI"
@@ -710,7 +771,7 @@ const AnalyticsPage = () => {
           <div className="analytics-filter analytics-filter--summary">
             <span><Sparkles size={14} /> Resumen</span>
             <strong>{formatNumber(summary.total)} proyectos</strong>
-            <small>{formatNumber(summary.petiProjects)} PETI · {formatNumber(summary.noPetiProjects)} NO PETI</small>
+            <small>{formatNumber(summary.petiProjects)} PETI · {formatNumber(summary.noPetiProjects)} NO PETI{summary.sinDefinirProjects > 0 ? ` · ${formatNumber(summary.sinDefinirProjects)} SIN DEFINIR` : ''}</small>
           </div>
         </div>
 
@@ -720,6 +781,7 @@ const AnalyticsPage = () => {
               <button key={chip.key} type="button" className="analytics-chip"
                 onClick={() => {
                   if (chip.key === 'query') updateFilter('query', '');
+                  if (chip.key === 'director') updateFilter('director', '');
                   if (chip.key === 'dependencia') updateFilter('dependencia', 'ALL');
                   if (chip.key === 'peti') updateFilter('peti', 'ALL');
                   if (chip.key === 'estado') updateFilter('estado', 'ALL');
@@ -735,49 +797,49 @@ const AnalyticsPage = () => {
 
       {/* â”€â”€ KPI Cards â”€â”€ */}
       <section className="analytics-kpis">
-        <article className="analytics-kpi-card analytics-kpi-card--accent" style={{ '--kpi-accent': 'var(--primary)' }}>
+        <article className={`analytics-kpi-card analytics-kpi-card--accent ${toneClass(summary.saludPortafolio)}`} style={{ '--kpi-color': summary.saludPortafolio >= 80 ? '#10b981' : summary.saludPortafolio >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><Target size={14} /> Proyectos</span>
           <strong>{formatNumber(summary.total)}</strong>
           <small>{formatNumber(summary.enTiempo)} en tiempo · {formatNumber(summary.enAtraso)} en atraso</small>
-          <div className="kpi-progress" style={{ '--kpi-val': `${summary.total > 0 ? (summary.enTiempo / summary.total * 100) : 0}%`, '--kpi-color': 'var(--primary)' }} />
+          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.saludPortafolio)}%`, '--kpi-color': summary.saludPortafolio >= 80 ? '#10b981' : summary.saludPortafolio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#06b6d4' }}>
+        <article className={`analytics-kpi-card ${toneClass(summary.petiPorcentaje)}`} style={{ '--kpi-color': summary.petiPorcentaje >= 80 ? '#10b981' : summary.petiPorcentaje >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><Sparkles size={14} /> PETI / No PETI</span>
           <strong>{formatNumber(summary.petiProjects)} <small className="kpi-slash">/ {formatNumber(summary.noPetiProjects)}</small></strong>
-          <small>Estratégicos vs operativos</small>
-          <div className="kpi-progress" style={{ '--kpi-val': `${summary.total > 0 ? (summary.petiProjects / summary.total * 100) : 0}%`, '--kpi-color': '#06b6d4' }} />
+          <small>Estratégicos vs operativos{summary.sinDefinirProjects > 0 ? ` · ${formatNumber(summary.sinDefinirProjects)} sin definir` : ''}</small>
+          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.petiPorcentaje)}%`, '--kpi-color': summary.petiPorcentaje >= 80 ? '#10b981' : summary.petiPorcentaje >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#3b82f6' }}>
+        <article className={`analytics-kpi-card ${toneClass(summary.avancePromedio)}`} style={{ '--kpi-color': summary.avancePromedio >= 80 ? '#10b981' : summary.avancePromedio >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><BarChart3 size={14} /> Avance promedio</span>
           <strong>{formatPercent(summary.avancePromedio)}</strong>
           <small>Progreso físico del portafolio</small>
-          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.avancePromedio)}%`, '--kpi-color': '#3b82f6' }} />
+          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.avancePromedio)}%`, '--kpi-color': summary.avancePromedio >= 80 ? '#10b981' : summary.avancePromedio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#10b981' }}>
+        <article className={`analytics-kpi-card ${toneClass(summary.eficaciaPromedio)}`} style={{ '--kpi-color': summary.eficaciaPromedio >= 80 ? '#10b981' : summary.eficaciaPromedio >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><Target size={14} /> Eficacia promedio</span>
           <strong className={toneClass(summary.eficaciaPromedio)}>{formatPercent(summary.eficaciaPromedio)}</strong>
           <small>Programado vs ejecutado</small>
-          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.eficaciaPromedio)}%`, '--kpi-color': '#10b981' }} />
+          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.eficaciaPromedio)}%`, '--kpi-color': summary.eficaciaPromedio >= 80 ? '#10b981' : summary.eficaciaPromedio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#f59e0b' }}>
+        <article className={`analytics-kpi-card ${toneClass(summary.eficienciaPromedio)}`} style={{ '--kpi-color': summary.eficienciaPromedio >= 80 ? '#10b981' : summary.eficienciaPromedio >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><Zap size={14} /> Eficiencia promedio</span>
           <strong className={toneClass(summary.eficienciaPromedio)}>{formatPercent(summary.eficienciaPromedio)}</strong>
           <small>Entregas a tiempo / total entregas</small>
-          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.eficienciaPromedio)}%`, '--kpi-color': '#f59e0b' }} />
+          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.eficienciaPromedio)}%`, '--kpi-color': summary.eficienciaPromedio >= 80 ? '#10b981' : summary.eficienciaPromedio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#8b5cf6' }}>
+        <article className={`analytics-kpi-card ${toneClass(summary.furagPromedio)}`} style={{ '--kpi-color': summary.furagPromedio >= 80 ? '#10b981' : summary.furagPromedio >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><TrendingUp size={14} /> Cobertura FURAG</span>
           <strong>{formatPercent(summary.furagPromedio)}</strong>
-          <small>{visibleRiskText}</small>
-          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.furagPromedio)}%`, '--kpi-color': '#8b5cf6' }} />
+          <small>{formatNumber(summary.furagProyectosEvaluados)} proyectos con preguntas obligatorias</small>
+          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.furagPromedio)}%`, '--kpi-color': summary.furagPromedio >= 80 ? '#10b981' : summary.furagPromedio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card" style={{ '--kpi-accent': '#ef4444' }}>
+        <article className={`analytics-kpi-card ${toneClass(summary.mitigacionPromedio)}`} style={{ '--kpi-color': summary.mitigacionPromedio >= 80 ? '#10b981' : summary.mitigacionPromedio >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><ShieldCheck size={14} /> Mitigación riesgos</span>
           <strong>{formatPercent(summary.mitigacionPromedio)}</strong>
-          <small>{formatNumber(data?.riesgos?.tratados)} tratados en total</small>
-          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.mitigacionPromedio)}%`, '--kpi-color': '#ef4444' }} />
+          <small>{formatNumber(summary.riesgosTratados)} tratados de {formatNumber(summary.riesgosTotal)} en el filtro</small>
+          <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.mitigacionPromedio)}%`, '--kpi-color': summary.mitigacionPromedio >= 80 ? '#10b981' : summary.mitigacionPromedio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
-        <article className="analytics-kpi-card analytics-kpi-card--health" style={{ '--kpi-accent': 'var(--success)' }}>
+        <article className={`analytics-kpi-card analytics-kpi-card--health ${toneClass(summary.saludPortafolio)}`} style={{ '--kpi-color': summary.saludPortafolio >= 80 ? '#10b981' : summary.saludPortafolio >= 50 ? '#f59e0b' : '#ef4444' }}>
           <span><Activity size={14} /> Salud portafolio</span>
           <strong className={toneClass(summary.saludPortafolio)}>{formatPercent(summary.saludPortafolio)}</strong>
           <small>{formatNumber(summary.enTiempo)} proyectos en tiempo</small>
@@ -1236,19 +1298,19 @@ const AnalyticsPage = () => {
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
                     <Pie data={donutData} cx="50%" cy="50%" innerRadius={70} outerRadius={115} paddingAngle={3} dataKey="value" labelLine={false} label={renderCustomLabel}>
-                      {donutData.map((_, i) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="none" />
+                      {donutData.map((entry) => (
+                        <Cell key={entry.key} fill={PORTFOLIO_STATE_COLORS[entry.key]} stroke="none" />
                       ))}
                     </Pie>
                     <Tooltip content={<DonutTooltipContent />} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="chart-donut-legend">
-                  {donutData.map((entry, i) => (
+                  {donutData.map((entry) => (
                     <div key={entry.name} className="chart-donut-legend__item">
-                      <span className="chart-donut-legend__dot" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span className="chart-donut-legend__dot" style={{ background: PORTFOLIO_STATE_COLORS[entry.key] }} />
                       <span className="chart-donut-legend__name">{entry.name}</span>
-                      <strong>{entry.value}</strong>
+                      <strong>{entry.value} · {entry.percentage.toFixed(1)}%</strong>
                     </div>
                   ))}
                 </div>
@@ -1305,7 +1367,7 @@ const AnalyticsPage = () => {
                     <PolarAngleAxis dataKey="metric" tick={{ ...axisStyle, fontSize: 12, fontWeight: 700 }} />
                     <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ ...axisStyle, fontSize: 9 }} tickCount={5} />
                     <Radar name="Portafolio" dataKey="Portafolio" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} strokeWidth={2} dot={{ r: 4, fill: '#3b82f6' }} />
-                    <Tooltip formatter={(v) => `${v}%`} />
+                    <Tooltip formatter={(v) => formatPercent(v)} />
                     <Legend />
                   </RadarChart>
                 </ResponsiveContainer>
@@ -1313,7 +1375,7 @@ const AnalyticsPage = () => {
                   {radarData.map((r) => (
                     <div key={r.metric} className="radar-kpi">
                       <span>{r.metric}</span>
-                      <strong className={toneClass(r.Portafolio)}>{r.Portafolio}%</strong>
+                      <strong className={toneClass(r.Portafolio)}>{formatPercent(r.Portafolio)}</strong>
                     </div>
                   ))}
                 </div>
@@ -1329,8 +1391,12 @@ const AnalyticsPage = () => {
               <p>Ranking de los top 10 proyectos con el filtro activo - Avance · Eficacia · Eficiencia.</p>
             </div>
             <div className="analytics-panel__meta">
-              <span><TrendingUp size={14} /> {formatNumber(summary.enTiempo)} en tiempo</span>
-              <span><TrendingDown size={14} /> {formatNumber(summary.enAtraso)} en atraso</span>
+              <button type="button" className={`analytics-quick-filter analytics-quick-filter--on-time${filters.estado === 'EN_TIEMPO' ? ' is-active' : ''}`} aria-pressed={filters.estado === 'EN_TIEMPO'} onClick={() => toggleStateFilter('EN_TIEMPO')} title="Filtrar proyectos en tiempo">
+                <TrendingUp size={14} /> {formatNumber(quickStateFilterCounts.enTiempo)} en tiempo
+              </button>
+              <button type="button" className={`analytics-quick-filter analytics-quick-filter--delayed${filters.estado === 'NO_EN_TIEMPO' ? ' is-active' : ''}`} aria-pressed={filters.estado === 'NO_EN_TIEMPO'} onClick={() => toggleStateFilter('NO_EN_TIEMPO')} title="Filtrar proyectos que no están en tiempo">
+                <TrendingDown size={14} /> {formatNumber(quickStateFilterCounts.enAtraso)} en atraso
+              </button>
             </div>
           </div>
           <div className="project-bars">
@@ -1349,7 +1415,7 @@ const AnalyticsPage = () => {
                           <strong>{project.nombre}</strong>
                           <span>{project.dependencia}</span>
                           <div className="project-bars__tags">
-                            <span className={`analytics-project-tag ${isPeti(project) ? 'analytics-project-tag--primary' : 'analytics-project-tag--soft'}`}>{isPeti(project) ? 'PETI' : 'NO PETI'}</span>
+                            <span className={`analytics-project-tag ${isSinDefinir(project) ? 'analytics-project-tag--warning' : isPeti(project) ? 'analytics-project-tag--primary' : 'analytics-project-tag--soft'}`}>{isSinDefinir(project) ? 'SIN DEFINIR' : isPeti(project) ? 'PETI' : 'NO PETI'}</span>
                             <span className={statusClass}>{project.estado ?? 'Sin estado'}</span>
                           </div>
                         </div>

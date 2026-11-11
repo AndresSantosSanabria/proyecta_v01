@@ -917,6 +917,7 @@ public class ProyectoServiceImpl implements ProyectoService {
                 p.getDependencia(),
                 resolveDirectorAsignado(p),
                 p.getPeti(),
+                p.esPetiDefinido(),
                 p.getAvanceTotal(),
                 p.getEstadoCodigo(),
                 p.getViabilidadEstado() != null ? p.getViabilidadEstado().name() : null,

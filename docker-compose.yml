@@ -59,7 +59,10 @@ services:
     container_name: proyecta-frontend
     restart: unless-stopped
     environment:
-      VITE_API_URL: ${VITE_API_URL:-}
+      # Upstream del backend dentro de la red bridge de compose (servicio "backend").
+      # Se inyecta en nginx.conf via envsubst (${BACKEND_URL}).
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8082}
+      VITE_API_URL: ${VITE_API_URL:-/api/v1}
       VITE_ENABLE_AUTH: ${VITE_ENABLE_AUTH:-true}
       VITE_KEYCLOAK_BASE_URL: ${VITE_KEYCLOAK_BASE_URL:-}
       VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-}

@@ -25,6 +25,11 @@ const reportService = {
     return unwrap(response);
   },
 
+  getPlanComunicacionesPortfolio: async () => {
+    const response = await apiClient.get('/reportes/plan-comunicaciones');
+    return unwrap(response);
+  },
+
   getFurag: async (projectId) => {
     const response = await apiClient.get(`/reportes/furag/${normalizeProjectId(projectId)}`);
     return unwrap(response);

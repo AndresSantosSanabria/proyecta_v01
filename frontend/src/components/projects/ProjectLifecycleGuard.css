@@ -385,6 +385,76 @@
   line-height: 1.4;
 }
 
+/* Missing required document (submit validation) state */
+.plg-doc-card--missing {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-color));
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--danger) 7%, transparent), transparent 45%),
+    linear-gradient(180deg, color-mix(in srgb, var(--danger-soft) 30%, var(--bg-surface)), color-mix(in srgb, var(--bg-panel) 72%, var(--bg-surface)));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--danger) 18%, transparent),
+    0 4px 14px color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.plg-doc-card--missing::before {
+  background: linear-gradient(180deg, var(--danger), color-mix(in srgb, var(--danger) 60%, var(--warning)));
+  opacity: 1;
+}
+
+.plg-doc-card--missing:hover {
+  border-color: color-mix(in srgb, var(--danger) 60%, var(--border-color));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--danger) 26%, transparent),
+    0 6px 18px color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.plg-doc-card--missing .plg-doc-card__placeholder-icon {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger-soft) 55%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
+.plg-doc-card--missing .plg-doc-card__placeholder-title {
+  color: var(--danger);
+}
+
+.plg-doc-card__missing-msg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 26%, transparent);
+}
+
+.plg-missing-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger-soft) 45%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+.plg-missing-banner strong {
+  display: block;
+  font-size: 12px;
+}
+
+.plg-missing-banner p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--danger) 80%, var(--text-main));
+}
+
 /* File selected state */
 .plg-doc-card__icon {
   display: grid;

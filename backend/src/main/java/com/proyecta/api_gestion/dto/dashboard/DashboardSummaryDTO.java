@@ -18,6 +18,10 @@ public class DashboardSummaryDTO {
     @Schema(description = "Cantidad de proyectos finalizados o cerrados", example = "7")
     private Long cerrados;
 
+    @JsonProperty("total_proyectos_no_cerrados")
+    @Schema(description = "Cantidad de proyectos excluyendo cerrados y con cierre forzoso", example = "18")
+    private Long totalProyectosNoCerrados;
+
     @JsonProperty("avance_promedio")
     @Schema(description = "Porcentaje de avance promedio de todos los proyectos", example = "65")
     private Integer avancePromedio;
@@ -51,6 +55,9 @@ public class DashboardSummaryDTO {
 
     public Long getCerrados() { return cerrados; }
     public void setCerrados(Long cerrados) { this.cerrados = cerrados; }
+
+    public Long getTotalProyectosNoCerrados() { return totalProyectosNoCerrados; }
+    public void setTotalProyectosNoCerrados(Long totalProyectosNoCerrados) { this.totalProyectosNoCerrados = totalProyectosNoCerrados; }
 
     public Integer getAvancePromedio() { return avancePromedio; }
     public void setAvancePromedio(Integer avancePromedio) { this.avancePromedio = avancePromedio; }

@@ -28,6 +28,8 @@ public interface ProyectoRepositoryPort {
 
     long countCerrados();
 
+    long countNoCerrados();
+
     BigDecimal getAvancePromedio();
 
     long countEntregablesAtrasados(LocalDate hoy);

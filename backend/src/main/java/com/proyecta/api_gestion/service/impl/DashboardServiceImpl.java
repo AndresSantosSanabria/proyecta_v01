@@ -63,6 +63,7 @@ public class DashboardServiceImpl implements DashboardService {
         resumen.setTotalProyectos(total);
         resumen.setActivos(activos);
         resumen.setCerrados(cerrados);
+        resumen.setTotalProyectosNoCerrados(proyectoRepositoryPort.countNoCerrados());
         resumen.setAvancePromedio(avancePromedio);
         resumen.setAvanceTendencia(tendencia);
         resumen.setEntregablesAtrasados(totalAtrasados);

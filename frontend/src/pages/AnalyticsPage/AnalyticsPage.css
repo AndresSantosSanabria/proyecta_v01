@@ -179,6 +179,21 @@
   animation: fadeInUp 0.4s ease both;
 }
 
+.analytics-kpi-card.analytics-tone--positive {
+  --kpi-accent: #10b981;
+  border-color: color-mix(in srgb, #10b981 38%, var(--border-color));
+}
+
+.analytics-kpi-card.analytics-tone--warning {
+  --kpi-accent: #f59e0b;
+  border-color: color-mix(in srgb, #f59e0b 38%, var(--border-color));
+}
+
+.analytics-kpi-card.analytics-tone--negative {
+  --kpi-accent: #ef4444;
+  border-color: color-mix(in srgb, #ef4444 38%, var(--border-color));
+}
+
 .analytics-kpi-card::before {
   content: '';
   position: absolute;
@@ -276,7 +291,7 @@
 
 .analytics-kpi-card--accent::before {
   opacity: 1;
-  background: linear-gradient(180deg, var(--primary), color-mix(in srgb, var(--primary) 60%, var(--primary)));
+  background: linear-gradient(180deg, var(--kpi-accent), color-mix(in srgb, var(--kpi-accent) 60%, white));
 }
 
 .analytics-kpi-card--health strong {
@@ -340,6 +355,43 @@
   color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.analytics-panel__meta .analytics-quick-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-main) 80%, transparent);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.analytics-panel__meta .analytics-quick-filter:hover,
+.analytics-panel__meta .analytics-quick-filter:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-color));
+  color: var(--text-main);
+  outline: none;
+}
+
+.analytics-panel__meta .analytics-quick-filter--on-time.is-active {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 12%, var(--bg-main));
+  color: var(--success);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.analytics-panel__meta .analytics-quick-filter--delayed.is-active {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-main));
+  color: var(--danger);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 /* ── Charts Grid (2-column) ── */
@@ -782,6 +834,12 @@
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 25%, var(--border-color));
   background: color-mix(in srgb, var(--danger) 10%, var(--bg-card));
+}
+
+.analytics-project-tag.analytics-project-tag--warning {
+  color: var(--warning, #f59e0b);
+  border-color: color-mix(in srgb, var(--warning, #f59e0b) 25%, var(--border-color));
+  background: color-mix(in srgb, var(--warning, #f59e0b) 10%, var(--bg-card));
 }
 
 /* ── Pagination ── */

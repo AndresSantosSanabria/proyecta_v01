@@ -332,6 +332,7 @@ public class ActaCierreDocxGenerator {
         }
 
         String safeText = text == null ? "" : text;
+        paragraph.setWordWrap(true);
         String[] lines = safeText.split("\n");
         for (int i = 0; i < lines.length; i++) {
             XWPFRun run = paragraph.createRun();

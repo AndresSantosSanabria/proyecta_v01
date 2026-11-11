@@ -55,7 +55,7 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
       try {
         const response = await dashboardService.getKPIs();
         if (response.success && response.data) {
-          setVisibleProjectCount(response.data.total_proyectos || 0);
+          setVisibleProjectCount(response.data.total_proyectos_no_cerrados ?? response.data.total_proyectos ?? 0);
         }
       } catch (error) {
         console.error('Error fetching visible projects count for sidebar:', error);
@@ -63,6 +63,10 @@ const Sidebar = ({ mobileOpen = false, onMobileClose }) => {
     };
 
     fetchVisibleProjectCount();
+
+    const handleRefresh = () => fetchVisibleProjectCount();
+    window.addEventListener('proyecta:proyectos:refresh', handleRefresh);
+    return () => window.removeEventListener('proyecta:proyectos:refresh', handleRefresh);
   }, [assignedProjects, canViewAllProjects]);
 
   const toggleSidebar = () => {

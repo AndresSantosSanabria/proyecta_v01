@@ -69,27 +69,17 @@ public final class ExcelSheetSupport {
 
     public static void clearTemplateRow(Row row, int fromColumnInclusive, int toColumnInclusive) {
         for (int col = fromColumnInclusive; col <= toColumnInclusive; col++) {
-            Cell cell = row.getCell(col);
-            if (cell == null) {
-                cell = row.createCell(col);
-            }
-            cell.setBlank();
+            ensureCell(row, col).setBlank();
         }
     }
 
     public static void setCellText(Row row, int columnIndex, String value) {
-        Cell cell = row.getCell(columnIndex);
-        if (cell == null) {
-            cell = row.createCell(columnIndex);
-        }
+        Cell cell = ensureCell(row, columnIndex);
         cell.setCellValue(value != null ? value : "");
     }
 
     public static void setCellNumber(Row row, int columnIndex, Number value) {
-        Cell cell = row.getCell(columnIndex);
-        if (cell == null) {
-            cell = row.createCell(columnIndex);
-        }
+        Cell cell = ensureCell(row, columnIndex);
         if (value == null) {
             cell.setBlank();
             return;
@@ -98,10 +88,7 @@ public final class ExcelSheetSupport {
     }
 
     public static void setCellPercent(Row row, int columnIndex, BigDecimal value) {
-        Cell cell = row.getCell(columnIndex);
-        if (cell == null) {
-            cell = row.createCell(columnIndex);
-        }
+        Cell cell = ensureCell(row, columnIndex);
         if (value == null) {
             cell.setBlank();
             return;
@@ -110,10 +97,7 @@ public final class ExcelSheetSupport {
     }
 
     public static void setCellDate(Row row, int columnIndex, LocalDateTime value) {
-        Cell cell = row.getCell(columnIndex);
-        if (cell == null) {
-            cell = row.createCell(columnIndex);
-        }
+        Cell cell = ensureCell(row, columnIndex);
         if (value == null) {
             cell.setBlank();
             return;
@@ -122,17 +106,24 @@ public final class ExcelSheetSupport {
     }
 
     public static void setCellBlank(Row row, int columnIndex) {
+        ensureCell(row, columnIndex).setBlank();
+    }
+
+    public static void setCellFormula(Row row, int columnIndex, String formula) {
+        ensureCell(row, columnIndex).setCellFormula(formula);
+    }
+
+    private static Cell ensureCell(Row row, int columnIndex) {
         Cell cell = row.getCell(columnIndex);
         if (cell == null) {
             cell = row.createCell(columnIndex);
         }
-        cell.setBlank();
-    }
-
-    public static void setCellFormula(Row row, int columnIndex, String formula) {
-        Cell cell = row.getCell(columnIndex);
-        if (cell == null) cell = row.createCell(columnIndex);
-        cell.setCellFormula(formula);
+        // POI no limpia el <is> de las celdas t="inlineStr" al sobrescribir el valor:
+        // sin esto, el texto de ejemplo de la plantilla persiste en el archivo generado.
+        if (cell instanceof org.apache.poi.xssf.usermodel.XSSFCell xssf && xssf.getCTCell().isSetIs()) {
+            xssf.getCTCell().unsetIs();
+        }
+        return cell;
     }
 
     public static void setCellHyperlink(Row row, int columnIndex, String label, String url) {

@@ -129,7 +129,7 @@ abstract class PdfReportCanvas {
             float colWidth = CONTENT_WIDTH * widths[i];
             List<String> wrapped = wrap(headers[i], fonts.bold(), sizes[i], colWidth - 8f);
             wrappedHeaders.add(wrapped);
-            maxHeight = Math.max(maxHeight, Math.max(minHeight, wrapped.size() * 10.5f + 8f));
+            maxHeight = Math.max(maxHeight, Math.max(minHeight, wrapped.size() * 12f + 12f));
         }
 
         float x = LEFT;
@@ -137,7 +137,7 @@ abstract class PdfReportCanvas {
             float colWidth = CONTENT_WIDTH * widths[i];
             drawFilledRect(x, topY - maxHeight, colWidth, maxHeight, Color.WHITE);
             drawRect(x, topY - maxHeight, colWidth, maxHeight, COLOR_BORDER, 0.6f);
-            drawCenteredWrapped(wrappedHeaders.get(i), fonts.bold(), sizes[i], x, topY - 10f, colWidth, 10.5f, COLOR_MUTED);
+            drawCenteredWrapped(wrappedHeaders.get(i), fonts.bold(), sizes[i], x, topY - 10f, colWidth, 12f, COLOR_MUTED);
             x += colWidth;
         }
         return maxHeight;
@@ -156,7 +156,7 @@ abstract class PdfReportCanvas {
                 drawVerticalLine(x, y, y - rowHeight, COLOR_BORDER, 0.6f);
             }
             List<String> wrapped = wrap(values[i], fonts.regular(), cellSizes[i], colWidth - 8f);
-            drawWrapped(wrapped, fonts.regular(), cellSizes[i], x + 4f, y - 11f, 10.8f, COLOR_TEXT);
+            drawWrapped(wrapped, fonts.regular(), cellSizes[i], x + 4f, y - 11f, 12.5f, COLOR_TEXT);
             x += colWidth;
         }
     }
@@ -167,7 +167,7 @@ abstract class PdfReportCanvas {
             List<String> wrapped = wrap(values[i], fonts.regular(), cellSizes[i], CONTENT_WIDTH * widths[i] - 8f);
             maxLines = Math.max(maxLines, wrapped.size());
         }
-        return Math.max(22f, maxLines * 11f + 6f);
+        return Math.max(22f, maxLines * 12.5f + 10f);
     }
 
     protected void drawPlainRow(String[] values, float[] widths, float[] cellSizes, float rowHeight) throws IOException {
@@ -344,8 +344,8 @@ abstract class PdfReportCanvas {
     }
 
     protected void renderEncabezadoTablaCinco(String ultimaColumna, float tamanoUltimaColumna, float altura) throws IOException {
-        drawTableHeader(cursorY, headersCon(ultimaColumna), widthsCinco(), headerSizesCon(tamanoUltimaColumna), altura);
-        cursorY -= TABLE_HEADER_HEIGHT;
+        float headerHeight = drawTableHeader(cursorY, headersCon(ultimaColumna), widthsCinco(), headerSizesCon(tamanoUltimaColumna), altura);
+        cursorY -= headerHeight;
     }
 
     protected void renderReporteCinco(List<FilaProyecto> rows, String mensajeVacio,

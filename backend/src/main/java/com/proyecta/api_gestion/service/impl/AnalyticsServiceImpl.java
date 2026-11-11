@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 public class AnalyticsServiceImpl implements AnalyticsService {
 
     private static final String NO_PETI = "NO_PETI";
+    private static final String SIN_DEFINIR = "SIN_DEFINIR";
 
     private final ProyectoRepositoryPort proyectoRepositoryPort;
     private final EntregableRepositoryPort entregableRepositoryPort;
@@ -64,6 +65,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     public AnalyticsPortfolioDTO getPortfolioAnalytics() {
         LocalDate corte = LocalDate.now(ZoneId.systemDefault());
         List<ProjectMetricsHolder> proyectos = proyectoRepositoryPort.findAll().stream()
+                .filter(proyecto -> !proyecto.requiereCompletitudDirector()
+                        || proyecto.getCompletadoPorDirectorAt() != null)
                 .map(proyecto -> construirProyectoMetrics(proyecto, corte))
                 .sorted(Comparator.comparing(
                                 (ProjectMetricsHolder holder) -> normalizeGroup(holder.metrics().dependencia()),
@@ -108,8 +111,22 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         BigDecimal eficaciaPromedio = average(eficacias);
         BigDecimal eficienciaPromedio = average(eficiencias);
 
-        long entregablesAtrasados = entregableRepositoryPort.countAtrasadosTotal(corte);
-        long proximosAVencer = entregableRepositoryPort.countProximosActivos(corte, corte.plusDays(7));
+        long entregablesAtrasados = proyectos.stream()
+                .mapToLong(holder -> holder.metrics().atrasados())
+                .sum();
+        long proximosAVencer = proyectos.stream()
+                .map(ProjectMetricsHolder::proyecto)
+                .flatMap(proyecto -> proyecto.getFases().stream())
+                .filter(Objects::nonNull)
+                .flatMap(fase -> fase.getHitos().stream())
+                .filter(Objects::nonNull)
+                .flatMap(hito -> hito.getEntregables().stream())
+                .filter(Objects::nonNull)
+                .filter(entregable -> !entregable.esConforme())
+                .map(com.proyecta.api_gestion.domain.model.Entregable::getFechaLimite)
+                .filter(Objects::nonNull)
+                .filter(fecha -> !fecha.isBefore(corte) && !fecha.isAfter(corte.plusDays(7)))
+                .count();
 
         return new AnalyticsPortfolioDTO.ExecutiveMetrics(
                 total,
@@ -163,7 +180,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private List<AnalyticsPortfolioDTO.EstrategiaMetrics> construirEstrategias(List<ProjectMetricsHolder> proyectos) {
         return proyectos.stream()
                 .collect(Collectors.groupingBy(
-                        holder -> Boolean.TRUE.equals(holder.proyecto().getPeti()) ? "PETI" : NO_PETI,
+                        holder -> estrategiaLabel(holder.proyecto()),
                         LinkedHashMap::new,
                         Collectors.toList()))
                 .entrySet()
@@ -180,7 +197,11 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                     }
                     return new AnalyticsPortfolioDTO.EstrategiaMetrics(
                             entry.getKey(),
-                            "PETI".equals(entry.getKey()) ? "PETI" : "NO PETI",
+                            switch (entry.getKey()) {
+                                case "PETI" -> "PETI";
+                                case SIN_DEFINIR -> "Sin definir";
+                                default -> "NO PETI";
+                            },
                             items.size(),
                             average(avances),
                             average(eficacias),
@@ -284,6 +305,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 proyecto.getDependencia(),
                 estrategiaLabel(proyecto),
                 proyecto.getPeti(),
+                proyecto.esPetiDefinido(),
                 avance.avanceTotal(),
                 tieneActividad ? avance.eficacia() : null,
                 tieneActividad ? avance.eficiencia() : null,
@@ -299,7 +321,10 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 Boolean.TRUE.equals(proyecto.getTienePlanComunicaciones())
                         || (proyecto.getPlanComunicacionesPdf() != null && !proyecto.getPlanComunicacionesPdf().isBlank()),
                 proyecto.getRegistradoInicialPor(),
-                proyecto.getCorreoDirector()
+                proyecto.getCorreoDirector(),
+                proyecto.getDirectorUsuario() != null && proyecto.getDirectorUsuario().getNombre() != null
+                        ? proyecto.getDirectorUsuario().getNombre()
+                        : proyecto.getDirector()
         );
         return new ProjectMetricsHolder(proyecto, metrics, riesgosTratados, riesgosPendientes, tieneActividad);
     }
@@ -354,6 +379,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private String estrategiaLabel(Proyecto proyecto) {
         if (proyecto == null) {
             return NO_PETI;
+        }
+        if (!proyecto.esPetiDefinido()) {
+            return SIN_DEFINIR;
         }
         return Boolean.TRUE.equals(proyecto.getPeti()) ? "PETI" : NO_PETI;
     }

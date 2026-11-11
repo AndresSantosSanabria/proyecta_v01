@@ -6,6 +6,7 @@ import com.proyecta.api_gestion.domain.model.*;
 import com.proyecta.api_gestion.domain.model.advance.AdvanceReportUpload;
 import com.proyecta.api_gestion.domain.model.advance.AdvanceReportVersion;
 import com.proyecta.api_gestion.domain.model.enums.DocumentoProyectoVersionEstado;
+import com.proyecta.api_gestion.domain.model.enums.DocumentoVersionEstado;
 import com.proyecta.api_gestion.application.port.out.persistence.*;
 import com.proyecta.api_gestion.application.port.out.persistence.advance.AdvanceReportUploadRepositoryPort;
 import com.proyecta.api_gestion.application.port.out.persistence.advance.AdvanceReportVersionRepositoryPort;
@@ -53,6 +54,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
     private final ProyectoRepositoryPort proyectoRepositoryPort;
     private final EntregableRepositoryPort entregableRepositoryPort;
+    private final DocumentoVersionRepositoryPort documentoVersionRepositoryPort;
     private final DocumentoProyectoVersionRepositoryPort documentoProyectoVersionRepositoryPort;
     private final RiesgoRepositoryPort riesgoRepositoryPort;
     private final EntregableCambioFechaRepositoryPort entregableCambioFechaRepositoryPort;
@@ -64,6 +66,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
     public ProjectEvidenceServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
                                       EntregableRepositoryPort entregableRepositoryPort,
+                                      DocumentoVersionRepositoryPort documentoVersionRepositoryPort,
                                       DocumentoProyectoVersionRepositoryPort documentoProyectoVersionRepositoryPort,
                                       RiesgoRepositoryPort riesgoRepositoryPort,
                                       EntregableCambioFechaRepositoryPort entregableCambioFechaRepositoryPort,
@@ -74,6 +77,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                                       AdvanceReportVersionRepositoryPort advanceReportVersionRepositoryPort) {
         this.proyectoRepositoryPort = proyectoRepositoryPort;
         this.entregableRepositoryPort = entregableRepositoryPort;
+        this.documentoVersionRepositoryPort = documentoVersionRepositoryPort;
         this.documentoProyectoVersionRepositoryPort = documentoProyectoVersionRepositoryPort;
         this.riesgoRepositoryPort = riesgoRepositoryPort;
         this.entregableCambioFechaRepositoryPort = entregableCambioFechaRepositoryPort;
@@ -328,6 +332,11 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
 
             String estadoCodigo = mapEstado(entregable);
             String estadoDisplay = mapEstadoDisplay(estadoCodigo);
+            String usuarioCarga = documentoVersionRepositoryPort
+                    .findFirstByEntregableIdAndEstadoOrderByNumeroVersionDesc(
+                            entregable.getId(), DocumentoVersionEstado.ACTUAL)
+                    .map(DocumentoVersion::getSubidoPor)
+                    .orElse(null);
 
             evidencias.add(new ProjectEvidenceDTO(
                     "ev-" + entregable.getId(),
@@ -340,7 +349,7 @@ public class ProjectEvidenceServiceImpl implements ProjectEvidenceService {
                     entregable.getFechaLimite(),
                     estadoDisplay,
                     estadoCodigo,
-                    null,
+                    usuarioCarga,
                     "Evidencia de avance",
                     null,
                     faseNombre,

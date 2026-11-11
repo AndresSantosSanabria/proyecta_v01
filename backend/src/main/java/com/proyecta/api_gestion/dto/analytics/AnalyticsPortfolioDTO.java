@@ -13,7 +13,7 @@ import java.util.List;
       "estrategias": [{"codigo": "TECNOLOGIAS_INFORMACION", "nombre": "Tecnologías de la Información", "proyectos": 9, "avancePromedio": 68.90, "eficaciaPromedio": 92.00, "eficienciaPromedio": 89.40}],
       "furag": {"proyectosConFurag": 20, "proyectosCumplidos": 17, "respuestasCompletas": 85, "respuestasObligatorias": 100, "coberturaPromedio": 85.00, "proyectos": [{"proyectoId": "PROY-CUN-2026-008", "nombre": "Modernización de Redes LAN", "cobertura": 100.00, "respuestasCompletas": 15, "respuestasObligatorias": 15}]},
       "riesgos": {"total": 48, "tratados": 31, "pendientes": 17, "indiceMitigacion": 64.58, "porNivel": [{"nivel": "ALTO", "color": "#D00000", "cantidad": 6}]},
-      "proyectos": [{"proyectoId": "PROY-CUN-2026-008", "nombre": "Modernización de Redes LAN", "dependencia": "Secretaría de Transformación Digital", "estrategia": "TECNOLOGIAS_INFORMACION", "peti": true, "avance": 55.00, "eficacia": 91.67, "eficiencia": 83.33, "estado": "ACTIVO", "atrasados": 2, "furagCobertura": 100.00, "indiceMitigacion": 75.00, "documentosCargados": true, "documentosVerificados": true, "viabilidadEstado": "APROBADO", "tieneCronograma": true, "tieneActaConstitucion": true, "tienePlanComunicaciones": true, "registradoInicialPor": "ana.gestion@proyecta.gov.co", "correoDirector": "maria.gomez@proyecta.gov.co"}]
+      "proyectos": [{"proyectoId": "PROY-CUN-2026-008", "nombre": "Modernización de Redes LAN", "dependencia": "Secretaría de Transformación Digital", "estrategia": "TECNOLOGIAS_INFORMACION", "peti": true, "petiDefinido": true, "avance": 55.00, "eficacia": 91.67, "eficiencia": 83.33, "estado": "ACTIVO", "atrasados": 2, "furagCobertura": 100.00, "indiceMitigacion": 75.00, "documentosCargados": true, "documentosVerificados": true, "viabilidadEstado": "APROBADO", "tieneCronograma": true, "tieneActaConstitucion": true, "tienePlanComunicaciones": true, "registradoInicialPor": "ana.gestion@proyecta.gov.co", "correoDirector": "maria.gomez@proyecta.gov.co", "director": "María Gómez"}]
     }
     """)
 public record AnalyticsPortfolioDTO(
@@ -94,6 +94,7 @@ public record AnalyticsPortfolioDTO(
             String dependencia,
             String estrategia,
             Boolean peti,
+            Boolean petiDefinido,
             BigDecimal avance,
             BigDecimal eficacia,
             BigDecimal eficiencia,
@@ -108,6 +109,7 @@ public record AnalyticsPortfolioDTO(
             Boolean tieneActaConstitucion,
             Boolean tienePlanComunicaciones,
             String registradoInicialPor,
-            String correoDirector
+            String correoDirector,
+            String director
     ) {}
 }

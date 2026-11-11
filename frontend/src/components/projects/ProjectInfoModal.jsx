@@ -35,7 +35,7 @@ const Section = ({ title, icon: Icon, children, defaultOpen = true, onEdit, edit
 const Field = ({ label, value }) => (
   <div className="pim-field">
     <span className="pim-field-label">{label}</span>
-    <strong className="pim-field-value">{value || 'â€”'}</strong>
+    <strong className="pim-field-value">{value || '—'}</strong>
   </div>
 );
 

@@ -51,6 +51,9 @@ public interface ProyectoRepository extends JpaRepository<Proyecto, String>, Jpa
     @Query("SELECT COUNT(p) FROM Proyecto p WHERE p.estadoConfig.codigo IN ('CERRADO', 'CERRADO_FORZOSO')")
     long countCerrados();
 
+    @Query("SELECT COUNT(p) FROM Proyecto p WHERE p.estadoConfig.codigo NOT IN ('CERRADO', 'CERRADO_FORZOSO')")
+    long countNoCerrados();
+
     @Query("SELECT AVG(p.avanceTotal) FROM Proyecto p WHERE p.estadoConfig.codigo != 'PENDIENTE_COMPLETAR'")
     BigDecimal getAvancePromedio();
 

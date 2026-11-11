@@ -144,25 +144,27 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
           </div>
           <div className="form-grid array-card-body">
             <div className="form-group">
-              <label className="form-label">Nombre</label>
+              <label className="form-label">Nombre *</label>
               <SpellCheckerInput
-                className="form-input"
+                className={`form-input ${errors[`integrante_${i}_nombre`] ? 'input-error' : ''}`}
                 value={miembro.nombre || ''}
                 onChange={(e) => handleIntegranteChange(i, 'nombre', e.target.value)}
                 placeholder="Nombre del integrante"
               />
+              {errors[`integrante_${i}_nombre`] && <span className="error-text">{errors[`integrante_${i}_nombre`]}</span>}
             </div>
             <div className="form-group">
-              <label className="form-label">Cargo</label>
+              <label className="form-label">Cargo *</label>
               <SpellCheckerInput
-                className="form-input"
+                className={`form-input ${errors[`integrante_${i}_cargo`] ? 'input-error' : ''}`}
                 value={miembro.cargo || ''}
                 onChange={(e) => handleIntegranteChange(i, 'cargo', e.target.value)}
                 placeholder="Cargo en la entidad"
               />
+              {errors[`integrante_${i}_cargo`] && <span className="error-text">{errors[`integrante_${i}_cargo`]}</span>}
             </div>
             <div className="form-group">
-              <label className="form-label">Rol en el Proyecto</label>
+              <label className="form-label">Rol en el Proyecto *</label>
               <AutocompleteSelect
                 value={miembro.rol || ''}
                 onChange={(val) => handleIntegranteChange(i, 'rol', val)}
@@ -170,7 +172,9 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
                 placeholder="Seleccione un rol"
                 allLabel=""
                 allValue=""
+                className={errors[`integrante_${i}_rol`] ? 'input-error' : ''}
               />
+              {errors[`integrante_${i}_rol`] && <span className="error-text">{errors[`integrante_${i}_rol`]}</span>}
             </div>
             <div className="form-group">
               <label className="form-label">Dependencia</label>
@@ -182,9 +186,9 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Teléfono</label>
+              <label className="form-label">Teléfono *</label>
               <input
-                className="form-input"
+                className={`form-input ${errors[`integrante_${i}_telefono`] ? 'input-error' : ''}`}
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={miembro.telefono || ''}
@@ -194,17 +198,19 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
                 }}
                 placeholder="Solo números"
               />
+              {errors[`integrante_${i}_telefono`] && <span className="error-text">{errors[`integrante_${i}_telefono`]}</span>}
             </div>
             <div className="form-group">
-              <label className="form-label">Correo electrónico</label>
+              <label className="form-label">Correo electrónico *</label>
               <input
-                className="form-input"
+                className={`form-input ${errors[`integrante_${i}_correo`] ? 'input-error' : ''}`}
                 type="email"
                 pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
                 value={miembro.correo || ''}
                 onChange={(e) => handleIntegranteChange(i, 'correo', e.target.value)}
                 placeholder="correo@ejemplo.com"
               />
+              {errors[`integrante_${i}_correo`] && <span className="error-text">{errors[`integrante_${i}_correo`]}</span>}
             </div>
           </div>
         </div>
@@ -226,42 +232,46 @@ const Paso2PatrocinadorEquipo = ({ data, onChange, errors }) => {
           </div>
           <div className="form-grid array-card-body">
             <div className="form-group">
-              <label className="form-label">Rol</label>
+              <label className="form-label">Rol *</label>
               <SpellCheckerInput
-                className="form-input"
+                className={`form-input ${errors[`stakeholder_${i}_rol`] ? 'input-error' : ''}`}
                 value={stakeholder.rol || ''}
                 onChange={(e) => handleStakeholderChange(i, 'rol', e.target.value)}
                 placeholder="Ej: Gestores de cuentas de cobro"
               />
+              {errors[`stakeholder_${i}_rol`] && <span className="error-text">{errors[`stakeholder_${i}_rol`]}</span>}
             </div>
             <div className="form-group">
-              <label className="form-label">Descripcion</label>
+              <label className="form-label">Descripcion *</label>
               <SpellCheckerInput
-                className="form-input"
+                className={`form-input ${errors[`stakeholder_${i}_descripcion`] ? 'input-error' : ''}`}
                 value={stakeholder.descripcion || ''}
                 onChange={(e) => handleStakeholderChange(i, 'descripcion', e.target.value)}
                 placeholder="Descripcion del grupo de interes"
               />
+              {errors[`stakeholder_${i}_descripcion`] && <span className="error-text">{errors[`stakeholder_${i}_descripcion`]}</span>}
             </div>
             <div className="form-group">
-              <label className="form-label">Interes / Expectativas</label>
+              <label className="form-label">Interes / Expectativas *</label>
               <SpellCheckerTextarea
-                className="form-input form-textarea"
+                className={`form-input form-textarea ${errors[`stakeholder_${i}_interes`] ? 'input-error' : ''}`}
                 value={stakeholder.interes || ''}
                 onChange={(e) => handleStakeholderChange(i, 'interes', e.target.value)}
                 placeholder="Que espera obtener del proyecto"
                 rows={3}
               />
+              {errors[`stakeholder_${i}_interes`] && <span className="error-text">{errors[`stakeholder_${i}_interes`]}</span>}
             </div>
             <div className="form-group">
-              <label className="form-label">Impacto en el Proyecto</label>
+              <label className="form-label">Impacto en el Proyecto *</label>
               <SpellCheckerTextarea
-                className="form-input form-textarea"
+                className={`form-input form-textarea ${errors[`stakeholder_${i}_impacto`] ? 'input-error' : ''}`}
                 value={stakeholder.impacto || ''}
                 onChange={(e) => handleStakeholderChange(i, 'impacto', e.target.value)}
                 placeholder="Como impacta en el proyecto"
                 rows={3}
               />
+              {errors[`stakeholder_${i}_impacto`] && <span className="error-text">{errors[`stakeholder_${i}_impacto`]}</span>}
             </div>
           </div>
         </div>

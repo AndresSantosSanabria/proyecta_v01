@@ -45,6 +45,11 @@ public interface IReporteController {
     @GetMapping("/proyectos-con-retrasos")
     ResponseEntity<ApiResponse<List<ProyectoReporteResumenDTO>>> getProyectosConRetrasos();
 
+    @Operation(summary = "Obtener proyectos para KPI de plan de comunicaciones")
+    @StandardApiResponses
+    @GetMapping("/plan-comunicaciones")
+    ResponseEntity<ApiResponse<List<PlanComunicacionesProyectoDTO>>> getPortafolioPlanComunicaciones();
+
     @Operation(summary = "Obtener reporte FURAG", description = "Preguntas y respuestas FURAG asociadas al proyecto.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reporte FURAG obtenido")
     @StandardApiResponses

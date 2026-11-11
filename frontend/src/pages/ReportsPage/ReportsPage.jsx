@@ -60,7 +60,7 @@ const REPORT_BEHAVIORS = {
     kind: 'plan',
     filename: () => 'reporte-plan-comunicaciones.pdf',
     download: (detailMode) => reportService.downloadPlanComunicacionesPdf(detailMode),
-    fetchData: async () => ({}),
+    fetchData: async () => reportService.getPlanComunicacionesPortfolio(),
   },
   FURAG: {
     title: 'Reporte 5 - Preguntas FURAG',
@@ -457,13 +457,18 @@ const ReportsPage = () => {
     }
 
     if (selectedBehavior.kind === 'plan') {
-      const noPetiProjects = projects.filter((project) => !project?.peti);
-      const withPlan = noPetiProjects.filter((project) => project?.planComunicacionesPdf).length;
+      const planProjects = Array.isArray(reportData) ? reportData : [];
+      const sinDefinir = planProjects.filter((project) => project?.petiDefinido === false).length;
+      const noPetiProjects = planProjects.filter((project) => project?.petiDefinido !== false && !project?.peti);
+      const withPlan = noPetiProjects.filter((project) => (
+        project?.tienePlanComunicaciones === true
+        || Boolean(project?.planComunicacionesPdf)
+      )).length;
       return [
         { label: 'Proyectos No PETI', value: noPetiProjects.length, tone: 'primary' },
         { label: 'Con plan', value: withPlan, tone: 'success' },
         { label: 'Sin plan', value: Math.max(noPetiProjects.length - withPlan, 0), tone: 'warning' },
-        { label: 'Filtro', value: 'Proyectos No PETI', tone: 'neutral' },
+        { label: 'Sin definir', value: sinDefinir, tone: sinDefinir > 0 ? 'warning' : 'neutral' },
       ];
     }
 
@@ -781,7 +786,7 @@ const ReportsPage = () => {
                     </div>
                   </article>
                 ) : (
-                  <article key={card.label} className={`reports-page__metric-card tone-${card.tone}`}>
+                  <article key={card.label} className={`reports-page__metric-card tone-${card.tone}${typeof card.value === 'string' && card.value.length > 18 ? ' reports-page__metric-card--long-value' : ''}`}>
                     <span>{card.label}</span>
                     <strong>{card.value}</strong>
                   </article>
