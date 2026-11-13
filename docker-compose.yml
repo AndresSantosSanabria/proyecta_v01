@@ -25,6 +25,9 @@ services:
     image: proyecta-backend:latest
     container_name: proyecta-backend
     restart: unless-stopped
+    # Root dentro del contenedor (rootless: equivale al usuario del host) para que
+    # pueda escribir en el bind mount Documentos/ sin problemas de permisos.
+    user: "0:0"
     environment:
       SERVER_PORT: 8082
       DB_HOST: db
@@ -41,6 +44,10 @@ services:
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-}
       KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI:-}
       PUBLIC_EVIDENCE_HMAC_SECRET: ${PUBLIC_EVIDENCE_HMAC_SECRET:-dev-secret-change-me}
+    volumes:
+      # Evidencias y documentos subidos: persisten en el host (sobreviven a --force-recreate).
+      # :Z es obligatorio con SELinux en modo Enforcing.
+      - ./Documentos:/app/uploads:Z
     ports:
       - "8082:8082"
     depends_on:
