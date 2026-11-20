@@ -721,12 +721,20 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
 
   const handleHierarchyFileChange = (fIndex, hIndex, eIndex, file) => {
     const key = `${fIndex}-${hIndex}-${eIndex}`;
-    setHierarchyModal((current) => ({
-      ...current,
-      pendingFiles: { ...current.pendingFiles, [key]: file },
-      errors: {},
-      error: '',
-    }));
+    setHierarchyModal((current) => {
+      const pendingFiles = { ...current.pendingFiles };
+      if (!file) {
+        delete pendingFiles[key];
+      } else {
+        pendingFiles[key] = file;
+      }
+      return {
+        ...current,
+        pendingFiles,
+        errors: {},
+        error: '',
+      };
+    });
   };
 
   const buildFasePayload = (fase, includeChildren = false) => {

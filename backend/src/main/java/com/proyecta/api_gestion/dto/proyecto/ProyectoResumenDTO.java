@@ -30,6 +30,10 @@ import java.util.List;
       "totalHitos": 12,
       "entregablesConformes": 19,
       "totalEntregables": 20,
+      "eficacia": 91.67,
+      "eficiencia": 83.33,
+      "programadosAlCorte": 12,
+      "entregadosAlCorte": 11,
       "puede_cerrar": true,
       "entregables": ["Documento de alcance aprobado", "Plan de pruebas"],
       "cierre_solicitado": false,
@@ -62,5 +66,9 @@ public record ProyectoResumenDTO(
     @JsonProperty("cierre_solicitado") boolean cierreSolicitado,
     @JsonProperty("cierre_estado") String cierreEstado,
     @JsonProperty("cierre_observaciones") String cierreObservaciones,
-    @JsonProperty("cierre_borrador_json") String cierreBorradorJson
+    @JsonProperty("cierre_borrador_json") String cierreBorradorJson,
+    BigDecimal eficacia,
+    BigDecimal eficiencia,
+    long programadosAlCorte,
+    long entregadosAlCorte
 ) {}

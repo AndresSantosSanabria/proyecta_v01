@@ -418,10 +418,18 @@ const ProjectOnboardingWizard = ({
 
   const handleEntregableFileChange = (fIndex, hIndex, eIndex, file) => {
     const key = `${fIndex}-${hIndex}-${eIndex}`;
-    setEntregableFiles((prev) => ({
-      ...prev,
-      [key]: file,
-    }));
+    setEntregableFiles((prev) => {
+      if (!file) {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return {
+        ...prev,
+        [key]: file,
+      };
+    });
   };
 
   const isRetroactiveDate = (fechaLimite) => {

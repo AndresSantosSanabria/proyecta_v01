@@ -307,8 +307,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 proyecto.getPeti(),
                 proyecto.esPetiDefinido(),
                 avance.avanceTotal(),
-                tieneActividad ? avance.eficacia() : null,
-                tieneActividad ? avance.eficiencia() : null,
+                tieneActividad ? toPercent(avance.eficacia()) : null,
+                tieneActividad ? toPercent(avance.eficiencia()) : null,
                 avance.estado(),
                 avance.entregablesAtrasados(),
                 furagCoverage(proyecto.getId()),
@@ -374,6 +374,14 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return BigDecimal.valueOf(numerador)
                 .multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(denominador), 4, RoundingMode.HALF_UP);
+    }
+
+    /** Convierte la relacion 0..1 de eficacia/eficiencia del avance a porcentaje 0..100 (escala documentada del portafolio). */
+    private BigDecimal toPercent(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        return value.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
     }
 
     private String estrategiaLabel(Proyecto proyecto) {

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { AlertTriangle, CheckCircle, FileText, Flag, Layers, Package, Upload } from 'lucide-react';
+import { AlertTriangle, CheckCircle, FileText, Flag, Layers, Package, Upload, X } from 'lucide-react';
 import RetroactiveFileUploadModal from '../../../common/RetroactiveFileUploadModal/RetroactiveFileUploadModal';
 import SpellCheckerInput from '../../../common/SpellCheckerInput';
 import HierarchySidebar from '../../../common/HierarchySidebar';
+import './Paso3FasesHitosEntregables.css';
 
 const sumPonderacion = (items) => items.reduce((s, i) => s + (Number.parseFloat(i.ponderacion) || 0), 0);
 const hasPersistentId = (item) => Boolean(item?.id || item?.faseId || item?.hitoId || item?.entregableId);
@@ -80,6 +81,7 @@ const Paso3FasesHitosEntregables = ({
 }) => {
   const fases = normalizeHierarchyNames(data.fases || []);
   const [uploadModal, setUploadModal] = useState({ open: false, fIndex: -1, hIndex: -1, eIndex: -1 });
+  const [deleteFileModal, setDeleteFileModal] = useState({ open: false, fIndex: -1, hIndex: -1, eIndex: -1 });
 
   const handleOpenUploadModal = (fIndex, hIndex, eIndex) => {
     setUploadModal({ open: true, fIndex, hIndex, eIndex });
@@ -94,6 +96,21 @@ const Paso3FasesHitosEntregables = ({
       onFileChange(uploadModal.fIndex, uploadModal.hIndex, uploadModal.eIndex, file);
     }
     handleCloseUploadModal();
+  };
+
+  const handleOpenDeleteFileModal = (fIndex, hIndex, eIndex) => {
+    setDeleteFileModal({ open: true, fIndex, hIndex, eIndex });
+  };
+
+  const handleCloseDeleteFileModal = () => {
+    setDeleteFileModal({ open: false, fIndex: -1, hIndex: -1, eIndex: -1 });
+  };
+
+  const handleConfirmDeleteFile = () => {
+    if (onFileChange) {
+      onFileChange(deleteFileModal.fIndex, deleteFileModal.hIndex, deleteFileModal.eIndex, null);
+    }
+    handleCloseDeleteFileModal();
   };
 
   const getPendingFileName = (fIndex, hIndex, eIndex) => {
@@ -444,6 +461,15 @@ const Paso3FasesHitosEntregables = ({
                                   >
                                     Cambiar
                                   </button>
+                                  <button
+                                    type="button"
+                                    className="retroactive-delete-btn"
+                                    title="Eliminar archivo cargado"
+                                    aria-label={`Eliminar archivo cargado del entregable ${fIndex + 1}.${hIndex + 1}.${eIndex + 1}`}
+                                    onClick={() => handleOpenDeleteFileModal(fIndex, hIndex, eIndex)}
+                                  >
+                                    <X size={13} />
+                                  </button>
                                 </div>
                               ) : (
                                 <button
@@ -522,6 +548,54 @@ const Paso3FasesHitosEntregables = ({
         onConfirm={handleConfirmUpload}
         onClose={handleCloseUploadModal}
       />
+
+      {deleteFileModal.open && (
+        <div
+          className="retroactive-delete-overlay"
+          role="presentation"
+          onClick={(e) => { if (e.target === e.currentTarget) handleCloseDeleteFileModal(); }}
+        >
+          <div
+            className="retroactive-delete-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="retroactive-delete-title"
+            aria-describedby="retroactive-delete-desc"
+          >
+            <div className="retroactive-delete-header">
+              <span className="retroactive-delete-icon">
+                <AlertTriangle size={22} />
+              </span>
+              <div>
+                <h3 id="retroactive-delete-title">Eliminar archivo cargado</h3>
+                <p className="retroactive-delete-subtitle">
+                  {(() => {
+                    const ent = (fases[deleteFileModal.fIndex]?.hitos || [])[deleteFileModal.hIndex]?.entregables?.[deleteFileModal.eIndex];
+                    return ent ? `Entregable ${ent.nombre || ''} (${deleteFileModal.fIndex + 1}.${deleteFileModal.hIndex + 1}.${deleteFileModal.eIndex + 1})` : 'Entregable';
+                  })()}
+                </p>
+              </div>
+            </div>
+            <div className="retroactive-delete-body">
+              <p id="retroactive-delete-desc">
+                El archivo <strong>{getPendingFileName(deleteFileModal.fIndex, deleteFileModal.hIndex, deleteFileModal.eIndex)}</strong> sera eliminado.
+              </p>
+              <p className="retroactive-delete-warning">
+                Esta accion no se puede deshacer. ¿Esta seguro de que desea eliminarlo?
+              </p>
+            </div>
+            <div className="retroactive-delete-actions">
+              <button type="button" className="retroactive-cancel-btn" onClick={handleCloseDeleteFileModal}>
+                Cancelar
+              </button>
+              <button type="button" className="retroactive-delete-confirm-btn" onClick={handleConfirmDeleteFile}>
+                <X size={15} />
+                Eliminar archivo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

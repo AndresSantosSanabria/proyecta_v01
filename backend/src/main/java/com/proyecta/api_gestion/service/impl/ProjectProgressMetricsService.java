@@ -81,7 +81,8 @@ public class ProjectProgressMetricsService {
         long entregablesEntregadosAlCorte = contarEntregablesEntregadosAlCorte(proyecto, corte);
         long entregablesEntregadosATiempo = contarEntregablesEntregadosATiempo(proyecto, corte);
         BigDecimal eficaciaCorte = clampRatio(calcularRatio(entregablesEntregadosAlCorte, entregablesProgramadosAlCorte));
-        BigDecimal eficienciaCorte = clampRatio(calcularRatio(entregablesEntregadosATiempo, entregablesProgramadosAlCorte));
+        // Referencia Excel (INDICADORES AL CORTE): eficiencia = entregados a tiempo / entregados al corte.
+        BigDecimal eficienciaCorte = clampRatio(calcularRatio(entregablesEntregadosATiempo, entregablesEntregadosAlCorte));
         long entregablesConformes = contarEntregablesConformes(proyecto, corte);
         long entregablesTotal = contarEntregablesTotales(proyecto);
         long entregablesAtrasados = contarEntregablesAtrasados(proyecto, corte);

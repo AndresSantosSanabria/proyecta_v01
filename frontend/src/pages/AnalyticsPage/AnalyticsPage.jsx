@@ -35,12 +35,9 @@ import {
   Radar,
   RadarChart,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
-  ZAxis,
   Pie,
   PieChart,
 } from 'recharts';
@@ -74,7 +71,6 @@ const DEFAULT_FILTERS = {
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
 const PORTFOLIO_STATE_COLORS = { EN_TIEMPO: '#10b981', NO_EN_TIEMPO: '#ef4444' };
-const CHART_COLORS_PASTEL = ['#60a5fa', '#34d399', '#fcd34d', '#f87171', '#a78bfa', '#67e8f9'];
 const COMPARISON_PAGE_SIZE = 3;
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -91,7 +87,8 @@ const normalizeText = (value) =>
     .toLowerCase()
     .trim();
 
-const formatPercent = (value) => `${clampPercent(value).toFixed(1)}%`;
+const formatPercent = (value) =>
+  `${clampPercent(value).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 const formatNumber = (value) => {
   const numeric = Number(value ?? 0);
@@ -122,6 +119,32 @@ const toneClass = (value) => {
   if (numeric >= 50) return 'analytics-tone analytics-tone--warning';
   return 'analytics-tone analytics-tone--negative';
 };
+
+/* Cuadrante de desempeño según eficacia (logro del plan) y eficiencia (entregas a tiempo). */
+const QUADRANTS = {
+  IDEAL: { label: 'Cuadrante ideal', tone: 'success' },
+  EFICACIA_ALTA: { label: 'Eficacia alta / eficiencia baja', tone: 'warning' },
+  EFICIENCIA_ALTA: { label: 'Eficiencia alta / eficacia baja', tone: 'warning' },
+  MEDIO: { label: 'Rendimiento intermedio', tone: 'neutral' },
+  BAJO: { label: 'Bajo rendimiento', tone: 'danger' },
+};
+
+const classifyQuadrant = (project) => {
+  const eficacia = clampPercent(project?.eficacia);
+  const eficiencia = clampPercent(project?.eficiencia);
+  if (eficacia >= 80 && eficiencia >= 80) return QUADRANTS.IDEAL;
+  if (eficacia >= 80) return QUADRANTS.EFICACIA_ALTA;
+  if (eficiencia >= 80) return QUADRANTS.EFICIENCIA_ALTA;
+  if (eficacia < 50 && eficiencia < 50) return QUADRANTS.BAJO;
+  return QUADRANTS.MEDIO;
+};
+
+/* Métricas mostradas en la tabla de desempeño, en orden fijo. */
+const PERF_METRICS = [
+  { key: 'Eficiencia', label: 'Eficiencia', color: '#f59e0b' },
+  { key: 'Eficacia', label: 'Eficacia', color: '#10b981' },
+  { key: 'Avance', label: 'Avance', color: '#3b82f6' },
+];
 
 const compareProjects = (items, sortBy, getFuragCoverage) => {
   return [...items].sort((a, b) => {
@@ -174,20 +197,6 @@ const isInDateRange = (project, fechaInicio, fechaFin) => {
 };
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Custom Tooltip Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-const ScatterTooltipContent = ({ active, payload }) => {
-  if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload;
-  return (
-    <div className="chart-tooltip">
-      <strong className="chart-tooltip__title">{d?.nombre ?? 'Proyecto'}</strong>
-      <div className="chart-tooltip__row"><span>Eficiencia</span><span>{formatPercent(d?.x)}</span></div>
-      <div className="chart-tooltip__row"><span>Eficacia</span><span>{formatPercent(d?.y)}</span></div>
-      <div className="chart-tooltip__row"><span>Avance</span><span>{formatPercent(d?.z)}</span></div>
-      {d?.dependencia && <div className="chart-tooltip__row"><span>Dependencia</span><span>{d.dependencia}</span></div>}
-    </div>
-  );
-};
-
 const BarTooltipContent = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -210,7 +219,7 @@ const DonutTooltipContent = ({ active, payload }) => {
     <div className="chart-tooltip">
       <strong className="chart-tooltip__title">{d?.name}</strong>
       <div className="chart-tooltip__row"><span>Proyectos</span><span>{d?.value}</span></div>
-      <div className="chart-tooltip__row"><span>Porcentaje</span><span>{Number(d?.payload?.percentage ?? 0).toFixed(1)}%</span></div>
+      <div className="chart-tooltip__row"><span>Porcentaje</span><span>{formatPercent(d?.payload?.percentage)}</span></div>
     </div>
   );
 };
@@ -224,7 +233,7 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
   return (
     <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
-      {`${Number(payload?.percentage ?? 0).toFixed(1)}%`}
+      {formatPercent(payload?.percentage)}
     </text>
   );
 };
@@ -343,6 +352,9 @@ const AnalyticsPage = () => {
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [comparisonPage, setComparisonPage] = useState(1);
+  // Marca que el usuario usó el selector "Ordenar por": al activarse,
+  // la sección "Comparativa entre proyectos" pasa a ser la primera gráfica.
+  const [sortApplied, setSortApplied] = useState(false);
   const [docFilter, setDocFilter] = useState('all');
   const [docGestor, setDocGestor] = useState('all');
   const [docPage, setDocPage] = useState(1);
@@ -543,17 +555,18 @@ const AnalyticsPage = () => {
   }, [filteredProjects, furagLookup, getFuragCoverage]);
 
   /* â”€â”€â”€ Chart Data â”€â”€â”€ */
-  const scatterData = useMemo(() =>
-    filteredProjects.map((p) => ({
-      x: clampPercent(p?.eficiencia),
-      y: clampPercent(p?.eficacia),
-      z: clampPercent(p?.avance),
-      nombre: p?.nombre ?? p?.proyectoId,
-      dependencia: p?.dependencia,
-      estado: p?.estado,
-    })),
-    [filteredProjects]
-  );
+  const performanceRows = useMemo(() => filteredProjects.map((project) => {
+    const fullName = project?.nombre ?? project?.proyectoId ?? 'Proyecto';
+    return {
+      id: project?.proyectoId ?? fullName,
+      fullName,
+      dependencia: project?.dependencia ?? '',
+      Eficiencia: clampPercent(project?.eficiencia),
+      Eficacia: clampPercent(project?.eficacia),
+      Avance: clampPercent(project?.avance),
+      cuadrante: classifyQuadrant(project),
+    };
+  }), [filteredProjects]);
 
   const barByDependencyData = useMemo(() => {
     const grouped = new Map();
@@ -571,8 +584,8 @@ const AnalyticsPage = () => {
         name: item.dependencia.length > 18 ? item.dependencia.slice(0, 18) + '…' : item.dependencia,
         fullName: item.dependencia,
         Avance: item.avance / item.count,
-        Eficacia: Math.round(item.eficacia / item.count),
-        Eficiencia: Math.round(item.eficiencia / item.count),
+        Eficacia: item.eficacia / item.count,
+        Eficiencia: item.eficiencia / item.count,
         proyectos: item.count,
       }))
       .sort((a, b) => b.Avance - a.Avance)
@@ -605,10 +618,10 @@ const AnalyticsPage = () => {
     if (!filteredProjects.length) return [];
     const portAvg = {
       Avance: summary.avancePromedio,
-      Eficacia: Math.round(summary.eficaciaPromedio),
-      Eficiencia: Math.round(summary.eficienciaPromedio),
-      FURAG: Math.round(summary.furagPromedio),
-      Mitigacion: Math.round(summary.mitigacionPromedio),
+      Eficacia: summary.eficaciaPromedio,
+      Eficiencia: summary.eficienciaPromedio,
+      FURAG: summary.furagPromedio,
+      Mitigacion: summary.mitigacionPromedio,
     };
     return [
       { metric: 'Avance', Portafolio: portAvg.Avance },
@@ -639,10 +652,88 @@ const AnalyticsPage = () => {
 
   const updateFilter = (field, value) => setFilters((cur) => ({ ...cur, [field]: value }));
   const toggleStateFilter = (state) => updateFilter('estado', filters.estado === state ? 'ALL' : state);
-  const resetFilters = () => setFilters(DEFAULT_FILTERS);
+  const resetFilters = () => {
+    setFilters(DEFAULT_FILTERS);
+    setSortApplied(false);
+  };
 
   /* â”€â”€â”€ Recharts shared axis tick style â”€â”€â”€ */
   const axisStyle = { fontSize: 11, fill: 'var(--text-muted)' };
+
+  /* — Comparativa entre proyectos (reubicable) —
+     Cuando el usuario usa el selector "Ordenar por" (sortApplied), esta sección
+     se renderiza antes de las demás gráficas; en caso contrario conserva su
+     posición original al final del tablero. */
+  const comparisonSection = (
+    <section className="analytics-panel">
+      <div className="analytics-panel__header">
+        <div>
+          <h2>Comparativa entre proyectos</h2>
+          <p>Ranking de los top 10 proyectos con el filtro activo - Avance · Eficacia · Eficiencia.</p>
+        </div>
+        <div className="analytics-panel__meta">
+          <button type="button" className={`analytics-quick-filter analytics-quick-filter--on-time${filters.estado === 'EN_TIEMPO' ? ' is-active' : ''}`} aria-pressed={filters.estado === 'EN_TIEMPO'} onClick={() => toggleStateFilter('EN_TIEMPO')} title="Filtrar proyectos en tiempo">
+            <TrendingUp size={14} /> {formatNumber(quickStateFilterCounts.enTiempo)} en tiempo
+          </button>
+          <button type="button" className={`analytics-quick-filter analytics-quick-filter--delayed${filters.estado === 'NO_EN_TIEMPO' ? ' is-active' : ''}`} aria-pressed={filters.estado === 'NO_EN_TIEMPO'} onClick={() => toggleStateFilter('NO_EN_TIEMPO')} title="Filtrar proyectos que no están en tiempo">
+            <TrendingDown size={14} /> {formatNumber(quickStateFilterCounts.enAtraso)} en atraso
+          </button>
+        </div>
+      </div>
+      <div className="project-bars">
+        {comparisonProjects.length === 0 ? (
+          <div className="analytics-empty">No hay proyectos para el filtro activo.</div>
+        ) : (
+          <>
+            <div className="project-bars__list">
+              {comparisonProjectsPage.map((project, index) => {
+                const isDelayed = normalizeText(project?.estado).includes('atras');
+                const statusClass = isDelayed ? 'analytics-project-tag analytics-project-tag--danger' : 'analytics-project-tag analytics-project-tag--success';
+                return (
+                  <div key={project.proyectoId} className="project-bars__row">
+                    <div className="project-bars__icon"><Building2 size={18} /></div>
+                    <div className="project-bars__meta">
+                      <strong>{project.nombre}</strong>
+                      <span>{project.dependencia}</span>
+                      <div className="project-bars__tags">
+                        <span className={`analytics-project-tag ${isSinDefinir(project) ? 'analytics-project-tag--warning' : isPeti(project) ? 'analytics-project-tag--primary' : 'analytics-project-tag--soft'}`}>{isSinDefinir(project) ? 'SIN DEFINIR' : isPeti(project) ? 'PETI' : 'NO PETI'}</span>
+                        <span className={statusClass}>{project.estado ?? 'Sin estado'}</span>
+                      </div>
+                    </div>
+                    <div className="project-bars__metric">
+                      <div className="project-bars__metric-head"><span>Avance</span><strong>{formatPercent(project.avance)}</strong></div>
+                      <div className="project-bars__track"><span style={{ width: `${clampPercent(project.avance)}%`, background: CHART_COLORS[index % CHART_COLORS.length] }} /></div>
+                    </div>
+                    <div className="project-bars__metric">
+                      <div className="project-bars__metric-head"><span>Eficacia</span><strong className={toneClass(project.eficacia)}>{formatPercent(project.eficacia)}</strong></div>
+                      <div className="project-bars__track project-bars__track--secondary"><span style={{ width: `${clampPercent(project.eficacia)}%`, background: 'linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 55%, var(--primary)))' }} /></div>
+                    </div>
+                    <div className="project-bars__metric">
+                      <div className="project-bars__metric-head"><span>Eficiencia</span><strong className={toneClass(project.eficiencia)}>{formatPercent(project.eficiencia)}</strong></div>
+                      <div className="project-bars__track project-bars__track--tertiary"><span style={{ width: `${clampPercent(project.eficiencia)}%`, background: 'linear-gradient(90deg, var(--warning), color-mix(in srgb, var(--warning) 55%, var(--primary)))' }} /></div>
+                    </div>
+                    <button type="button" className="project-bars__chevron" aria-label={`Ver ${project.nombre}`}>
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="analytics-pagination">
+              <span className="analytics-pagination__summary">Mostrando {Math.min((comparisonPageSafe - 1) * COMPARISON_PAGE_SIZE + 1, comparisonProjects.length)} a {Math.min(comparisonPageSafe * COMPARISON_PAGE_SIZE, comparisonProjects.length)} de {comparisonProjects.length} proyectos</span>
+              <div className="analytics-pagination__controls">
+                <button type="button" className="analytics-pagination__button" onClick={() => setComparisonPage((current) => Math.max(1, current - 1))} disabled={comparisonPageSafe <= 1}>‹</button>
+                {Array.from({ length: comparisonTotalPages }, (_, index) => index + 1).map((page) => (
+                  <button key={page} type="button" className={`analytics-pagination__button ${page === comparisonPageSafe ? 'is-active' : ''}`} onClick={() => setComparisonPage(page)}>{page}</button>
+                ))}
+                <button type="button" className="analytics-pagination__button" onClick={() => setComparisonPage((current) => Math.min(comparisonTotalPages, current + 1))} disabled={comparisonPageSafe >= comparisonTotalPages}>›</button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
 
   if (loading && !data) {
     return <SkeletonLoader />;
@@ -761,7 +852,11 @@ const AnalyticsPage = () => {
             <span><SlidersHorizontal size={14} /> Ordenar por</span>
             <AutocompleteSelect
               value={filters.sortBy}
-              onChange={(val) => updateFilter('sortBy', val)}
+              onChange={(val) => {
+                updateFilter('sortBy', val);
+                // Al usar el ordenamiento, "Comparativa entre proyectos" pasa a la primera posición.
+                setSortApplied(true);
+              }}
               options={SORT_OPTIONS}
               placeholder="Seleccionar orden..."
               sortAlphabetically={false}
@@ -846,6 +941,9 @@ const AnalyticsPage = () => {
           <div className="kpi-progress" style={{ '--kpi-val': `${clampPercent(summary.saludPortafolio)}%`, '--kpi-color': summary.saludPortafolio >= 80 ? '#10b981' : summary.saludPortafolio >= 50 ? '#f59e0b' : '#ef4444' }} />
         </article>
       </section>
+
+      {/* Cuando se usa el selector "Ordenar por", la comparativa pasa a ser la primera gráfica */}
+      {sortApplied ? comparisonSection : null}
 
       {/* — Document Metrics — */}
       <section className="analytics-panel">
@@ -1246,40 +1344,54 @@ const AnalyticsPage = () => {
 
       <>
         <div className="analytics-charts-grid">
-          <section className="analytics-panel analytics-panel--chart">
+          <section className="analytics-panel analytics-panel--chart analytics-panel--wide">
             <div className="analytics-panel__header">
               <div>
-                <h2>Dispersión Eficiencia vs Eficacia</h2>
-                <p>Cada punto es un proyecto - tamaño representa el avance físico.</p>
+                <h2>Desempeño por proyecto</h2>
+                <p>Eficiencia, eficacia y avance físico de cada proyecto. Semáforo: óptimo ≥ 80%, en riesgo ≥ 50%, crítico &lt; 50%.</p>
               </div>
               <div className="analytics-panel__meta">
-                <span><Zap size={14} /> {formatNumber(scatterData.length)} proyectos</span>
+                <span><Zap size={14} /> {formatNumber(performanceRows.length)} proyectos</span>
               </div>
             </div>
-            {scatterData.length === 0 ? (
+            {performanceRows.length === 0 ? (
               <div className="analytics-empty">No hay datos disponibles para los filtros actuales.</div>
             ) : (
-              <div className="chart-container">
-                <ResponsiveContainer width="100%" height={320}>
-                  <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                    <XAxis dataKey="x" name="Eficiencia" unit="%" type="number" domain={[0, 100]} tick={axisStyle} label={{ value: 'Eficiencia (%)', position: 'insideBottom', offset: -12, style: axisStyle }} />
-                    <YAxis dataKey="y" name="Eficacia" unit="%" type="number" domain={[0, 100]} tick={axisStyle} label={{ value: 'Eficacia (%)', angle: -90, position: 'insideLeft', offset: 8, style: axisStyle }} />
-                    <ZAxis dataKey="z" range={[60, 400]} name="Avance" />
-                    <Tooltip content={<ScatterTooltipContent />} cursor={{ strokeDasharray: '4 4' }} />
-                    <Scatter data={scatterData} fill="#3b82f6" fillOpacity={0.75}>
-                      {scatterData.map((_, i) => (
-                        <Cell key={i} fill={CHART_COLORS_PASTEL[i % CHART_COLORS_PASTEL.length]} fillOpacity={0.8} />
-                      ))}
-                    </Scatter>
-                  </ScatterChart>
-                </ResponsiveContainer>
-                <div className="chart-quadrant-legend">
-                  <span className="chart-quadrant-legend__item chart-quadrant-legend__item--tl">Eficacia Alta / Eficiencia Baja</span>
-                  <span className="chart-quadrant-legend__item chart-quadrant-legend__item--tr">Cuadrante Ideal</span>
-                  <span className="chart-quadrant-legend__item chart-quadrant-legend__item--bl">Bajo rendimiento</span>
-                  <span className="chart-quadrant-legend__item chart-quadrant-legend__item--br">Eficacia Baja / Eficiencia Alta</span>
+              <div className="perf-table">
+                <div className="perf-table__head">
+                  <span className="perf-table__col--name">Proyecto</span>
+                  {PERF_METRICS.map((metric) => (
+                    <span key={metric.key} className="perf-table__col">
+                      <i className="perf-table__dot" style={{ background: metric.color }} />
+                      {metric.label}
+                    </span>
+                  ))}
                 </div>
+                {performanceRows.map((row) => (
+                  <div className="perf-row" key={row.id}>
+                    <div className="perf-row__name">
+                      <strong title={row.fullName}>{row.fullName}</strong>
+                      {row.dependencia && <small>{row.dependencia}</small>}
+                      <span className={`perf-chip perf-chip--${row.cuadrante.tone}`}>{row.cuadrante.label}</span>
+                    </div>
+                    {PERF_METRICS.map((metric) => {
+                      const value = clampPercent(row[metric.key]);
+                      return (
+                        <div key={metric.key} className="perf-metric">
+                          <div className="perf-metric__top">
+                            <span className="perf-metric__value">{formatPercent(value)}</span>
+                            <span className={`perf-metric__tag perf-metric__tag--${value >= 80 ? 'success' : value >= 50 ? 'warning' : 'danger'}`}>
+                              {value >= 80 ? 'Óptimo' : value >= 50 ? 'En riesgo' : 'Crítico'}
+                            </span>
+                          </div>
+                          <div className="perf-metric__track">
+                            <span className="perf-metric__fill" style={{ width: `${value}%`, background: metric.color }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             )}
           </section>
@@ -1310,16 +1422,14 @@ const AnalyticsPage = () => {
                     <div key={entry.name} className="chart-donut-legend__item">
                       <span className="chart-donut-legend__dot" style={{ background: PORTFOLIO_STATE_COLORS[entry.key] }} />
                       <span className="chart-donut-legend__name">{entry.name}</span>
-                      <strong>{entry.value} · {entry.percentage.toFixed(1)}%</strong>
+                      <strong>{entry.value} · {formatPercent(entry.percentage)}</strong>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </section>
-        </div>
 
-        <div className="analytics-charts-grid">
           <section className="analytics-panel analytics-panel--chart">
             <div className="analytics-panel__header">
               <div>
@@ -1349,8 +1459,10 @@ const AnalyticsPage = () => {
               </div>
             )}
           </section>
+        </div>
 
-          <section className="analytics-panel analytics-panel--chart">
+        <div className="analytics-charts-grid">
+          <section className="analytics-panel analytics-panel--chart analytics-panel--wide">
             <div className="analytics-panel__header">
               <div>
                 <h2>Radiografía del Portafolio</h2>
@@ -1384,74 +1496,7 @@ const AnalyticsPage = () => {
           </section>
         </div>
 
-        <section className="analytics-panel">
-          <div className="analytics-panel__header">
-            <div>
-              <h2>Comparativa entre proyectos</h2>
-              <p>Ranking de los top 10 proyectos con el filtro activo - Avance · Eficacia · Eficiencia.</p>
-            </div>
-            <div className="analytics-panel__meta">
-              <button type="button" className={`analytics-quick-filter analytics-quick-filter--on-time${filters.estado === 'EN_TIEMPO' ? ' is-active' : ''}`} aria-pressed={filters.estado === 'EN_TIEMPO'} onClick={() => toggleStateFilter('EN_TIEMPO')} title="Filtrar proyectos en tiempo">
-                <TrendingUp size={14} /> {formatNumber(quickStateFilterCounts.enTiempo)} en tiempo
-              </button>
-              <button type="button" className={`analytics-quick-filter analytics-quick-filter--delayed${filters.estado === 'NO_EN_TIEMPO' ? ' is-active' : ''}`} aria-pressed={filters.estado === 'NO_EN_TIEMPO'} onClick={() => toggleStateFilter('NO_EN_TIEMPO')} title="Filtrar proyectos que no están en tiempo">
-                <TrendingDown size={14} /> {formatNumber(quickStateFilterCounts.enAtraso)} en atraso
-              </button>
-            </div>
-          </div>
-          <div className="project-bars">
-            {comparisonProjects.length === 0 ? (
-              <div className="analytics-empty">No hay proyectos para el filtro activo.</div>
-            ) : (
-              <>
-                <div className="project-bars__list">
-                  {comparisonProjectsPage.map((project, index) => {
-                    const isDelayed = normalizeText(project?.estado).includes('atras');
-                    const statusClass = isDelayed ? 'analytics-project-tag analytics-project-tag--danger' : 'analytics-project-tag analytics-project-tag--success';
-                    return (
-                      <div key={project.proyectoId} className="project-bars__row">
-                        <div className="project-bars__icon"><Building2 size={18} /></div>
-                        <div className="project-bars__meta">
-                          <strong>{project.nombre}</strong>
-                          <span>{project.dependencia}</span>
-                          <div className="project-bars__tags">
-                            <span className={`analytics-project-tag ${isSinDefinir(project) ? 'analytics-project-tag--warning' : isPeti(project) ? 'analytics-project-tag--primary' : 'analytics-project-tag--soft'}`}>{isSinDefinir(project) ? 'SIN DEFINIR' : isPeti(project) ? 'PETI' : 'NO PETI'}</span>
-                            <span className={statusClass}>{project.estado ?? 'Sin estado'}</span>
-                          </div>
-                        </div>
-                        <div className="project-bars__metric">
-                          <div className="project-bars__metric-head"><span>Avance</span><strong>{formatPercent(project.avance)}</strong></div>
-                          <div className="project-bars__track"><span style={{ width: `${clampPercent(project.avance)}%`, background: CHART_COLORS[index % CHART_COLORS.length] }} /></div>
-                        </div>
-                        <div className="project-bars__metric">
-                          <div className="project-bars__metric-head"><span>Eficacia</span><strong className={toneClass(project.eficacia)}>{formatPercent(project.eficacia)}</strong></div>
-                          <div className="project-bars__track project-bars__track--secondary"><span style={{ width: `${clampPercent(project.eficacia)}%`, background: 'linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 55%, var(--primary)))' }} /></div>
-                        </div>
-                        <div className="project-bars__metric">
-                          <div className="project-bars__metric-head"><span>Eficiencia</span><strong className={toneClass(project.eficiencia)}>{formatPercent(project.eficiencia)}</strong></div>
-                          <div className="project-bars__track project-bars__track--tertiary"><span style={{ width: `${clampPercent(project.eficiencia)}%`, background: 'linear-gradient(90deg, var(--warning), color-mix(in srgb, var(--warning) 55%, var(--primary)))' }} /></div>
-                        </div>
-                        <button type="button" className="project-bars__chevron" aria-label={`Ver ${project.nombre}`}>
-                          <ChevronRight size={18} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="analytics-pagination">
-                  <span className="analytics-pagination__summary">Mostrando {Math.min((comparisonPageSafe - 1) * COMPARISON_PAGE_SIZE + 1, comparisonProjects.length)} a {Math.min(comparisonPageSafe * COMPARISON_PAGE_SIZE, comparisonProjects.length)} de {comparisonProjects.length} proyectos</span>
-                  <div className="analytics-pagination__controls">
-                    <button type="button" className="analytics-pagination__button" onClick={() => setComparisonPage((current) => Math.max(1, current - 1))} disabled={comparisonPageSafe <= 1}>‹</button>
-                    {Array.from({ length: comparisonTotalPages }, (_, index) => index + 1).map((page) => (
-                      <button key={page} type="button" className={`analytics-pagination__button ${page === comparisonPageSafe ? 'is-active' : ''}`} onClick={() => setComparisonPage(page)}>{page}</button>
-                    ))}
-                    <button type="button" className="analytics-pagination__button" onClick={() => setComparisonPage((current) => Math.min(comparisonTotalPages, current + 1))} disabled={comparisonPageSafe >= comparisonTotalPages}>›</button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
+        {sortApplied ? null : comparisonSection}
       </>
       </div>
       {loading || downloadingPdf ? (

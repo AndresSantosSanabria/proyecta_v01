@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.proyecto.*;
+import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.document.DocumentoPreWizardRevisionDTO;
 import com.proyecta.api_gestion.dto.security.SeguridadUsuarioDTO;
 import com.proyecta.api_gestion.domain.exception.BadRequestException;
@@ -41,6 +42,7 @@ import org.hibernate.Hibernate;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -75,6 +77,7 @@ public class ProyectoServiceImpl implements ProyectoService {
     private final EstadoProyectoConfigRepositoryPort estadoProyectoConfigRepositoryPort;
     private final ProjectStructureSupport projectStructureSupport;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final ProjectProgressMetricsService projectProgressMetricsService;
 
     public ProyectoServiceImpl(ProyectoRepositoryPort proyectoRepositoryPort,
                                FuragSupport furagSupport,
@@ -90,7 +93,8 @@ public class ProyectoServiceImpl implements ProyectoService {
                                RiesgoInicialSupport riesgoInicialSupport,
                                EstadoProyectoConfigRepositoryPort estadoProyectoConfigRepositoryPort,
                                ProjectStructureSupport projectStructureSupport,
-                               com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+                               com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+                               ProjectProgressMetricsService projectProgressMetricsService) {
         this.proyectoRepositoryPort = proyectoRepositoryPort;
         this.furagSupport = furagSupport;
         this.usuarioProyectoRepositoryPort = usuarioProyectoRepositoryPort;
@@ -106,6 +110,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         this.estadoProyectoConfigRepositoryPort = estadoProyectoConfigRepositoryPort;
         this.projectStructureSupport = projectStructureSupport;
         this.objectMapper = objectMapper;
+        this.projectProgressMetricsService = projectProgressMetricsService;
     }
 
     private EstadoProyectoConfig estadoProyectoConfig(String codigo) {
@@ -539,6 +544,7 @@ public class ProyectoServiceImpl implements ProyectoService {
         PatrocinadorInfo patrocinador = resolverPatrocinadorInfo(p);
         DirectorInfo director = resolverDirectorInfo(p);
         ResumenFases resumenFases = contarResumenFases(p);
+        ProyectoAvanceResponseDTO avance = projectProgressMetricsService.construir(p, LocalDate.now());
 
         if (resumenFases.totalEntregables() == 0 || resumenFases.entregablesConformes() < resumenFases.totalEntregables()) {
             puedeCerrar = false;
@@ -568,8 +574,20 @@ public class ProyectoServiceImpl implements ProyectoService {
                 Boolean.TRUE.equals(p.getCierreSolicitado()),
                 p.getCierreEstado(),
                 p.getCierreObservaciones(),
-                p.getCierreBorradorJson()
+                p.getCierreBorradorJson(),
+                toPercent(avance.eficacia()),
+                toPercent(avance.eficiencia()),
+                avance.entregablesProgramadosAlCorte(),
+                avance.entregablesEntregadosAlCorte()
         );
+    }
+
+    /** Relacion 0..1 de eficacia/eficacia -> porcentaje 0..100 (misma escala que muestra la ficha del proyecto). */
+    private static BigDecimal toPercent(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        return value.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
     }
 
     private record PatrocinadorInfo(String nombre, String cargo, String entidad) {
