@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Save, X } from 'lucide-react';
+import { AlertTriangle, Check, Save, X } from 'lucide-react';
 import { usePermission } from '../../hooks/usePermission';
+import { useAuthContext } from '../../context/AuthContext';
 import Paso2PatrocinadorEquipo from '../features/wizard/steps/Paso2PatrocinadorEquipo';
 import Paso3FasesHitosEntregables from '../features/wizard/steps/Paso3FasesHitosEntregables';
 import { SpellCheckInput } from '../common/SpellCheckInput/SpellCheckInput';
@@ -14,6 +15,13 @@ import projectService from '../../services/projectService';
 import { emitToast } from '../../utils/feedback';
 import '../../pages/NewProjectPage/NewProjectPage.css';
 import './ProjectOnboardingWizard.css';
+
+const normalizeFurag = (furag) => {
+  if (!furag || typeof furag !== 'object' || Array.isArray(furag)) return {};
+  return furag.respuestas && typeof furag.respuestas === 'object' && !Array.isArray(furag.respuestas)
+    ? furag.respuestas
+    : furag;
+};
 
 const STEPS = [
   { id: 1, label: 'Documentos del proyecto' },
@@ -38,7 +46,7 @@ const initialForm = (project) => ({
   peti: project?.peti ?? null,
   vigenciaPeti: project?.vigenciaPeti || '',
   estrategiaPeti: project?.estrategiaPeti || null,
-  furag: project?.furag || {},
+  furag: normalizeFurag(project?.furag),
   riesgosIniciales: Array.isArray(project?.riesgosIniciales) ? project.riesgosIniciales : [],
   actaConstitucionPdf: null,
   cronogramaPdf: null,
@@ -149,7 +157,7 @@ const buildDraftPayload = (step, form, fasesCompletadas) => ({
       estrategiaPeti: form.estrategiaPeti || null,
     },
   datosFase5: {
-    furag: form.furag || {},
+    furag: { respuestas: normalizeFurag(form.furag) },
   },
   datosFase6: {
     riesgos: form.riesgosIniciales || [],
@@ -234,6 +242,10 @@ const ProjectOnboardingWizard = ({
   onComplete,
 }) => {
   const canEditFechaRegistro = usePermission('PROYECTO:EDITAR_FECHA_REGISTRO');
+  // Solo un Gestor (o Administrador) puede editar el nombre y el objetivo general;
+  // el Director de Proyecto solo los consulta.
+  const { hasRole, isAdminLocal, transversal } = useAuthContext();
+  const isGestor = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
   const [savedState] = useState(() => loadSavedState(project));
   const [step, setStep] = useState(savedState?.step || 1);
   const [form, setForm] = useState(() => savedState?.form || initialForm(project));
@@ -273,6 +285,7 @@ const ProjectOnboardingWizard = ({
 
       try {
         const response = await projectService.getCompletionDraft(project.id);
+        const localState = loadSavedState(project);
         const draft = response?.data?.data ?? response?.data ?? response;
         
         console.log('[DRAFT] Response completa:', response);
@@ -308,22 +321,24 @@ const ProjectOnboardingWizard = ({
         }
         
         if (draft.datosFase5) {
-          restoredForm.furag = draft.datosFase5.furag || restoredForm.furag;
+          restoredForm.furag = normalizeFurag(draft.datosFase5.furag);
         }
         
         if (draft.datosFase6) {
           restoredForm.riesgosIniciales = draft.datosFase6.riesgos || restoredForm.riesgosIniciales;
         }
         
-        console.log('[DRAFT] Form restaurado:', restoredForm);
-        console.log('[DRAFT] Fases completadas:', draft.fasesCompletadas);
-        console.log('[DRAFT] Paso a restaurar:', draft.faseActual);
-        
+        const draftFurag = restoredForm.furag;
+        if (localState?.form) {
+          Object.assign(restoredForm, localState.form);
+          restoredForm.furag = { ...draftFurag, ...normalizeFurag(localState.form.furag) };
+        }
+
         setForm(restoredForm);
         setFasesCompletadas(draft.fasesCompletadas || {});
-        
+
         // Restore step from draft or localStorage
-        const targetStep = draft.faseActual || savedState?.step || 1;
+        const targetStep = localState?.step || draft.faseActual || 1;
         setStep(targetStep);
         
         isInitializedRef.current = true;
@@ -344,7 +359,7 @@ const ProjectOnboardingWizard = ({
   const projectSummary = useMemo(() => ({
     codigo: project?.codigo || project?.id || 'PENDIENTE',
     nombre: project?.nombre || project?.nombreProyecto || 'Proyecto sin nombre',
-    objetivo: project?.objetivoGeneral || project?.objetivo || 'Sin objetivo registrado',
+    objetivo: project?.objetivoGeneral || project?.objetivo || 'Sin objetivo general',
     director: project?.directorNombre || project?.director || 'Sin director',
   }), [project]);
 
@@ -397,6 +412,7 @@ const ProjectOnboardingWizard = ({
   const handleChange = (partialData) => {
     const merged = mergeForm(form, partialData);
     setForm(merged);
+    saveState(project, step, merged);
     // Solo re-valida en vivo si ya hubo un intento fallido: mantiene marcados
     // los campos pendientes y limpia cada marca en cuanto el campo se completa.
     setErrors((prev) => (Object.keys(prev).length > 0 ? validateStep(step, merged) : prev));
@@ -519,6 +535,7 @@ const ProjectOnboardingWizard = ({
 
           (hito.entregables || []).forEach((entregable, entregableIndex) => {
             if (!entregable.nombre?.trim()) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_nombre`] = 'El nombre del entregable es obligatorio.';
+            if (!entregable.descripcion?.trim()) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_descripcion`] = 'La descripción del entregable es obligatoria.';
             if (!entregable.ponderacion || parseFloat(entregable.ponderacion) <= 0) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_ponderacion`] = 'La ponderacion del entregable debe ser mayor a 0.';
             if (!entregable.fechaInicio) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaInicio`] = 'La fecha de inicio es obligatoria.';
             if (!entregable.fechaLimite) nextErrors[`ent_${faseIndex}_${hitoIndex}_${entregableIndex}_fechaLimite`] = 'La fecha limite es obligatoria.';
@@ -582,7 +599,7 @@ const ProjectOnboardingWizard = ({
       const tieneGeneral = riesgos.some((r) => (r.tipoRiesgo || 'GENERAL') === 'GENERAL' && r.descripcion?.trim());
       const tieneSeguridad = riesgos.some((r) => r.tipoRiesgo === 'SEGURIDAD' && r.descripcion?.trim());
       if (!tieneGeneral) nextErrors.riesgoGeneral = 'Debe registrar al menos un riesgo general.';
-      if (!tieneSeguridad) nextErrors.riesgoSeguridad = 'Debe registrar al menos un riesgo de seguridad.';
+      if (!tieneSeguridad) nextErrors.riesgoSeguridad = 'Debe registrar al menos un riesgo de seguridad de la información.';
       riesgos.forEach((r, i) => {
         if (!r.descripcion?.trim()) nextErrors[`riesgo_${i}_descripcion`] = 'La descripcion del riesgo es obligatoria.';
         if (!r.probabilidad) nextErrors[`riesgo_${i}_probabilidad`] = 'La probabilidad es obligatoria.';
@@ -605,34 +622,11 @@ const ProjectOnboardingWizard = ({
     });
   };
 
-  const handleNext = async () => {
-    const nextErrors = validateStep(step);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) {
-      announceValidationErrors(nextErrors);
-      return;
-    }
-    
-    const newFasesCompletadas = { ...fasesCompletadas, [step]: true };
-    setFasesCompletadas(newFasesCompletadas);
-    
-    try {
-      setSavingDraft(true);
-      const nextStep = Math.min(step + 1, STEPS.length);
-      const draftData = buildDraftPayload(nextStep, form, newFasesCompletadas);
-      console.log('[SAVE] Guardando borrador:', JSON.stringify(draftData, null, 2));
-      // Guardar borrador PRIMERO, luego marcar fase (secuencial para evitar race condition)
-      await projectService.saveCompletionDraft(project.id, draftData);
-      await projectService.completePhase(project.id, step);
-      saveState(project, nextStep, form);
-    } catch (err) {
-      console.error('Error guardando borrador/marcando fase:', err);
-      saveState(project, step + 1, form);
-    } finally {
-      setSavingDraft(false);
-    }
-    
-    setStep((current) => Math.min(current + 1, STEPS.length));
+  const handleStepChange = (targetStep) => {
+    if (targetStep === step) return;
+    saveState(project, targetStep, form);
+    setStep(targetStep);
+    setErrors({});
   };
 
   const handleCloseWizard = () => {
@@ -641,19 +635,17 @@ const ProjectOnboardingWizard = ({
 
   const confirmCloseWizard = async () => {
     setShowCloseConfirm(false);
-    // Save draft before closing
+    saveState(project, step, form);
     try {
       setSavingDraft(true);
       const draftData = buildDraftPayload(step, form, fasesCompletadas);
       await projectService.saveCompletionDraft(project.id, draftData);
-      saveState(project, step, form);
+      clearSavedState(project);
     } catch (err) {
       console.error('Error guardando borrador al cerrar:', err);
-      saveState(project, step, form);
     } finally {
       setSavingDraft(false);
     }
-    clearSavedState(project);
     // BASE_URL conserva el prefijo de despliegue (subruta) al recargar.
     window.location.href = `${import.meta.env.BASE_URL}projects`;
   };
@@ -988,6 +980,7 @@ const ProjectOnboardingWizard = ({
             <InfoEditCard
               label="Proyecto"
               value={form.nombreProyecto || projectSummary.nombre}
+              disabled={!isGestor}
               onSave={(val) => handleInfoSave({ nombre: val })}
               onChange={(val) => setForm((prev) => ({ ...prev, nombreProyecto: val }))}
             />
@@ -997,8 +990,9 @@ const ProjectOnboardingWizard = ({
               disabled
             />
             <InfoEditCard
-              label="Objetivo registrado"
+              label="Objetivo general"
               value={form.objetivoGeneral || projectSummary.objetivo}
+              disabled={!isGestor}
               onSave={(val) => handleInfoSave({ objetivoGeneral: val })}
               onChange={(val) => setForm((prev) => ({ ...prev, objetivoGeneral: val }))}
               wide
@@ -1016,12 +1010,8 @@ const ProjectOnboardingWizard = ({
                 key={item.id}
                 type="button"
                 className={`project-onboarding__step ${step === item.id ? 'active' : ''} ${fasesCompletadas[item.id] ? 'completed' : ''}`}
-                onClick={() => {
-                  if (item.id <= step) {
-                    setStep(item.id);
-                    setErrors({});
-                  }
-                }}
+                aria-current={step === item.id ? 'step' : undefined}
+                onClick={() => handleStepChange(item.id)}
               >
                 {fasesCompletadas[item.id] ? (
                   <Check size={14} className="step-check" />
@@ -1057,24 +1047,10 @@ const ProjectOnboardingWizard = ({
           <div className="project-onboarding__footer">
             <span />
             <div className="compact-toolbar">
-              {step > 1 ? (
-                <button type="button" className="btn-ghost" onClick={() => { setStep((current) => current - 1); setErrors({}); }}>
-                  <ArrowLeft size={16} />
-                  Volver
-                </button>
-              ) : null}
-
-              {step < STEPS.length ? (
-                <button type="button" className="btn-primary" onClick={handleNext} disabled={saving}>
-                  Siguiente
-                  <ArrowRight size={16} />
-                </button>
-              ) : (
-                <button type="submit" className="btn-primary" disabled={saving}>
-                  <Save size={16} />
-                  {saving ? 'Guardando...' : 'Completar proyecto'}
-                </button>
-              )}
+              <button type="button" className="btn-primary" onClick={handleSubmit} disabled={saving}>
+                <Save size={16} />
+                {saving ? 'Guardando...' : 'Completar proyecto'}
+              </button>
             </div>
           </div>
         </form>

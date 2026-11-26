@@ -3,6 +3,7 @@ package com.proyecta.api_gestion.controller;
 import com.proyecta.api_gestion.controller.interfaces.IAvanceProyectoController;
 import com.proyecta.api_gestion.dto.common.ApiResponse;
 import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
+import com.proyecta.api_gestion.dto.avance.DocumentoArchivoDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoReversionRequest;
 import com.proyecta.api_gestion.dto.avance.DocumentoSubsanacionRequest;
 import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
@@ -171,6 +172,25 @@ public class AvanceProyectoController implements IAvanceProyectoController {
         return ResponseEntity.ok(ApiResponse.success(
                 proyectoAvanceService.revertirVersion(proyectoId, entregableId, versionId, motivo, authentication),
                 "Version documental restaurada"));
+    }
+
+    @Operation(
+        summary = "Descargar una version documental de la evidencia",
+        description = "Retorna el archivo PDF de una version especifica (vigente o historica) de la evidencia cargada para el entregable."
+    )
+    @GetMapping("/{proyectoId}/avance/entregables/{entregableId}/versiones/{versionId}/archivo")
+    @PreAuthorize("@proyectoSecurity.canViewDocumentHistory(#proyectoId, authentication)")
+    public ResponseEntity<Resource> descargarVersion(
+            @Parameter(description = "Identificador del proyecto", example = "PROY-CUN-2026-001") @PathVariable String proyectoId,
+            @Parameter(description = "Identificador del entregable") @PathVariable Integer entregableId,
+            @Parameter(description = "Identificador de la version documental") @PathVariable Long versionId,
+            Authentication authentication) {
+        DocumentoArchivoDTO archivo = proyectoAvanceService.obtenerArchivoVersion(proyectoId, entregableId, versionId, authentication);
+        Resource resource = storageProvider.loadFileAsResource("evidencias", archivo.archivoStorage());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(archivo.mimeType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, inlinePdfName(archivo.nombreArchivo()))
+                .body(resource);
     }
 
     @Operation(

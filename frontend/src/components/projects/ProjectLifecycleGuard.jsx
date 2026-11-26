@@ -156,12 +156,12 @@ export const DocumentosPreWizardView = ({ project, completionStatus, onComplete,
               {isDevuelta ? 'Documentos Devueltos' : 'Paso 1 - Director de Proyecto'}
             </span>
             <h2 className="plg-hero__title">
-              {isDevuelta ? 'Subsanar Documentos' : 'Cargar Documentos Pre-Wizard'}
+              {isDevuelta ? 'Subsanar Documentos' : 'Cargar Documentos Iniciales'}
             </h2>
             <p className="plg-hero__subtitle">
               {isDevuelta
                 ? `El Gestor devolvio ${returnedTypes.length} documento(s) con observaciones. Subsanen solo los documentos devueltos y vuelva a cargarlos.`
-                : 'Para continuar con la completitud del proyecto, primero debe cargar los 3 documentos requeridos. El Gestor verificara los documentos antes de que pueda acceder al wizard de completitud.'}
+                : 'Para continuar con la completitud del proyecto, primero debe cargar los 3 documentos requeridos. El Gestor verificara los documentos antes de que pueda continuar con el proceso de completitud.'}
             </p>
           </div>
 
@@ -585,7 +585,7 @@ const DocumentosCargadosView = ({ project, onRefresh }) => {
             <p className="plg-hero__subtitle">
               {isGestor
                 ? 'Verifique o devuelva cada documento. Al terminar, use el boton final para enviar UNA sola notificacion consolidada.'
-                : 'Los documentos estan en revision individual por parte del Gestor. El wizard se habilita cuando los 3 esten verificados.'}
+                : 'Los documentos estan en revision individual por parte del Gestor. El proceso de completitud se habilita cuando los 3 esten verificados.'}
             </p>
           </div>
 

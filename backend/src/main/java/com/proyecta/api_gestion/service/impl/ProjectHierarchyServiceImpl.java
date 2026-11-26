@@ -288,8 +288,15 @@ public class ProjectHierarchyServiceImpl implements ProjectHierarchyService {
 
     private void validarEntregableNuevo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {
         validarPonderacion(dto.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100.");
+        validarDescripcionEntregable(dto.descripcion());
         validarFechasNuevo(dto);
         validarArchivoRetroactivo(dto);
+    }
+
+    private void validarDescripcionEntregable(String descripcion) {
+        if (descripcion == null || descripcion.isBlank()) {
+            throw new BadRequestException("La descripcion del entregable es obligatoria.");
+        }
     }
 
     private void validarArchivoRetroactivo(com.proyecta.api_gestion.dto.proyecto.EntregableDTO dto) {

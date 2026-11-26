@@ -464,9 +464,9 @@ public class SeguimientoExcelGenerator {
         c18.setCellFormula("I"+r+"-R"+r);
         c18.setCellStyle(styles.defaultStyle());
 
-        // 19 (T): VALIDA
+        // 19 (T): VALIDA (1 = vencido; el dia de la fecha limite sigue en plazo)
         Cell c19 = row.createCell(19);
-        c19.setCellFormula("IF(S"+r+">0,0,1)");
+        c19.setCellFormula("IF(S"+r+"<0,1,0)");
         c19.setCellStyle(styles.defaultStyle());
 
         // 20 (U): PROG HITO

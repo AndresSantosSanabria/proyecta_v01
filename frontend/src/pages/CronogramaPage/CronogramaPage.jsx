@@ -94,7 +94,7 @@ const CronogramaPage = () => {
       || resumenApi.objetivo_general
       || resumenApi.descripcion
       || resumenApi.nombre
-      || 'Sin propósito definido',
+      || 'Sin objetivo general definido',
     ),
     dependencia: formatSummaryValue(
       resumenApi.dependencia

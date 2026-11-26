@@ -118,7 +118,7 @@ public class DocumentoController implements IDocumentoController {
     public ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO.Listado>> listarRevisionesPreWizard(
             @PathVariable String proyectoId) {
         DocumentoPreWizardRevisionDTO.Listado response = documentoService.listarRevisionesPreWizard(proyectoId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Revisiones de documentos pre-wizard obtenidas exitosamente"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Revisiones de los documentos iniciales obtenidas exitosamente"));
     }
 
     @Override

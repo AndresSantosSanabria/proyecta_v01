@@ -400,7 +400,7 @@ const ProjectProgressPage = () => {
 
         <div className="excel-summary-grid">
           <article>
-                <span>Propósito</span>
+                <span>Objetivo General</span>
                 <strong className="summary-clamp-two">{resumenExcel.meta}</strong>
           </article>
           <article>
@@ -408,7 +408,7 @@ const ProjectProgressPage = () => {
             <strong className="summary-clamp-two">{resumenExcel.dependencia}</strong>
           </article>
           <article>
-            <span>Fecha límite</span>
+            <span>Fecha de corte</span>
             <strong>{formatDate(progressData.corte) || 'Sin fecha'}</strong>
           </article>
           <article>
@@ -450,7 +450,7 @@ const ProjectProgressPage = () => {
 
             <div className="project-summary-modal-body">
               <section className="project-summary-modal-block full-width">
-                <span>Propósito</span>
+                <span>Objetivo General</span>
                 <p>{resumenExcel.meta}</p>
               </section>
               <section className="project-summary-modal-block full-width">
@@ -509,7 +509,7 @@ const ProjectProgressPage = () => {
         <Info size={18} className="info-icon" />
         <p>
           Los campos marcados con <Lock size={14} className="inline-icon" /> son calculados automáticamente por el sistema.
-          El semáforo del entregable se basa en los días devueltos por el backend.
+          El semáforo del entregable se basa en los días de atraso calculados por el sistema.
         </p>
       </div>
 

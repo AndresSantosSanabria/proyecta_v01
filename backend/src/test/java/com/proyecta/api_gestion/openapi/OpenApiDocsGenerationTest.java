@@ -242,7 +242,7 @@ class OpenApiDocsGenerationTest {
         Path reportPath = Path.of(System.getProperty("java.io.tmpdir"), "opencode", "openapi-validation.txt");
         Files.writeString(reportPath, report.toString(), StandardCharsets.UTF_8);
 
-        assertEquals(172, totalOps, "se esperaban 172 operaciones, hay " + totalOps);
+        assertEquals(174, totalOps, "se esperaban 174 operaciones, hay " + totalOps);
         assertTrue(violations.isEmpty(), violations.size() + " violaciones, ver " + reportPath);
     }
 }

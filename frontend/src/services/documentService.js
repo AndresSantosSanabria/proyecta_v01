@@ -1,8 +1,10 @@
 import apiClient from '../api/axiosConfig';
 
+const normalizeProjectId = (id) => String(id || '').trim().toUpperCase();
+
 const documentService = {
   listarDocumentos: async (proyectoId) => {
-    const { data } = await apiClient.get(`/proyectos/${proyectoId}/documentos`);
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(proyectoId)}/documentos`);
     return data;
   },
 
@@ -14,7 +16,7 @@ const documentService = {
     }
 
     const { data } = await apiClient.post(
-      `/proyectos/${proyectoId}/documentos/${tipoDocumento}`,
+      `/proyectos/${normalizeProjectId(proyectoId)}/documentos/${tipoDocumento}`,
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -31,7 +33,7 @@ const documentService = {
 
   descargarDocumento: async (proyectoId, tipoDocumento) => {
     const response = await apiClient.get(
-      `/proyectos/${proyectoId}/documentos/${tipoDocumento}/descargar`,
+      `/proyectos/${normalizeProjectId(proyectoId)}/documentos/${tipoDocumento}/descargar`,
       { responseType: 'blob' }
     );
     return response.data;
@@ -39,34 +41,34 @@ const documentService = {
 
   listarVersiones: async (proyectoId, tipoDocumento) => {
     const { data } = await apiClient.get(
-      `/proyectos/${proyectoId}/documentos/${tipoDocumento}/versiones`
+      `/proyectos/${normalizeProjectId(proyectoId)}/documentos/${tipoDocumento}/versiones`
     );
     return data;
   },
 
   descargarVersion: async (proyectoId, tipoDocumento, numeroVersion) => {
     const response = await apiClient.get(
-      `/proyectos/${proyectoId}/documentos/${tipoDocumento}/versiones/${numeroVersion}/archivo`,
+      `/proyectos/${normalizeProjectId(proyectoId)}/documentos/${tipoDocumento}/versiones/${numeroVersion}/archivo`,
       { responseType: 'blob' }
     );
     return response.data;
   },
 
   listarRevisionesPreWizard: async (proyectoId) => {
-    const { data } = await apiClient.get(`/proyectos/${proyectoId}/documentos-pre-wizard`);
+    const { data } = await apiClient.get(`/proyectos/${normalizeProjectId(proyectoId)}/documentos-pre-wizard`);
     return data;
   },
 
   aprobarDocumentoPreWizard: async (proyectoId, tipoDocumento) => {
     const { data } = await apiClient.patch(
-      `/proyectos/${proyectoId}/documentos-pre-wizard/${tipoDocumento}/aprobar`
+      `/proyectos/${normalizeProjectId(proyectoId)}/documentos-pre-wizard/${tipoDocumento}/aprobar`
     );
     return data;
   },
 
   devolverDocumentoPreWizard: async (proyectoId, tipoDocumento, observaciones) => {
     const { data } = await apiClient.patch(
-      `/proyectos/${proyectoId}/documentos-pre-wizard/${tipoDocumento}/devolver`,
+      `/proyectos/${normalizeProjectId(proyectoId)}/documentos-pre-wizard/${tipoDocumento}/devolver`,
       { observaciones }
     );
     return data;
@@ -74,7 +76,7 @@ const documentService = {
 
   confirmarRevisionPreWizard: async (proyectoId) => {
     const { data } = await apiClient.post(
-      `/proyectos/${proyectoId}/documentos-pre-wizard/confirmar-revision`
+      `/proyectos/${normalizeProjectId(proyectoId)}/documentos-pre-wizard/confirmar-revision`
     );
     return data;
   },

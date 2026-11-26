@@ -190,7 +190,7 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
     <div className="step-form">
       <h3 className="step-title">Matriz de Riesgos</h3>
       <p className="help-text">
-        Registre al menos un riesgo general y un riesgo de seguridad para el proyecto. Estos quedarán pendientes de tratamiento y podrán gestionarse una vez completado el proyecto.
+        Registre al menos un riesgo general y un riesgo de seguridad de la información para el proyecto. Estos quedarán pendientes de tratamiento y podrán gestionarse una vez completado el proyecto.
       </p>
 
       {errors.riesgosIniciales && (
@@ -225,11 +225,11 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
         </button>
       </div>
 
-      {/* ── Riesgos de Seguridad ────────────────── */}
+      {/* ── Riesgos de seguridad de la información ── */}
       <div className="riesgo-section">
         <div className="riesgo-section-header riesgo-section-header--seguridad">
           <ShieldAlert size={16} />
-          <span className="riesgo-section-title">Riesgos de Seguridad</span>
+          <span className="riesgo-section-title">Riesgos de seguridad de la información</span>
           <span className="riesgo-section-badge">{riesgosSeguridad.length}</span>
           {errors.riesgoSeguridad && (
             <span className="riesgo-section-error">{errors.riesgoSeguridad}</span>
@@ -239,7 +239,7 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
         {riesgosSeguridad.length === 0 && (
           <div className="riesgo-section-empty">
             <AlertTriangle size={14} />
-            <span>Debe registrar al menos un riesgo de seguridad.</span>
+            <span>Debe registrar al menos un riesgo de seguridad de la información.</span>
           </div>
         )}
 
@@ -249,7 +249,7 @@ const Paso6MatrizRiesgos = ({ data, onChange, errors }) => {
 
         <button type="button" className="btn-add-riesgo" onClick={() => handleAdd('SEGURIDAD')}>
           <Plus size={16} strokeWidth={2.5} />
-          Agregar riesgo de seguridad
+          Agregar riesgo de seguridad de la información
         </button>
       </div>
     </div>

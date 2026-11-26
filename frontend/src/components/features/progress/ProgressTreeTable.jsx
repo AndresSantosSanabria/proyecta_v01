@@ -263,10 +263,48 @@ const getEvidenceBlob = async (url) => {
   const blob = response.data;
 
   if (!(await isPdfBlob(blob))) {
-    throw new Error('El archivo recibido no es un PDF valido.');
+    throw new Error(await describeBlobPayload(blob) || 'El archivo recibido no es un PDF valido.');
   }
 
   return blob;
+};
+
+/**
+ * Cuando el servidor responde con un error (404, 403, 500) y responseType es blob,
+ * el cuerpo llega como Blob JSON. Se extrae el mensaje para que el usuario vea la
+ * causa real en lugar de un mensaje generico.
+ */
+const describeBlobPayload = async (blob) => {
+  if (!(blob instanceof Blob) || blob.type.includes('pdf')) return '';
+  try {
+    const parsed = JSON.parse(await blob.text());
+    return parsed?.message || parsed?.detail || parsed?.title || '';
+  } catch {
+    return '';
+  }
+};
+
+const describeEvidenceError = async (error) => {
+  const status = error?.response?.status;
+  const data = error?.response?.data;
+  let detail = '';
+
+  if (data instanceof Blob) {
+    detail = await describeBlobPayload(data);
+  } else if (data && typeof data === 'object') {
+    detail = data.message || data.detail || data.title || '';
+  }
+
+  if (status && detail) return `HTTP ${status}: ${detail}`;
+  if (status) return `HTTP ${status}`;
+  if (detail) return detail;
+  return error?.message || '';
+};
+
+/** Concatena el mensaje base con el detalle tecnico, si existe. */
+const withErrorDetail = async (base, error) => {
+  const detail = await describeEvidenceError(error);
+  return detail ? `${base} (${detail})` : base;
 };
 
 const semaforoDias = (dias, tieneEvidencia) => {
@@ -303,10 +341,11 @@ const TreeTableRow = ({
   const canUploadEvidence = usePermission('EVIDENCIA:CARGAR');
   const canReviewEvidence = usePermission('ENTREGABLE:APROBAR') && !hasRole('DIRECTOR_PROYECTO');
   const canViewDocumentHistory = usePermission('DOCUMENTO:HISTORIAL');
-  const canModificarFecha = usePermission('ENTREGABLE:CAMBIAR_FECHA');
-  // rules-of-hooks: el hook se evalua siempre; la precedencia || se resuelve despues.
+  const esGestor = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
+  const canCambiarFechaPerm = usePermission('ENTREGABLE:CAMBIAR_FECHA');
   const canCambiarDescPerm = usePermission('ENTREGABLE:CAMBIAR_DESCRIPCION');
-  const canModificarDescripcion = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC') || canCambiarDescPerm;
+  const canModificarFecha = esGestor && canCambiarFechaPerm;
+  const canModificarDescripcion = esGestor && canCambiarDescPerm;
   const ponderacionFase = toNumber(fase.ponderacion);
   const programadoFase = toNumber(fase.progresoProgramado ?? fase.avanceProgramado ?? fase.avance ?? 0);
   const ejecutadoFase = toNumber(fase.progresoEjecutado ?? fase.avance ?? 0);
@@ -931,8 +970,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
         objectUrl,
       }));
     } catch (error) {
-      console.error('Version preview error:', error);
-      setPreviewError('No fue posible previsualizar esta versión. El archivo no es un PDF válido o no está disponible.');
+      console.error('Version preview error:', error.response?.data || error);
+      setPreviewError(await withErrorDetail('No fue posible previsualizar esta versión. El archivo no es un PDF válido o no está disponible.', error));
     }
   };
 
@@ -1119,8 +1158,9 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
     try {
       const blob = await getEvidenceBlob(url);
       downloadBlob(blob, file || 'evidencia.pdf');
-    } catch {
-      setPreviewError('No fue posible descargar la evidencia. El archivo no es un PDF válido o no está disponible.');
+    } catch (error) {
+      console.error('Download error:', error.response?.data || error);
+      setPreviewError(await withErrorDetail('No fue posible descargar la evidencia. El archivo no es un PDF válido o no está disponible.', error));
     }
   };
 
@@ -1161,8 +1201,8 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
         objectUrl,
       }));
     } catch (error) {
-      console.error('Preview error:', error);
-      setPreviewError('No fue posible previsualizar la evidencia. El archivo no es un PDF válido o no está disponible.');
+      console.error('Preview error:', error.response?.data || error);
+      setPreviewError(await withErrorDetail('No fue posible previsualizar la evidencia. El archivo no es un PDF válido o no está disponible.', error));
     }
   };
 
@@ -1278,7 +1318,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
             <span className={`status-badge ${progressData.estado === 'ATRASO' ? 'danger' : 'success'}`}>
               {progressData.estado || 'EN_TIEMPO'}
             </span>
-            <span className="corte-date">Fecha límite: {corte}</span>
+            <span className="corte-date">Fecha de corte: {corte}</span>
           </div>
         </div>
         <div className="header-actions">
@@ -1299,7 +1339,7 @@ const ProgressTreeTable = ({ progressData, projectInfo, excelSummary, isExpanded
         <table className="tree-table excel-table">
           <thead>
             <tr>
-              <th className="col-node">Propósito / Proyecto</th>
+              <th className="col-node">Proyecto</th>
               <th className="col-ponderacion">Ponderacion <Lock size={12} /></th>
               <th className="col-fecha">Programado <Lock size={12} /></th>
               <th className="col-avance">Avance <Lock size={12} /></th>

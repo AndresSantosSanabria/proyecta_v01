@@ -142,7 +142,7 @@ public class ProyectoController implements com.proyecta.api_gestion.controller.i
 
     @Override
     @PutMapping("/{id}")
-    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication)")
+    @PreAuthorize("@proyectoSecurity.canAccess('PROYECTO:EDITAR', #id, authentication) and @proyectoSecurity.canEditDatosGenerales(#dto, authentication)")
     public ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
             @PathVariable("id") String id,
             @Valid @RequestBody ProyectoUpdateDTO dto,

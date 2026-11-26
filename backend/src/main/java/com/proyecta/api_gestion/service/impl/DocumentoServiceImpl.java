@@ -37,6 +37,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -99,6 +100,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional(readOnly = true)
     public DocumentoListadoResponseDTO listarDocumentos(String proyectoId) {
+        proyectoId = normalizeProjectId(proyectoId);
         validarExistenciaProyecto(proyectoId);
 
         List<Documento> documentos = documentoRepositoryPort.findByProyectoIdOrderByFechaCargaDesc(proyectoId);
@@ -120,6 +122,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional
     public DocumentoUploadResultDTO cargarDocumento(String proyectoId, String tipoDocumento, MultipartFile archivo, String observacion, Authentication authentication) {
+        proyectoId = normalizeProjectId(proyectoId);
         validarExistenciaProyecto(proyectoId);
         if (tipoDocumento == null || tipoDocumento.isBlank()) {
             throw new BadRequestException("El tipo de documento es obligatorio.");
@@ -186,12 +189,14 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional(readOnly = true)
     public Resource descargarDocumento(String proyectoId, String tipoDocumento) {
+        final String normalizedId = normalizeProjectId(proyectoId);
+        proyectoId = normalizedId;
         validarExistenciaProyecto(proyectoId);
 
         DocumentoProyectoVersion version = versionRepositoryPort
                 .findByProyectoIdAndTipoDocumentoAndEstado(proyectoId, tipoDocumento, DocumentoProyectoVersionEstado.ACTUAL)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Documento no encontrado: " + tipoDocumento + " para proyecto " + proyectoId));
+                        "Documento no encontrado: " + tipoDocumento + " para proyecto " + normalizedId));
 
         return storageProvider.loadFileAsResource(version.getRutaAlmacenamiento(), version.getNombreAlmacenado());
     }
@@ -206,6 +211,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional(readOnly = true)
     public DocumentoVersionHistorialResponseDTO listarVersiones(String proyectoId, String tipoDocumento) {
+        proyectoId = normalizeProjectId(proyectoId);
         validarExistenciaProyecto(proyectoId);
 
         List<DocumentoProyectoVersion> versiones = versionRepositoryPort
@@ -221,6 +227,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional(readOnly = true)
     public Resource descargarVersion(String proyectoId, String tipoDocumento, Integer numeroVersion) {
+        proyectoId = normalizeProjectId(proyectoId);
         validarExistenciaProyecto(proyectoId);
 
         DocumentoProyectoVersion version = versionRepositoryPort
@@ -234,6 +241,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional(readOnly = true)
     public DocumentoPreWizardRevisionDTO.Listado listarRevisionesPreWizard(String proyectoId) {
+        proyectoId = normalizeProjectId(proyectoId);
         validarExistenciaProyecto(proyectoId);
 
         Map<String, DocumentoPreWizardRevision> porTipo = preWizardRevisionRepositoryPort
@@ -266,6 +274,8 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional
     public DocumentoPreWizardRevisionDTO aprobarDocumentoPreWizard(String proyectoId, String tipoDocumento, Authentication authentication) {
+        final String normalizedId = normalizeProjectId(proyectoId);
+        proyectoId = normalizedId;
         validarExistenciaProyecto(proyectoId);
         String tipo = normalizarTipoPreWizard(tipoDocumento);
         ActorContext actor = actorContext(authentication);
@@ -277,7 +287,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         DocumentoPreWizardRevision revision = preWizardRevisionRepositoryPort
                 .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
-                .orElseGet(() -> nuevaRevision(proyectoId, tipo, version));
+                .orElseGet(() -> nuevaRevision(normalizedId, tipo, version));
 
         revision.setEstado(DocumentoPreWizardEstado.APROBADO);
         revision.setObservacion(null);
@@ -293,6 +303,8 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional
     public DocumentoPreWizardRevisionDTO devolverDocumentoPreWizard(String proyectoId, String tipoDocumento, String observaciones, Authentication authentication) {
+        final String normalizedId = normalizeProjectId(proyectoId);
+        proyectoId = normalizedId;
         validarExistenciaProyecto(proyectoId);
         String tipo = normalizarTipoPreWizard(tipoDocumento);
         if (observaciones == null || observaciones.isBlank()) {
@@ -307,7 +319,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
 
         DocumentoPreWizardRevision revision = preWizardRevisionRepositoryPort
                 .findByProyectoIdAndTipoDocumento(proyectoId, tipo)
-                .orElseGet(() -> nuevaRevision(proyectoId, tipo, version));
+                .orElseGet(() -> nuevaRevision(normalizedId, tipo, version));
 
         revision.setEstado(DocumentoPreWizardEstado.DEVUELTO);
         revision.setObservacion(observaciones.trim());
@@ -457,6 +469,8 @@ public class DocumentoServiceImpl implements IDocumentoService {
     @Override
     @Transactional
     public DocumentoPreWizardConfirmacionDTO confirmarRevisionPreWizard(String proyectoId, Authentication authentication) {
+        final String normalizedId = normalizeProjectId(proyectoId);
+        proyectoId = normalizedId;
         validarExistenciaProyecto(proyectoId);
         ActorContext actor = actorContext(authentication);
 
@@ -482,7 +496,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         }
 
         Proyecto proyecto = proyectoRepositoryPort.findById(proyectoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + proyectoId));
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + normalizedId));
 
         boolean hayDevuelto = porTipo.values().stream()
                 .anyMatch(r -> r.getEstado() == DocumentoPreWizardEstado.DEVUELTO);
@@ -531,7 +545,7 @@ public class DocumentoServiceImpl implements IDocumentoService {
         }
         String tipo = tipoDocumento.trim().toUpperCase();
         if (!PRE_WIZARD_TYPES.contains(tipo)) {
-            throw new BadRequestException("Tipo de documento no valido para revision pre-wizard: " + tipoDocumento);
+            throw new BadRequestException("Tipo de documento no valido para revision de documentos iniciales: " + tipoDocumento);
         }
         return tipo;
     }
@@ -580,6 +594,10 @@ public class DocumentoServiceImpl implements IDocumentoService {
             documento.setFechaCarga(version.getSubidoEn());
             documentoRepositoryPort.save(documento);
         }
+    }
+
+    private String normalizeProjectId(String proyectoId) {
+        return proyectoId == null ? null : proyectoId.trim().toUpperCase(Locale.ROOT);
     }
 
     private void validarExistenciaProyecto(String proyectoId) {

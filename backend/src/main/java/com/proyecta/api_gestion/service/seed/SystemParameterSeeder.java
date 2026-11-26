@@ -130,12 +130,12 @@ public class SystemParameterSeeder {
         crearParametroSiNoExiste(
             SystemParameterKeys.NOTIF_PREWIZARD_ESTADO_ETIQUETA,
             "Estado de los documentos iniciales del proyecto:",
-            "Etiqueta de la sección de estados en los correos pre-wizard"
+            "Etiqueta de la sección de estados en los correos de documentos iniciales"
         );
         crearParametroSiNoExiste(
             SystemParameterKeys.NOTIF_PREWIZARD_ENLACE_TEXTO,
             "Puede acceder directamente a través del siguiente enlace:",
-            "Texto del enlace en los correos pre-wizard"
+            "Texto del enlace en los correos de documentos iniciales"
         );
 
         crearParametroSiNoExiste(

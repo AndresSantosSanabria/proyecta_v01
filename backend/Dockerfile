@@ -1,6 +1,7 @@
 # ---------- Build ----------
 FROM maven:3-eclipse-temurin-25 AS build
 WORKDIR /app
+RUN java -version 2>&1 | grep -F '25.0.5.1+2'
 COPY pom.xml .
 RUN mvn -B dependency:go-offline
 COPY src ./src
@@ -9,6 +10,7 @@ RUN mvn -B clean package -DskipTests
 # ---------- Runtime ----------
 FROM eclipse-temurin:25-jre
 WORKDIR /app
+RUN java -version 2>&1 | grep -F '25.0.5.1+2'
 
 # Configuracion via variables de entorno (Spring Boot)
 COPY src/main/resources/application.properties.example /app/config/application.properties

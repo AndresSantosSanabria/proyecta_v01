@@ -35,7 +35,7 @@ public record ProyectoCompletarInformacionDTO(
                 throw new IllegalArgumentException("Debe registrar al menos 1 riesgo de tipo GENERAL");
             }
             if (!tieneSeguridad) {
-                throw new IllegalArgumentException("Debe registrar al menos 1 riesgo de tipo SEGURIDAD");
+                throw new IllegalArgumentException("Debe registrar al menos 1 riesgo de seguridad de la información.");
             }
         }
     }

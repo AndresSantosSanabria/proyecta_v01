@@ -1,6 +1,7 @@
 package com.proyecta.api_gestion.service.impl;
 
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
+import com.proyecta.api_gestion.dto.avance.DocumentoArchivoDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
 import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
@@ -504,6 +505,26 @@ public class ProjectAdvanceServiceImpl implements ProyectoAvanceService {
         }
 
         return responseConAvance(proyectoId, entregable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentoArchivoDTO obtenerArchivoVersion(String proyectoId, Integer entregableId, Long versionId, Authentication authentication) {
+        cargarEntregableDelProyecto(proyectoId, entregableId);
+        DocumentoVersion version = documentoVersionRepositoryPort.findByIdAndEntregableId(versionId, entregableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Version documental no encontrada: " + versionId));
+
+        if (!storageProvider.fileExists(STORAGE_EVIDENCIAS, version.getArchivoStorage())) {
+            throw new ResourceNotFoundException("El archivo fisico de la version seleccionada no esta disponible.");
+        }
+
+        String mimeType = version.getMimeType() != null && !version.getMimeType().isBlank()
+                ? version.getMimeType()
+                : MIME_PDF;
+        String nombreArchivo = version.getNombreArchivoOriginal() != null && !version.getNombreArchivoOriginal().isBlank()
+                ? version.getNombreArchivoOriginal()
+                : version.getArchivoStorage();
+        return new DocumentoArchivoDTO(version.getArchivoStorage(), nombreArchivo, mimeType);
     }
 
     @Override

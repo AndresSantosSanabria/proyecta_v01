@@ -1,15 +1,11 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { X, ChevronDown, ChevronUp, FileText, Download, Upload, Users, Target, Layers, Shield, ClipboardList, LoaderCircle, Eye, History, Pencil } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, FileText, Download, Users, Target, Layers, Shield, ClipboardList, LoaderCircle, Eye, History } from 'lucide-react';
 import documentService from '../../services/documentService';
 import projectService from '../../services/projectService';
 import configCatalogService from '../../services/configCatalogService';
-import { AutocompleteSelect } from '../common/AutocompleteSelect';
-import SpellCheckerTextarea from '../common/SpellCheckerTextarea';
-import { emitToast } from '../../utils/feedback';
-import { extractApiDetail } from '../../utils/apiErrors';
 import './ProjectInfoModal.css';
 
-const Section = ({ title, icon: Icon, children, defaultOpen = true, onEdit, editing }) => {
+const Section = ({ title, icon: Icon, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="pim-section">
@@ -19,11 +15,6 @@ const Section = ({ title, icon: Icon, children, defaultOpen = true, onEdit, edit
           <span>{title}</span>
         </div>
         <div className="pim-section-actions">
-          {onEdit && !editing && (
-            <button type="button" className="pim-section-edit-btn" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Editar">
-              <Pencil size={13} />
-            </button>
-          )}
           {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
@@ -305,17 +296,12 @@ const VersionHistoryPanel = ({ proyectoId, tipoDocumento, nombreDocumento, onClo
   );
 };
 
-const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
-  const inputRef = useRef(null);
+const DocumentLink = ({ proyectoId, tipoDocumento, nombre }) => {
   const [downloading, setDownloading] = useState(false);
   const [viewerBlob, setViewerBlob] = useState(null);
   const [loadingViewer, setLoadingViewer] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [versionCount, setVersionCount] = useState(0);
-  const [showReplace, setShowReplace] = useState(false);
-  const [observacion, setObservacion] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -332,7 +318,7 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
     };
     fetchCount();
     return () => controller.abort();
-  }, [proyectoId, tipoDocumento, onUploaded]);
+  }, [proyectoId, tipoDocumento]);
 
   const handleDownload = async () => {
     if (!proyectoId || !tipoDocumento) return;
@@ -371,35 +357,6 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
     setViewerBlob(null);
   };
 
-  const handleReplaceFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!observacion.trim()) {
-      setError('La observación es obligatoria al reemplazar un documento.');
-      return;
-    }
-    try {
-      setUploading(true);
-      setError('');
-      await documentService.cargarDocumento(proyectoId, tipoDocumento, file, observacion.trim());
-      setObservacion('');
-      setShowReplace(false);
-      onUploaded?.();
-    } catch (err) {
-      const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error al cargar el archivo.';
-      setError(detail);
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
-    }
-  };
-
-  const handleCancelReplace = () => {
-    setShowReplace(false);
-    setObservacion('');
-    setError('');
-  };
-
   return (
     <>
       <div className="pim-doc-link-row">
@@ -418,43 +375,6 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
           <History size={14} />
         </button>
       </div>
-      {showReplace && (
-        <div className="pim-observacion-form">
-          <label className="pim-observacion-label">
-            Motivo del cambio (obligatorio):
-            <SpellCheckerTextarea
-              className="pim-observacion-input"
-              value={observacion}
-              onChange={(e) => setObservacion(e.target.value)}
-              placeholder="Ingrese la razon por la cual se reemplaza el documento..."
-              rows={2}
-              maxLength={1000}
-            />
-          </label>
-          <div className="pim-observacion-actions">
-            <button type="button" className="pim-btn-cancel" onClick={handleCancelReplace} disabled={uploading}>
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="pim-btn-upload"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading || !observacion.trim()}
-            >
-              {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
-              <span>{uploading ? 'Cargando...' : 'Seleccionar archivo'}</span>
-            </button>
-          </div>
-          <input ref={inputRef} type="file" accept=".pdf" onChange={handleReplaceFile} hidden />
-          {error && <span className="pim-doc-upload-error">{error}</span>}
-        </div>
-      )}
-      {!showReplace && (
-        <button type="button" className="pim-doc-replace-btn" onClick={() => setShowReplace(true)}>
-          <Upload size={12} />
-          <span>Reemplazar</span>
-        </button>
-      )}
       {viewerBlob && (
         <DocumentViewer blob={viewerBlob} nombre={nombre} onClose={handleCloseViewer} />
       )}
@@ -470,100 +390,15 @@ const DocumentLink = ({ proyectoId, tipoDocumento, nombre, onUploaded }) => {
   );
 };
 
-const DocumentUpload = ({ proyectoId, tipoDocumento, nombre, onUploaded, exists }) => {
-  const inputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [observacion, setObservacion] = useState('');
-  const [showObservacion, setShowObservacion] = useState(false);
-
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (exists && !showObservacion) {
-      setShowObservacion(true);
-      return;
-    }
-    if (exists && !observacion?.trim()) {
-      setError('La observación es obligatoria al reemplazar un documento.');
-      return;
-    }
-    try {
-      setUploading(true);
-      setError('');
-      await documentService.cargarDocumento(proyectoId, tipoDocumento, file, observacion || null);
-      setObservacion('');
-      setShowObservacion(false);
-      onUploaded?.();
-    } catch (err) {
-      const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error al cargar el archivo.';
-      setError(detail);
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
-    }
-  };
-
-  const handleCancelObservation = () => {
-    setShowObservacion(false);
-    setObservacion('');
-    setError('');
-  };
-
-  return (
-    <div className="pim-doc-upload-row">
-      {showObservacion && exists && (
-        <div className="pim-observacion-form">
-          <label className="pim-observacion-label">
-            Motivo del cambio (obligatorio):
-            <SpellCheckerTextarea
-              className="pim-observacion-input"
-              value={observacion}
-              onChange={(e) => setObservacion(e.target.value)}
-              placeholder="Ingrese la razon por la cual se reemplaza el documento..."
-              rows={2}
-              maxLength={1000}
-            />
-          </label>
-          <div className="pim-observacion-actions">
-            <button type="button" className="pim-btn-cancel" onClick={handleCancelObservation} disabled={uploading}>
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="pim-btn-upload"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading || !observacion.trim()}
-            >
-              {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
-              <span>{uploading ? 'Cargando...' : 'Confirmar reemplazo'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-      {!showObservacion && (
-        <button
-          type="button"
-          className="pim-doc-upload"
-          onClick={() => {
-            if (exists) {
-              setShowObservacion(true);
-            } else {
-              inputRef.current?.click();
-            }
-          }}
-          disabled={uploading}
-        >
-          {uploading ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />}
-          <span>{nombre}</span>
-          <span className="pim-doc-upload-hint">{exists ? 'Reemplazar archivo' : 'Cargar archivo'}</span>
-        </button>
-      )}
-      <input ref={inputRef} type="file" accept=".pdf" onChange={handleFile} hidden />
-      {error && <span className="pim-doc-upload-error">{error}</span>}
+const DocumentUnavailable = ({ nombre }) => (
+  <div className="pim-doc-link-row">
+    <div className="pim-doc-link">
+      <FileText size={14} />
+      <span>{nombre}</span>
     </div>
-  );
-};
+    <span className="pim-empty">No disponible</span>
+  </div>
+);
 
 const DOC_TYPES = [
   { key: 'viabilizacionPdf', tipo: 'VIABILIZACION', nombre: 'Documento de viabilidad' },
@@ -576,15 +411,6 @@ const mapFuragValue = (val) => {
   if (val === 'SI') return 'Sí';
   if (val === 'NO') return 'No';
   if (val === 'NA' || val === 'NO_APLICA') return 'No aplica';
-  return val;
-};
-
-const reverseMapFuragValue = (val) => {
-  if (!val) return '';
-  const str = String(val).toUpperCase().trim();
-  if (str === 'SÍ' || str === 'SI' || str === 'TRUE' || str === '1') return 'SI';
-  if (str === 'NO' || str === 'FALSE' || str === '0') return 'NO';
-  if (str === 'NA' || str === 'NO_APLICA' || str === 'NO APLICA') return 'NO_APLICA';
   return val;
 };
 
@@ -681,23 +507,7 @@ const resolveFuragAnswer = (furagMap, pregunta) => {
   return null;
 };
 
-const cloneFase = (f) => ({
-  ...f,
-  hitos: (f.hitos || []).map((h) => ({
-    ...h,
-    entregables: (h.entregables || []).map((e) => ({ ...e })),
-  })),
-});
-
-const EntregableRow = ({ ent, onChange }) => (
-  <div className="pim-edit-row pim-edit-row-nested">
-    <input type="text" placeholder="Nombre entregable" value={ent.nombre || ''} onChange={(e) => onChange('nombre', e.target.value)} />
-    <input type="text" inputMode="numeric" placeholder="%" value={ent.ponderacion || ''} onChange={(e) => onChange('ponderacion', e.target.value)} style={{ width: '60px' }} />
-    <input type="date" value={ent.fechaLimite || ''} onChange={(e) => onChange('fechaLimite', e.target.value)} />
-  </div>
-);
-
-const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
+const ProjectInfoModal = ({ project, open, onClose }) => {
   const [existingDocs, setExistingDocs] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [furag, setFurag] = useState(null);
@@ -705,38 +515,6 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const [furagQuestions, setFuragQuestions] = useState(
     DEFAULT_FURAG_ORDER.map((key) => ({ key, label: DEFAULT_FURAG_LABELS[key] }))
   );
-  const [showFuragEdit, setShowFuragEdit] = useState(false);
-  const [furagEditData, setFuragEditData] = useState({});
-  const [savingFurag, setSavingFurag] = useState(false);
-  const [furagEditError, setFuragEditError] = useState('');
-
-  const [editingDatos, setEditingDatos] = useState(false);
-  const [datosDraft, setDatosDraft] = useState({});
-  const [savingDatos, setSavingDatos] = useState(false);
-
-  const [editingPatrocinador, setEditingPatrocinador] = useState(false);
-  const [patrocinadorDraft, setPatrocinadorDraft] = useState({});
-  const [equipoDraft, setEquipoDraft] = useState([]);
-  const [stakeholdersDraft, setStakeholdersDraft] = useState([]);
-  const [savingPatrocinador, setSavingPatrocinador] = useState(false);
-
-  const [editingFases, setEditingFases] = useState(false);
-  const [fasesDraft, setFasesDraft] = useState([]);
-  const [savingFases, setSavingFases] = useState(false);
-
-  const [editingPeti, setEditingPeti] = useState(false);
-  const [petiDraft, setPetiDraft] = useState({});
-  const [savingPeti, setSavingPeti] = useState(false);
-
-  const [dependencias, setDependencias] = useState([]);
-  const [vigenciasPeti, setVigenciasPeti] = useState(['2020-2024', '2024-2027', '2027-2030']);
-  const [estrategiasPeti, setEstrategiasPeti] = useState([
-    { value: 'TECNOLOGIAS_INFORMACION', label: 'Tecnologías de la Información' },
-    { value: 'TRANSFORMACION_DIGITAL', label: 'Transformación Digital' },
-    { value: 'CIUDADES_TERRITORIOS_INTELIGENTES', label: 'Ciudades y Territorios Inteligentes' },
-    { value: 'GOBIERNO_DIGITAL', label: 'Gobierno Digital' },
-  ]);
-
   const proyectoId = project?.codigo || project?.id;
 
   const fetchDocuments = useCallback(async (signal) => {
@@ -792,32 +570,9 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
       fetchDocuments(controller.signal);
       fetchFurag();
       fetchFuragLabels();
-
-      configCatalogService.listarValoresParametrica('DEPENDENCIA').then((data) => {
-        if (!controller.signal.aborted && Array.isArray(data)) {
-          setDependencias(data.map((d) => typeof d === 'string' ? d : d.nombre || d.label || d.valor || '').filter(Boolean));
-        }
-      }).catch(() => {});
-
-      configCatalogService.getPetiCatalog().then((res) => {
-        if (!controller.signal.aborted && res) {
-          if (Array.isArray(res.vigencias) && res.vigencias.length > 0) setVigenciasPeti(res.vigencias);
-          if (Array.isArray(res.estrategias) && res.estrategias.length > 0) {
-            setEstrategiasPeti(res.estrategias.map((e) => ({
-              value: e.value || e.codigo || e,
-              label: e.label || e.nombre || e.descripcion || e.value || e,
-            })));
-          }
-        }
-      }).catch(() => {});
     }
     return () => controller.abort();
   }, [open, proyectoId, fetchDocuments, fetchFurag, fetchFuragLabels]);
-
-  const handleDocumentUploaded = useCallback(() => {
-    fetchDocuments();
-    onDocumentUploaded?.();
-  }, [fetchDocuments, onDocumentUploaded]);
 
   if (!open || !project) return null;
 
@@ -829,163 +584,6 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
   const furagData = furag || normalizeFurag(project?.furag);
   const furagAnswers = furagData?.respuestas || furagData || {};
   const furagDetail = Array.isArray(furagData?.detalle) ? furagData.detalle : [];
-
-  const openFuragEdit = () => {
-    const initial = {};
-
-    if (furagDetail.length > 0) {
-      const answersMap = {};
-      furagDetail.forEach((d) => {
-        answersMap[d.key] = d.response;
-        if (d.label) answersMap[d.label] = d.response;
-      });
-      furagQuestions.forEach((q) => {
-        initial[q.key] = reverseMapFuragValue(resolveFuragAnswer(answersMap, q)) || '';
-      });
-    } else {
-      const answers = furagData?.respuestas || furagData || {};
-      furagQuestions.forEach((q) => {
-        initial[q.key] = reverseMapFuragValue(resolveFuragAnswer(answers, q)) || '';
-      });
-    }
-
-    setFuragEditData(initial);
-    setFuragEditError('');
-    setShowFuragEdit(true);
-  };
-
-  const handleFuragEditChange = (key, value) => {
-    setFuragEditData((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const saveFuragEdit = async () => {
-    const unanswered = furagQuestions.filter((q) => !furagEditData[q.key]);
-    if (unanswered.length > 0) {
-      setFuragEditError('Debe responder todas las preguntas antes de guardar.');
-      return;
-    }
-    try {
-      setSavingFurag(true);
-      setFuragEditError('');
-      const respuestas = {};
-      furagQuestions.forEach((q) => {
-        respuestas[q.key] = furagEditData[q.key];
-      });
-      await projectService.updateFurag(proyectoId, { respuestas });
-      setShowFuragEdit(false);
-      fetchFurag();
-    } catch (err) {
-      const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Error al guardar FURAG.';
-      setFuragEditError(detail);
-    } finally {
-      setSavingFurag(false);
-    }
-  };
-
-  const openDatosEdit = () => {
-    setDatosDraft({
-      dependencia: project.dependencia || '',
-      fechaInicio: project.fechaInicio || '',
-      presupuestoEstimado: project.presupuestoEstimado || '',
-      alcanceDetallado: project.alcanceDetallado || '',
-    });
-    setEditingDatos(true);
-  };
-
-  const saveDatos = async () => {
-    try {
-      setSavingDatos(true);
-      await projectService.update(proyectoId, datosDraft);
-      setEditingDatos(false);
-      onDocumentUploaded?.();
-    } catch (err) {
-      const detail = extractApiDetail(err, 'Error al guardar.');
-      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
-    } finally {
-      setSavingDatos(false);
-    }
-  };
-
-  const removeEquipoMember = (index) => {
-    setEquipoDraft((prev) => prev.filter((_, j) => j !== index));
-  };
-
-  const openPatrocinadorEdit = () => {
-    setPatrocinadorDraft({ ...patrocinador });
-    setEquipoDraft(equipoTrabajo.map((m) => ({ ...m })));
-    setStakeholdersDraft(stakeholders.map((s) => ({ ...s })));
-    setEditingPatrocinador(true);
-  };
-
-  const savePatrocinador = async () => {
-    try {
-      setSavingPatrocinador(true);
-      await projectService.update(proyectoId, {
-        patrocinador: patrocinadorDraft,
-        equipoTrabajo: equipoDraft,
-        stakeholders: stakeholdersDraft,
-      });
-      setEditingPatrocinador(false);
-      onDocumentUploaded?.();
-    } catch (err) {
-      const detail = extractApiDetail(err, 'Error al guardar.');
-      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
-    } finally {
-      setSavingPatrocinador(false);
-    }
-  };
-
-  const updateEntregable = (fi, hi, ei, field, value) => {
-    const next = [...fasesDraft];
-    const h = [...(next[fi].hitos || [])];
-    const ents = [...(h[hi].entregables || [])];
-    ents[ei] = { ...ents[ei], [field]: value };
-    h[hi] = { ...h[hi], entregables: ents };
-    next[fi] = { ...next[fi], hitos: h };
-    setFasesDraft(next);
-  };
-
-  const openFasesEdit = () => {
-    setFasesDraft(fases.map(cloneFase));
-    setEditingFases(true);
-  };
-
-  const saveFases = async () => {
-    try {
-      setSavingFases(true);
-      await projectService.update(proyectoId, { fases: fasesDraft });
-      setEditingFases(false);
-      onDocumentUploaded?.();
-    } catch (err) {
-      const detail = extractApiDetail(err, 'Error al guardar.');
-      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
-    } finally {
-      setSavingFases(false);
-    }
-  };
-
-  const openPetiEdit = () => {
-    setPetiDraft({
-      peti: project.peti ?? project.esPeti ?? false,
-      vigenciaPeti: project.vigenciaPeti || '',
-      estrategiaPeti: project.estrategiaPeti || '',
-    });
-    setEditingPeti(true);
-  };
-
-  const savePeti = async () => {
-    try {
-      setSavingPeti(true);
-      await projectService.update(proyectoId, petiDraft);
-      setEditingPeti(false);
-      onDocumentUploaded?.();
-    } catch (err) {
-      const detail = extractApiDetail(err, 'Error al guardar.');
-      emitToast({ title: 'Error al guardar', message: detail, tone: 'error', duration: 7000 });
-    } finally {
-      setSavingPeti(false);
-    }
-  };
 
   return (
     <div className="pim-overlay" role="presentation" onClick={onClose}>
@@ -1002,45 +600,8 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
         </header>
 
         <div className="pim-body">
-          <Section title="Datos generales" icon={ClipboardList} onEdit={openDatosEdit} editing={editingDatos}>
-            {editingDatos ? (
-              <div className="pim-edit-form">
-                <div className="pim-grid">
-                  <div className="pim-edit-field">
-                    <label htmlFor="pim-datos-dependencia">Dependencia</label>
-                    <AutocompleteSelect
-                      id="pim-datos-dependencia"
-                      value={datosDraft.dependencia || ''}
-                      onChange={(val) => setDatosDraft((p) => ({ ...p, dependencia: val }))}
-                      options={dependencias.map((d) => ({ value: d, label: d }))}
-                      placeholder="Seleccione una dependencia"
-                      allLabel=""
-                      allValue=""
-                    />
-                  </div>
-                  <div className="pim-edit-field">
-                    <label htmlFor="pim-datos-fecha-inicio">Fecha de inicio</label>
-                    <input id="pim-datos-fecha-inicio" type="date" value={datosDraft.fechaInicio} onChange={(e) => setDatosDraft((p) => ({ ...p, fechaInicio: e.target.value }))} />
-                  </div>
-                  <div className="pim-edit-field">
-                    <label htmlFor="pim-datos-presupuesto">Presupuesto estimado</label>
-                    <input id="pim-datos-presupuesto" type="text" inputMode="numeric" value={datosDraft.presupuestoEstimado} onChange={(e) => setDatosDraft((p) => ({ ...p, presupuestoEstimado: e.target.value.replaceAll(/\D/g, '') }))} />
-                  </div>
-                </div>
-                <div className="pim-edit-field pim-edit-field-wide">
-                  <label htmlFor="pim-datos-alcance">Alcance</label>
-                  <textarea id="pim-datos-alcance" rows={4} value={datosDraft.alcanceDetallado} onChange={(e) => setDatosDraft((p) => ({ ...p, alcanceDetallado: e.target.value }))} />
-                </div>
-                <div className="pim-edit-actions">
-                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingDatos(false)} disabled={savingDatos}>Cancelar</button>
-                  <button type="button" className="pim-btn-save" onClick={saveDatos} disabled={savingDatos}>
-                    {savingDatos && <LoaderCircle size={14} className="animate-spin" />}
-                    {savingDatos ? 'Guardando...' : 'Guardar'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
+          <Section title="Datos generales" icon={ClipboardList}>
+            <>
                 <div className="pim-grid">
                   <Field label="Dependencia" value={project.dependencia} />
                   <Field label="Fecha de inicio" value={project.fechaInicio} />
@@ -1059,43 +620,11 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                     </ul>
                   </div>
                 )}
-              </>
-            )}
+            </>
           </Section>
 
-          <Section title="Patrocinador y equipo" icon={Users} onEdit={openPatrocinadorEdit} editing={editingPatrocinador}>
-            {editingPatrocinador ? (
-              <div className="pim-edit-form">
-                <h4 className="pim-edit-subtitle">Patrocinador</h4>
-                <div className="pim-grid">
-                  <div className="pim-edit-field">
-                    <label htmlFor="pim-patrocinador-nombre">Nombre</label>
-                    <input id="pim-patrocinador-nombre" type="text" value={patrocinadorDraft.nombre || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, nombre: e.target.value }))} />
-                  </div>
-                  <div className="pim-edit-field">
-                    <label htmlFor="pim-patrocinador-cargo">Cargo</label>
-                    <input id="pim-patrocinador-cargo" type="text" value={patrocinadorDraft.cargo || ''} onChange={(e) => setPatrocinadorDraft((p) => ({ ...p, cargo: e.target.value }))} />
-                  </div>
-                </div>
-                <h4 className="pim-edit-subtitle">Equipo de trabajo</h4>
-                {equipoDraft.map((m, i) => (
-                  <div key={i} className="pim-edit-row">
-                    <input type="text" placeholder="Nombre" value={m.nombre || ''} onChange={(e) => { const next = [...equipoDraft]; next[i] = { ...next[i], nombre: e.target.value }; setEquipoDraft(next); }} />
-                    <input type="text" placeholder="Cargo" value={m.cargo || ''} onChange={(e) => { const next = [...equipoDraft]; next[i] = { ...next[i], cargo: e.target.value }; setEquipoDraft(next); }} />
-                    <button type="button" className="pim-edit-remove" onClick={() => removeEquipoMember(i)}>x</button>
-                  </div>
-                ))}
-                <button type="button" className="pim-edit-add" onClick={() => setEquipoDraft((prev) => [...prev, { nombre: '', cargo: '', rol: '' }])}>+ Agregar miembro</button>
-                <div className="pim-edit-actions">
-                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingPatrocinador(false)} disabled={savingPatrocinador}>Cancelar</button>
-                  <button type="button" className="pim-btn-save" onClick={savePatrocinador} disabled={savingPatrocinador}>
-                    {savingPatrocinador && <LoaderCircle size={14} className="animate-spin" />}
-                    {savingPatrocinador ? 'Guardando...' : 'Guardar'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
+          <Section title="Patrocinador y equipo" icon={Users}>
+            <>
                 <div className="pim-grid">
                   <Field label="Nombre" value={patrocinador.nombre} />
                   <Field label="Cargo" value={patrocinador.cargo} />
@@ -1133,46 +662,11 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                     </div>
                   </div>
                 )}
-              </>
-            )}
+            </>
           </Section>
 
-          <Section title="Fases, hitos y entregables" icon={Layers} defaultOpen={false} onEdit={openFasesEdit} editing={editingFases}>
-            {editingFases ? (
-              <div className="pim-edit-form">
-                {fasesDraft.map((fase, fi) => (
-                  <div key={fi} className="pim-edit-phase">
-                    <div className="pim-edit-row">
-                      <input type="text" placeholder="Nombre fase" value={fase.nombre || ''} onChange={(e) => { const next = [...fasesDraft]; next[fi] = { ...next[fi], nombre: e.target.value }; setFasesDraft(next); }} />
-                      <input type="text" inputMode="numeric" placeholder="%" value={fase.ponderacion || ''} onChange={(e) => { const next = [...fasesDraft]; next[fi] = { ...next[fi], ponderacion: e.target.value }; setFasesDraft(next); }} style={{ width: '60px' }} />
-                    </div>
-                    {(fase.hitos || []).map((hito, hi) => (
-                      <div key={hi} className="pim-edit-hito">
-                        <div className="pim-edit-row">
-                          <input type="text" placeholder="Nombre hito" value={hito.nombre || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; h[hi] = { ...h[hi], nombre: e.target.value }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} />
-                          <input type="text" inputMode="numeric" placeholder="%" value={hito.ponderacion || ''} onChange={(e) => { const next = [...fasesDraft]; const h = [...(next[fi].hitos || [])]; h[hi] = { ...h[hi], ponderacion: e.target.value }; next[fi] = { ...next[fi], hitos: h }; setFasesDraft(next); }} style={{ width: '60px' }} />
-                        </div>
-                        {(hito.entregables || []).map((ent, ei) => (
-                          <EntregableRow
-                            key={ei}
-                            ent={ent}
-                            onChange={(field, value) => updateEntregable(fi, hi, ei, field, value)}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-                <div className="pim-edit-actions">
-                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingFases(false)} disabled={savingFases}>Cancelar</button>
-                  <button type="button" className="pim-btn-save" onClick={saveFases} disabled={savingFases}>
-                    {savingFases && <LoaderCircle size={14} className="animate-spin" />}
-                    {savingFases ? 'Guardando...' : 'Guardar'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
+          <Section title="Fases, hitos y entregables" icon={Layers} defaultOpen={false}>
+            <>
                 {fases.length > 0 ? fases.map((fase, fi) => (
                   <div key={fi} className="pim-phase">
                     <div className="pim-phase-header">
@@ -1195,60 +689,11 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                     ))}
                   </div>
                 )) : <p className="pim-empty">No hay fases configuradas.</p>}
-              </>
-            )}
+            </>
           </Section>
 
-          <Section title="PETI" icon={Shield} defaultOpen={false} onEdit={openPetiEdit} editing={editingPeti}>
-            {editingPeti ? (
-              <div className="pim-edit-form">
-                <div className="pim-grid">
-                  <div className="pim-edit-field">
-                    <label htmlFor="pim-peti-proyecto">Proyecto en PETI</label>
-                    <select id="pim-peti-proyecto" value={petiDraft.peti ? 'si' : 'no'} onChange={(e) => setPetiDraft((p) => ({ ...p, peti: e.target.value === 'si' }))}>
-                      <option value="si">Si</option>
-                      <option value="no">No</option>
-                    </select>
-                  </div>
-                  {petiDraft.peti && (
-                    <>
-                      <div className="pim-edit-field">
-                        <label htmlFor="pim-peti-vigencia">Vigencia</label>
-                        <AutocompleteSelect
-                          id="pim-peti-vigencia"
-                          value={petiDraft.vigenciaPeti || ''}
-                          onChange={(val) => setPetiDraft((p) => ({ ...p, vigenciaPeti: val }))}
-                          options={vigenciasPeti.map((v) => ({ value: v, label: v }))}
-                          placeholder="Seleccione la vigencia"
-                          allLabel=""
-                          allValue=""
-                        />
-                      </div>
-                      <div className="pim-edit-field">
-                        <label htmlFor="pim-peti-estrategia">Estrategia</label>
-                        <AutocompleteSelect
-                          id="pim-peti-estrategia"
-                          value={petiDraft.estrategiaPeti || ''}
-                          onChange={(val) => setPetiDraft((p) => ({ ...p, estrategiaPeti: val }))}
-                          options={estrategiasPeti}
-                          placeholder="Seleccione la estrategia"
-                          allLabel=""
-                          allValue=""
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="pim-edit-actions">
-                  <button type="button" className="pim-btn-cancel" onClick={() => setEditingPeti(false)} disabled={savingPeti}>Cancelar</button>
-                  <button type="button" className="pim-btn-save" onClick={savePeti} disabled={savingPeti}>
-                    {savingPeti && <LoaderCircle size={14} className="animate-spin" />}
-                    {savingPeti ? 'Guardando...' : 'Guardar'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="pim-grid">
+          <Section title="PETI" icon={Shield} defaultOpen={false}>
+            <div className="pim-grid">
                 <Field label="Proyecto en PETI" value={project.esPeti || project.peti ? 'Si' : 'No'} />
                 {(project.esPeti || project.peti) && (
                   <>
@@ -1256,17 +701,10 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                     <Field label="Estrategia" value={project.estrategiaPeti} />
                   </>
                 )}
-              </div>
-            )}
+            </div>
           </Section>
 
           <Section title="FURAG" icon={Target} defaultOpen={false}>
-            <div className="pim-furag-header">
-              <button type="button" className="pim-furag-edit-btn" onClick={openFuragEdit} disabled={loadingFurag}>
-                <Pencil size={14} />
-                <span>Editar</span>
-              </button>
-            </div>
             <div className="pim-furag-list">
               {loadingFurag ? (
                 <p className="pim-empty"><LoaderCircle size={14} className="animate-spin" /> Cargando FURAG...</p>
@@ -1300,16 +738,11 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
                       proyectoId={proyectoId}
                       tipoDocumento={doc.tipo}
                       nombre={doc.nombre}
-                      onUploaded={handleDocumentUploaded}
                     />
                   ) : (
-                    <DocumentUpload
+                    <DocumentUnavailable
                       key={doc.key}
-                      proyectoId={proyectoId}
-                      tipoDocumento={doc.tipo}
                       nombre={doc.nombre}
-                      onUploaded={handleDocumentUploaded}
-                      exists={false}
                     />
                   )
                 )
@@ -1318,60 +751,6 @@ const ProjectInfoModal = ({ project, open, onClose, onDocumentUploaded }) => {
           </Section>
         </div>
       </div>
-
-      {showFuragEdit && (
-        <div className="pim-furag-modal-overlay" role="presentation" onClick={() => setShowFuragEdit(false)}>
-          <div className="pim-furag-modal" role="dialog" aria-modal="true" tabIndex={0} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}>
-            <header className="pim-furag-modal-header">
-              <div className="pim-furag-modal-title">
-                <Target size={16} />
-                <span>Editar Cuestionario FURAG</span>
-              </div>
-              <button type="button" className="pim-furag-modal-close" onClick={() => setShowFuragEdit(false)} aria-label="Cerrar">
-                <X size={18} />
-              </button>
-            </header>
-            <div className="pim-furag-modal-body">
-              <p className="pim-furag-modal-hint">
-                Modifique las respuestas que desee. Las respuestas actuales estan pre-seleccionadas.
-              </p>
-              {furagQuestions.map((pregunta) => (
-                <div key={pregunta.key} className="pim-furag-edit-item">
-                  <p className="pim-furag-edit-question">{pregunta.label} *</p>
-                  <div className="pim-furag-edit-options">
-                    {[
-                      { value: 'SI', label: 'Si' },
-                      { value: 'NO', label: 'No' },
-                      { value: 'NO_APLICA', label: 'No aplica' },
-                    ].map((opt) => (
-                      <label key={opt.value} className="pim-furag-edit-radio">
-                        <input
-                          type="radio"
-                          name={`furag_edit_${pregunta.key}`}
-                          value={opt.value}
-                          checked={furagEditData[pregunta.key] === opt.value}
-                          onChange={() => handleFuragEditChange(pregunta.key, opt.value)}
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {furagEditError && <p className="pim-furag-edit-error">{furagEditError}</p>}
-            </div>
-            <footer className="pim-furag-modal-footer">
-              <button type="button" className="pim-furag-btn-cancel" onClick={() => setShowFuragEdit(false)} disabled={savingFurag}>
-                Cancelar
-              </button>
-              <button type="button" className="pim-furag-btn-save" onClick={saveFuragEdit} disabled={savingFurag}>
-                {savingFurag ? <LoaderCircle size={14} className="animate-spin" /> : null}
-                <span>{savingFurag ? 'Guardando...' : 'Guardar cambios'}</span>
-              </button>
-            </footer>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

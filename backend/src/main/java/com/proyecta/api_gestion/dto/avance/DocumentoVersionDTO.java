@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
       "subidoEn": "2026-07-15T10:30:00",
       "comentarioCarga": "Corrección de observaciones del revisor",
       "actual": true,
-      "descargaUrl": "/api/v1/documentos/versiones/5001/descarga"
+      "descargaUrl": "/api/v1/proyectos/PROY-CUN-2026-001/avance/entregables/101/versiones/5001/archivo"
     }
     """)
 public record DocumentoVersionDTO(

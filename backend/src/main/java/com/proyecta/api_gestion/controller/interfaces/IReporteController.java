@@ -46,6 +46,7 @@ public interface IReporteController {
     ResponseEntity<ApiResponse<List<ProyectoReporteResumenDTO>>> getProyectosConRetrasos();
 
     @Operation(summary = "Obtener proyectos para KPI de plan de comunicaciones")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Listado de proyectos para el KPI de plan de comunicaciones obtenido")
     @StandardApiResponses
     @GetMapping("/plan-comunicaciones")
     ResponseEntity<ApiResponse<List<PlanComunicacionesProyectoDTO>>> getPortafolioPlanComunicaciones();

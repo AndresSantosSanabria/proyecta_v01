@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.service.interfaces;
 
 import com.proyecta.api_gestion.dto.avance.ProyectoAvanceResponseDTO;
 import com.proyecta.api_gestion.dto.avance.EntregableAprobadoResponseDTO;
+import com.proyecta.api_gestion.dto.avance.DocumentoArchivoDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoObservacionDTO;
 import com.proyecta.api_gestion.dto.avance.DocumentoVersionDTO;
 import java.time.LocalDate;
@@ -18,5 +19,6 @@ public interface ProyectoAvanceService {
     List<DocumentoObservacionDTO> listarObservaciones(String proyectoId, Integer entregableId, Authentication authentication);
     DocumentoObservacionDTO marcarObservacionSubsanada(String proyectoId, Integer entregableId, Long observacionId, String comentario, Authentication authentication);
     EntregableAprobadoResponseDTO revertirVersion(String proyectoId, Integer entregableId, Long versionId, String motivo, Authentication authentication);
+    DocumentoArchivoDTO obtenerArchivoVersion(String proyectoId, Integer entregableId, Long versionId, Authentication authentication);
     void enviarAlertaDirector(String proyectoId, Authentication authentication);
 }

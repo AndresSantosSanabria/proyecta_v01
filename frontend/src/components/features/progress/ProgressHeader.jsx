@@ -22,7 +22,7 @@ const ProgressHeader = ({ codigo, nombre, dependencia, estado, corte }) => {
           </span>
           <span className="progress-chip muted">
             <CalendarDays size={14} />
-            Fecha límite: {corte || 'sin fecha'}
+            Fecha de corte: {corte || 'sin fecha'}
           </span>
           <span className={`progress-chip status ${statusClass}`}>{statusLabel}</span>
         </div>

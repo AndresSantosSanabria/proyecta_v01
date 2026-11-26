@@ -488,16 +488,20 @@ const Paso3FasesHitosEntregables = ({
                             </div>
                           )}
                           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                            <label className="form-label" htmlFor={`p3-ent-desc-${fIndex}-${hIndex}-${eIndex}`}>Descripcion</label>
+                            <label className="form-label" htmlFor={`p3-ent-desc-${fIndex}-${hIndex}-${eIndex}`}>Descripcion *</label>
                             <SpellCheckerInput
                               id={`p3-ent-desc-${fIndex}-${hIndex}-${eIndex}`}
-                              className={`form-input ${entregableDescriptionLocked ? 'form-input-muted' : ''}`}
+                              className={`form-input ${entregableDescriptionLocked ? 'form-input-muted' : ''} ${errors[`ent_${fIndex}_${hIndex}_${eIndex}_descripcion`] ? 'input-error' : ''}`}
                               value={ent.descripcion || ''}
                               onChange={entregableDescriptionLocked ? undefined : (e) => updateEntregable(fIndex, hIndex, eIndex, 'descripcion', e.target.value)}
-                              placeholder="Descripcion opcional del entregable"
+                              placeholder="Descripcion obligatoria del entregable"
                               readOnly={entregableDescriptionLocked}
                               aria-readonly={entregableDescriptionLocked}
+                              aria-required="true"
                             />
+                            {errors[`ent_${fIndex}_${hIndex}_${eIndex}_descripcion`] && (
+                              <span className="error-text">{errors[`ent_${fIndex}_${hIndex}_${eIndex}_descripcion`]}</span>
+                            )}
                             {entregableDescriptionLocked && (
                               <span className="field-help">La descripcion de entregables existentes no se puede editar.</span>
                             )}

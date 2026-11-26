@@ -646,10 +646,10 @@ Envía un correo de prueba al usuario autenticado.
 | 3 | `GET` | `/api/v1/proyectos/{proyectoId}/documentos/{tipoDocumento}/descargar` | Descargar el documento actual del proyecto | `PROYECTO:VER` |
 | 4 | `GET` | `/api/v1/proyectos/{proyectoId}/documentos/{tipoDocumento}/versiones` | Listar historial de versiones de un documento | `PROYECTO:VER` |
 | 5 | `GET` | `/api/v1/proyectos/{proyectoId}/documentos/{tipoDocumento}/versiones/{numeroVersion}/archivo` | Descargar una versión específica de un documento | `PROYECTO:VER` |
-| 6 | `GET` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard` | Listar revisiones de los 3 documentos pre-wizard | `PROYECTO:VER` |
-| 7 | `PATCH` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/aprobar` | Aprobar individualmente un documento pre-wizard | `PROYECTO:EDITAR` |
-| 8 | `PATCH` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/devolver` | Devolver individualmente un documento pre-wizard con observaciones | `PROYECTO:EDITAR` |
-| 9 | `POST` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard/confirmar-revision` | Confirmar revisión pre-wizard y enviar notificación consolidada | `PROYECTO:EDITAR` |
+| 6 | `GET` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard` | Listar revisiones de los 3 documentos iniciales del proyecto | `PROYECTO:VER` |
+| 7 | `PATCH` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/aprobar` | Aprobar individualmente un documento inicial del proyecto | `PROYECTO:EDITAR` |
+| 8 | `PATCH` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/devolver` | Devolver individualmente un documento inicial del proyecto con observaciones | `PROYECTO:EDITAR` |
+| 9 | `POST` | `/api/v1/proyectos/{proyectoId}/documentos-pre-wizard/confirmar-revision` | Confirmar revisión de los documentos iniciales y enviar notificación consolidada | `PROYECTO:EDITAR` |
 
 ---
 
@@ -897,7 +897,7 @@ Envía un correo de prueba al usuario autenticado.
 | --- | ------ | -------- | ----------- | ------- |
 | 1 | `GET` | `/api/v1/proyectos` | Listar proyectos (con filtros y paginación) | `PROYECTO:VER` (global) |
 | 2 | `GET` | `/api/v1/proyectos/{id}` | Obtener detalle del proyecto | `PROYECTO:VER` |
-| 3 | `PUT` | `/api/v1/proyectos/{id}` | Actualizar proyecto | `PROYECTO:EDITAR` |
+| 3 | `PUT` | `/api/v1/proyectos/{id}` | Actualizar proyecto (nombre y objetivo general: solo Gestor) | `PROYECTO:EDITAR` |
 | 4 | `PATCH` | `/api/v1/proyectos/{id}/cierre-forzoso` | Cierre forzoso / extraordinario | `canForceCloseExtraordinary` |
 | 5 | `PUT` | `/api/v1/proyectos/{id}/completar-informacion` | Completar información inicial | `canCompleteInitialRegistration` |
 | 6 | `GET` | `/api/v1/proyectos/{id}/completion-status` | Estado de completitud | `PROYECTO:VER` |

@@ -185,7 +185,11 @@ public class ProjectProgressMetricsService {
 
     private EntregableAvanceDTO construirEntregable(Entregable entregable, LocalDate corte) {
         boolean iniciado = isEntregableIniciado(entregable, corte);
-        boolean vencido = iniciado && entregable.getFechaLimite() != null && !entregable.getFechaLimite().isAfter(corte);
+        // Regla de atraso: el entregable sigue "en plazo" durante todo el dia de su
+        // fecha limite, por lo que solo se considera vencido (programado = 100%) a
+        // partir del dia siguiente. Asi el estado ATRASO se activa unicamente
+        // despues del vencimiento y mientras el entregable siga pendiente.
+        boolean vencido = iniciado && entregable.getFechaLimite() != null && entregable.getFechaLimite().isBefore(corte);
         boolean conforme = iniciado && entregable.esConforme();
 
         BigDecimal progresoProgramado = vencido ? HUNDRED : ZERO;

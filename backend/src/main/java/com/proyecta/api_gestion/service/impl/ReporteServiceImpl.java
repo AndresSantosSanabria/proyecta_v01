@@ -347,7 +347,7 @@ public class ReporteServiceImpl implements ReporteService {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
         ) {
             poblarFichaProyecto(workbook.getSheetAt(0), proyecto);
-            Map<String, Map<String, Integer>> context = poblarSeguimientoProyecto(workbook.getSheetAt(1), proyecto, avance, corte);
+            Map<String, Map<Integer, Integer>> context = poblarSeguimientoProyecto(workbook.getSheetAt(1), proyecto, avance, corte);
             poblarAvancesProyecto(workbook.getSheetAt(2), proyecto, context);
             workbook.setForceFormulaRecalculation(true);
             workbook.write(outputStream);
@@ -378,7 +378,7 @@ public class ReporteServiceImpl implements ReporteService {
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 16), 2, esTransformacion ? "SI" : "NO");
     }
 
-    private Map<String, Map<String, Integer>> poblarSeguimientoProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
+    private Map<String, Map<Integer, Integer>> poblarSeguimientoProyecto(Sheet sheet, Proyecto proyecto, ProyectoAvanceResponseDTO avance, LocalDate corte) {
         // La plantilla trae celdas combinadas fijas (B5:B8, C5:C8, B9:B12, X15:Z15) que no coinciden
         // con las filas reales del proyecto: ocultan el nombre de las fases siguientes y desalinean
         // el bloque de indicadores. Se capturan primero los estilos del bloque de indicadores y luego
@@ -387,6 +387,7 @@ public class ReporteServiceImpl implements ReporteService {
         eliminarFusiones(sheet);
 
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 1), 1, safe(proyecto.getId()) + " " + safe(proyecto.getNombre()));
+        ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 3), 7, "DESCRIPCION");
         List<DetalleSeguimiento> detalles = detallesSeguimiento(proyecto, avance, corte);
         prepararFilasDetalle(sheet, detalles.size());
         MapasSeguimiento mapas = indexarFilasDetalle(detalles);
@@ -397,8 +398,8 @@ public class ReporteServiceImpl implements ReporteService {
             DetalleSeguimiento detalle = detalles.get(i);
             Row row = ExcelSheetSupport.ensureRow(sheet, rowIndex++);
 
-            boolean isFirstInFase = (excelRow == mapas.faseFirstRow().get(detalle.fase()));
-            boolean isFirstInHito = (excelRow == mapas.hitoFirstRow().get(detalle.hito()));
+            boolean isFirstInFase = (excelRow == mapas.faseFirstRow().get(detalle.faseId()));
+            boolean isFirstInHito = (excelRow == mapas.hitoFirstRow().get(detalle.hitoId()));
             boolean isFirstInProject = (i == 0);
 
             ExcelSheetSupport.escribirCabeceraAgrupada(row, 1, 2, isFirstInFase, detalle.fase(), detalle.ponderacionFase());
@@ -427,16 +428,18 @@ public class ReporteServiceImpl implements ReporteService {
             ExcelSheetSupport.setCellHyperlink(row, 12, detalle.evidencia(), detalle.evidenciaPublica());
             ExcelSheetSupport.setCellText(row, 13, detalle.observacion());
 
-            ExcelSheetSupport.escribirFormulaSuma(row, 14, isFirstInHito, mapas.hitoEntregableRows().get(detalle.hito()), "G", "L");
-            ExcelSheetSupport.escribirFormulaSuma(row, 15, isFirstInFase, mapas.faseHitoRows().get(detalle.fase()), "O", "E");
+            ExcelSheetSupport.escribirFormulaSuma(row, 14, isFirstInHito, mapas.hitoEntregableRows().get(detalle.hitoId()), "G", "L");
+            ExcelSheetSupport.escribirFormulaSuma(row, 15, isFirstInFase, mapas.faseHitoRows().get(detalle.faseId()), "O", "E");
             ExcelSheetSupport.escribirFormulaSuma(row, 16, isFirstInProject, mapas.projectFaseFirstRows(), "P", "C");
 
             ExcelSheetSupport.setCellFormula(row, 17, "TODAY()");
             ExcelSheetSupport.setCellFormula(row, 18, "I" + excelRow + "-R" + excelRow);
-            ExcelSheetSupport.setCellFormula(row, 19, "IF(S" + excelRow + ">0,0,1)");
+            // VALIDA: 1 = vencido. El dia de la fecha limite el entregable sigue en plazo,
+            // por lo que solo cuenta a partir del dia siguiente.
+            ExcelSheetSupport.setCellFormula(row, 19, "IF(S" + excelRow + "<0,1,0)");
 
-            ExcelSheetSupport.escribirFormulaSuma(row, 20, isFirstInHito, mapas.hitoEntregableRows().get(detalle.hito()), "T", "G");
-            ExcelSheetSupport.escribirFormulaSuma(row, 21, isFirstInFase, mapas.faseHitoRows().get(detalle.fase()), "U", "E");
+            ExcelSheetSupport.escribirFormulaSuma(row, 20, isFirstInHito, mapas.hitoEntregableRows().get(detalle.hitoId()), "T", "G");
+            ExcelSheetSupport.escribirFormulaSuma(row, 21, isFirstInFase, mapas.faseHitoRows().get(detalle.faseId()), "U", "E");
             ExcelSheetSupport.escribirFormulaSuma(row, 22, isFirstInProject, mapas.projectFaseFirstRows(), "V", "C");
 
             ExcelSheetSupport.setCellFormula(row, 23, "IF(R" + excelRow + "-I" + excelRow + ">=0,\"Si\",\"No\")");
@@ -446,42 +449,42 @@ public class ReporteServiceImpl implements ReporteService {
 
         escribirIndicadores(sheet, detalles.size(), estilosIndicadores);
 
-        Map<String, Map<String, Integer>> context = new HashMap<>();
+        Map<String, Map<Integer, Integer>> context = new HashMap<>();
         context.put("faseFirstRows", mapas.faseFirstRow());
         context.put("hitoFirstRows", mapas.hitoFirstRow());
         return context;
     }
 
     private record MapasSeguimiento(
-            Map<String, Integer> faseFirstRow,
-            Map<String, Integer> hitoFirstRow,
-            Map<String, List<Integer>> faseHitoRows,
-            Map<String, List<Integer>> hitoEntregableRows,
+            Map<Integer, Integer> faseFirstRow,
+            Map<Integer, Integer> hitoFirstRow,
+            Map<Integer, List<Integer>> faseHitoRows,
+            Map<Integer, List<Integer>> hitoEntregableRows,
             List<Integer> projectFaseFirstRows) { }
 
     private MapasSeguimiento indexarFilasDetalle(List<DetalleSeguimiento> detalles) {
-        Map<String, Integer> faseFirstRowMap = new LinkedHashMap<>();
-        Map<String, Integer> hitoFirstRowMap = new LinkedHashMap<>();
-        Map<String, List<Integer>> faseHitoRowsMap = new LinkedHashMap<>();
-        Map<String, List<Integer>> hitoEntregableRowsMap = new LinkedHashMap<>();
+        Map<Integer, Integer> faseFirstRowMap = new LinkedHashMap<>();
+        Map<Integer, Integer> hitoFirstRowMap = new LinkedHashMap<>();
+        Map<Integer, List<Integer>> faseHitoRowsMap = new LinkedHashMap<>();
+        Map<Integer, List<Integer>> hitoEntregableRowsMap = new LinkedHashMap<>();
         List<Integer> projectFaseFirstRows = new ArrayList<>();
 
         for (int i = 0; i < detalles.size(); i++) {
             int excelRow = 5 + i;
             DetalleSeguimiento det = detalles.get(i);
 
-            faseFirstRowMap.putIfAbsent(det.fase(), excelRow);
-            if (!projectFaseFirstRows.contains(faseFirstRowMap.get(det.fase()))) {
-                projectFaseFirstRows.add(faseFirstRowMap.get(det.fase()));
+            faseFirstRowMap.putIfAbsent(det.faseId(), excelRow);
+            if (!projectFaseFirstRows.contains(faseFirstRowMap.get(det.faseId()))) {
+                projectFaseFirstRows.add(faseFirstRowMap.get(det.faseId()));
             }
 
-            hitoFirstRowMap.putIfAbsent(det.hito(), excelRow);
-            faseHitoRowsMap.computeIfAbsent(det.fase(), k -> new ArrayList<>());
-            if (!faseHitoRowsMap.get(det.fase()).contains(hitoFirstRowMap.get(det.hito()))) {
-                faseHitoRowsMap.get(det.fase()).add(hitoFirstRowMap.get(det.hito()));
+            hitoFirstRowMap.putIfAbsent(det.hitoId(), excelRow);
+            faseHitoRowsMap.computeIfAbsent(det.faseId(), k -> new ArrayList<>());
+            if (!faseHitoRowsMap.get(det.faseId()).contains(hitoFirstRowMap.get(det.hitoId()))) {
+                faseHitoRowsMap.get(det.faseId()).add(hitoFirstRowMap.get(det.hitoId()));
             }
 
-            hitoEntregableRowsMap.computeIfAbsent(det.hito(), k -> new ArrayList<>()).add(excelRow);
+            hitoEntregableRowsMap.computeIfAbsent(det.hitoId(), k -> new ArrayList<>()).add(excelRow);
         }
         return new MapasSeguimiento(faseFirstRowMap, hitoFirstRowMap, faseHitoRowsMap, hitoEntregableRowsMap, projectFaseFirstRows);
     }
@@ -595,11 +598,11 @@ public class ReporteServiceImpl implements ReporteService {
                 INDICADORES_PRIMERA_COLUMNA, INDICADORES_ULTIMA_COLUMNA));
     }
 
-    private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, Map<String, Map<String, Integer>> context) {
+    private void poblarAvancesProyecto(Sheet sheet, Proyecto proyecto, Map<String, Map<Integer, Integer>> context) {
         ExcelSheetSupport.setCellText(ExcelSheetSupport.ensureRow(sheet, 1), 1, "AVANCES DEL PROYECTO " + safe(proyecto.getId()));
 
-        Map<String, Integer> faseFirstRowMap = context != null ? context.get("faseFirstRows") : Map.of();
-        Map<String, Integer> hitoFirstRowMap = context != null ? context.get("hitoFirstRows") : Map.of();
+        Map<Integer, Integer> faseFirstRowMap = context != null ? context.get("faseFirstRows") : Map.of();
+        Map<Integer, Integer> hitoFirstRowMap = context != null ? context.get("hitoFirstRows") : Map.of();
 
         Row projRow = ExcelSheetSupport.ensureRow(sheet, 5);
         ExcelSheetSupport.setCellText(projRow, 1, "PROYECTO");
@@ -610,6 +613,8 @@ public class ReporteServiceImpl implements ReporteService {
 
         int currentPoiRow = 7;
         Row templateFaseRow = ExcelSheetSupport.plantillaDe(sheet, 7, projRow);
+        Row templateHitoRow = ExcelSheetSupport.plantillaDe(sheet, 10, templateFaseRow);
+        int ultimaFilaPlantilla = limpiarFilasAvance(sheet, 7);
 
         List<Fase> fases = fasesOrdenadas(proyecto);
 
@@ -618,22 +623,33 @@ public class ReporteServiceImpl implements ReporteService {
         }
 
         currentPoiRow++;
-        Row templateHitoRow = ExcelSheetSupport.plantillaDe(sheet, 10, templateFaseRow);
 
         for (Fase fase : fases) {
             for (Hito hito : hitosOrdenados(fase)) {
                 currentPoiRow = escribirFilaAvanceHito(sheet, hito, currentPoiRow, templateHitoRow, hitoFirstRowMap);
             }
         }
+        for (int rowIndex = currentPoiRow; rowIndex <= ultimaFilaPlantilla; rowIndex++) {
+            sheet.removeRow(sheet.getRow(rowIndex));
+        }
     }
 
-    private int escribirFilaAvanceFase(Sheet sheet, Fase fase, int poiRow, Row templateRow, Map<String, Integer> primeraFilaFase) {
+    private int limpiarFilasAvance(Sheet sheet, int primeraFila) {
+        eliminarFusiones(sheet);
+        int ultimaFila = sheet.getLastRowNum();
+        for (int rowIndex = primeraFila; rowIndex <= ultimaFila; rowIndex++) {
+            ExcelSheetSupport.clearTemplateRow(ExcelSheetSupport.ensureRow(sheet, rowIndex), 1, 5);
+        }
+        return ultimaFila;
+    }
+
+    private int escribirFilaAvanceFase(Sheet sheet, Fase fase, int poiRow, Row templateRow, Map<Integer, Integer> primeraFilaFase) {
         int excelRow = poiRow + 1;
         Row row = ExcelSheetSupport.ensureRow(sheet, poiRow);
         if (row != templateRow) ExcelSheetSupport.copiarEstilosFila(templateRow, row, 1, 5);
         ExcelSheetSupport.setCellText(row, 1, safe(fase.getNombre()));
 
-        Integer avanceFila = primeraFilaFase.get(safe(fase.getNombre()));
+        Integer avanceFila = primeraFilaFase.get(fase.getId());
         if (avanceFila != null) {
             ExcelSheetSupport.setCellFormula(row, 2, "AVANCE!V" + avanceFila);
             ExcelSheetSupport.setCellFormula(row, 3, "AVANCE!P" + avanceFila);
@@ -646,13 +662,13 @@ public class ReporteServiceImpl implements ReporteService {
         return poiRow + 1;
     }
 
-    private int escribirFilaAvanceHito(Sheet sheet, Hito hito, int poiRow, Row templateRow, Map<String, Integer> primeraFilaHito) {
+    private int escribirFilaAvanceHito(Sheet sheet, Hito hito, int poiRow, Row templateRow, Map<Integer, Integer> primeraFilaHito) {
         int excelRow = poiRow + 1;
         Row row = ExcelSheetSupport.ensureRow(sheet, poiRow);
         if (row != templateRow) ExcelSheetSupport.copiarEstilosFila(templateRow, row, 1, 5);
         ExcelSheetSupport.setCellText(row, 1, safe(hito.getNombre()));
 
-        Integer avanceHito = primeraFilaHito.get(safe(hito.getNombre()));
+        Integer avanceHito = primeraFilaHito.get(hito.getId());
         if (avanceHito != null) {
             ExcelSheetSupport.setCellFormula(row, 2, "AVANCE!U" + avanceHito);
             ExcelSheetSupport.setCellFormula(row, 3, "AVANCE!O" + avanceHito);
@@ -690,8 +706,13 @@ public class ReporteServiceImpl implements ReporteService {
             Map<Integer, HitoAvanceDTO> hitos = hitosAvanceFase(avanceFase);
             for (Hito hito : hitosOrdenados(fase)) {
                 HitoAvanceDTO avanceHito = hitos.get(hito.getId());
-                for (Entregable entregable : entregablesOrdenados(hito)) {
-                    detalles.add(construirDetalleSeguimiento(fase, hito, entregable, avanceFase, avanceHito, avance, corte));
+                List<Entregable> entregables = entregablesOrdenados(hito);
+                if (entregables.isEmpty()) {
+                    detalles.add(construirDetalleSeguimientoSinEntregable(fase, hito, avanceFase, avanceHito, avance));
+                } else {
+                    for (Entregable entregable : entregables) {
+                        detalles.add(construirDetalleSeguimiento(fase, hito, entregable, avanceFase, avanceHito, avance, corte));
+                    }
                 }
             }
         }
@@ -763,8 +784,8 @@ public class ReporteServiceImpl implements ReporteService {
         String evidenciaPublica = crearUrlEvidenciaPublica(entregable);
         String evidencia = etiquetaEvidencia(entregable);
         return new DetalleSeguimiento(
-                safe(fase.getNombre()), ratioDesdePonderacion(fase.getPonderacion()), safe(hito.getNombre()), ratioDesdePonderacion(hito.getPonderacion()),
-                safe(entregable.getNombre()), ratioDesdePonderacion(entregable.getPonderacion()), nombreEntregable(entregable), limite, entrega,
+                fase.getId(), hito.getId(), safe(fase.getNombre()), ratioDesdePonderacion(fase.getPonderacion()), safe(hito.getNombre()), ratioDesdePonderacion(hito.getPonderacion()),
+                safe(entregable.getNombre()), ratioDesdePonderacion(entregable.getPonderacion()), safe(entregable.getDescripcion()).trim(), limite, entrega,
                 diasAtraso, conforme, evidencia, evidenciaPublica, safe(entregable.getObservacionRevision()),
                 ratioEjecutadoHito(avanceHito),
                 ratioEjecutadoFase(avanceFase),
@@ -772,6 +793,19 @@ public class ReporteServiceImpl implements ReporteService {
                 ratioProgramadoHito(avanceHito),
                 ratioProgramadoFase(avanceFase),
                 ratioDesdePorcentaje(avance.progresoProgramado()), programado, eficaz, eficiente
+        );
+    }
+
+    private DetalleSeguimiento construirDetalleSeguimientoSinEntregable(Fase fase, Hito hito,
+                                                                        FaseAvanceDTO avanceFase, HitoAvanceDTO avanceHito,
+                                                                        ProyectoAvanceResponseDTO avance) {
+        return new DetalleSeguimiento(
+                fase.getId(), hito.getId(), safe(fase.getNombre()), ratioDesdePonderacion(fase.getPonderacion()),
+                safe(hito.getNombre()), ratioDesdePonderacion(hito.getPonderacion()), "", BigDecimal.ZERO, "",
+                null, null, null, false, "", "", "",
+                ratioEjecutadoHito(avanceHito), ratioEjecutadoFase(avanceFase), ratioDesdePorcentaje(avance.progresoEjecutado()),
+                null, ratioProgramadoHito(avanceHito), ratioProgramadoFase(avanceFase), ratioDesdePorcentaje(avance.progresoProgramado()),
+                false, false, false
         );
     }
 
@@ -807,11 +841,6 @@ public class ReporteServiceImpl implements ReporteService {
         return null;
     }
 
-    private String nombreEntregable(Entregable entregable) {
-        String descripcion = safe(entregable.getDescripcion());
-        return descripcion.isBlank() ? safe(entregable.getNombre()) : descripcion;
-    }
-
     private String crearUrlEvidenciaPublica(Entregable entregable) {
         if (entregable.getArchivoPdf() == null || entregable.getArchivoPdf().isBlank()) return "";
         String token = publicEvidenceAccessService.getOrCreateToken(entregable, "reporte-excel");
@@ -833,7 +862,7 @@ public class ReporteServiceImpl implements ReporteService {
     private <T> List<T> safeList(List<T> values) { return values == null ? List.of() : values; }
 
     private record DetalleSeguimiento(
-            String fase, BigDecimal ponderacionFase, String hito, BigDecimal ponderacionHito, String entregable,
+            Integer faseId, Integer hitoId, String fase, BigDecimal ponderacionFase, String hito, BigDecimal ponderacionHito, String entregable,
             BigDecimal ponderacionEntregable, String descripcion, LocalDate fechaLimite, LocalDate fechaEntrega,
             Long diasAtraso, boolean conforme, String evidencia, String evidenciaPublica, String observacion, BigDecimal ejecutadoHito,
             BigDecimal ejecutadoFase, BigDecimal ejecutadoProyecto, Long diasParaLimite, BigDecimal programadoHito,

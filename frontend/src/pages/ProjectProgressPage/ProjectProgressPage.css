@@ -657,6 +657,18 @@
   min-width: 1560px;
 }
 
+.tree-table.excel-table {
+  table-layout: fixed;
+}
+
+.tree-table.excel-table th:first-child {
+  width: 30%;
+}
+
+.tree-table.excel-table th:last-child {
+  width: 124px;
+}
+
 .tree-table.excel-table th {
   background: color-mix(in srgb, var(--bg-muted) 78%, var(--bg-card));
   color: var(--text-muted);
@@ -686,6 +698,15 @@
 .tree-table .col-node {
   min-width: 360px;
   text-align: left;
+}
+
+.tree-table td:not(.col-node) {
+  text-align: center;
+}
+
+.tree-table .metric-pill {
+  min-width: 72px;
+  justify-content: center;
 }
 
 .tree-table .col-ponderacion,

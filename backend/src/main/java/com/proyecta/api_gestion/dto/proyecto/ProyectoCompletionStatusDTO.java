@@ -26,7 +26,7 @@ import java.util.List;
       "fechaLimiteCompletar": "2026-07-31",
       "plazoVencido": false,
       "cierreForzoso": false,
-      "mensaje": "Complete la información pendiente del wizard",
+      "mensaje": "Complete la información pendiente del proyecto",
       "documentosPreWizard": []
     }
     """)

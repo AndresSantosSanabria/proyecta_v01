@@ -97,7 +97,7 @@ public interface IDocumentoController {
             @Parameter(description = "Tipo de documento") @PathVariable String tipoDocumento,
             @Parameter(description = "Numero de version") @PathVariable Integer numeroVersion);
 
-    @Operation(summary = "EP-DOC-07 - Listar revisiones de los 3 documentos pre-wizard")
+    @Operation(summary = "EP-DOC-07 - Listar revisiones de los 3 documentos iniciales del proyecto")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
@@ -110,7 +110,7 @@ public interface IDocumentoController {
     ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO.Listado>> listarRevisionesPreWizard(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId);
 
-    @Operation(summary = "EP-DOC-08 - Aprobar individualmente un documento pre-wizard")
+    @Operation(summary = "EP-DOC-08 - Aprobar individualmente un documento inicial del proyecto")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
@@ -122,10 +122,10 @@ public interface IDocumentoController {
     @PatchMapping("/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/aprobar")
     ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO>> aprobarDocumentoPreWizard(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Parameter(description = "Tipo de documento pre-wizard") @PathVariable String tipoDocumento,
+            @Parameter(description = "Tipo de documento inicial") @PathVariable String tipoDocumento,
             Authentication authentication);
 
-    @Operation(summary = "EP-DOC-09 - Devolver individualmente un documento pre-wizard con observaciones")
+    @Operation(summary = "EP-DOC-09 - Devolver individualmente un documento inicial del proyecto con observaciones")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
@@ -137,11 +137,11 @@ public interface IDocumentoController {
     @PatchMapping("/{proyectoId}/documentos-pre-wizard/{tipoDocumento}/devolver")
     ResponseEntity<ApiResponse<DocumentoPreWizardRevisionDTO>> devolverDocumentoPreWizard(
             @Parameter(description = "ID del proyecto") @PathVariable String proyectoId,
-            @Parameter(description = "Tipo de documento pre-wizard") @PathVariable String tipoDocumento,
+            @Parameter(description = "Tipo de documento inicial") @PathVariable String tipoDocumento,
             @Valid @RequestBody DocumentoPreWizardDevolverDTO dto,
             Authentication authentication);
 
-    @Operation(summary = "EP-DOC-10 - Confirmar revision pre-wizard y enviar notificacion consolidada")
+    @Operation(summary = "EP-DOC-10 - Confirmar revision de los documentos iniciales y enviar notificacion consolidada")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",

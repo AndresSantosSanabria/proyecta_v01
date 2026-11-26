@@ -50,12 +50,14 @@ class ReporteActualProyectoExcelTest {
     private static final int TOTAL_ENTREGABLES = 5;
 
     private ReporteServiceImpl service;
+    private Proyecto proyecto;
 
     @BeforeEach
     void setUp() {
         ProyectoRepositoryPort proyectos = mock(ProyectoRepositoryPort.class);
-        when(proyectos.findById(PROYECTO_ID)).thenReturn(Optional.of(proyecto()));
-        when(proyectos.findAll()).thenReturn(List.of(proyecto()));
+        proyecto = proyecto();
+        when(proyectos.findById(PROYECTO_ID)).thenReturn(Optional.of(proyecto));
+        when(proyectos.findAll()).thenReturn(List.of(proyecto));
 
         ProjectProgressMetricsService metricas = mock(ProjectProgressMetricsService.class);
         when(metricas.construir(any(Proyecto.class), any(LocalDate.class))).thenReturn(avance());
@@ -183,11 +185,78 @@ class ReporteActualProyectoExcelTest {
 
             Sheet avance = workbook.getSheet("AVANCE");
             assertEquals("P03 FORTALECIMIENTO DEL PROCESO DE GESTION DOCUMENTAL", texto(avance, 1, 1));
-            assertEquals("E01", texto(avance, 4, 7));
+            assertEquals("DESCRIPCION", texto(avance, 3, 7));
+            assertEquals("Descripcion E01", texto(avance, 4, 7));
             assertEquals(0, contar(avance, "P02 CUNDILEX"), "no deben quedar datos de ejemplo");
 
             Sheet informe = workbook.getSheet("INFORME 1");
             assertEquals("AVANCES DEL PROYECTO P03", texto(informe, 1, 1));
+        }
+    }
+
+    @Test
+    void imprimeTodosLosDatosDelProyectoEnLaFicha() throws Exception {
+        com.proyecta.api_gestion.domain.model.Patrocinador patrocinador = new com.proyecta.api_gestion.domain.model.Patrocinador();
+        patrocinador.setNombre("Patrocinador de prueba");
+        proyecto.setPatrocinador(patrocinador);
+
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(
+                service.generarReporteActualProyectoExcel(PROYECTO_ID)))) {
+            Sheet datos = workbook.getSheet("DATOS");
+            assertEquals("P03", texto(datos, 1, 2));
+            assertEquals("FORTALECIMIENTO DEL PROCESO DE GESTION DOCUMENTAL", texto(datos, 2, 2));
+            assertEquals("Alcance del proyecto", texto(datos, 3, 2));
+            assertEquals("Patrocinador de prueba", texto(datos, 4, 2));
+            assertEquals("SECRETARIA GENERAL", texto(datos, 6, 2));
+            assertEquals("director@cundinamarca.gov.co", texto(datos, 8, 2));
+            assertEquals("Migrar al SGDEA", texto(datos, 9, 2));
+            assertEquals("18/10/2024", texto(datos, 11, 2));
+            assertEquals("30/05/2026", texto(datos, 12, 2));
+            assertEquals("SI", texto(datos, 14, 2));
+            assertEquals("NO", texto(datos, 16, 2));
+        }
+    }
+
+    @Test
+    void noSustituyeUnaDescripcionVaciaPorElCodigoDelEntregable() throws Exception {
+        proyecto.getFases().get(0).getHitos().get(0).getEntregables().get(0).setDescripcion(" ");
+
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(
+                service.generarReporteActualProyectoExcel(PROYECTO_ID)))) {
+            Sheet avance = workbook.getSheet("AVANCE");
+            assertEquals("E01", texto(avance, 4, 5));
+            assertTrue(texto(avance, 4, 7).isBlank());
+        }
+    }
+
+    @Test
+    void incluyeHitosSinEntregablesYEliminaLosHitosDeEjemplo() throws Exception {
+        proyecto.getFases().get(1).getHitos().add(hito(3, "HITO 3", 0, List.of()));
+
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(
+                service.generarReporteActualProyectoExcel(PROYECTO_ID)))) {
+            Sheet avance = workbook.getSheet("AVANCE");
+            assertEquals("HITO 3", texto(avance, 9, 3));
+            assertTrue(texto(avance, 9, 5).isEmpty());
+
+            Sheet informe = workbook.getSheet("INFORME 1");
+            assertEquals("HITO 3", texto(informe, 12, 1));
+            assertEquals("AVANCE!U10", informe.getRow(12).getCell(2).getCellFormula());
+            assertEquals(0, contar(informe, "HITO 4"));
+        }
+    }
+
+    @Test
+    void enlazaFasesYHitosPorIdAunqueTenganElMismoNombre() throws Exception {
+        proyecto.getFases().get(1).setNombre("FASE 1");
+        proyecto.getFases().get(1).getHitos().get(0).setNombre("HITO 1");
+
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(
+                service.generarReporteActualProyectoExcel(PROYECTO_ID)))) {
+            Sheet informe = workbook.getSheet("INFORME 1");
+            assertEquals("FASE 1", texto(informe, 8, 1));
+            assertEquals("AVANCE!V7", informe.getRow(8).getCell(2).getCellFormula());
+            assertEquals("AVANCE!U7", informe.getRow(11).getCell(2).getCellFormula());
         }
     }
 
@@ -265,7 +334,7 @@ class ReporteActualProyectoExcelTest {
         Entregable entregable = new Entregable();
         entregable.setId(id);
         entregable.setNombre(nombre);
-        entregable.setDescripcion(nombre);
+        entregable.setDescripcion("Descripcion " + nombre);
         entregable.setPonderacion(BigDecimal.valueOf(100));
         entregable.setFechaLimite(fechaLimite);
         entregable.setFechaEntregaReal(fechaEntrega);

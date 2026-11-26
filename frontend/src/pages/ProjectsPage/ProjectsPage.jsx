@@ -59,7 +59,8 @@ const ProjectsPage = () => {
   const canEditProject = usePermission('PROYECTO:EDITAR');
   const canViewAllProjects = usePermission('PROYECTO:VER_TODOS');
   const { hasRole, isAdminLocal, transversal } = useAuthContext();
-  const canForceClose = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
+  const isGestor = isAdminLocal || transversal || hasRole('ADMIN') || hasRole('GESTOR_PROYECTOS') || hasRole('GESTOR_TIC');
+  const canForceClose = isGestor;
   const navigate = useNavigate();
   const shouldUseAssignedProjects = !canViewAllProjects;
 
@@ -352,7 +353,7 @@ const ProjectsPage = () => {
         <ProjectListTable
           projects={filteredProjects}
           loading={loading}
-          canEditProject={canEditProject && !shouldUseAssignedProjects}
+          canEditProject={canEditProject && isGestor && !shouldUseAssignedProjects}
           onEditProject={(id) => setEditingProjectId(id)}
           canForceClose={canForceClose}
           onForceClosed={loadProjects}

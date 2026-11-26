@@ -63,7 +63,7 @@ public interface IProyectoController {
             @Valid @RequestBody ProyectoCompletarInformacionDTO dto,
             Authentication authentication);
 
-    @Operation(summary = "EP-PROY-04 · Actualizar proyecto", description = "Actualizar datos editables de un proyecto existente.")
+    @Operation(summary = "EP-PROY-04 · Actualizar proyecto", description = "Actualizar datos editables de un proyecto existente. El nombre y el objetivo general solo pueden ser modificados por un Gestor; el Director de Proyecto solo los consulta.")
     @PutMapping("/{id}")
     ResponseEntity<ApiResponse<ProyectoResponseDTO>> actualizarProyecto(
             @PathVariable String id,

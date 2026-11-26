@@ -12,7 +12,7 @@ const ProjectInfoCard = ({ displayResumen, expanded, onToggleExpanded }) => {
     { label: 'Fecha inicio', value: displayResumen.fechaInicio, tone: 'neutral' },
     { label: 'Director', value: displayResumen.director, tone: 'neutral' },
     { label: 'Dependencia', value: displayResumen.dependencia, tone: 'neutral' },
-    { label: 'Propósito', value: displayResumen.meta, tone: 'neutral' },
+    { label: 'Objetivo General', value: displayResumen.meta, tone: 'neutral' },
     { label: 'Fases', value: displayResumen.fases, tone: 'accent' },
     { label: 'Hitos', value: displayResumen.totalHitos, tone: 'accent' },
     { label: 'Avance', value: displayResumen.avance, tone: 'success' },

@@ -2,6 +2,7 @@ package com.proyecta.api_gestion.service.security.dynamic;
 
 import com.proyecta.api_gestion.domain.exception.ForbiddenException;
 import com.proyecta.api_gestion.domain.model.Proyecto;
+import com.proyecta.api_gestion.dto.proyecto.ProyectoUpdateDTO;
 
 import com.proyecta.api_gestion.domain.model.security.SeguridadUsuario;
 import com.proyecta.api_gestion.application.port.out.persistence.ProyectoRepositoryPort;
@@ -656,6 +657,30 @@ public class ProyectoSecurity {
         }
 
         throw new ForbiddenException("El usuario no tiene permisos para ver sus proyectos asignados.");
+    }
+
+    /**
+     * El nombre y el objetivo general de un proyecto solo pueden ser modificados por un
+     * Gestor (gestor_proyectos / gestor_tic) o un Administrador. El Director de Proyecto
+     * conserva PROYECTO:EDITAR para el resto de campos, pero no para estos dos.
+     * Si la solicitud no toca esos campos, el acceso queda a criterio de canAccess.
+     */
+    public boolean canEditDatosGenerales(ProyectoUpdateDTO dto, Authentication authentication) {
+        boolean tocaDatosGenerales = dto != null
+                && (dto.nombre() != null || dto.objetivoGeneral() != null);
+        if (!tocaDatosGenerales) {
+            return true;
+        }
+
+        if (isAdmin(authentication)) {
+            return true;
+        }
+
+        if (isTransversal(resolveEffectiveRoleCodes(authentication))) {
+            return true;
+        }
+
+        throw new ForbiddenException("Solo un Gestor puede modificar el nombre y el objetivo general del proyecto.");
     }
 
     private boolean isAdmin(Authentication authentication) {

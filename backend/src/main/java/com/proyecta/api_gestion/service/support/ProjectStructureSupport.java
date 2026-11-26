@@ -121,11 +121,18 @@ public class ProjectStructureSupport {
         int sumEntregables = 0;
         for (EntregableDTO entregable : hito.entregables()) {
             validarPonderacionElemento(entregable.ponderacion(), "La ponderacion del entregable debe estar entre 1 y 100");
+            validarDescripcionEntregable(entregable);
             validarFechasEntregableNuevo(entregable);
             sumEntregables += entregable.ponderacion();
         }
         if (sumEntregables != 100) {
             throw new BadRequestException("La suma de ponderaciones de entregables en un hito debe ser exactamente 100");
+        }
+    }
+
+    private void validarDescripcionEntregable(EntregableDTO entregable) {
+        if (entregable.descripcion() == null || entregable.descripcion().isBlank()) {
+            throw new BadRequestException("La descripcion del entregable es obligatoria");
         }
     }
 
